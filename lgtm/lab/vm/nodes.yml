@@ -1,0 +1,118 @@
+---
+# The one list of lab machines.
+#
+# Two things are generated from this file:
+#   - the Hyper-V VMs, by vm/hyperv/lab-vms.ps1 (Windows, elevated PowerShell);
+#   - the Ansible inventory ansible/inventory/hosts.yml, by `make inventory` (WSL).
+# Change a size, an address or the number of workers here, then run both again.
+#
+# Keep to plain block YAML. The PowerShell reader understands mappings, lists,
+# plain or quoted scalars, [a, b] lists and comments. It does not understand
+# anchors, {a: b} mappings or multi-line strings.
+
+lab:
+  # Written into the Notes of every VM and of the switch. `destroy` only removes
+  # VMs and a switch that carry this tag.
+  tag: lgtm-lab
+  cluster_name: lgtm-lab
+
+hyperv:
+  switch_name: lgtm-lab
+  nat_name: lgtm-lab
+  # Folder for the VM configuration and the disks. Point it at another drive if
+  # C: is short of space: the lab needs up to about 90 GB of real disk.
+  vm_path: C:\Hyper-V\lgtm-lab
+  secure_boot_template: MicrosoftUEFICertificateAuthority
+  # Locally administered MAC prefix. The last three bytes are the last three
+  # octets of the VM address, so 10.10.0.11 gets 02:4c:47:0a:00:0b.
+  mac_prefix: "02:4c:47"
+  # Optional path to qemu-img.exe. Empty means: look on PATH, then in
+  # C:\Program Files\qemu, then in the WSL distribution below.
+  qemu_img: ""
+  wsl_distribution: archlinux
+
+network:
+  subnet: 10.10.0.0/24
+  gateway: 10.10.0.1
+  # Resolvers the VMs use from first boot, and that dnsmasq on lb forwards to.
+  upstream_dns: [1.1.1.1, 9.9.9.9]
+  # dnsmasq on lb serves this zone once `make cluster` has run.
+  lab_dns: 10.10.0.5
+  domain: k8s.local
+  # Name cloud-init gives the single network card (matched by MAC address).
+  interface: eth0
+  # How Ansible and kubectl in WSL reach the VMs: `direct` (WSL mirrored
+  # networking sees the lgtm-lab switch) or `portproxy` (fallback through
+  # Windows port proxies on 127.0.0.1, see lgtm/docs/adr/l1-wsl-networking.md).
+  control_access: direct
+  portproxy_ssh_base: 22000
+
+ssh:
+  user: vaka
+  # Read by the Hyper-V script on Windows and written into every VM.
+  public_key_file: \\wsl.localhost\archlinux\home\vaka\.ssh\ansible.pub
+  # Used by Ansible in WSL.
+  private_key_file: ~/.ssh/ansible
+
+image:
+  # Ubuntu Server 24.04 LTS cloud image (QCOW2), converted to VHDX once.
+  # Source: https://cloud-images.ubuntu.com/releases/noble/release-20261017/
+  release: "24.04"
+  url: https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-amd64.img
+  sha256: 04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94
+
+# role is one of: lb, control_plane, worker. Sizes: memory and disks in GB.
+# data_disk_gb is the second disk that node_prereqs mounts at /var/lib/longhorn.
+nodes:
+  - name: lb
+    role: lb
+    address: 10.10.0.5
+    vcpu: 1
+    memory_gb: 1
+    disk_gb: 10
+  - name: master1
+    role: control_plane
+    address: 10.10.0.11
+    vcpu: 2
+    memory_gb: 3
+    disk_gb: 25
+  - name: master2
+    role: control_plane
+    address: 10.10.0.12
+    vcpu: 2
+    memory_gb: 3
+    disk_gb: 25
+  - name: master3
+    role: control_plane
+    address: 10.10.0.13
+    vcpu: 2
+    memory_gb: 3
+    disk_gb: 25
+  - name: worker1
+    role: worker
+    address: 10.10.0.30
+    vcpu: 6
+    memory_gb: 9
+    disk_gb: 30
+    data_disk_gb: 40
+  - name: worker2
+    role: worker
+    address: 10.10.0.31
+    vcpu: 6
+    memory_gb: 9
+    disk_gb: 30
+    data_disk_gb: 40
+  - name: worker3
+    role: worker
+    address: 10.10.0.32
+    vcpu: 6
+    memory_gb: 9
+    disk_gb: 30
+    data_disk_gb: 40
+  - name: worker4
+    role: worker
+    address: 10.10.0.33
+    vcpu: 6
+    memory_gb: 9
+    disk_gb: 30
+    data_disk_gb: 40

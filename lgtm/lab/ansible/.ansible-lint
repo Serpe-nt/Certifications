@@ -1,0 +1,9 @@
+---
+# ansible-lint settings for lgtm/lab/ansible. Run through `make lint`.
+profile: production
+# Use the collections that `make collections` installed; do not download anything.
+offline: true
+exclude_paths:
+  - .ansible/
+  # The copied roles keep the test stubs that ansible-galaxy generated; they are not playbooks.
+  - roles/*/tests/

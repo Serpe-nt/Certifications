@@ -1,0 +1,17 @@
+---
+- name: Install time sync
+  ansible.builtin.apt:
+    name: "{{ node_prereqs_time_package }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Start time sync at boot
+  ansible.builtin.systemd_service:
+    name: "{{ node_prereqs_time_service }}"
+    enabled: true
+    state: started
+
+- name: Longhorn prerequisites and data disk
+  ansible.builtin.include_tasks: longhorn.yml
+  when: node_prereqs_longhorn | bool

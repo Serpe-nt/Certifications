@@ -1,0 +1,10 @@
+# Findings in files copied from k8s-provision (commit 8442dee) that are kept on purpose.
+# The variable names are the owner's interface: inventories and group_vars already set them,
+# so they are not renamed to the role-prefixed form ansible-lint prefers.
+roles/k8s_packages/defaults/main.yml var-naming[no-role-prefix]
+roles/master_init/defaults/main.yml var-naming[no-role-prefix]
+roles/network/defaults/main.yml var-naming[no-role-prefix]
+roles/ssh_hardening/defaults/main.yml var-naming[no-role-prefix]
+roles/swapoff/defaults/main.yml var-naming[no-role-prefix]
+# A one-off bootstrap play for machines made by hand; it always changes the sudoers file.
+playbooks/nopass_sudo.yml no-changed-when

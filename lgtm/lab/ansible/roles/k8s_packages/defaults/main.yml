@@ -1,3 +1,4 @@
 ---
-k8s_sign_key: "https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key"
-k8s_apt_repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /"
+# k8s_minor_version is set in the inventory (group_vars/all.yml), the one place for versions.
+k8s_sign_key: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/Release.key"
+k8s_apt_repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/ /"

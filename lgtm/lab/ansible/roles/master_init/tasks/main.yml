@@ -38,11 +38,36 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
+# The operator CRDs are too large for client-side apply, and since Calico 3.30 they are not
+# part of tigera-operator.yaml. Both manifests are applied server-side, once.
+- name: Check for the Calico operator CRDs
+  ansible.builtin.command:
+    cmd: "kubectl get crd installations.operator.tigera.io"
+  register: master_init_crds_present
+  failed_when: false
+  changed_when: false
+  become: false
+
+- name: Install the Calico operator CRDs
+  ansible.builtin.command:
+    cmd: "kubectl apply --server-side --force-conflicts -f {{ master_init_calico_crds_manifest_url }}"
+  when: master_init_crds_present.rc != 0
+  changed_when: true
+  become: false
+
+- name: Check for the Tigera operator
+  ansible.builtin.command:
+    cmd: "kubectl get deployment tigera-operator --namespace tigera-operator"
+  register: master_init_operator_present
+  failed_when: false
+  changed_when: false
+  become: false
+
 - name: Install Tigera operator for managing Calico
   ansible.builtin.command:
-    cmd: "kubectl apply -f {{ tigera_operator_manifest_url }}"
-  register: master_init_tigera_result
-  changed_when: "'created' in master_init_tigera_result.stdout or 'configured' in master_init_tigera_result.stdout"
+    cmd: "kubectl apply --server-side --force-conflicts -f {{ tigera_operator_manifest_url }}"
+  when: master_init_operator_present.rc != 0
+  changed_when: true
   become: false
 
 - name: Wait for the Tigera operator to be ready

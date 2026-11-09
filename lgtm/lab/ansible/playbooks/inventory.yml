@@ -1,0 +1,33 @@
+---
+# Generates inventory/hosts.yml from lgtm/lab/vm/nodes.yml. Run it with `make inventory`.
+# It only reads the nodes file and writes one file on the control machine.
+- name: Generate the Ansible inventory from the nodes file
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    inventory_nodes_file: "{{ playbook_dir }}/../../vm/nodes.yml"
+    inventory_output: "{{ playbook_dir }}/../inventory/hosts.yml"
+    inventory_lab: "{{ lookup('ansible.builtin.file', inventory_nodes_file) | from_yaml }}"
+    inventory_roles: "{{ inventory_lab.nodes | map(attribute='role') | list }}"
+  tasks:
+    - name: Check the nodes file
+      ansible.builtin.assert:
+        that:
+          - inventory_roles | select('equalto', 'lb') | list | length == 1
+          - inventory_roles | select('equalto', 'control_plane') | list | length >= 1
+          - inventory_roles | select('equalto', 'worker') | list | length >= 1
+          - inventory_roles | difference(['lb', 'control_plane', 'worker']) | length == 0
+          - inventory_lab.nodes | map(attribute='name') | unique | list | length == inventory_lab.nodes | length
+          - inventory_lab.nodes | map(attribute='address') | unique | list | length == inventory_lab.nodes | length
+          - inventory_lab.network.control_access | default('direct') in ['direct', 'portproxy']
+        fail_msg: >-
+          {{ inventory_nodes_file }} needs exactly one lb, at least one control_plane and one worker,
+          unique names and addresses, and network.control_access 'direct' or 'portproxy'.
+        quiet: true
+
+    - name: Write the inventory
+      ansible.builtin.template:
+        src: templates/hosts.yml.j2
+        dest: "{{ inventory_output }}"
+        mode: "0644"

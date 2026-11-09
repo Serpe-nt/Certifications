@@ -1,0 +1,52 @@
+---
+# The configuration goes in before the package, so the first start already binds to one
+# address and does not collide with systemd-resolved on port 53.
+- name: Create the dnsmasq configuration directory
+  ansible.builtin.file:
+    path: /etc/dnsmasq.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render the lab DNS configuration
+  ansible.builtin.template:
+    src: lgtm-lab.conf.j2
+    dest: /etc/dnsmasq.d/lgtm-lab.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart dnsmasq
+
+- name: Install dnsmasq and dig
+  ansible.builtin.apt:
+    name:
+      - dnsmasq
+      - bind9-dnsutils
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Check the dnsmasq configuration
+  ansible.builtin.command:
+    cmd: dnsmasq --test --conf-dir=/etc/dnsmasq.d,.dpkg-dist,.dpkg-old,.dpkg-new
+  changed_when: false
+
+- name: Start dnsmasq at boot
+  ansible.builtin.systemd_service:
+    name: dnsmasq
+    enabled: true
+    state: started
+
+- name: Apply a changed configuration now
+  ansible.builtin.meta: flush_handlers
+
+- name: Check that the control-plane endpoint resolves
+  ansible.builtin.command:
+    cmd: "dig +short @{{ lb_dnsmasq_listen_address }} {{ lb_dnsmasq_endpoint_name }}"
+  register: lb_dnsmasq_dig
+  changed_when: false
+  failed_when: lb_dnsmasq_dig.stdout | trim != lb_dnsmasq_target_address
+  retries: 5
+  delay: 2
+  until: lb_dnsmasq_dig is not failed

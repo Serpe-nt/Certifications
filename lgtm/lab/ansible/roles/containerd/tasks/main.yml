@@ -12,10 +12,12 @@
     group: root
     mode: "0744"
 
+# Generated once only: regenerating it on every run undid the edits below and
+# restarted containerd each time.
 - name: Generate default Containerd config
   ansible.builtin.shell:
     cmd: "containerd config default > /etc/containerd/config.toml"
-  changed_when: false
+    creates: /etc/containerd/config.toml
 
 - name: Fix containerd cgroup and correct k8s cni plugin bin path
   ansible.builtin.replace:

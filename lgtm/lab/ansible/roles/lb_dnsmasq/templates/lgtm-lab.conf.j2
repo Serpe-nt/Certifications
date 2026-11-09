@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# Lab DNS: the {{ lb_dnsmasq_domain }} zone is answered here, everything else is forwarded.
+listen-address={{ lb_dnsmasq_listen_address }}
+bind-interfaces
+no-resolv
+no-hosts
+domain-needed
+bogus-priv
+cache-size=1000
+{% for server in lb_dnsmasq_upstream_servers %}
+server={{ server }}
+{% endfor %}
+local=/{{ lb_dnsmasq_domain }}/
+host-record={{ lb_dnsmasq_endpoint_name }},{{ lb_dnsmasq_target_address }}
+address=/{{ lb_dnsmasq_wildcard_domain }}/{{ lb_dnsmasq_target_address }}
+{% for host in groups['all'] | sort %}
+{% if hostvars[host].k8s_net_ip is defined %}
+host-record={{ host }}.{{ lb_dnsmasq_domain }},{{ hostvars[host].k8s_net_ip }}
+{% endif %}
+{% endfor %}
