@@ -47,7 +47,7 @@ function baseIds(): BaseIds | string {
     }
     return { ref, steps };
   } catch {
-    return 'git is not available here';
+    return 'this folder is not in a git checkout, or git is missing';
   }
 }
 

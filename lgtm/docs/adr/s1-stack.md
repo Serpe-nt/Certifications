@@ -43,7 +43,7 @@ Decision: (b). This is a difference from the card ("the Node adapter in standalo
 
 ### 2. SQLite: better-sqlite3, not `node:sqlite`
 
-The card says to use Node's built-in SQLite if it is stable in the pinned Node version. The Node 26 documentation (https://nodejs.org/docs/latest-v26.x/api/sqlite.html, read 2026-11-09) marks `node:sqlite` as "Stability: 1.2 - Release candidate", which is not stable. So the server uses one small dependency, better-sqlite3 13.0.3. Its package ships prebuilt binaries for Linux (glibc and musl), macOS and Windows on x64 and arm64 and loads the right one at run time, so `npm ci --ignore-scripts` is enough and the arm64 image builds without emulation. When `node:sqlite` becomes stable, `server/store.mjs` is the only file to change.
+The card says to use Node's built-in SQLite if it is stable in the pinned Node version. The Node 26 documentation (https://nodejs.org/docs/latest-v26.x/api/sqlite.html, read 2026-11-09) marks `node:sqlite` as "Stability: 1.2 - Release candidate", which is not stable. So the server uses one small dependency, better-sqlite3 13.0.3. Its package ships prebuilt binaries for Linux (glibc and musl), macOS and Windows on x64 and arm64 and loads the right one at run time. Its lock-file entry still asks npm to run `node-gyp rebuild`, which fails where no compiler is installed, so `lgtm/learn/.npmrc` sets `ignore-scripts=true` (no other dependency has an install script). A plain `npm ci` then works on Windows, Linux and in the image, and the arm64 image builds without emulation. When `node:sqlite` becomes stable, `server/store.mjs` is the only file to change.
 
 ### 3. Content collections with the default loaders
 
