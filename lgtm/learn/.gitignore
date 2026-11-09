@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-sample/
+.astro/
+.bin/
+data/
+test-results/
+playwright-report/

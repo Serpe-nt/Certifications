@@ -1,0 +1,52 @@
+---
+id: m90-s03
+title: A lab step with a regex check
+kind: lab
+minutes: 5
+order: 3
+exam:
+  - cert: otca
+    domain: O2
+    competency: Context Propagation
+tags: [sample-lab]
+check:
+  kind: regex
+  prompt: Paste a trace id (32 hexadecimal characters).
+  pattern: "[0-9a-f]{32}"
+---
+
+<Why>
+Some answers differ between two healthy labs, such as a trace id. A pattern check accepts any value of the right shape, so the learner proves they found one without the site knowing which.
+</Why>
+
+<Idea>
+The whole pasted text must match the pattern.
+</Idea>
+
+<Do>
+1. Find any trace id and paste it below.
+</Do>
+
+<Done>
+The check says passed.
+</Done>
+
+<Question id="q-m90-s03" answer="c">
+When is a regex check the right choice?
+
+- When every lab gives the same answer
+
+  Then an exact check is stricter.
+
+- When the answer is a number in a range
+
+  Then a range check fits.
+
+- When the answer differs between labs but has a fixed shape
+
+  Right: the pattern checks the shape.
+
+- When the learner picks from options
+
+  Then a choice check fits.
+</Question>

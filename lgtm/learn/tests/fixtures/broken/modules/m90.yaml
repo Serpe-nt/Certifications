@@ -1,0 +1,7 @@
+# Broken content on purpose: tests/unit/content-rules.test.ts expects each file below to fail one rule.
+id: m90
+title: Broken sample
+goal: Prove that check:content names the file and the rule.
+order: 0
+quiz: false
+exams: []

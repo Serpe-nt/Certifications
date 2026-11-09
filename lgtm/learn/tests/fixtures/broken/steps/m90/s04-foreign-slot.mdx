@@ -1,0 +1,50 @@
+---
+id: m90-s04
+title: A token check that uses a slot of another module
+kind: lab
+minutes: 5
+order: 4
+exam:
+  - cert: none
+tags: [broken]
+check:
+  kind: token
+  prompt: Paste the token.
+  slot: log-m12-1
+---
+
+<Why>
+A step must use a token slot of its own module. A slot of another module belongs to a different lesson, and two lessons sharing one slot would teach the learner to find the same token twice.
+</Why>
+
+<Idea>
+Each module has its own slots.
+</Idea>
+
+<Do>
+1. Find the token.
+</Do>
+
+<Done>
+The check passes.
+</Done>
+
+<Question id="q-m90-s04" answer="a">
+Which slots may a step use?
+
+- Slots of its own module
+
+  Right.
+
+- Any slot
+
+  Only its own module.
+
+- Slots of the next module
+
+  Only its own module.
+
+- No slots
+
+  Token checks use slots.
+</Question>

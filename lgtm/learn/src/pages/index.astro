@@ -1,0 +1,11 @@
+---
+import Base from '../layouts/Base.astro';
+import Overview from '../components/islands/Overview.tsx';
+import { loadCourse } from '../lib/course.ts';
+
+const { modules } = await loadCourse();
+---
+<Base title="LGTM course">
+  <h1 class="sr-only">Overview</h1>
+  <Overview client:load modules={modules} />
+</Base>

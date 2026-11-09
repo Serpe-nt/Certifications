@@ -1,0 +1,93 @@
+# The LGTM study site (lgtm/learn).
+# Pull requests that touch it: unit tests, type check, sample build, end-to-end tests, production build.
+# Pushes to main: the same, then the image goes to GHCR for amd64 and arm64,
+# tagged latest and sha-<short commit> (TAG=sha-abc1234 in the server's .env to roll back).
+name: lgtm-learn
+
+on:
+  pull_request:
+    paths: ["lgtm/learn/**", ".github/workflows/lgtm-learn.yml"]
+  push:
+    branches: [main]
+    paths: ["lgtm/learn/**", ".github/workflows/lgtm-learn.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lgtm-learn-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lgtm/learn
+    env:
+      ASTRO_TELEMETRY_DISABLED: "1"
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/lgtm/learn/.bin/ms-playwright
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # check:content compares step ids with origin/main, so it needs the history.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.13.0
+          cache: npm
+          cache-dependency-path: lgtm/learn/package-lock.json
+
+      # No package needs an install script: better-sqlite3 loads its bundled prebuilt binary.
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - run: npx playwright install --with-deps chromium-headless-shell
+
+      - run: npm test
+
+      - run: npm run build
+
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: lgtm/learn/test-results/
+          retention-days: 7
+
+  image:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/serpe-nt/lgtm-learn
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: lgtm/learn
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=lgtm-learn
+          cache-to: type=gha,mode=max,scope=lgtm-learn

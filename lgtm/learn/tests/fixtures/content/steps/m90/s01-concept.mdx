@@ -1,0 +1,60 @@
+---
+id: m90-s01
+title: A concept step with every reading component
+kind: concept
+minutes: 10
+order: 1
+exam:
+  - cert: pca
+    domain: P1
+    competency: Metrics
+tags: [sample-metrics]
+sources:
+  - title: Prometheus overview
+    url: https://prometheus.io/docs/introduction/overview/
+    checked: 2026-11-09
+---
+
+<Why>
+A service slows down at night and nobody can say why, because nothing recorded how it behaved. This sample card stands in for a real lesson and shows each part a card can have.
+</Why>
+
+<Idea>
+Record numbers about the service over time, then ask questions of them. This card exists to test the site, not to teach.
+</Idea>
+
+<Points>
+  <Point label="Points tell the story">Each point has a label that says what it says.</Point>
+  <Point label="Queries can be copied">
+    <Query lang="promql">{`sum by (job) (rate(http_requests_total{job="shop"}[5m]))`}</Query>
+  </Point>
+  <Point label="Lab links follow the setting">Open <LabLink to="grafana" path="/explore">Explore in Grafana</LabLink> in the lab.</Point>
+</Points>
+
+<Figure id="m90-s01-flow" alt="Requests flow from a shop into a metrics store and a dashboard." brief="Test scene: a dot moves along a line while the figure is on screen." />
+
+<Figure id="m90-s01-later" alt="A dashboard panel shows a latency line rising at night." brief="A fake Grafana panel draws a latency line that rises at night; the learner notices the rise." />
+
+<Trap>
+A sample is not a lesson. Real cards come from the content cards.
+</Trap>
+
+<Question id="q-m90-s01" answer="b">
+Which of these is a number recorded over time?
+
+- A log line
+
+  A log line is text about one event, not a number over time.
+
+- A metric
+
+  Right: a metric is a number sampled over time.
+
+- A trace
+
+  A trace follows one request through services.
+
+- A profile
+
+  A profile shows where a program spends its resources.
+</Question>

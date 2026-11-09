@@ -1,0 +1,32 @@
+- id: q-m90-001
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: A team wants to see how request latency changed over the last week. Which signal fits best?
+  options:
+    - text: Metrics
+      why: Correct. Metrics are numbers sampled over time and are cheap to keep for a week.
+    - text: Logs
+      why: Logs describe single events; turning them into a weekly trend is slow and costly.
+    - text: Traces
+      why: Traces follow single requests; they are usually sampled and kept for a short time.
+    - text: Profiles
+      why: Profiles show where code spends resources, not how latency trends.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-m90-002
+  tags: [sample-lab]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: Which two parts does a Collector pipeline always have? (Choose two.)
+  options:
+    - text: Receivers
+      why: Correct. Every pipeline starts with at least one receiver.
+    - text: Exporters
+      why: Correct. Every pipeline ends with at least one exporter.
+    - text: Dashboards
+      why: Dashboards belong to Grafana, not to the Collector.
+    - text: Alert rules
+      why: Alert rules live in Prometheus, Mimir or Grafana.
+    - text: Volumes
+      why: Volumes are a Kubernetes storage concept.
+  answer: [0, 1]
+  source: https://opentelemetry.io/docs/collector/configuration/

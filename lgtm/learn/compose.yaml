@@ -1,0 +1,36 @@
+# One file for the PC and the server.
+#   PC (builds from this folder):  docker compose up -d --build
+#   Sample module instead of the course (for trying the engine):
+#                                  SAMPLE=1 TAG=sample docker compose up -d --build
+#   Server (pulls from GHCR):      docker compose pull && docker compose up -d
+# Server-only settings go in a .env file next to this one (see README, "Deploy on a server").
+name: lgtm-learn
+services:
+  lgtm-learn:
+    build:
+      context: .
+      args:
+        # Any non-empty value builds the sample module from tests/fixtures instead of src/content.
+        SAMPLE: "${SAMPLE:-}"
+    image: ghcr.io/serpe-nt/lgtm-learn:${TAG:-latest}
+    container_name: lgtm-learn
+    ports:
+      # Default: only reachable from this machine. BIND=0.0.0.0 opens it to the network.
+      # PORT is the host port (e.g. behind the Gate); the app listens on 8080 inside.
+      - "${BIND:-127.0.0.1}:${PORT:-8082}:8080"
+    environment:
+      # Host names the server answers to (blocks DNS-rebinding attacks from other websites).
+      # Opening it to your LAN or a domain? Add that address or name, e.g. "localhost,127.0.0.1,::1,192.168.1.20".
+      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-localhost,127.0.0.1,::1}"
+      # URL prefix when a reverse proxy passes e.g. /h2/... through unchanged; empty = serve from /.
+      BASE_PATH: "${BASE_PATH:-}"
+    volumes:
+      - lgtm-learn-data:/data   # SQLite database with your progress; survives rebuilds and reboots
+    restart: unless-stopped     # comes back after reboot as long as the Docker service starts at boot
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  lgtm-learn-data:

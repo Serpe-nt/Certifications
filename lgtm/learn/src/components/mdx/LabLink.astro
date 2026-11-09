@@ -1,0 +1,12 @@
+---
+// A link into the lab. The address is built in the browser from the lab domain setting
+// (src/lib/page.ts), so lesson text never hard-codes a domain.
+import { DEFAULT_LAB_DOMAIN } from '../../lib/state.ts';
+interface Props {
+  to: string;
+  path?: string;
+}
+const { to, path = '/' } = Astro.props;
+const fallback = `http://${to}.${DEFAULT_LAB_DOMAIN}${path}`;
+---
+<a href={fallback} data-lab={to} data-path={path} target="_blank" rel="noopener noreferrer">{Astro.slots.has('default') ? <slot /> : `${to}${path === '/' ? '' : path}`}</a>

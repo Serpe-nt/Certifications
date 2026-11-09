@@ -1,0 +1,21 @@
+---
+// Module start: the module's goal and one button to its first step.
+import Base from '../../../layouts/Base.astro';
+import { href, loadCourse } from '../../../lib/course.ts';
+
+export async function getStaticPaths() {
+  const { modules } = await loadCourse();
+  return modules.map((m) => ({ params: { module: m.id }, props: { module: m } }));
+}
+const { module } = Astro.props;
+const first = module.steps[0];
+---
+<Base title={module.title}>
+  <article class="rounded-lg border border-line bg-surface p-6 shadow-card">
+    <h1 class="mt-0">{module.title}</h1>
+    <p>{module.goal}</p>
+    <p class="text-sm text-ink-3">{module.steps.length} steps, about {module.steps.reduce((n, s) => n + s.minutes, 0)} minutes.</p>
+    {first ? <a class="btn btn-primary" href={first.href}>Start the first step</a> : <p>No steps yet.</p>}
+  </article>
+  <p class="mt-6"><a class="btn" href={href.home}>Overview</a></p>
+</Base>

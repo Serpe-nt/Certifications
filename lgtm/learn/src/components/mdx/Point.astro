@@ -1,0 +1,10 @@
+---
+interface Props {
+  label: string;
+}
+const { label } = Astro.props;
+---
+<li class="mb-3 last:mb-0" data-point>
+  <strong class="block">{label}</strong>
+  <div class="text-ink-2"><slot /></div>
+</li>
