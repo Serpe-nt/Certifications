@@ -1,0 +1,52 @@
+---
+id: m90-s02
+title: A lab step with an exact check
+kind: lab
+minutes: 5
+order: 2
+exam:
+  - cert: none
+tags: [sample-lab]
+check:
+  kind: exact
+  prompt: Type the word the command prints.
+  answers: [Ready, ready-to-go]
+---
+
+<Why>
+Lab steps ask for something only the finished lab can give. This sample lab step checks an exact answer, compared after trimming spaces and ignoring upper and lower case.
+</Why>
+
+<Idea>
+Run the command, read its output, paste the answer.
+</Idea>
+
+<Do>
+1. Run the command:
+   <Cmd>{`echo Ready`}</Cmd>
+2. Paste the word it prints into the check below.
+</Do>
+
+<Done>
+The check says passed, and Mark complete becomes available.
+</Done>
+
+<Question id="q-m90-s02" answer="a">
+How is an exact answer compared?
+
+- After trimming and lower-casing
+
+  Right: spaces at the ends and case do not matter.
+
+- Character by character
+
+  Case and surrounding spaces are ignored.
+
+- As a number
+
+  That is the range check.
+
+- As a pattern
+
+  That is the regex check.
+</Question>

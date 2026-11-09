@@ -1,0 +1,21 @@
+---
+// <Question id="q-m04-s07" answer="b"> The card's knowledge check.
+// Inside: the question, then a list of four options. Each list item holds the option,
+// a blank line, and its explanation indented under it (see lgtm/learn/README.md).
+// Options are shown in a shuffled order, so the letters in `answer` only name list positions.
+import CardQuestion from '../islands/CardQuestion.tsx';
+import { splitRenderedQuestion } from '../../lib/question-html.ts';
+
+interface Props {
+  id: string;
+  answer: string;
+}
+const { id, answer } = Astro.props;
+const html = await Astro.slots.render('default');
+const { stem, options } = splitRenderedQuestion(html);
+const answerIndex = 'abcde'.indexOf(answer);
+---
+<section class="box box-question" data-block="question">
+  <h2>Check yourself</h2>
+  <CardQuestion client:visible id={id} stemHtml={stem} options={options} answer={answerIndex} />
+</section>

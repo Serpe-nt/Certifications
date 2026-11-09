@@ -1,0 +1,7 @@
+---
+// A command to copy. Write it as <Cmd>{`kubectl get pods -n shop`}</Cmd> when it holds braces or quotes.
+---
+<div class="relative my-3 rounded-md border border-line bg-surface" data-cmd>
+  <pre class="m-0 p-3 pr-20"><code><slot /></code></pre>
+  <button type="button" class="btn absolute right-1 top-1 min-h-0 px-2 py-1 text-sm" data-copy>Copy</button>
+</div>

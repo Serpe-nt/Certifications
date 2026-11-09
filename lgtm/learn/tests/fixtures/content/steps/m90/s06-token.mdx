@@ -1,0 +1,53 @@
+---
+id: m90-s06
+title: A lab step with a token check
+kind: lab
+minutes: 5
+order: 6
+exam:
+  - cert: otca
+    domain: O3
+    competency: Pipelines
+tags: [sample-lab]
+check:
+  kind: token
+  prompt: Paste the token of slot log-m90-1.
+  slot: log-m90-1
+---
+
+<Why>
+The site cannot reach the lab, so it cannot ask the lab whether a step worked. A token both sides compute from the lab seed lets the site check a pasted value without any network link.
+</Why>
+
+<Idea>
+The beacon publishes a token per slot; the site computes the same token from the seed in the settings.
+</Idea>
+
+<Do>
+1. Find the beacon log line for slot log-m90-1.
+2. Paste its token below.
+</Do>
+
+<Done>
+The check says passed.
+</Done>
+
+<Question id="q-m90-s06" answer="b">
+What does the site need to check a token?
+
+- A network link to the lab
+
+  There is none, on purpose.
+
+- The lab seed
+
+  Right: the token is computed from the seed and the slot id.
+
+- The learner password
+
+  The site has no accounts.
+
+- A copy of the logs
+
+  Only the pasted token is checked.
+</Question>

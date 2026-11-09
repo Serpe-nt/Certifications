@@ -1,0 +1,16 @@
+---
+// Module end: what was done, and the quiz entry point (card S2 builds the quiz).
+import Base from '../../../../layouts/Base.astro';
+import ModuleEnd from '../../../../components/islands/ModuleEnd.tsx';
+import { href, loadCourse } from '../../../../lib/course.ts';
+
+export async function getStaticPaths() {
+  const { modules } = await loadCourse();
+  return modules.map((m) => ({ params: { module: m.id }, props: { module: m } }));
+}
+const { module } = Astro.props;
+---
+<Base title={`${module.title}: end of module`}>
+  <h1 class="mt-0">End of {module.title}</h1>
+  <ModuleEnd client:load module={module} homeHref={href.home} />
+</Base>

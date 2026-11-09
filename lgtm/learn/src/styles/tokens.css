@@ -1,0 +1,77 @@
+/*
+  Design tokens. Every colour, radius, space, shadow and font the site uses is defined here,
+  in a light and a dark set, and reaches components through the Tailwind theme in global.css.
+  Components never hard-code a colour. The design card (DZ) replaces these values.
+
+  Theme: "system" follows the device; the settings page can force light or dark, which sets
+  data-theme on <html> (see the inline script in src/layouts/Base.astro).
+*/
+:root {
+  --lg-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --lg-font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --lg-space-1: 0.25rem;
+  --lg-space-2: 0.5rem;
+  --lg-space-3: 0.75rem;
+  --lg-space-4: 1rem;
+  --lg-space-6: 1.5rem;
+  --lg-space-8: 2rem;
+
+  --lg-radius-sm: 0.25rem;
+  --lg-radius-md: 0.5rem;
+  --lg-radius-lg: 0.75rem;
+
+  --lg-measure: 44rem;
+
+  /* Light set */
+  --lg-page: #f4f5f7;
+  --lg-surface: #ffffff;
+  --lg-surface-2: #eef0f3;
+  --lg-line: #d3d7de;
+  --lg-ink: #1b1f27;
+  --lg-ink-2: #4a5160;
+  --lg-ink-3: #5f6776;
+  --lg-accent: #1f5fbf;
+  --lg-accent-ink: #ffffff;
+  --lg-good: #1d7a3e;
+  --lg-bad: #b3261e;
+  --lg-warn: #8a5a00;
+  --lg-focus: #1f5fbf;
+  --lg-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 2px 8px rgb(0 0 0 / 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lg-page: #0f1218;
+    --lg-surface: #1a1e27;
+    --lg-surface-2: #232834;
+    --lg-line: #363d4b;
+    --lg-ink: #e8eaef;
+    --lg-ink-2: #b7bcc7;
+    --lg-ink-3: #9aa1ae;
+    --lg-accent: #7fb0ff;
+    --lg-accent-ink: #0f1218;
+    --lg-good: #6fd394;
+    --lg-bad: #ff8a80;
+    --lg-warn: #f0c060;
+    --lg-focus: #7fb0ff;
+    --lg-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  }
+}
+
+:root[data-theme="dark"] {
+  --lg-page: #0f1218;
+  --lg-surface: #1a1e27;
+  --lg-surface-2: #232834;
+  --lg-line: #363d4b;
+  --lg-ink: #e8eaef;
+  --lg-ink-2: #b7bcc7;
+  --lg-ink-3: #9aa1ae;
+  --lg-accent: #7fb0ff;
+  --lg-accent-ink: #0f1218;
+  --lg-good: #6fd394;
+  --lg-bad: #ff8a80;
+  --lg-warn: #f0c060;
+  --lg-focus: #7fb0ff;
+  --lg-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}

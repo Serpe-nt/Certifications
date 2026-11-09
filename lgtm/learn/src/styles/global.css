@@ -1,0 +1,130 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* The Tailwind theme points at the tokens, so utilities such as bg-surface or text-ink follow the theme. */
+@theme inline {
+  --color-page: var(--lg-page);
+  --color-surface: var(--lg-surface);
+  --color-surface-2: var(--lg-surface-2);
+  --color-line: var(--lg-line);
+  --color-ink: var(--lg-ink);
+  --color-ink-2: var(--lg-ink-2);
+  --color-ink-3: var(--lg-ink-3);
+  --color-accent: var(--lg-accent);
+  --color-accent-ink: var(--lg-accent-ink);
+  --color-good: var(--lg-good);
+  --color-bad: var(--lg-bad);
+  --color-warn: var(--lg-warn);
+  --font-sans: var(--lg-font-sans);
+  --font-mono: var(--lg-font-mono);
+  --radius-sm: var(--lg-radius-sm);
+  --radius-md: var(--lg-radius-md);
+  --radius-lg: var(--lg-radius-lg);
+  --shadow-card: var(--lg-shadow);
+  --spacing-measure: var(--lg-measure);
+}
+
+@layer base {
+  html {
+    background: var(--lg-page);
+    color: var(--lg-ink);
+    font-family: var(--lg-font-sans);
+    /* Only the page scrolls: no part of the page gets a scroll bar of its own. */
+    overflow-y: auto;
+  }
+  body {
+    margin: 0;
+    line-height: 1.6;
+  }
+  :focus-visible {
+    outline: 3px solid var(--lg-focus);
+    outline-offset: 2px;
+  }
+  a {
+    color: var(--lg-accent);
+  }
+  code,
+  pre {
+    font-family: var(--lg-font-mono);
+  }
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--lg-space-2);
+    min-height: 2.75rem;
+    padding: var(--lg-space-2) var(--lg-space-4);
+    border-radius: var(--lg-radius-md);
+    border: 1px solid var(--lg-line);
+    background: var(--lg-surface);
+    color: var(--lg-ink);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--lg-accent);
+    border-color: var(--lg-accent);
+    color: var(--lg-accent-ink);
+  }
+  .box {
+    border: 1px solid var(--lg-line);
+    border-radius: var(--lg-radius-md);
+    background: var(--lg-surface-2);
+    padding: var(--lg-space-4);
+    margin-block: var(--lg-space-4);
+  }
+  .box > h2 {
+    margin: 0 0 var(--lg-space-2);
+    font-size: 1rem;
+  }
+  .box > :last-child {
+    margin-bottom: 0;
+  }
+  .field {
+    display: block;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: var(--lg-space-2) var(--lg-space-3);
+    border: 1px solid var(--lg-line);
+    border-radius: var(--lg-radius-sm);
+    background: var(--lg-surface);
+    color: var(--lg-ink);
+    font: inherit;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}

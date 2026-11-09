@@ -1,0 +1,27 @@
+---
+// <Figure id="m05-s03-explore" alt="What the picture shows" brief="What the illustrator should build">
+// Shows the registered scene, or a quiet labelled placeholder until the scene exists.
+// The brief is for the illustrator: it is kept in the page source as a data attribute, not shown.
+import FigureIsland from '../islands/FigureIsland.tsx';
+import { hasScene } from '../../figures/registry.ts';
+
+interface Props {
+  id: string;
+  alt: string;
+  brief: string;
+}
+const { id, alt, brief } = Astro.props;
+const ready = hasScene(id);
+---
+<figure class="my-4 rounded-md border border-line bg-surface" data-figure={id} data-brief={brief}>
+  {
+    ready ? (
+      <FigureIsland client:visible id={id} alt={alt} />
+    ) : (
+      <div class="border border-dashed border-line m-3 rounded-md p-4" role="img" aria-label={alt} data-figure-placeholder>
+        <p class="m-0 text-sm font-semibold text-ink-3">Figure to come</p>
+        <p class="m-0 mt-1 text-ink-2">{alt}</p>
+      </div>
+    )
+  }
+</figure>

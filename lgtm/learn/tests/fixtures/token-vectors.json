@@ -1,0 +1,11 @@
+{
+  "about": "Check-token test vectors from lgtm/docs/plan/02-lab-contract.md. Computed with Python's hmac module (hmac.new(seed.encode(), slot.encode(), hashlib.sha256).hexdigest()[:8], and int(that, 16) % 1000000 for metric slots), independently of the site's Web Crypto code. The beacon (card D2) should pass the same vectors.",
+  "vectors": [
+    { "seed": "0123456789abcdef", "slot": "log-m12-3", "hex8": "3c7b30fb", "token": "3c7b30fb" },
+    { "seed": "0123456789abcdef", "slot": "metric-m12-3", "hex8": "ccae2b63", "token": "966435" },
+    { "seed": "0123456789abcdef", "slot": "span-m09-1", "hex8": "73470561", "token": "73470561" },
+    { "seed": "a1b2c3d4e5f60718", "slot": "metric-m04-9", "hex8": "360649d0", "token": "381776" },
+    { "seed": "a1b2c3d4e5f60718", "slot": "log-m00-1", "hex8": "afc7fdc7", "token": "afc7fdc7" },
+    { "seed": "ffffffffffffffff", "slot": "metric-m18-2", "hex8": "735fc3d8", "token": "655896" }
+  ]
+}

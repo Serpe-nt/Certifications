@@ -1,0 +1,63 @@
+---
+// One step card, with Back, Mark complete and Next under it. No list of steps beside it.
+import Base from '../../../../layouts/Base.astro';
+import CheckWidget from '../../../../components/islands/CheckWidget.tsx';
+import StepNav from '../../../../components/islands/StepNav.tsx';
+import { mdxComponents } from '../../../../components/mdx/index.ts';
+import { href, loadCourse } from '../../../../lib/course.ts';
+import { render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const { modules, steps } = await loadCourse();
+  return modules.flatMap((m) =>
+    m.steps.map((s, i) => ({
+      params: { module: m.id, step: s.id.slice(m.id.length + 1) },
+      props: {
+        module: m,
+        entry: steps.find((e) => e.data.id === s.id)!,
+        position: i + 1,
+        prev: m.steps[i - 1] ?? null,
+        next: m.steps[i + 1] ?? null,
+      },
+    })),
+  );
+}
+
+const { module, entry, position, prev, next } = Astro.props;
+const step = entry.data;
+const { Content } = await render(entry);
+const kindLabel = { concept: 'Concept', lab: 'Lab', drill: 'Drill', recap: 'Recap' }[step.kind];
+---
+<Base title={step.title}>
+  <article class="rounded-lg border border-line bg-surface p-6 shadow-card" data-step={step.id} data-kind={step.kind}>
+    <p class="m-0 text-sm text-ink-3">
+      <a href={module.href}>{module.title}</a>, step {position} of {module.steps.length}. {kindLabel}, about {step.minutes} minutes.
+    </p>
+    <h1 class="mb-2 mt-1 text-2xl">{step.title}</h1>
+    <Content components={mdxComponents} />
+    {step.check && <CheckWidget client:load stepId={step.id} check={step.check} settingsHref={href.settings} />}
+    {
+      step.sources.length > 0 && (
+        <section class="mt-6 text-sm" data-sources>
+          <h2 class="text-base">Look it up</h2>
+          <ul>
+            {step.sources.map((s) => (
+              <li>
+                <a href={s.url} rel="noopener noreferrer" target="_blank">{s.title}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </article>
+  <StepNav
+    client:load
+    stepId={step.id}
+    backHref={prev ? prev.href : module.href}
+    backLabel="Back"
+    nextHref={next ? next.href : module.endHref}
+    nextLabel={next ? 'Next' : 'Finish the module'}
+    needsCheck={!!step.check}
+  />
+</Base>

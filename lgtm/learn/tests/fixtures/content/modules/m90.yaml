@@ -1,0 +1,7 @@
+# Sample module for the engine's tests and `npm run dev:sample`. Never shipped.
+id: m90
+title: Sample module
+goal: Show every step kind, every component and every check kind once.
+order: 0
+quiz: true
+exams: [pca, otca]

@@ -1,0 +1,53 @@
+---
+id: m90-s04
+title: A drill step with a range check
+kind: drill
+minutes: 5
+order: 4
+exam:
+  - cert: pca
+    domain: P3
+    competency: Histograms
+tags: [sample-drill]
+check:
+  kind: range
+  prompt: Paste the p95 latency in seconds.
+  min: 0.1
+  max: 0.5
+---
+
+<Why>
+A measured number is never exactly the same twice, so an exact answer would fail a learner who did everything right. A range check accepts any value inside honest bounds.
+</Why>
+
+<Idea>
+The pasted number must be between the minimum and the maximum, both included.
+</Idea>
+
+<Do>
+1. Run the query and paste the number it returns.
+</Do>
+
+<Done>
+The check says passed.
+</Done>
+
+<Question id="q-m90-s04" answer="d">
+What does a range check accept?
+
+- Only the exact expected number
+
+  That would fail a correct but slightly different reading.
+
+- Any text
+
+  It wants a number.
+
+- Any number
+
+  It wants a number inside the bounds.
+
+- A number between the bounds
+
+  Right: both bounds are included.
+</Question>
