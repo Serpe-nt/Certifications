@@ -1,6 +1,6 @@
 # S2: site features
 
-Wave 2. Model Opus 5.5, high effort. Runs beside L2 and L3. The planner re-checks this card against what S1 delivered before starting it.
+Wave 2. Model Opus 5.5, high effort. Runs beside L2 and L3. Re-checked against what wave 1 delivered on 2026-11-09.
 
 ## Owns
 
@@ -9,8 +9,17 @@ Wave 2. Model Opus 5.5, high effort. Runs beside L2 and L3. The planner re-check
 ## Read first
 
 - `lgtm/docs/plan/00-overview.md`, `01-curriculum.md` (sections "How a step teaches", "Exam domains", "Question pools"), `03-content-contract.md`
-- `lgtm/learn/README.md`, `lgtm/learn/CLAUDE.md` and the ADRs S1 wrote
+- `lgtm/learn/README.md`, `lgtm/learn/CLAUDE.md`, `lgtm/docs/adr/s1-stack.md` and `lgtm/docs/adr/s1-content-format.md`
+- `lgtm/docs/plan/cards/README.md` (the machine notes and your ports)
 - `saa-plan/docs/architecture.md` and `saa-plan/site/qcore.js`: the quiz rules, spaced repetition, weak spots, merge rules and celebration ladder the owner already uses and likes. Port the rules; write new code.
+
+## What S1 gives you
+
+- A static Astro build served by a small Node server in `lgtm/learn/server/` (plain JavaScript, better-sqlite3), which also holds `/api/state`, the host and origin guards and the content security policy. There is no Astro server adapter, so new behaviour is either build-time or in an island.
+- The progress document, key `lgtm-learn-v1`: `done`, `checks`, `answers` (card questions) and `settings` (`labDomain`, `labSeed`, `theme`, `effects`, `sound`). Every entry point goes through `parseState()`; `mergeStates()` keeps the union of `done` and `checks` and takes the rest from the server. You extend both, with a new `STATE_VERSION` and a migration if the shape changes. `effects` and `sound` are stored and not used yet: they are yours.
+- The module end page has a placeholder where the quiz starts. Question pools already have a schema and content rules; there is no quiz code.
+- The sample course lives in `tests/fixtures/content/` (modules `m90` and `m91`) and is built with `LGTM_CONTENT=sample`. The production build has no sample content and must keep working with empty content folders.
+- 63 unit tests and 20 browser tests pass on `main`; keep them passing. Test servers use ports 8095 and 8096.
 
 ## Goal
 

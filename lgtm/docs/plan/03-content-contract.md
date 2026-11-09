@@ -1,6 +1,6 @@
 # Content contract
 
-The format of modules, steps and questions. Worker S1 implements it as build-time schemas, so a file that breaks it fails the build. Content workers write to it. Version 0, owned by the planner; ask for changes in the pull request.
+The format of modules, steps and questions. The site engine (`lgtm/learn`) implements it as build-time schemas, so a file that breaks it fails the build. Content workers write to it. Version 1 (2026-11-09: the decisions in `lgtm/docs/adr/s1-content-format.md` are folded in), owned by the planner; ask for changes in the pull request.
 
 ## Files
 
@@ -22,7 +22,7 @@ One content session owns one module: its `modules/mNN.yaml`, its `steps/mNN/` fo
 id: m04
 title: PromQL
 goal: Write the RED queries for any service without looking them up.
-order: 3
+order: 4
 quiz: true            # false for m00 and m18
 exams: [pca]          # which exams this module mainly serves
 ```
@@ -79,11 +79,35 @@ Body: MDX with these components, in this order. `Why`, `Idea` and `Question` are
 <Done>How you know it worked.</Done>
 <Trap>The usual mistake. Optional.</Trap>
 <Question id="q-m04-s07" answer="b">
-  One knowledge-check question with four options and an explanation for each.
+Which function gives a correct per-second rate across a counter reset?
+
+- deriv()
+
+  deriv() is for gauges and reads a reset as a steep fall.
+
+- rate()
+
+  Right: rate() detects counter resets and adjusts for them.
+
+- delta()
+
+  delta() is for gauges and goes negative across a reset.
+
+- idelta()
+
+  idelta() looks at the last two samples of a gauge.
 </Question>
 ```
 
+The card question is the question text, then a list of exactly four items; each item is the option, a blank line, and its explanation indented under it. `answer` is the letter of the right item as written in the file (a to d); the options are shuffled on screen. Its id is `q-<step id>`.
+
 Other components: `<LabLink to="grafana" path="/explore">` for anything in the lab (never a hard-coded address), `<Cmd>` for a command to copy, `<Query lang="promql|logql|traceql">` for a query to copy.
+
+In MDX a brace starts a JavaScript expression, so a query or command that contains braces is written as a template string: ``<Query lang="promql">{`rate(http_requests_total{job="shop"}[5m])`}</Query>`` and ``<Cmd>{`kubectl get pods -n shop`}</Cmd>``.
+
+The lab check comes from the frontmatter, so the page shows it after the body, in a "Lab check" box. On lab and drill steps Mark complete stays disabled until the check has passed, and a passed check stays passed on every device. The answers of `exact`, `regex`, `range` and `choice` checks can be read in the page source; that is accepted for a self-study site.
+
+A step's address is `/m/<module>/<step number>/`, for example `/m/m04/s07/` for step `m04-s07`; it comes from the id, so it never changes when a step moves.
 
 `<Figure id="m05-s03-explore" alt="..." brief="...">` asks for an illustration. The `id` starts with the step id and is never renamed. `alt` says what the picture shows, for a reader who cannot see it. `brief` tells the illustrator what the scene is, the one thing that happens in it, and what the learner should notice. The content author writes the brief and does not build the picture: a later session builds it as an animated scene with the Stageshow skill, and until then the site shows a labelled placeholder. At most three figures per module, and a card must still make sense without its figure.
 
