@@ -294,6 +294,23 @@ Describe 'lab-vms.ps1' {
         ($output -join "`n") | Should -Match 'VMs \(8\), created in this order'
     }
 
+    It 'plan -PublicKeyFile checks that key instead of the one in nodes.yml' {
+        $key = Join-Path $TestDrive 'override.pub'
+        [IO.File]::WriteAllText($key, $script:KeyLine + "`n")
+        $output = & $script:Shell -NoProfile -ExecutionPolicy Bypass -File $script:Script plan -NodesFile $script:NodesFile -PublicKeyFile $key 2>&1
+        $LASTEXITCODE | Should -Be 0
+        ($output -join "`n") | Should -Match ([regex]::Escape("SSH public key ${key}: found"))
+        ($output -join "`n") | Should -Match ([regex]::Escape("with the key from $key"))
+    }
+
+    It 'plan run in the same session leaves exit code 0 after a failed native command' {
+        $key = Join-Path $TestDrive 'inprocess.pub'
+        [IO.File]::WriteAllText($key, $script:KeyLine + "`n")
+        $global:LASTEXITCODE = 7
+        & $script:Script plan -NodesFile $script:NodesFile -PublicKeyFile $key | Out-Null
+        $LASTEXITCODE | Should -Be 0
+    }
+
     It 'create -WhatIf without elevation exits 0 and says where it stopped' {
         if (Test-LabElevated) { Set-ItResult -Skipped -Because 'this session is elevated'; return }
         $output = & $script:Shell -NoProfile -ExecutionPolicy Bypass -File $script:Script create -WhatIf -NodesFile (New-TestNodesFile) *>&1

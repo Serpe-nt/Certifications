@@ -60,5 +60,10 @@ jobs:
         run: .\tests\Install-TestTools.ps1
       - name: PSScriptAnalyzer and Pester (Windows PowerShell 5.1)
         run: .\tests\Invoke-Checks.ps1
+      - name: Make a throwaway SSH key for the plan
+        shell: bash
+        run: ssh-keygen -q -t ed25519 -N '' -C lgtm-lab-ci -f "$RUNNER_TEMP/lgtm-lab-ci"
+      # The runner has less memory and disk than the lab needs; plan reports that as
+      # WARNING lines and still exits 0.
       - name: Print the plan
-        run: .\lab-vms.ps1 plan
+        run: .\lab-vms.ps1 plan -PublicKeyFile "$env:RUNNER_TEMP\lgtm-lab-ci.pub"

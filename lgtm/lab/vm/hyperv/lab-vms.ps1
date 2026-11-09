@@ -23,6 +23,10 @@
 .PARAMETER NodesFile
     Path to nodes.yml. Default: ..\nodes.yml next to this script.
 
+.PARAMETER PublicKeyFile
+    Use this SSH public key instead of ssh.public_key_file from nodes.yml, for example a
+    throwaway key in CI. The VMs get the key that is used when they are created.
+
 .PARAMETER ConfigureDns
     With create: add a Windows name resolution rule that sends '.k8s.local' to the lb VM,
     so the browser resolves the lab addresses.
@@ -44,6 +48,8 @@ param(
 
     [string]$NodesFile = '',
 
+    [string]$PublicKeyFile = '',
+
     [switch]$ConfigureDns
 )
 
@@ -59,6 +65,7 @@ if ($PSBoundParameters.ContainsKey('Confirm')) { $common['Confirm'] = [bool]$PSB
 
 try {
     $config = Get-LabConfig -Path $NodesFile
+    if ($PublicKeyFile) { $config.PublicKeyFile = $PublicKeyFile }
     switch ($Action) {
         'plan' {
             $environment = Get-LabEnvironment -Config $config
@@ -70,6 +77,9 @@ try {
         'destroy' { Invoke-LabDestroy -Config $config @common }
         'status' { Get-LabStatus -Config $config | Format-Table -AutoSize }
     }
+    # Exit 0 on success, whatever exit code a native command left behind: the qemu-img search
+    # runs wsl.exe, and a caller that reads $LASTEXITCODE would otherwise see its code.
+    exit 0
 }
 catch [System.UnauthorizedAccessException] {
     if ($WhatIfPreference) {
