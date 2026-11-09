@@ -40,11 +40,13 @@ fun main() {
     props[VALUE_DESERIALIZER_CLASS_CONFIG] = ByteArrayDeserializer::class.java.name
     props[GROUP_ID_CONFIG] = groupID
     // Read from the start of the topic so a freshly-joined consumer group still
-    // processes orders produced before it finished joining, matching the
-    // accounting consumer's behaviour. Without this the Kafka default of
+    // processes orders produced before it finished joining. Without this the Kafka default of
     // "latest" silently drops those orders, so fraud-detection may emit no
     // telemetry on a quiet/cold start.
     props[AUTO_OFFSET_RESET_CONFIG] = "earliest"
+    // Keeps a poll cycle under max.poll.interval.ms when kafkaQueueProblems throttles
+    // (backported with kafkaConsumerDead from upstream main, commit 258466e)
+    props[MAX_POLL_RECORDS_CONFIG] = "30"
     val bootstrapServers = System.getenv("KAFKA_ADDR")
     if (bootstrapServers == null) {
         println("KAFKA_ADDR is not supplied")
@@ -54,11 +56,29 @@ fun main() {
     val consumer = KafkaConsumer<String, ByteArray>(props).apply {
         subscribe(listOf(topic))
     }
+    // False while kafkaConsumerDead has the consumer out of the group
+    var subscribed = true
 
     var totalCount = 0L
 
     consumer.use {
         while (true) {
+            // kafkaConsumerDead: leave the group and stop polling; re-subscribe when off
+            if (getBooleanFeatureFlagValue("kafkaConsumerDead")) {
+                if (subscribed) {
+                    logger.info("FeatureFlag 'kafkaConsumerDead' is enabled, unsubscribing from '$topic' (group goes Empty, members -> 0)")
+                    consumer.unsubscribe()
+                    subscribed = false
+                }
+                // Do not poll while dead; sleep to avoid a busy loop.
+                Thread.sleep(1000)
+                continue
+            } else if (!subscribed) {
+                logger.info("FeatureFlag 'kafkaConsumerDead' is disabled, re-subscribing to '$topic' (rejoining group)")
+                consumer.subscribe(listOf(topic))
+                subscribed = true
+            }
+
             totalCount = consumer
                 .poll(ofMillis(100))
                 .fold(totalCount) { accumulator, record ->
@@ -91,4 +111,21 @@ fun getFeatureFlagValue(ff: String): Int {
     client.evaluationContext = ImmutableContext(clientAttrs)
     val intValue = client.getIntegerValue(ff, 0)
     return intValue
+}
+
+/**
+* Retrieves the boolean value of a feature flag from the Feature Flag service.
+*
+* @param ff The name of the feature flag to retrieve.
+* @return the flag's boolean value, or `false` on error / when unset.
+*/
+fun getBooleanFeatureFlagValue(ff: String): Boolean {
+    val client = OpenFeatureAPI.getInstance().client
+    // TODO: Plumb the actual session ID from the frontend via baggage?
+    val uuid = UUID.randomUUID()
+
+    val clientAttrs = mutableMapOf<String, Value>()
+    clientAttrs["session"] = Value(uuid.toString())
+    client.evaluationContext = ImmutableContext(clientAttrs)
+    return client.getBooleanValue(ff, false)
 }

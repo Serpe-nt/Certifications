@@ -28,25 +28,6 @@
         "on": true
       }
     },
-    "aiRunawayAgent": {
-      "defaultVariant": "off",
-      "description": "forces the agent to keep looping tool calls until it hits its recursion limit",
-      "state": "ENABLED",
-      "variants": {
-        "off": 0,
-        "on": 20
-      }
-    },
-    "aiSlowResponse": {
-      "defaultVariant": "off",
-      "description": "slow LLM responses in the agent service",
-      "state": "ENABLED",
-      "variants": {
-        "10sec": 10000,
-        "5sec": 5000,
-        "off": 0
-      }
-    },
     "cartFailure": {
       "defaultVariant": "off",
       "description": "Fail cart service n% of the time",
@@ -61,17 +42,13 @@
         "off": 0
       }
     },
-    "emailMemoryLeak": {
+    "cartMetricCardinalityOverflow": {
       "defaultVariant": "off",
-      "description": "Memory leak in the email service.",
+      "description": "Adds the current trace ID to demo.cart.get_cart.latency to trigger SDK metric cardinality overflow. Backported from upstream main (commit a5c52c7).",
       "state": "ENABLED",
       "variants": {
-        "10000x": 10000,
-        "1000x": 1000,
-        "100x": 100,
-        "10x": 10,
-        "1x": 1,
-        "off": 0
+        "off": false,
+        "on": true
       }
     },
     "emitRawPii": {
@@ -105,14 +82,13 @@
         "off": 0
       }
     },
-    "intlShippingSlowdown": {
+    "kafkaConsumerDead": {
       "defaultVariant": "off",
-      "description": "Delays international shipping responses to simulate overseas shipping delay",
+      "description": "fraud-detection leaves the orders consumer group (unsubscribes and stops polling) while checkout keeps producing, so the group empties (members -> 0) and lag climbs against a zero-member group. Backported from upstream main (commit 258466e).",
       "state": "ENABLED",
       "variants": {
-        "10sec": 10,
-        "5sec": 5,
-        "off": 0
+        "off": false,
+        "on": true
       }
     },
     "kafkaQueueProblems": {
