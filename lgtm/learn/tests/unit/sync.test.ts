@@ -6,7 +6,7 @@ import { openStore } from '../../server/store.mjs';
 import { STORAGE_KEY } from '../../src/lib/state.ts';
 import { Store } from '../../src/lib/store.ts';
 
-const PORT = 8097;
+const PORT = 8096; // free while the end-to-end servers are not running (npm test runs these first)
 const url = `http://127.0.0.1:${PORT}/api/state`;
 let db: ReturnType<typeof openStore>;
 let server: http.Server;

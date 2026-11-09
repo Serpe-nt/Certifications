@@ -8,7 +8,7 @@ import { createServer, hostName, parseBase } from '../../server/main.mjs';
 import { BASE_PLACEHOLDER as SERVER_PLACEHOLDER } from '../../server/site.mjs';
 import { BASE_PLACEHOLDER } from '../../src/lib/build-env.ts';
 
-const PORT = 8097;
+const PORT = 8096; // free while the end-to-end servers are not running (npm test runs these first)
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lgtm-dist-'));
 const P = BASE_PLACEHOLDER;
 

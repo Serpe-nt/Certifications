@@ -16,6 +16,7 @@
     "check:content": "node scripts/check-content.ts",
     "check:links": "node scripts/check-links.ts",
     "check:types": "cross-env ASTRO_TELEMETRY_DISABLED=1 astro check",
+    "setup:browsers": "cross-env PLAYWRIGHT_BROWSERS_PATH=.bin/ms-playwright playwright install chromium-headless-shell",
     "test": "npm run test:unit && npm run check:types && npm run build:sample && npm run test:e2e",
     "test:unit": "vitest run",
     "test:e2e": "playwright test"
