@@ -2,7 +2,17 @@
 
 The website of the LGTM observability course. It shows one step per screen with Back, Mark complete and Next, checks what the learner pasted from the lab, and keeps their progress on the device and on the server so every device sees it.
 
-Built with Astro (static pages), React islands for the interactive parts, Tailwind with design tokens, and a small Node server with SQLite. Decisions and versions: `../docs/adr/s1-stack.md` and `../docs/adr/s1-content-format.md`.
+Built with Astro (static pages), React islands for the interactive parts, Tailwind with design tokens, and a small Node server with SQLite. Decisions and versions: `../docs/adr/s1-stack.md`, `../docs/adr/s1-content-format.md` and `../docs/adr/s2-study-features.md`.
+
+## What the learner gets
+
+- One step per screen, with Back, Mark complete and Next, and a paste-the-answer lab check on lab steps.
+- A quiz at the end of every module (`/m/<id>/quiz/`): 15 questions from the module's pool, pass at 80%. A module is done when all its steps are complete and its quiz is passed.
+- Practice (`/practice/`): the review queue (a missed question comes back after 1, 2 and 4 days), three questions from a step, and weak-spot practice.
+- Readiness per exam domain on the overview, and the OTCA and PCA mock exams (`/exam/otca/`, `/exam/pca/`): 60 questions by the domain weights, 90 minutes, pass at 75%.
+- XP, levels and badges worked out from the progress, and celebrations that grow with what was finished; Settings switch the effects and the sound off, and reduced motion stops the moving parts.
+
+The rules and numbers behind these are in `CLAUDE.md` here.
 
 ## Run it on the PC
 

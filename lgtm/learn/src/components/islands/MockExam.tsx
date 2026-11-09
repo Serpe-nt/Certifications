@@ -219,7 +219,7 @@ function ExamScreen({ exam, bank, now, ready }: { exam: ExamRun; bank: Bank; now
       {confirm && !over && (
         <div className="box" role="alertdialog" aria-label="Submit the exam" data-confirm-submit>
           <p className="mt-0">
-            Submit now? {exam.ids.length - answered} of {exam.ids.length} questions are not answered{flagged ? ` and ${flagged} are flagged` : ''}.
+            Submit now? {exam.ids.length - answered} of {exam.ids.length} questions are not answered{flagged ? ` and ${flagged} ${flagged === 1 ? 'is' : 'are'} flagged` : ''}.
           </p>
           <button type="button" className="btn btn-primary" onClick={submit} disabled={!ready} data-confirm-yes>
             Submit the exam
