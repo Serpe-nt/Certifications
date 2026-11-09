@@ -1,0 +1,121 @@
+# Sample OTCA mock pool: deliberately short (8 questions). Never shipped.
+- id: q-mock-otca-001
+  tags: [sample-lab]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: Sample OTCA mock question 1 on O1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 1
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 1, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 1, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 1, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/
+- id: q-mock-otca-002
+  tags: [sample-drill]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: Sample OTCA mock question 2 on O1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 2
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 2, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 2, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 2, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/
+- id: q-mock-otca-003
+  tags: [sample-metrics]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: Sample OTCA mock question 3 on O2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 3
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 3, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 3, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 3, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/
+- id: q-mock-otca-004
+  tags: [sample-lab]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: Sample OTCA mock question 4 on O2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 4
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 4, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 4, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 4, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/
+- id: q-mock-otca-005
+  tags: [sample-drill]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: Sample OTCA mock question 5 on O2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 5
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 5, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 5, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 5, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/
+- id: q-mock-otca-006
+  tags: [sample-metrics]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: Sample OTCA mock question 6 on O3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 6
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 6, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 6, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 6, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/
+- id: q-mock-otca-007
+  tags: [sample-lab]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: Sample OTCA mock question 7 on O3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 7
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 7, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 7, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 7, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/
+- id: q-mock-otca-008
+  tags: [sample-drill]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: Sample OTCA mock question 8 on O4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 8
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 8, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 8, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 8, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/

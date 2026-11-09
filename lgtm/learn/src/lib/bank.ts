@@ -67,12 +67,16 @@ export function bankNow(): Bank | null {
   return loaded;
 }
 
-/** React hook: the bank, or null while it loads; `failed` when it could not be loaded. */
+/**
+ * React hook: the bank, or null while it loads; `failed` when it could not be loaded. The first
+ * render is always null, like the static HTML, so hydration matches even when the bank arrived first.
+ */
 export function useBank(): { bank: Bank | null; failed: boolean } {
-  const [bank, setBank] = useState<Bank | null>(loaded);
+  const [bank, setBank] = useState<Bank | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;
+    if (loaded) setBank(loaded);
     fetchBank().then(
       (b) => alive && setBank(b),
       () => alive && setFailed(true),

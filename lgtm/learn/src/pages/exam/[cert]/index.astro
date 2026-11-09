@@ -1,0 +1,15 @@
+---
+// The OTCA and PCA mock exams. The exam in progress lives in the progress document.
+import Base from '../../../layouts/Base.astro';
+import MockExam from '../../../components/islands/MockExam.tsx';
+import { EXAMS, type Cert } from '../../../lib/exams.ts';
+
+export function getStaticPaths() {
+  return (['otca', 'pca'] as Cert[]).map((cert) => ({ params: { cert }, props: { cert } }));
+}
+const { cert } = Astro.props;
+---
+<Base title={`${cert.toUpperCase()} mock exam`}>
+  <h1 class="mt-0">{EXAMS[cert].name}: mock exam</h1>
+  <MockExam client:load cert={cert} />
+</Base>

@@ -1,0 +1,16 @@
+---
+// The module quiz. Questions come from bank.json; the run lives in the progress document.
+import Base from '../../../../layouts/Base.astro';
+import ModuleQuiz from '../../../../components/islands/ModuleQuiz.tsx';
+import { loadCourse } from '../../../../lib/course.ts';
+
+export async function getStaticPaths() {
+  const { modules } = await loadCourse();
+  return modules.filter((m) => m.quiz).map((m) => ({ params: { module: m.id }, props: { module: m } }));
+}
+const { module } = Astro.props;
+---
+<Base title={`${module.title}: quiz`}>
+  <h1 class="mt-0">{module.title}: quiz</h1>
+  <ModuleQuiz client:load moduleId={module.id} title={module.title} />
+</Base>

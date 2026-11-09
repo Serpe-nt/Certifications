@@ -19,6 +19,7 @@ export interface ModuleOutline {
   exams: ('otca' | 'pca')[];
   href: string;
   endHref: string;
+  quizHref: string;
   steps: StepLink[];
 }
 
@@ -37,6 +38,7 @@ export async function loadCourse(): Promise<{ modules: ModuleOutline[]; steps: C
       exams: m.data.exams,
       href: href.module(m.data.id),
       endHref: href.end(m.data.id),
+      quizHref: href.quiz(m.data.id),
       steps: steps
         .filter((s) => s.data.id.startsWith(`${m.data.id}-`))
         .map((s) => ({ id: s.data.id, title: s.data.title, href: href.step(s.data.id), minutes: s.data.minutes, tags: s.data.tags })),
