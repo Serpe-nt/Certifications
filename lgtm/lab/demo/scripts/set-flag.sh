@@ -26,7 +26,14 @@ if flag not in flags:
     sys.exit("unknown flag %r; known: %s" % (flag, ", ".join(sorted(flags))))
 if variant not in flags[flag]["variants"]:
     sys.exit("unknown variant %r for %s; known: %s" % (variant, flag, ", ".join(flags[flag]["variants"])))
-flags[flag]["defaultVariant"] = variant
+# Like the flag screen: a flag with a targeting rule "if <condition> then
+# <variant> else <variant>" (productCatalogFailure) is switched by its "then"
+# branch; any other flag by its default variant.
+rule = flags[flag].get("targeting", {}).get("if")
+if isinstance(rule, list) and len(rule) == 3:
+    rule[1] = variant
+else:
+    flags[flag]["defaultVariant"] = variant
 with open(path, "w") as f:
     json.dump(doc, f, indent=2)
     f.write("\n")

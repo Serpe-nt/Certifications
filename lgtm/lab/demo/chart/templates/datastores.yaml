@@ -48,7 +48,7 @@ spec:
       containers:
         - name: postgresql
           image: {{ .Values.postgresql.image }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: IfNotPresent
           args: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]
           ports:
             - { name: postgresql, containerPort: 5432 }
@@ -116,7 +116,7 @@ spec:
       containers:
         - name: valkey
           image: {{ .Values.valkey.image }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: IfNotPresent
           # Snapshot to the volume once a minute when anything changed.
           args: ["valkey-server", "--save", "60", "1", "--dir", "/data"]
           ports:

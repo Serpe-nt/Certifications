@@ -41,6 +41,8 @@ Option not taken: keep the services and only stop deploying them. That leaves en
 
 All 14 flags in the lab contract survive, because each belongs to a kept service. The four flags of removed services (`aiRunawayAgent`, `aiSlowResponse`, `emailMemoryLeak`, `intlShippingSlowdown`) are gone. `cartMetricCardinalityOverflow` (upstream commit `a5c52c7`, about 25 lines) and `kafkaConsumerDead` (upstream commit `258466e`, about 40 lines) were small and are backported. The same commit `258466e` changed `kafkaQueueProblems` into a per-record delay of 1 to 5 seconds while checkout still produces that many extra messages per order; that change was not taken, so the flag behaves as at 3.1.0 and as the lab contract describes.
 
+Recommendation runs with `FLAGD_CACHE=disabled`: the Python flagd provider's cache sometimes kept a changed flag for minutes, which made `recommendationCacheFailure` unreliable in a lesson. The cost is one local gRPC call per evaluation.
+
 ## Decision 4: build and test with Compose, one debug collector
 
 `compose.yaml` folds upstream's `compose.yaml` and `compose.full.yaml` into one file without backends. Changes that matter on the owner's PC:

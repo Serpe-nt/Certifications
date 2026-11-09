@@ -11,6 +11,8 @@ image:
   repository: lgtm-demo
   # Defaults to the chart's appVersion (the contents of lgtm/lab/demo/VERSION).
   tag: ""
+  # Applies to the shop's own images only; flagd, PostgreSQL and Valkey are
+  # always IfNotPresent. The kind test sets Never to use locally built images.
   pullPolicy: IfNotPresent
   pullSecrets: []
 
@@ -109,9 +111,11 @@ components:
       AD_PROMETHEUS_PORT: "9465"
       OTEL_LOGS_EXPORTER: otlp
       OTEL_EXPERIMENTAL_SDK_TELEMETRY_VERSION: latest
+    # Upstream's limit is 300 MiB; ad used 294 MiB of it in the smoke test,
+    # so the lab gives it room for the adManualGc and adHighCpu flags.
     resources:
-      requests: { cpu: 50m, memory: 250Mi }
-      limits: { cpu: "1", memory: 300Mi }
+      requests: { cpu: 50m, memory: 300Mi }
+      limits: { cpu: "1", memory: 400Mi }
 
   cart:
     port: 7070
@@ -124,6 +128,7 @@ components:
     # The failedReadinessProbe flag makes this probe fail.
     readinessProbe:
       grpc: { port: 7070 }
+      timeoutSeconds: 3
       periodSeconds: 10
       failureThreshold: 3
     resources:
@@ -145,6 +150,7 @@ components:
       OTEL_GO_X_OBSERVABILITY: "true"
     readinessProbe:
       grpc: { port: 5050 }
+      timeoutSeconds: 3
     resources:
       requests: { cpu: 20m, memory: 16Mi }
       limits: { cpu: 500m, memory: 20Mi }
@@ -259,6 +265,7 @@ components:
       OTEL_SEMCONV_STABILITY_OPT_IN: database
     readinessProbe:
       grpc: { port: 3550 }
+      timeoutSeconds: 3
     resources:
       requests: { cpu: 20m, memory: 16Mi }
       limits: { cpu: 500m, memory: 20Mi }
@@ -270,6 +277,9 @@ components:
     env:
       RECOMMENDATION_PORT: "9001"
       PRODUCT_CATALOG_ADDR: product-catalog:3550
+      # The Python flagd provider's flag cache sometimes kept a changed flag
+      # for minutes; without it every evaluation asks flagd.
+      FLAGD_CACHE: disabled
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED: "true"
       PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python

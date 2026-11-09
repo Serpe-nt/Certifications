@@ -455,6 +455,9 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=medium
       OTEL_SERVICE_NAME: recommendation
+      # The Python flagd provider's flag cache sometimes kept a changed flag
+      # for minutes; without it every evaluation asks flagd.
+      FLAGD_CACHE: disabled
       OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED: "true"
       PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
     healthcheck:

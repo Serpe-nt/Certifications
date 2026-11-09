@@ -89,6 +89,10 @@ To change a flag without the screen:
 - Compose: `make flag F=paymentFailure V=50%` from `lgtm/lab/demo`.
 - Kubernetes: the flag screen's changes last until the flagd pod restarts. For a default that survives restarts, edit the `shop-flags` ConfigMap (`kubectl -n shop edit configmap shop-flags`) and restart flagd (`kubectl -n shop rollout restart deployment/flagd`).
 
+`productCatalogFailure` has a targeting rule (fail only for product `OLJCESPC7Z`), so its `defaultVariant` does nothing: the flag screen and `make flag` switch the rule's first branch (`"if": [<condition>, "on", "off"]`). Edit that branch when you change the ConfigMap by hand. Services see a change within seconds; the browser and the headless-browser load generator read flags less often, so `imageSlowLoad` takes effect (and wears off) up to a minute late.
+
+On a fresh install product-catalog restarts a few times until PostgreSQL accepts connections, as upstream's does; the pods settle within about a minute.
+
 ## Build and test
 
 Everything builds in Docker; no Go, .NET, Java, Node.js, Python or Elixir toolchain is needed. From `lgtm/lab/demo` in WSL:

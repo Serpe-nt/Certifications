@@ -69,7 +69,7 @@ spec:
       containers:
         - name: flagd
           image: {{ .Values.flagd.image }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: IfNotPresent
           args: ["start", "--port", "8013", "--ofrep-port", "8016", "--uri", "file:/etc/flagd/demo.flagd.json"]
           ports:
             - { name: rpc, containerPort: 8013 }
