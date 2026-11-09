@@ -1,0 +1,3 @@
+---
+primary_master: "{{ groups['control_plane'][0] }}"
+control_plane_endpoint: cluster-endpoint.k8s.local

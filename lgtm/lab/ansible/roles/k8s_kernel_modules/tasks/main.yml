@@ -1,0 +1,21 @@
+---
+- name: Load kernel modules needed for k8s
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+    persistent: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Set sysctl params for the k8s networking
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: 1
+    state: present
+    reload: true
+    sysctl_set: true
+  loop:
+    - net.ipv4.ip_forward
+    - net.bridge.bridge-nf-call-iptables
+    - net.bridge.bridge-nf-call-ip6tables

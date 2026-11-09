@@ -1,0 +1,5 @@
+<network>
+  <name>k8s-net</name>
+  <bridge name="virbr-k8s"/>
+  <ip address="10.10.0.1" netmask="255.255.255.0"/>
+</network>

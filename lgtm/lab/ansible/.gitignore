@@ -1,0 +1,22 @@
+# GoLand / JetBrains
+.idea/
+*.iml
+out/
+cmake-build-*/
+
+# Ansible artifacts
+*.retry
+*.log
+.ansible/
+.ansible_cache/
+
+# Local tooling/cache
+.DS_Store
+Thumbs.db
+
+# Sensitive local configs (avoid committing secrets)
+*.pem
+*.key
+*.kubeconfig
+kubeconfig
+k8s-lab-root.crt

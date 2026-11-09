@@ -1,0 +1,56 @@
+---
+- name: Install k8s deps
+  ansible.builtin.apt:
+    package:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+
+- name: Create keyrings dir
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Download k8s apt sign key
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && curl -fsSL {{ k8s_sign_key }} | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg"
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  # noqa: command-instead-of-module
+
+- name: Touch up gpg key prem
+  ansible.builtin.file:
+    dest: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    mode: "0644"
+
+- name: Add k8s apt repository
+  ansible.builtin.apt_repository:
+    repo: "{{ k8s_apt_repo }}"
+    filename: kubernetes.list
+
+- name: Install kubelet, kubeadm, kubectl
+  ansible.builtin.apt:
+    update_cache: true
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+
+- name: Mark k8s packages as held
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+# Critical for multi net adapter setups!!!
+- name: Set kubelet node IP
+  ansible.builtin.lineinfile:
+    path: /etc/default/kubelet
+    line: "KUBELET_EXTRA_ARGS=--node-ip={{ k8s_net_ip }}"
+    create: true

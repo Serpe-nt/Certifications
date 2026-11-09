@@ -1,0 +1,25 @@
+---
+- name: Get join token
+  ansible.builtin.command:
+    cmd: "kubeadm token create --print-join-command"
+  register: worker_join_token_result
+  delegate_to: "{{ primary_master }}"
+  changed_when: false
+
+- name: Set join facts
+  ansible.builtin.set_fact:
+    worker_join_token: "{{ worker_join_token_result.stdout.split()[4] }}"
+    worker_join_ca_cert_hash: "{{ worker_join_token_result.stdout.split()[6] }}"
+
+- name: Copy join template
+  ansible.builtin.template:
+    src: worker-join-config.yaml.j2
+    dest: /tmp/k8s-join-config.yaml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Join k8s cluster
+  ansible.builtin.command:
+    cmd: "kubeadm join --config /tmp/k8s-join-config.yaml"
+    creates: /etc/kubernetes/kubelet.conf

@@ -1,0 +1,13 @@
+---
+- name: Bootstrap passwordless sudo
+  hosts: all
+  become: false
+  gather_facts: false
+  vars_prompt:
+    - name: sudo_password
+      prompt: "Sudo password for vaka"
+      private: true
+
+  tasks:
+    - name: Write sudoers file via inline sudo
+      ansible.builtin.raw: "echo '{{ sudo_password }}' | sudo -S sh -c \"echo 'vaka ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/vaka && chmod 440 /etc/sudoers.d/vaka\""

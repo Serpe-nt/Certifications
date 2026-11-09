@@ -1,0 +1,2 @@
+# Lab files run on Linux (WSL, VMs, containers): keep LF endings on every checkout.
+* text=auto eol=lf

@@ -1,0 +1,36 @@
+---
+- name: Drop in netplan config for the k8s interface
+  ansible.builtin.template:
+    src: k8s-net.yaml.j2
+    dest: /etc/netplan/k8s_net.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Reapply netplan
+
+- name: Create systemd-resolved config dir
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Configure systemd-resolved to use our DNS
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/k8s.conf
+    content: |
+      [Resolve]
+      DNS={{ dns_server_ip }}
+      Domains=~{{ dns_search_domain }}
+    mode: "0644"
+  notify: Restart systemd-resolved
+
+- name: Apply pending network changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for the k8s interface to come up
+  ansible.builtin.setup:
+    filter: "ansible_{{ k8s_interface }}"
+  register: network_iface_facts
+  until: network_iface_facts.ansible_facts['ansible_' + k8s_interface]['ipv4'] is defined
+  retries: 10
+  delay: 3
