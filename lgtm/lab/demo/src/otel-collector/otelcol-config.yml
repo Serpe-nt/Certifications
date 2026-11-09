@@ -1,0 +1,108 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+# Collector configuration for the lab copy of the demo.
+#
+# It is used only for tests: by compose.yaml (make smoke) and by the
+# otel-gateway stand-in of the kind test (scripts/kind-test.sh). It receives
+# OTLP from every service and prints it with the debug exporter; nothing here
+# talks to a real backend. In the lab the services send OTLP to the cluster's
+# own collector gateway (otel-gateway.otel.svc) instead.
+#
+# Differences from upstream src/otel-collector/otelcol-config.yml at 3.1.0
+# are listed in lgtm/lab/demo/TRIMMING.md.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "http://*"
+            - "https://*"
+          allowed_headers:
+            - "content-type"
+            - "traceparent"
+            - "baggage"
+
+exporters:
+  debug:
+    # One line per span, data point and log record, with the resource
+    # attributes (service.name among them) on each resource line. The smoke
+    # test reads these lines.
+    verbosity: normal
+
+processors:
+  # Fixed limits instead of limit_percentage: the percentage form fails on
+  # Docker Desktop with WSL 2 ("invalid format for MountPoint"),
+  # open-telemetry/opentelemetry-demo issue 4061. Sized for the 400 MiB
+  # container limit in compose.yaml, as the issue's workaround suggests.
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 320
+    spike_limit_mib: 100
+  resource_detection:
+    detectors: [env, system]
+    system:
+      hostname_sources: ["os"]
+
+  transform/sanitize_logs:
+    error_mode: ignore
+    log_statements:
+      - context: scope
+        statements:
+          # Rename flat "otelcol.signal" scope attribute to prevent mapping
+          # conflict with the dotted "otelcol.signal.output" attribute.
+          # Upstream Issue: https://github.com/open-telemetry/opentelemetry-collector/issues/15221
+          - set(attributes["otelcol_signal"], attributes["otelcol.signal"]) where attributes["otelcol.signal"] != nil and not IsMap(attributes["otelcol.signal"])
+          - delete_key(attributes, "otelcol.signal") where attributes["otelcol_signal"] != nil
+
+  transform/sanitize_spans:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - set_semconv_span_name("1.43.0", "original_span_name")
+
+  # Demo: redact sensitive attributes before export. Collector-side redaction is
+  # a fallback -- prefer not collecting sensitive data in the first place. Raw
+  # PII is only emitted by checkout/payment when the `emitRawPii` feature flag
+  # is enabled (off by default); these processors run unconditionally as a
+  # safety net regardless of the flag.
+  transform/redact_sensitive_data:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - delete_key(attributes, "demo.payment.card_cvv") where attributes["demo.payment.card_cvv"] != nil
+          - set(attributes["user.hash"], SHA256(attributes["user.email"])) where attributes["user.email"] != nil
+          - delete_key(attributes, "user.email") where attributes["user.email"] != nil
+          # Keep only the last four digits, e.g. 4432-8015-6152-0454 -> ****-****-****-0454
+          - replace_pattern(attributes["demo.payment.card_number"], "^\\d{4}-\\d{4}-\\d{4}-", "****-****-****-") where attributes["demo.payment.card_number"] != nil
+  redaction:
+    allow_all_keys: true
+    ignored_keys:
+      - demo.payment.card_number
+    blocked_key_patterns:
+      - "demo\\.payment\\.card_pin"
+      - "password"
+      - "secret"
+    summary: info
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource_detection, memory_limiter, transform/sanitize_spans, transform/redact_sensitive_data, redaction]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [resource_detection, memory_limiter]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [resource_detection, memory_limiter, transform/sanitize_logs]
+      exporters: [debug]

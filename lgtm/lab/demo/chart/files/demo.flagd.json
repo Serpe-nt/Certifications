@@ -1,0 +1,177 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "adFailure": {
+      "defaultVariant": "off",
+      "description": "Fail ad service",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "adHighCpu": {
+      "defaultVariant": "off",
+      "description": "Triggers high cpu load in the ad service",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "adManualGc": {
+      "defaultVariant": "off",
+      "description": "Triggers full manual garbage collections in the ad service",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "cartFailure": {
+      "defaultVariant": "off",
+      "description": "Fail cart service n% of the time",
+      "state": "ENABLED",
+      "variants": {
+        "10%": 0.1,
+        "100%": 1,
+        "25%": 0.25,
+        "50%": 0.5,
+        "75%": 0.75,
+        "90%": 0.9,
+        "off": 0
+      }
+    },
+    "cartMetricCardinalityOverflow": {
+      "defaultVariant": "off",
+      "description": "Adds the current trace ID to demo.cart.get_cart.latency to trigger SDK metric cardinality overflow. Backported from upstream main (commit a5c52c7).",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "emitRawPii": {
+      "defaultVariant": "off",
+      "description": "Emit raw PII attributes (user.email, demo.payment.card_number, demo.payment.card_cvv) from checkout and payment for the collector redaction example. Not a failure scenario -- controls PII emission, independent of collector-side redaction which always runs.",
+      "metadata": {
+        "schedulable": false
+      },
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "failedReadinessProbe": {
+      "defaultVariant": "off",
+      "description": "readiness probe failure for cart service",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "imageSlowLoad": {
+      "defaultVariant": "off",
+      "description": "slow loading images in the frontend",
+      "state": "ENABLED",
+      "variants": {
+        "10sec": 10000,
+        "5sec": 5000,
+        "off": 0
+      }
+    },
+    "kafkaConsumerDead": {
+      "defaultVariant": "off",
+      "description": "fraud-detection leaves the orders consumer group (unsubscribes and stops polling) while checkout keeps producing, so the group empties (members -> 0) and lag climbs against a zero-member group. Backported from upstream main (commit 258466e).",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "kafkaQueueProblems": {
+      "defaultVariant": "off",
+      "description": "Overloads Kafka queue while simultaneously introducing a consumer side delay leading to a lag spike",
+      "state": "ENABLED",
+      "variants": {
+        "off": 0,
+        "on": 100
+      }
+    },
+    "loadGeneratorFloodHomepage": {
+      "defaultVariant": "off",
+      "description": "Flood the frontend with a large amount of requests.",
+      "state": "ENABLED",
+      "variants": {
+        "off": 0,
+        "on": 100
+      }
+    },
+    "paymentFailure": {
+      "defaultVariant": "off",
+      "description": "Fail payment service charge requests n%",
+      "state": "ENABLED",
+      "variants": {
+        "10%": 0.1,
+        "100%": 1,
+        "25%": 0.25,
+        "50%": 0.5,
+        "75%": 0.75,
+        "90%": 0.95,
+        "off": 0
+      }
+    },
+    "paymentUnreachable": {
+      "defaultVariant": "off",
+      "description": "Payment service is unavailable",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "productCatalogFailure": {
+      "defaultVariant": "off",
+      "description": "Fail product catalog service on a specific product",
+      "state": "ENABLED",
+      "targeting": {
+        "if": [
+          {
+            "==": [
+              {
+                "var": "product_id"
+              },
+              "OLJCESPC7Z"
+            ]
+          },
+          "off",
+          "off"
+        ]
+      },
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "productCatalogLockContention": {
+      "defaultVariant": "off",
+      "description": "Trigger lock contention on the product catalog database",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "recommendationCacheFailure": {
+      "defaultVariant": "off",
+      "description": "Fail recommendation service cache",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    }
+  }
+}

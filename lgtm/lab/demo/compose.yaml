@@ -1,0 +1,649 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Build and smoke-test file for the lab copy of the OpenTelemetry Demo.
+#
+# This is not how the lab runs the shop: the lab installs the Helm chart in
+# ./chart on Kubernetes. This file builds every image and runs the whole shop
+# with one OpenTelemetry Collector that only prints what it receives (debug
+# exporter), so `make smoke` can prove that each service sends telemetry.
+#
+# Derived from upstream compose.yaml and compose.full.yaml at tag 3.1.0. The
+# differences are listed in TRIMMING.md. Only the shop's front door is
+# published on the host, on 127.0.0.1:${SHOP_PORT} (8098 by default, see .env).
+
+name: ${COMPOSE_PROJECT_NAME:-lgtm-demo}
+
+x-default-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+x-otel-env: &otel-env
+  OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: cumulative
+  OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION: explicit_bucket_histogram
+
+services:
+  # ******************
+  # Shop services
+  # ******************
+
+  ad:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-ad
+    build:
+      context: ./
+      dockerfile: ./src/ad/Dockerfile
+      args:
+        OTEL_JAVA_AGENT_VERSION: ${OTEL_JAVA_AGENT_VERSION}
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      AD_PORT: ${AD_PORT}
+      AD_PROMETHEUS_PORT: ${AD_PROMETHEUS_PORT}
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=medium
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_SERVICE_NAME: ad
+      OTEL_EXPERIMENTAL_SDK_TELEMETRY_VERSION: latest
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/${AD_PORT}'"]
+      start_period: 20s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      otel-collector:
+        condition: service_started
+      flagd:
+        condition: service_started
+    logging: *logging
+
+  cart:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-cart
+    build:
+      context: ./
+      dockerfile: ./src/cart/src/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 160M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      CART_PORT: ${CART_PORT}
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+      VALKEY_ADDR: valkey-cart:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=high
+      OTEL_SERVICE_NAME: cart
+      ASPNETCORE_URLS: http://*:${CART_PORT}
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:${CART_PORT}"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      valkey-cart:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+      flagd:
+        condition: service_started
+    logging: *logging
+
+  checkout:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-checkout
+    build:
+      context: ./
+      dockerfile: ./src/checkout/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 20M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+      CHECKOUT_PORT: ${CHECKOUT_PORT}
+      CART_ADDR: cart:${CART_PORT}
+      PAYMENT_ADDR: payment:${PAYMENT_PORT}
+      PRODUCT_CATALOG_ADDR: product-catalog:${PRODUCT_CATALOG_PORT}
+      KAFKA_ADDR: kafka:9092
+      GOMEMLIMIT: 16MiB
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_GO_X_OBSERVABILITY: "true"
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=critical
+      OTEL_SERVICE_NAME: checkout
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:${CHECKOUT_PORT}"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      cart:
+        condition: service_started
+      payment:
+        condition: service_healthy
+      product-catalog:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+      flagd:
+        condition: service_started
+    read_only: true
+    tmpfs:
+      - /tmp
+    logging: *logging
+
+  fraud-detection:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-fraud-detection
+    build:
+      context: ./
+      dockerfile: ./src/fraud-detection/Dockerfile
+      args:
+        OTEL_JAVA_AGENT_VERSION: ${OTEL_JAVA_AGENT_VERSION}
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+      KAFKA_ADDR: kafka:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_INSTRUMENTATION_KAFKA_EXPERIMENTAL_SPAN_ATTRIBUTES: "true"
+      OTEL_INSTRUMENTATION_MESSAGING_EXPERIMENTAL_RECEIVE_TELEMETRY_ENABLED: "true"
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=low
+      OTEL_SERVICE_NAME: fraud-detection
+      OTEL_EXPERIMENTAL_SDK_TELEMETRY_VERSION: latest
+    depends_on:
+      otel-collector:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    logging: *logging
+
+  frontend:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-frontend
+    build:
+      context: ./
+      dockerfile: ./src/frontend/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      PORT: ${FRONTEND_PORT}
+      FRONTEND_ADDR: frontend:${FRONTEND_PORT}
+      AD_ADDR: ad:${AD_PORT}
+      CART_ADDR: cart:${CART_PORT}
+      CHECKOUT_ADDR: checkout:${CHECKOUT_PORT}
+      PRODUCT_CATALOG_ADDR: product-catalog:${PRODUCT_CATALOG_PORT}
+      RECOMMENDATION_ADDR: recommendation:${RECOMMENDATION_PORT}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=critical
+      ENV_PLATFORM: local
+      OTEL_SERVICE_NAME: frontend
+      PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://localhost:${SHOP_PORT}/otlp-http/v1/traces
+      WEB_OTEL_SERVICE_NAME: frontend-web
+      OTEL_COLLECTOR_HOST: otel-collector
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+    healthcheck:
+      test: ["CMD", "/nodejs/bin/node", "-e", "require('net').connect(${FRONTEND_PORT},require('os').hostname(),function(){process.exit(0)}).on('error',function(){process.exit(1)})"]
+      start_period: 60s
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      ad:
+        condition: service_healthy
+      cart:
+        condition: service_started
+      checkout:
+        condition: service_started
+      product-catalog:
+        condition: service_started
+      recommendation:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+      image-provider:
+        condition: service_healthy
+      flagd:
+        condition: service_started
+    logging: *logging
+
+  frontend-proxy:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-frontend-proxy
+    build:
+      context: ./
+      dockerfile: ./src/frontend-proxy/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 90M
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SHOP_PORT}:${ENVOY_PORT}"
+    environment:
+      FRONTEND_PORT: ${FRONTEND_PORT}
+      FRONTEND_HOST: frontend
+      LOCUST_WEB_HOST: load-generator
+      LOCUST_WEB_PORT: ${LOCUST_WEB_PORT}
+      OTEL_COLLECTOR_HOST: otel-collector
+      IMAGE_PROVIDER_HOST: image-provider
+      IMAGE_PROVIDER_PORT: ${IMAGE_PROVIDER_PORT}
+      OTEL_COLLECTOR_PORT_GRPC: "4317"
+      OTEL_COLLECTOR_PORT_HTTP: "4318"
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=critical
+      OTEL_SERVICE_NAME: frontend-proxy
+      OTEL_SERVICE_NAMESPACE: ${OTEL_SERVICE_NAMESPACE}
+      ENVOY_PORT: ${ENVOY_PORT}
+      ENVOY_ADDR: 0.0.0.0
+      ENVOY_ADMIN_PORT: ${ENVOY_ADMIN_PORT}
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+      FLAGD_UI_HOST: flagd-ui
+      FLAGD_UI_PORT: ${FLAGD_UI_PORT}
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/${ENVOY_PORT}"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      frontend:
+        condition: service_healthy
+      load-generator:
+        condition: service_started
+      flagd-ui:
+        condition: service_healthy
+    dns_search: ""
+    logging: *logging
+
+  image-provider:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-image-provider
+    build:
+      context: ./
+      dockerfile: ./src/image-provider/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 120M
+    restart: unless-stopped
+    environment:
+      IMAGE_PROVIDER_PORT: ${IMAGE_PROVIDER_PORT}
+      OTEL_COLLECTOR_HOST: otel-collector
+      OTEL_COLLECTOR_PORT_GRPC: "4317"
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=low
+      OTEL_SERVICE_NAME: image-provider
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:${IMAGE_PROVIDER_PORT}/status"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      otel-collector:
+        condition: service_started
+    logging: *logging
+
+  load-generator:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-load-generator
+    build:
+      context: ./
+      dockerfile: ./src/load-generator/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 1500M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      LOCUST_WEB_PORT: ${LOCUST_WEB_PORT}
+      LOCUST_USERS: ${LOCUST_USERS}
+      LOCUST_HOST: http://frontend-proxy:${ENVOY_PORT}
+      LOCUST_HEADLESS: "false"
+      LOCUST_AUTOSTART: "true"
+      LOCUST_BROWSER_TRAFFIC_ENABLED: "true"
+      LOCUST_HTTP_USER_WEIGHT: "9"
+      LOCUST_BROWSER_USER_WEIGHT: "1"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=low
+      OTEL_SERVICE_NAME: load-generator
+      OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED: "true"
+      PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+      LOCUST_WEB_HOST: 0.0.0.0
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+      FLAGD_OFREP_PORT: ${FLAGD_OFREP_PORT}
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',${LOCUST_WEB_PORT}),2); s.close()"]
+      start_period: 30s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      frontend:
+        condition: service_healthy
+      flagd:
+        condition: service_started
+    logging: *logging
+
+  payment:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-payment
+    build:
+      context: ./
+      dockerfile: ./src/payment/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 140M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      IPV6_ENABLED: "false"
+      PAYMENT_PORT: ${PAYMENT_PORT}
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=critical
+      OTEL_SERVICE_NAME: payment
+    healthcheck:
+      test:
+        - "CMD"
+        - "/nodejs/bin/node"
+        - "-e"
+        - >-
+          const net=require('net');const c=new net.Socket();
+          c.setTimeout(2000);
+          c.connect(${PAYMENT_PORT},'127.0.0.1',()=>{c.destroy();process.exit(0)});
+          c.on('error',()=>process.exit(1));
+          c.on('timeout',()=>process.exit(1))
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      otel-collector:
+        condition: service_started
+      flagd:
+        condition: service_started
+    logging: *logging
+
+  product-catalog:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-product-catalog
+    build:
+      context: ./
+      dockerfile: ./src/product-catalog/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 20M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      PRODUCT_CATALOG_PORT: ${PRODUCT_CATALOG_PORT}
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+      GOMEMLIMIT: 16MiB
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_GO_X_OBSERVABILITY: "true"
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=high
+      OTEL_SERVICE_NAME: product-catalog
+      OTEL_CONFIG_FILE: /otel-config.yml
+      OTEL_SEMCONV_STABILITY_OPT_IN: database
+      DB_CONNECTION_STRING: postgres://astronomy_user:${POSTGRES_ASTRONOMY_PASSWORD}@astronomy-db/astronomy_db?sslmode=disable
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:${PRODUCT_CATALOG_PORT}"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      otel-collector:
+        condition: service_started
+      flagd:
+        condition: service_started
+      astronomy-db:
+        condition: service_healthy
+    configs:
+      - source: product-catalog-otel-config
+        target: /otel-config.yml
+    read_only: true
+    tmpfs:
+      - /tmp
+    logging: *logging
+
+  recommendation:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-recommendation
+    build:
+      context: ./
+      dockerfile: ./src/recommendation/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 500M  # High on purpose: the recommendationCacheFailure flag makes the cache grow.
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      RECOMMENDATION_PORT: ${RECOMMENDATION_PORT}
+      PRODUCT_CATALOG_ADDR: product-catalog:${PRODUCT_CATALOG_PORT}
+      FLAGD_HOST: flagd
+      FLAGD_PORT: ${FLAGD_PORT}
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=medium
+      OTEL_SERVICE_NAME: recommendation
+      # The Python flagd provider's flag cache sometimes kept a changed flag
+      # for minutes; without it every evaluation asks flagd.
+      FLAGD_CACHE: disabled
+      OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED: "true"
+      PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost ${RECOMMENDATION_PORT}"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      product-catalog:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+      flagd:
+        condition: service_started
+    logging: *logging
+
+  # ******************
+  # Flags, data stores and queue
+  # ******************
+
+  # Copies the flag file into a named volume once, so flagd-ui edits it there
+  # and never writes into the repository. Inside the volume flagd sees each
+  # change at once, which a Windows bind mount would not guarantee.
+  flagd-init:
+    image: ${BUSYBOX_IMAGE}
+    command: ["sh", "-c", "[ -f /data/demo.flagd.json ] || cp /seed/demo.flagd.json /data/demo.flagd.json; chmod 666 /data/demo.flagd.json"]
+    volumes:
+      - ./src/flagd:/seed:ro
+      - flagd-data:/data
+    logging: *logging
+
+  flagd:
+    image: ${FLAGD_IMAGE}
+    deploy:
+      resources:
+        limits:
+          memory: 75M
+    restart: unless-stopped
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      GOMEMLIMIT: 60MiB
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=low
+      OTEL_SERVICE_NAME: flagd
+    command: ["start", "--uri", "file:./etc/flagd/demo.flagd.json"]
+    volumes:
+      - flagd-data:/etc/flagd
+    depends_on:
+      flagd-init:
+        condition: service_completed_successfully
+    logging: *logging
+
+  flagd-ui:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-flagd-ui
+    build:
+      context: ./
+      dockerfile: ./src/flagd-ui/Dockerfile
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      FLAGD_UI_PORT: ${FLAGD_UI_PORT}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=low
+      OTEL_SERVICE_NAME: flagd-ui
+      # Phoenix needs a key to sign its session cookies. This one only guards
+      # a throwaway local test run; the chart generates its own per install.
+      SECRET_KEY_BASE: lgtm-demo-smoke-test-only-not-a-secret-0123456789abcdef0123456789abcdef
+      PHX_HOST: localhost
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/${FLAGD_UI_PORT}"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      otel-collector:
+        condition: service_started
+      flagd:
+        condition: service_started
+    volumes:
+      - flagd-data:/app/data
+    logging: *logging
+
+  astronomy-db:
+    image: ${POSTGRES_IMAGE}
+    deploy:
+      resources:
+        limits:
+          memory: 80M
+    restart: unless-stopped
+    command: postgres -c shared_preload_libraries=pg_stat_statements
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    configs:
+      - source: postgres-init
+        target: /docker-entrypoint-initdb.d/init.sql
+    logging: *logging
+
+  valkey-cart:
+    image: ${VALKEY_IMAGE}
+    user: valkey
+    deploy:
+      resources:
+        limits:
+          memory: 20M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli ping"]
+      start_period: 5s
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging: *logging
+
+  kafka:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-kafka
+    build:
+      context: ./
+      dockerfile: ./src/kafka/Dockerfile
+      args:
+        OTEL_JAVA_AGENT_VERSION: ${OTEL_JAVA_AGENT_VERSION}
+    deploy:
+      resources:
+        limits:
+          memory: 620M
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES},service.criticality=low
+      OTEL_SERVICE_NAME: kafka
+      OTEL_EXPERIMENTAL_SDK_TELEMETRY_VERSION: latest
+      KAFKA_HEAP_OPTS: -Xmx400m -Xms400m
+    healthcheck:
+      test: nc -z kafka 9092
+      start_period: 10s
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    logging: *logging
+
+  # ********************
+  # Telemetry: a collector that only prints
+  # ********************
+
+  otel-collector:
+    image: ${COLLECTOR_CONTRIB_IMAGE}
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-config.yml"]
+    configs:
+      - source: otelcol-config
+        target: /etc/otelcol-config.yml
+    environment:
+      GOMEMLIMIT: 320MiB
+    # The debug output is large; keep enough of it for the smoke check.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "4"
+
+volumes:
+  flagd-data:
+
+configs:
+  otelcol-config:
+    file: ./src/otel-collector/otelcol-config.yml
+  postgres-init:
+    file: ./src/postgresql/init.sql
+  product-catalog-otel-config:
+    file: ./otel-config.yml

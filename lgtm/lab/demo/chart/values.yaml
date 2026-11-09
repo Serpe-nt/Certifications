@@ -1,0 +1,291 @@
+# Values for the shop chart: the lab copy of the OpenTelemetry Demo.
+#
+# One release per namespace. Kubernetes Service names are the plain component
+# names (cart, checkout, kafka, ...), as in the upstream demo, so the
+# services find each other without knowing the release name.
+
+image:
+  # Images are <registry>/<repository>:<tag>-<component>, the upstream naming
+  # pattern, for example ghcr.io/serpe-nt/lgtm-demo:3.1.0-lab.1-cart.
+  registry: ghcr.io/serpe-nt
+  repository: lgtm-demo
+  # Defaults to the chart's appVersion (the contents of lgtm/lab/demo/VERSION).
+  tag: ""
+  # Applies to the shop's own images only; flagd, PostgreSQL and Valkey are
+  # always IfNotPresent. The kind test sets Never to use locally built images.
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# Where every service sends OTLP. Nothing in this chart receives or stores
+# telemetry; the lab's collector gateway does.
+otlp:
+  # gRPC endpoint, used by services that export over gRPC.
+  endpoint: http://otel-gateway.otel.svc:4317
+  # OTLP over HTTP, used by the Java agent, checkout, flagd and flagd-ui.
+  httpEndpoint: http://otel-gateway.otel.svc:4318
+
+# Resource attributes added to every service. Kubernetes attributes
+# (k8s.namespace.name, k8s.pod.name, k8s.pod.uid, k8s.node.name,
+# k8s.deployment.name or k8s.statefulset.name, k8s.container.name) are added
+# from the downward API.
+resourceAttributes:
+  service.namespace: opentelemetry-demo
+
+# StorageClass for the Kafka, PostgreSQL and Valkey volumes. Empty means the
+# cluster's default class (kind's "standard"); the lab sets "longhorn".
+storageClass: ""
+
+# Gateway API routes for the shop, the flag screen and the load generator UI.
+gateway:
+  enabled: false
+  # The Gateway the routes attach to (lab contract: Gateway "lab" in
+  # namespace "gateway").
+  name: lab
+  namespace: gateway
+  sectionName: ""
+  # Host names are <host>.<domain>.
+  domain: lab.k8s.local
+  hosts:
+    shop: shop
+    flags: flags
+    loadgen: loadgen
+
+# Browser spans from the shop page go to the frontend proxy's /otlp-http/
+# route. Empty means http://<hosts.shop>.<domain>/otlp-http/v1/traces.
+publicOtlpTracesEndpoint: ""
+
+loadGenerator:
+  users: 5
+  # Also drive a headless Chromium, which produces browser (frontend-web) spans.
+  browserTraffic: true
+
+flagd:
+  image: ghcr.io/open-feature/flagd:v0.16.0
+  # flagd-ui signs its session cookies with this key. Empty generates one per
+  # install and keeps it across upgrades.
+  uiSecretKeyBase: ""
+  resources:
+    requests: { cpu: 10m, memory: 40Mi }
+    limits: { cpu: 200m, memory: 75Mi }
+  uiResources:
+    requests: { cpu: 10m, memory: 150Mi }
+    limits: { cpu: 500m, memory: 250Mi }
+  initResources:
+    requests: { cpu: 5m, memory: 8Mi }
+    limits: { cpu: 50m, memory: 16Mi }
+
+kafka:
+  storage: 2Gi
+  resources:
+    requests: { cpu: 100m, memory: 500Mi }
+    limits: { cpu: "1", memory: 620Mi }
+
+postgresql:
+  image: postgres:18.4
+  storage: 1Gi
+  # Fixed demo passwords, also written in files/init.sql (copied from
+  # upstream). They protect nothing outside the shop namespace.
+  adminPassword: changeit
+  astronomyPassword: astronomy_password
+  resources:
+    requests: { cpu: 20m, memory: 60Mi }
+    limits: { cpu: 500m, memory: 120Mi }
+
+valkey:
+  image: ghcr.io/valkey-io/valkey:9.0.4-alpine3.23
+  storage: 256Mi
+  resources:
+    requests: { cpu: 10m, memory: 16Mi }
+    limits: { cpu: 200m, memory: 32Mi }
+
+# The shop's services. Each one becomes a Deployment and a Service named after
+# its key. otlp is "grpc" or "http": which endpoint the service exports to.
+# env is added to the common OpenTelemetry environment.
+components:
+  ad:
+    port: 9555
+    otlp: http
+    criticality: medium
+    env:
+      AD_PORT: "9555"
+      AD_PROMETHEUS_PORT: "9465"
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_EXPERIMENTAL_SDK_TELEMETRY_VERSION: latest
+    # Upstream's limit is 300 MiB; ad used 294 MiB of it in the smoke test,
+    # so the lab gives it room for the adManualGc and adHighCpu flags.
+    resources:
+      requests: { cpu: 50m, memory: 300Mi }
+      limits: { cpu: "1", memory: 400Mi }
+
+  cart:
+    port: 7070
+    otlp: grpc
+    criticality: high
+    env:
+      CART_PORT: "7070"
+      VALKEY_ADDR: valkey-cart:6379
+      ASPNETCORE_URLS: http://*:7070
+    # The failedReadinessProbe flag makes this probe fail.
+    readinessProbe:
+      grpc: { port: 7070 }
+      timeoutSeconds: 3
+      periodSeconds: 10
+      failureThreshold: 3
+    resources:
+      requests: { cpu: 50m, memory: 100Mi }
+      limits: { cpu: 500m, memory: 160Mi }
+
+  checkout:
+    port: 5050
+    otlp: http
+    criticality: critical
+    env:
+      CHECKOUT_PORT: "5050"
+      CART_ADDR: cart:7070
+      PAYMENT_ADDR: payment:50051
+      PRODUCT_CATALOG_ADDR: product-catalog:3550
+      KAFKA_ADDR: kafka:9092
+      GOMEMLIMIT: 16MiB
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_GO_X_OBSERVABILITY: "true"
+    readinessProbe:
+      grpc: { port: 5050 }
+      timeoutSeconds: 3
+    resources:
+      requests: { cpu: 20m, memory: 16Mi }
+      limits: { cpu: 500m, memory: 20Mi }
+
+  fraud-detection:
+    otlp: http
+    criticality: low
+    env:
+      KAFKA_ADDR: kafka:9092
+      OTEL_INSTRUMENTATION_KAFKA_EXPERIMENTAL_SPAN_ATTRIBUTES: "true"
+      OTEL_INSTRUMENTATION_MESSAGING_EXPERIMENTAL_RECEIVE_TELEMETRY_ENABLED: "true"
+      OTEL_EXPERIMENTAL_SDK_TELEMETRY_VERSION: latest
+    resources:
+      requests: { cpu: 50m, memory: 250Mi }
+      limits: { cpu: "1", memory: 300Mi }
+
+  frontend:
+    port: 8080
+    otlp: grpc
+    criticality: critical
+    env:
+      PORT: "8080"
+      FRONTEND_ADDR: frontend:8080
+      AD_ADDR: ad:9555
+      CART_ADDR: cart:7070
+      CHECKOUT_ADDR: checkout:5050
+      PRODUCT_CATALOG_ADDR: product-catalog:3550
+      RECOMMENDATION_ADDR: recommendation:9001
+      ENV_PLATFORM: local
+      WEB_OTEL_SERVICE_NAME: frontend-web
+    readinessProbe:
+      tcpSocket: { port: 8080 }
+    resources:
+      requests: { cpu: 50m, memory: 180Mi }
+      limits: { cpu: "1", memory: 250Mi }
+
+  frontend-proxy:
+    port: 8080
+    otlp: grpc
+    criticality: critical
+    env:
+      ENVOY_PORT: "8080"
+      ENVOY_ADDR: 0.0.0.0
+      ENVOY_ADMIN_PORT: "10000"
+      FRONTEND_HOST: frontend
+      FRONTEND_PORT: "8080"
+      IMAGE_PROVIDER_HOST: image-provider
+      IMAGE_PROVIDER_PORT: "8081"
+      LOCUST_WEB_HOST: load-generator
+      LOCUST_WEB_PORT: "8089"
+      FLAGD_UI_HOST: flagd
+      FLAGD_UI_PORT: "4000"
+    readinessProbe:
+      tcpSocket: { port: 8080 }
+    resources:
+      requests: { cpu: 20m, memory: 50Mi }
+      limits: { cpu: 500m, memory: 90Mi }
+
+  image-provider:
+    port: 8081
+    otlp: grpc
+    criticality: low
+    env:
+      IMAGE_PROVIDER_PORT: "8081"
+    readinessProbe:
+      httpGet: { path: /status, port: 8081 }
+    resources:
+      requests: { cpu: 10m, memory: 30Mi }
+      limits: { cpu: 500m, memory: 120Mi }
+
+  load-generator:
+    port: 8089
+    otlp: grpc
+    criticality: low
+    env:
+      LOCUST_WEB_PORT: "8089"
+      LOCUST_HOST: http://frontend-proxy:8080
+      LOCUST_HEADLESS: "false"
+      LOCUST_AUTOSTART: "true"
+      LOCUST_HTTP_USER_WEIGHT: "9"
+      LOCUST_BROWSER_USER_WEIGHT: "1"
+      LOCUST_WEB_HOST: 0.0.0.0
+      OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED: "true"
+      PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+    resources:
+      requests: { cpu: 200m, memory: 600Mi }
+      limits: { cpu: "2", memory: 1500Mi }
+
+  payment:
+    port: 50051
+    otlp: grpc
+    criticality: critical
+    env:
+      PAYMENT_PORT: "50051"
+      IPV6_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+    readinessProbe:
+      tcpSocket: { port: 50051 }
+    resources:
+      requests: { cpu: 20m, memory: 80Mi }
+      limits: { cpu: 500m, memory: 140Mi }
+
+  product-catalog:
+    port: 3550
+    otlp: grpc
+    criticality: high
+    env:
+      PRODUCT_CATALOG_PORT: "3550"
+      GOMEMLIMIT: 16MiB
+      OTEL_GO_X_OBSERVABILITY: "true"
+      OTEL_CONFIG_FILE: /otel-config/otel-config.yml
+      OTEL_SEMCONV_STABILITY_OPT_IN: database
+    readinessProbe:
+      grpc: { port: 3550 }
+      timeoutSeconds: 3
+    resources:
+      requests: { cpu: 20m, memory: 16Mi }
+      limits: { cpu: 500m, memory: 20Mi }
+
+  recommendation:
+    port: 9001
+    otlp: grpc
+    criticality: medium
+    env:
+      RECOMMENDATION_PORT: "9001"
+      PRODUCT_CATALOG_ADDR: product-catalog:3550
+      # The Python flagd provider's flag cache sometimes kept a changed flag
+      # for minutes; without it every evaluation asks flagd.
+      FLAGD_CACHE: disabled
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED: "true"
+      PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+    readinessProbe:
+      tcpSocket: { port: 9001 }
+    resources:
+      # High on purpose: the recommendationCacheFailure flag makes the cache grow.
+      requests: { cpu: 50m, memory: 100Mi }
+      limits: { cpu: 500m, memory: 500Mi }

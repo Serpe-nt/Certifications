@@ -1,0 +1,52 @@
+# A stand-in for the lab's collector gateway, for testing the shop chart on a
+# kind cluster: the same debug-only collector as compose.yaml, published as
+# otel-gateway.otel.svc on 4317 (gRPC) and 4318 (HTTP), the chart's default
+# OTLP endpoint. The real gateway is installed by the lab playbooks (card L3).
+# scripts/kind-test.sh creates the ConfigMap otel-gateway from
+# src/otel-collector/otelcol-config.yml before applying this file.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: otel
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-gateway
+  namespace: otel
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: otel-gateway }
+  template:
+    metadata:
+      labels: { app: otel-gateway }
+    spec:
+      containers:
+        - name: otelcol
+          image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0@sha256:1f2c54a30e713fac6b3ae77a1ec84010c2007e29ced8ec666214fc2f6739c1cc
+          args: ["--config=/conf/config.yaml"]
+          env:
+            - { name: GOMEMLIMIT, value: 320MiB }
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+          volumeMounts:
+            - { name: conf, mountPath: /conf }
+          resources:
+            requests: { cpu: 100m, memory: 200Mi }
+            limits: { cpu: "1", memory: 400Mi }
+      volumes:
+        - name: conf
+          configMap: { name: otel-gateway }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-gateway
+  namespace: otel
+spec:
+  selector: { app: otel-gateway }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }
