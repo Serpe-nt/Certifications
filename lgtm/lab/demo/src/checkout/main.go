@@ -3,14 +3,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -33,7 +29,6 @@ import (
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	otelcodes "go.opentelemetry.io/otel/codes"
@@ -74,7 +69,16 @@ var (
 	initResourcesOnce sync.Once
 )
 
-const emailRequestTimeout = time.Second
+// The lab copy of the demo has no shipping, currency or email service.
+// Checkout replaces each call with an in-process stand-in that keeps a span,
+// so a trace still shows every step of an order.
+const (
+	// shopCurrency is the only currency the trimmed shop knows.
+	shopCurrency = "USD"
+	// Fixed shipping price in shopCurrency: 8 units and 99 cents.
+	shippingCostUnits = 8
+	shippingCostNanos = 990000000
+)
 
 func initResource() *sdkresource.Resource {
 	initResourcesOnce.Do(func() {
@@ -144,20 +148,13 @@ func initLoggerProvider() *sdklog.LoggerProvider {
 type checkout struct {
 	productCatalogSvcAddr string
 	cartSvcAddr           string
-	currencySvcAddr       string
-	shippingSvcAddr       string
-	emailSvcAddr          string
 	paymentSvcAddr        string
 	kafkaBrokerSvcAddr    string
 	pb.UnimplementedCheckoutServiceServer
 	KafkaProducerClient     sarama.AsyncProducer
-	shippingSvcClient       pb.ShippingServiceClient
 	productCatalogSvcClient pb.ProductCatalogServiceClient
 	cartSvcClient           pb.CartServiceClient
-	currencySvcClient       pb.CurrencyServiceClient
-	emailSvcClient          pb.EmailServiceClient
 	paymentSvcClient        pb.PaymentServiceClient
-	httpClient              *http.Client
 }
 
 func main() {
@@ -211,33 +208,15 @@ func main() {
 	tracer = tp.Tracer("checkout")
 
 	svc := new(checkout)
-	svc.httpClient = &http.Client{
-		Transport: otelhttp.NewTransport(http.DefaultTransport),
-	}
-
-	mustMapEnv(&svc.shippingSvcAddr, "SHIPPING_ADDR")
-	c := mustCreateClient(svc.shippingSvcAddr)
-	svc.shippingSvcClient = pb.NewShippingServiceClient(c)
-	defer c.Close()
 
 	mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_ADDR")
-	c = mustCreateClient(svc.productCatalogSvcAddr)
+	c := mustCreateClient(svc.productCatalogSvcAddr)
 	svc.productCatalogSvcClient = pb.NewProductCatalogServiceClient(c)
 	defer c.Close()
 
 	mustMapEnv(&svc.cartSvcAddr, "CART_ADDR")
 	c = mustCreateClient(svc.cartSvcAddr)
 	svc.cartSvcClient = pb.NewCartServiceClient(c)
-	defer c.Close()
-
-	mustMapEnv(&svc.currencySvcAddr, "CURRENCY_ADDR")
-	c = mustCreateClient(svc.currencySvcAddr)
-	svc.currencySvcClient = pb.NewCurrencyServiceClient(c)
-	defer c.Close()
-
-	mustMapEnv(&svc.emailSvcAddr, "EMAIL_ADDR")
-	c = mustCreateClient(svc.emailSvcAddr)
-	svc.emailSvcClient = pb.NewEmailServiceClient(c)
 	defer c.Close()
 
 	mustMapEnv(&svc.paymentSvcAddr, "PAYMENT_ADDR")
@@ -341,14 +320,14 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 		return nil, status.Errorf(codes.Internal, "failed to generate order uuid")
 	}
 
-	prep, err := cs.prepareOrderItemsAndShippingQuoteFromCart(ctx, req.UserId, req.UserCurrency, req.Address)
+	prep, err := cs.prepareOrderItemsAndShippingQuoteFromCart(ctx, req.UserId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	span.AddEvent("prepared")
 
 	total := &pb.Money{
-		CurrencyCode: req.UserCurrency,
+		CurrencyCode: shopCurrency,
 		Units:        0,
 		Nanos:        0,
 	}
@@ -371,10 +350,7 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 		slog.String("transaction_id", txID),
 	)
 
-	shippingTrackingID, err := cs.shipOrder(ctx, req.Address, prep.cartItems)
-	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "shipping error: %+v", err)
-	}
+	shippingTrackingID := cs.shipOrder(ctx, prep.cartItems)
 	shippingTrackingAttribute := attribute.String("demo.shipping.tracking.id", shippingTrackingID)
 	span.AddEvent("shipped", trace.WithAttributes(shippingTrackingAttribute))
 
@@ -408,11 +384,7 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 		slog.String("demo.shipping.tracking.id", shippingTrackingID),
 	)
 
-	if err := cs.sendOrderConfirmation(ctx, req.Email, orderResult); err != nil {
-		logger.Warn(fmt.Sprintf("failed to send order confirmation: %+v", err))
-	} else {
-		logger.Info("order confirmation email sent")
-	}
+	cs.sendOrderConfirmation(ctx, orderResult)
 
 	// send to kafka only if kafka broker address is set
 	if cs.kafkaBrokerSvcAddr != "" {
@@ -430,7 +402,7 @@ type orderPrep struct {
 	shippingCostLocalized *pb.Money
 }
 
-func (cs *checkout) prepareOrderItemsAndShippingQuoteFromCart(ctx context.Context, userID, userCurrency string, address *pb.Address) (orderPrep, error) {
+func (cs *checkout) prepareOrderItemsAndShippingQuoteFromCart(ctx context.Context, userID string) (orderPrep, error) {
 	ctx, span := tracer.Start(ctx, "prepareOrderItemsAndShippingQuoteFromCart")
 	defer span.End()
 
@@ -439,18 +411,11 @@ func (cs *checkout) prepareOrderItemsAndShippingQuoteFromCart(ctx context.Contex
 	if err != nil {
 		return out, fmt.Errorf("cart failure: %+v", err)
 	}
-	orderItems, err := cs.prepOrderItems(ctx, cartItems, userCurrency)
+	orderItems, err := cs.prepOrderItems(ctx, cartItems)
 	if err != nil {
 		return out, fmt.Errorf("failed to prepare order: %+v", err)
 	}
-	shippingUSD, err := cs.quoteShipping(ctx, address, cartItems)
-	if err != nil {
-		return out, fmt.Errorf("shipping quote failure: %+v", err)
-	}
-	shippingPrice, err := cs.convertCurrency(ctx, shippingUSD, userCurrency)
-	if err != nil {
-		return out, fmt.Errorf("failed to convert shipping cost to currency: %+v", err)
-	}
+	shippingPrice := cs.quoteShipping(ctx, cartItems)
 
 	out.shippingCostLocalized = shippingPrice
 	out.cartItems = cartItems
@@ -482,46 +447,23 @@ func mustCreateClient(svcAddr string) *grpc.ClientConn {
 	return c
 }
 
-func (cs *checkout) quoteShipping(ctx context.Context, address *pb.Address, items []*pb.CartItem) (*pb.Money, error) {
-	quotePayload, err := json.Marshal(map[string]interface{}{
-		"address": address,
-		"items":   items,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal ship order request: %+v", err)
-	}
+// quoteShipping stands in for the removed shipping and quote services: every
+// order ships for the same fixed price. The span keeps the step visible in
+// traces and says that no remote call was made.
+func (cs *checkout) quoteShipping(ctx context.Context, items []*pb.CartItem) *pb.Money {
+	_, span := tracer.Start(ctx, "quoteShipping")
+	defer span.End()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", cs.shippingSvcAddr+"/get-quote", bytes.NewBuffer(quotePayload))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %+v", err)
+	var count int
+	for _, it := range items {
+		count += int(it.GetQuantity())
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := cs.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed POST to shipping service: %+v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed POST to shipping service: expected 200, got %d", resp.StatusCode)
-	}
-
-	shippingQuoteBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read shipping quote response: %+v", err)
-	}
-
-	var quoteResp struct {
-		CostUsd *pb.Money `json:"cost_usd"`
-	}
-	if err := json.Unmarshal(shippingQuoteBytes, &quoteResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal shipping quote: %+v", err)
-	}
-	if quoteResp.CostUsd == nil {
-		return nil, fmt.Errorf("shipping quote missing cost_usd field")
-	}
-
-	return quoteResp.CostUsd, nil
+	span.SetAttributes(
+		attribute.Bool("demo.stand_in", true),
+		attribute.String("demo.stand_in.replaces", "shipping"),
+		attribute.Int("demo.cart.items.count", count),
+	)
+	return &pb.Money{CurrencyCode: shopCurrency, Units: shippingCostUnits, Nanos: shippingCostNanos}
 }
 
 func (cs *checkout) getUserCart(ctx context.Context, userID string) ([]*pb.CartItem, error) {
@@ -539,7 +481,7 @@ func (cs *checkout) emptyUserCart(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (cs *checkout) prepOrderItems(ctx context.Context, items []*pb.CartItem, userCurrency string) ([]*pb.OrderItem, error) {
+func (cs *checkout) prepOrderItems(ctx context.Context, items []*pb.CartItem) ([]*pb.OrderItem, error) {
 	out := make([]*pb.OrderItem, len(items))
 
 	for i, item := range items {
@@ -547,27 +489,13 @@ func (cs *checkout) prepOrderItems(ctx context.Context, items []*pb.CartItem, us
 		if err != nil {
 			return nil, fmt.Errorf("failed to get product #%q", item.GetProductId())
 		}
-		price, err := cs.convertCurrency(ctx, product.GetPriceUsd(), userCurrency)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert price of %q to %s", item.GetProductId(), userCurrency)
-		}
+		// Catalog prices are already in shopCurrency, so no conversion is needed.
 		out[i] = &pb.OrderItem{
 			Item: item,
-			Cost: price,
+			Cost: product.GetPriceUsd(),
 		}
 	}
 	return out, nil
-}
-
-func (cs *checkout) convertCurrency(ctx context.Context, from *pb.Money, toCurrency string) (*pb.Money, error) {
-	result, err := cs.currencySvcClient.Convert(ctx, &pb.CurrencyConversionRequest{
-		From:   from,
-		ToCode: toCurrency,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert currency: %+v", err)
-	}
-	return result, err
 }
 
 func (cs *checkout) chargeCard(ctx context.Context, amount *pb.Money, paymentInfo *pb.CreditCardInfo) (string, error) {
@@ -588,76 +516,38 @@ func (cs *checkout) chargeCard(ctx context.Context, amount *pb.Money, paymentInf
 	return paymentResp.GetTransactionId(), nil
 }
 
-func (cs *checkout) sendOrderConfirmation(ctx context.Context, email string, order *pb.OrderResult) error {
-	emailPayload, err := json.Marshal(map[string]interface{}{
-		"email": email,
-		"order": order,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal order to JSON: %+v", err)
-	}
+// sendOrderConfirmation stands in for the removed email service. It records
+// the step as a span and a log line; no message leaves the process.
+func (cs *checkout) sendOrderConfirmation(ctx context.Context, order *pb.OrderResult) {
+	ctx, span := tracer.Start(ctx, "sendOrderConfirmation")
+	defer span.End()
 
-	emailCtx, cancel := context.WithTimeout(ctx, emailRequestTimeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(emailCtx, "POST", cs.emailSvcAddr+"/send_order_confirmation", bytes.NewBuffer(emailPayload))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %+v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := cs.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed POST to email service: %+v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed POST to email service: expected 200, got %d", resp.StatusCode)
-	}
-
-	return err
+	span.SetAttributes(
+		attribute.Bool("demo.stand_in", true),
+		attribute.String("demo.stand_in.replaces", "email"),
+		attribute.String("demo.order.id", order.GetOrderId()),
+	)
+	logger.LogAttrs(
+		ctx,
+		slog.LevelInfo, "order confirmation recorded, no email sent (stand-in)",
+		slog.String("demo.order.id", order.GetOrderId()),
+	)
 }
 
-func (cs *checkout) shipOrder(ctx context.Context, address *pb.Address, items []*pb.CartItem) (string, error) {
-	shipPayload, err := json.Marshal(map[string]interface{}{
-		"address": address,
-		"items":   items,
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal ship order request: %+v", err)
-	}
+// shipOrder stands in for the removed shipping service: it makes up a
+// tracking id in process. The span keeps the step visible in traces.
+func (cs *checkout) shipOrder(ctx context.Context, items []*pb.CartItem) string {
+	_, span := tracer.Start(ctx, "shipOrder")
+	defer span.End()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", cs.shippingSvcAddr+"/ship-order", bytes.NewBuffer(shipPayload))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %+v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := cs.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed POST to shipping service: %+v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed POST to shipping service: expected 200, got %d", resp.StatusCode)
-	}
-
-	trackingRespBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read ship order response: %+v", err)
-	}
-
-	var shipResp struct {
-		TrackingID string `json:"tracking_id"`
-	}
-	if err := json.Unmarshal(trackingRespBytes, &shipResp); err != nil {
-		return "", fmt.Errorf("failed to unmarshal ship order response: %+v", err)
-	}
-	if shipResp.TrackingID == "" {
-		return "", fmt.Errorf("ship order response missing tracking_id field")
-	}
-
-	return shipResp.TrackingID, nil
+	trackingID := uuid.NewString()
+	span.SetAttributes(
+		attribute.Bool("demo.stand_in", true),
+		attribute.String("demo.stand_in.replaces", "shipping"),
+		attribute.Int("demo.order.items.count", len(items)),
+		attribute.String("demo.shipping.tracking.id", trackingID),
+	)
+	return trackingID
 }
 
 func (cs *checkout) sendToPostProcessor(ctx context.Context, result *pb.OrderResult) {

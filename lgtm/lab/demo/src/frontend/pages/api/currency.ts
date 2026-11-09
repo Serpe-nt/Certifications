@@ -3,17 +3,17 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import InstrumentationMiddleware from '../../utils/telemetry/InstrumentationMiddleware';
-import CurrencyGateway from '../../gateways/rpc/Currency.gateway';
 import { Empty } from '../../protos/demo';
+import { markStandIn, SHOP_CURRENCY } from '../../utils/standIn';
 
 type TResponse = string[] | Empty;
 
 const handler = async ({ method }: NextApiRequest, res: NextApiResponse<TResponse>) => {
   switch (method) {
     case 'GET': {
-      const { currencyCodes = [] } = await CurrencyGateway.getSupportedCurrencies();
+      markStandIn('currency');
 
-      return res.status(200).json(currencyCodes);
+      return res.status(200).json([SHOP_CURRENCY]);
     }
 
     default: {

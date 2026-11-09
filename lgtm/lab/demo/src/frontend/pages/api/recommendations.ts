@@ -12,13 +12,13 @@ type TResponse = Product[] | Empty;
 const handler = async ({ method, query }: NextApiRequest, res: NextApiResponse<TResponse>) => {
   switch (method) {
     case 'GET': {
-      const { productIds = [], sessionId = '', currencyCode = '' } = query;
+      const { productIds = [], sessionId = '' } = query;
       const { productIds: productList } = await RecommendationsGateway.listRecommendations(
         sessionId as string,
         productIds as string[]
       );
       const recommendedProductList = await Promise.all(
-        productList.slice(0, 4).map(id => ProductCatalogService.getProduct(id, currencyCode as string))
+        productList.slice(0, 4).map(id => ProductCatalogService.getProduct(id))
       );
 
       return res.status(200).json(recommendedProductList);

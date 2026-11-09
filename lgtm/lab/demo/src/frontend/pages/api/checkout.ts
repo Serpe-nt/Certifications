@@ -17,10 +17,9 @@ const PAYMENT_FAILURE_PREFIX = 'failed to charge card:';
 
 type TResponse = IProductCheckout | Empty | { error: string; code?: string };
 
-const handler = async ({ method, body, query }: NextApiRequest, res: NextApiResponse<TResponse>) => {
+const handler = async ({ method, body }: NextApiRequest, res: NextApiResponse<TResponse>) => {
   switch (method) {
     case 'POST': {
-      const { currencyCode = '' } = query;
       const orderData = body as PlaceOrderRequest;
 
       let placeOrderResponse: PlaceOrderResponse;
@@ -51,7 +50,7 @@ const handler = async ({ method, body, query }: NextApiRequest, res: NextApiResp
 
       const productList: IProductCheckoutItem[] = await Promise.all(
         items.map(async ({ item: { productId = '', quantity = 0 } = {}, cost }) => {
-          const product = await ProductCatalogService.getProduct(productId, currencyCode as string);
+          const product = await ProductCatalogService.getProduct(productId);
 
           return {
             cost,

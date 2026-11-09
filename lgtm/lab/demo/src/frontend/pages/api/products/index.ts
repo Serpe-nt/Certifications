@@ -8,11 +8,10 @@ import ProductCatalogService from '../../../services/ProductCatalog.service';
 
 type TResponse = Product[] | Empty;
 
-const handler = async ({ method, query }: NextApiRequest, res: NextApiResponse<TResponse>) => {
+const handler = async ({ method }: NextApiRequest, res: NextApiResponse<TResponse>) => {
   switch (method) {
     case 'GET': {
-      const { currencyCode = '' } = query;
-      const productList = await ProductCatalogService.listProducts(currencyCode as string);
+      const productList = await ProductCatalogService.listProducts();
 
       return res.status(200).json(productList);
     }

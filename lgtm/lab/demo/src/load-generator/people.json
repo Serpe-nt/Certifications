@@ -110,7 +110,7 @@
             "state": "ON",
             "country": "Canada"
         },
-        "userCurrency": "CAD",
+        "userCurrency": "USD",
         "creditCard": {
             "creditCardNumber": "4763-1844-9699-8031",
             "creditCardExpirationMonth": 7,

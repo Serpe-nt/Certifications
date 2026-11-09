@@ -13,12 +13,12 @@ type TResponse = IProductCart | Empty;
 const handler: NextApiHandler<TResponse> = async ({ method, body, query }, res) => {
   switch (method) {
     case 'GET': {
-      const { sessionId = '', currencyCode = '' } = query;
+      const { sessionId = '' } = query;
       const { userId, items } = await CartGateway.getCart(sessionId as string);
 
       const productList: IProductCartItem[] = await Promise.all(
         items.map(async ({ productId, quantity }) => {
-          const product = await ProductCatalogService.getProduct(productId, currencyCode as string);
+          const product = await ProductCatalogService.getProduct(productId);
 
           return {
             productId,

@@ -122,17 +122,6 @@ products = [
 people_file = open('people.json')
 people = json.load(people_file)
 
-# Prompts the AstronomyShopAgent's bundled VCR fixtures
-# (src/agent/fixtures/vcr_cassettes) have canned responses for, so
-# USE_VCR=True replays cleanly without a real LLM.
-agent_prompts = [
-    "Show all available products in the store.",
-    "What currencies are supported by the Astronomy Shop?",
-    "What current promotions are available on binoculars?",
-]
-agent_endpoint = os.environ.get("AGENT_ENDPOINT", "agent")
-agent_port = os.environ.get("AGENT_PORT", "8010")
-
 class WebsiteUser(HttpUser):
     weight = int(os.environ.get("LOCUST_HTTP_USER_WEIGHT", "9"))
     wait_time = between(1, 10)
@@ -230,17 +219,6 @@ class WebsiteUser(HttpUser):
                 for _ in range(0, flood_count):
                     self.client.get("/")
 
-    @task(3)
-    def ask_agent(self):
-        prompt = random.choice(agent_prompts)
-        input_messages = json.dumps([{"role": "user", "parts": [{"type": "text", "content": prompt}]}])
-        with self.tracer.start_as_current_span("user_ask_agent", context=context.get_current(), attributes={"gen_ai.input.messages": input_messages}):
-            logging.info(f"User asking agent: {prompt}")
-            self.client.post(
-                f"http://{agent_endpoint}:{agent_port}/prompt",
-                json={"message": prompt},
-            )
-
     def on_start(self):
         session_id = str(uuid.uuid4())
         logging.info(f"Starting user session: {session_id}")
@@ -264,18 +242,19 @@ if browser_traffic_enabled:
 
         @task
         @pw
-        async def open_cart_page_and_change_currency(self, page: PageWithRetry):
+        async def open_cart_page(self, page: PageWithRetry):
+            # The lab copy has a single currency, so this task only opens the
+            # cart page (upstream also switched the currency here).
             tracer = trace.get_tracer(__name__)
-            with tracer.start_as_current_span("browser_change_currency", context=Context()):
+            with tracer.start_as_current_span("browser_open_cart", context=Context()):
                 try:
                     page.on("console", lambda msg: print(msg.text))
                     await page.route('**/*', add_baggage_header)
                     await page.goto("/cart", wait_until="domcontentloaded")
-                    await page.select_option('[name="currency_code"]', 'CHF')
                     await page.wait_for_timeout(2000)  # giving the browser time to export the traces
-                    logging.info("Currency changed to CHF")
+                    logging.info("Cart page opened")
                 except Exception as e:
-                    logging.error(f"Error in change currency task: {str(e)}")
+                    logging.error(f"Error in open cart page task: {str(e)}")
 
         @task
         @pw

@@ -4,13 +4,12 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"io"
+	"log/slog"
 	"net"
-	"net/http"
-	"strings"
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/otel"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -20,42 +19,22 @@ import (
 	pb "github.com/open-telemetry/opentelemetry-demo/src/checkout/genproto/oteldemo"
 )
 
-type roundTripperFunc func(*http.Request) (*http.Response, error)
+// The stand-ins for the removed shipping and email services must work
+// without any network peer and must return a usable order.
+func TestStandInsNeedNoRemoteService(t *testing.T) {
+	tracer = otel.Tracer("checkout-test")
+	logger = slog.Default()
+	cs := &checkout{}
+	items := []*pb.CartItem{{ProductId: "OLJCESPC7Z", Quantity: 2}}
 
-func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
-}
-
-func TestSendOrderConfirmationHasBoundedTimeout(t *testing.T) {
-	client := &http.Client{
-		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			deadline, ok := req.Context().Deadline()
-			if !ok {
-				return nil, fmt.Errorf("email request context has no deadline")
-			}
-
-			remaining := time.Until(deadline)
-			if remaining <= 0 || remaining > time.Second {
-				return nil, fmt.Errorf("email request timeout = %v, want at most %v", remaining, time.Second)
-			}
-
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     make(http.Header),
-				Request:    req,
-			}, nil
-		}),
+	cost := cs.quoteShipping(context.Background(), items)
+	if cost.GetCurrencyCode() != shopCurrency || cost.GetUnits() != shippingCostUnits || cost.GetNanos() != shippingCostNanos {
+		t.Errorf("quoteShipping() = %v, want the fixed shipping price", cost)
 	}
-	cs := &checkout{
-		emailSvcAddr: "http://email.test",
-		httpClient:   client,
+	if id := cs.shipOrder(context.Background(), items); id == "" {
+		t.Error("shipOrder() returned an empty tracking id")
 	}
-
-	err := cs.sendOrderConfirmation(context.Background(), "test@example.com", &pb.OrderResult{})
-	if err != nil {
-		t.Fatalf("sendOrderConfirmation() error = %v", err)
-	}
+	cs.sendOrderConfirmation(context.Background(), &pb.OrderResult{OrderId: "test"})
 }
 
 func TestHealthCheck(t *testing.T) {

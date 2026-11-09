@@ -103,11 +103,6 @@ func initDatabase() error {
 func main() {
 	ctx := context.Background()
 
-	opAMPIdentity, err := prepareOpAMPIdentity()
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to prepare OpAMP identity: %v", err))
-	}
-
 	// Initialize OpenTelemetry SDK with otelconf
 	sdk, err := otelconf.NewSDK(otelconf.WithContext(ctx))
 	if err != nil {
@@ -166,21 +161,6 @@ func main() {
 	err = runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second))
 	if err != nil {
 		logger.Error(err.Error())
-	}
-
-	opAMPClient, err := startOpAMPClient(context.Background(), opAMPIdentity)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to start OpAMP client: %v", err))
-	} else if opAMPClient != nil {
-		defer func() {
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := opAMPClient.Stop(shutdownCtx); err != nil {
-				logger.Error(fmt.Sprintf("Error stopping OpAMP client: %v", err))
-			} else {
-				logger.Info("Stopped OpAMP client")
-			}
-		}()
 	}
 
 	svc := &productCatalog{}
