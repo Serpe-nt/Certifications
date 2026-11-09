@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: lb_haproxy
+  namespace: lgtm_lab
+  author: LGTM study project
+  description: HAProxy on the load balancer for the Kubernetes API and the ingress NodePorts
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+dependencies: []

@@ -1,0 +1,87 @@
+---
+# Read-only health checks after `make cluster`. Run it with `make cluster-check`.
+- name: Check the load balancer
+  hosts: load_balancer
+  gather_facts: false
+  tasks:
+    - name: Read the HAProxy statistics
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:8404/stats;csv"
+        return_content: true
+      register: cluster_check_stats
+
+    - name: Check that every API server is up behind HAProxy
+      ansible.builtin.assert:
+        that:
+          - cluster_check_api_up | length == groups['control_plane'] | length
+        fail_msg: "API servers up behind HAProxy: {{ cluster_check_api_up }}; expected {{ groups['control_plane'] }}."
+        success_msg: "API servers up behind HAProxy: {{ cluster_check_api_up | join(', ') }}"
+      vars:
+        cluster_check_api_up: >-
+          {{ cluster_check_stats.content.splitlines()
+             | select('match', '^k8s_api_servers,(?!BACKEND)')
+             | select('search', ',UP')
+             | map('split', ',') | map(attribute='1') | list }}
+
+    - name: Resolve the control-plane endpoint through the lab DNS
+      ansible.builtin.command:
+        cmd: "dig +short @{{ k8s_net_ip }} {{ control_plane_endpoint }}"
+      register: cluster_check_dig
+      changed_when: false
+      failed_when: cluster_check_dig.stdout | trim != k8s_net_ip
+
+- name: Check the cluster from the first control-plane node
+  hosts: control_plane[0]
+  gather_facts: false
+  vars:
+    cluster_check_kubectl: kubectl --kubeconfig /etc/kubernetes/admin.conf
+  become: true
+  tasks:
+    - name: Wait until every node is Ready
+      ansible.builtin.command:
+        cmd: "{{ cluster_check_kubectl }} wait --for=condition=Ready nodes --all --timeout=300s"
+      changed_when: false
+
+    - name: List the nodes
+      ansible.builtin.command:
+        cmd: "{{ cluster_check_kubectl }} get nodes -o json"
+      register: cluster_check_nodes
+      changed_when: false
+
+    - name: Check that every inventory host is a node
+      ansible.builtin.assert:
+        that:
+          - groups['k8s_cluster'] | difference(cluster_check_node_names) | length == 0
+        fail_msg: "Missing nodes: {{ groups['k8s_cluster'] | difference(cluster_check_node_names) }}"
+        success_msg: "Nodes: {{ cluster_check_node_names | join(', ') }}"
+      vars:
+        cluster_check_node_names: "{{ (cluster_check_nodes.stdout | from_json)['items'] | map(attribute='metadata.name') | list }}"
+
+    - name: Wait for the system pods
+      ansible.builtin.command:
+        cmd: "{{ cluster_check_kubectl }} wait --for=condition=Ready pods --all --namespace {{ item }} --timeout=300s"
+      loop:
+        - kube-system
+        - calico-system
+      changed_when: false
+
+    - name: Count the etcd members
+      ansible.builtin.command:
+        cmd: "{{ cluster_check_kubectl }} get pods --namespace kube-system --selector component=etcd --no-headers"
+      register: cluster_check_etcd
+      changed_when: false
+      failed_when: cluster_check_etcd.stdout_lines | length != groups['control_plane'] | length
+
+- name: Check access from the control machine
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    cluster_check_kubeconfig: "{{ lookup('ansible.builtin.env', 'HOME') }}/.kube/{{ lab_cluster_name | default('lgtm-lab') }}.config"
+  tasks:
+    - name: Ask the API server through the load balancer
+      ansible.builtin.command:
+        cmd: "kubectl --kubeconfig {{ cluster_check_kubeconfig }} get --raw /readyz"
+      register: cluster_check_readyz
+      changed_when: false
+      failed_when: cluster_check_readyz.stdout | trim != 'ok'

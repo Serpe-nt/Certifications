@@ -1,0 +1,104 @@
+---
+# Requirements from https://longhorn.io/docs/latest/deploy/install/ (V1 data engine).
+- name: Install the Longhorn host packages
+  ansible.builtin.apt:
+    name: "{{ node_prereqs_longhorn_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Load the Longhorn kernel modules now and at boot
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+    persistent: present
+  loop: "{{ node_prereqs_longhorn_modules }}"
+
+- name: Start iscsid at boot
+  ansible.builtin.systemd_service:
+    name: iscsid
+    enabled: true
+    state: started
+
+- name: Gather package facts
+  ansible.builtin.package_facts:
+    manager: apt
+
+- name: Keep multipathd off the Longhorn devices
+  ansible.builtin.template:
+    src: multipath-longhorn.conf.j2
+    dest: /etc/multipath/conf.d/longhorn.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: "'multipath-tools' in ansible_facts.packages"
+  notify: Restart multipathd
+
+- name: Look for an existing Longhorn data filesystem
+  ansible.builtin.command:
+    cmd: "blkid --label {{ node_prereqs_data_label }}"
+  register: node_prereqs_labelled
+  changed_when: false
+  failed_when: node_prereqs_labelled.rc not in [0, 2]
+
+- name: Find the data disk
+  when: node_prereqs_labelled.rc != 0
+  block:
+    - name: List whole disks
+      ansible.builtin.command:
+        cmd: lsblk --json --bytes --nodeps --output NAME,TYPE,SIZE,FSTYPE,RO,PTTYPE
+      register: node_prereqs_lsblk
+      changed_when: false
+
+    # A candidate is a writable whole disk with no partition table and no filesystem, so the
+    # system disk, a cloud-init seed disk and any formatted disk are never chosen.
+    - name: List the empty disks of the expected size
+      ansible.builtin.set_fact:
+        node_prereqs_candidates: >-
+          {{ (node_prereqs_lsblk.stdout | from_json).blockdevices
+             | selectattr('type', 'equalto', 'disk')
+             | selectattr('fstype', 'none')
+             | selectattr('pttype', 'none')
+             | rejectattr('ro', 'in', [true, '1', 1])
+             | selectattr('size', 'ge', node_prereqs_min_bytes | int)
+             | selectattr('size', 'le', node_prereqs_max_bytes | int)
+             | map(attribute='name') | list }}
+      vars:
+        node_prereqs_gib: 1073741824
+        node_prereqs_size_gb: "{{ node_prereqs_data_disk_size_gb | int }}"
+        node_prereqs_min_bytes: "{{ ([(node_prereqs_size_gb | int) - 1, 1] | max) * node_prereqs_gib }}"
+        node_prereqs_max_bytes: "{{ ((node_prereqs_size_gb | int) + 1) * node_prereqs_gib if node_prereqs_size_gb | int > 0 else 2**62 }}"
+
+    - name: Stop when the data disk is not clear
+      ansible.builtin.fail:
+        msg: >-
+          Found {{ node_prereqs_candidates | length }} empty disks ({{ node_prereqs_candidates | join(', ') }})
+          that could be the Longhorn data disk. Set node_prereqs_data_disk_device for this host,
+          or set node_prereqs_data_disk_size_gb to 0 when the host has no data disk.
+      when:
+        - node_prereqs_data_disk_device | length == 0
+        - (node_prereqs_candidates | length > 1) or (node_prereqs_candidates | length == 0 and node_prereqs_data_disk_size_gb | int > 0)
+
+    - name: Choose the data disk device
+      ansible.builtin.set_fact:
+        node_prereqs_data_device: >-
+          {{ node_prereqs_data_disk_device if node_prereqs_data_disk_device | length > 0
+          else ('/dev/' ~ node_prereqs_candidates[0]) if node_prereqs_candidates | length == 1
+          else '' }}
+
+    # community.general.filesystem never formats a device that already holds a filesystem.
+    - name: Create the data filesystem
+      community.general.filesystem:
+        dev: "{{ node_prereqs_data_device }}"
+        fstype: "{{ node_prereqs_data_fstype }}"
+        opts: "-L {{ node_prereqs_data_label }}"
+      when: node_prereqs_data_device | length > 0
+
+- name: Mount the data filesystem at the Longhorn data path
+  ansible.posix.mount:
+    path: "{{ node_prereqs_data_mount }}"
+    src: "LABEL={{ node_prereqs_data_label }}"
+    fstype: "{{ node_prereqs_data_fstype }}"
+    opts: defaults,nofail
+    state: mounted
+  when: node_prereqs_labelled.rc == 0 or (node_prereqs_data_device | default('') | length > 0)

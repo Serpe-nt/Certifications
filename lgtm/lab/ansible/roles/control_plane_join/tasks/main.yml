@@ -1,10 +1,17 @@
 ---
+# Skip the whole join on a node that has already joined, so a re-run creates no tokens.
+- name: Check whether this node has joined
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: control_plane_join_joined
+
 - name: Get master certificate
   ansible.builtin.command:
     cmd: "kubeadm init phase upload-certs --upload-certs --config /etc/k8s_bootstrap/kubeadm-config.yaml"
   register: control_plane_join_cert_result
   delegate_to: "{{ primary_master }}"
   changed_when: false
+  when: not control_plane_join_joined.stat.exists
 
 - name: Get join token
   ansible.builtin.command:
@@ -12,22 +19,32 @@
   register: control_plane_join_token_result
   delegate_to: "{{ primary_master }}"
   changed_when: false
+  when: not control_plane_join_joined.stat.exists
 
 - name: Set join facts
   ansible.builtin.set_fact:
     control_plane_join_token: "{{ control_plane_join_token_result.stdout.split()[4] }}"
     control_plane_join_ca_cert_hash: "{{ control_plane_join_token_result.stdout.split()[6] }}"
     control_plane_join_cert: "{{ control_plane_join_cert_result.stdout_lines | last }}"
+  when: not control_plane_join_joined.stat.exists
 
 - name: Copy join template
   ansible.builtin.template:
     src: kubeadm-join-config.yaml.j2
-    dest: /tmp/k8s-join-config.yaml
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    dest: /root/k8s-join-config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  when: not control_plane_join_joined.stat.exists
 
 - name: Join control plane
   ansible.builtin.command:
-    cmd: "kubeadm join --config /tmp/k8s-join-config.yaml"
+    cmd: "kubeadm join --config /root/k8s-join-config.yaml"
     creates: /etc/kubernetes/kubelet.conf
+  when: not control_plane_join_joined.stat.exists
+
+# The join file holds a bootstrap token (and, for control-plane nodes, the certificate key).
+- name: Remove the join file
+  ansible.builtin.file:
+    path: /root/k8s-join-config.yaml
+    state: absent

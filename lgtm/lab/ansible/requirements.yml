@@ -1,0 +1,12 @@
+---
+# Ansible collections used by the lab playbooks, installed into ./.ansible/collections
+# (git-ignored) by `make collections`, never into the system.
+# Pinned on 2026-11-09 from https://galaxy.ansible.com (see lgtm/docs/adr/l1-tool-pins.md).
+collections:
+  - name: ansible.posix
+    version: 2.2.2
+  - name: community.general
+    version: 14.0.1
+  # Used by the later lab cards (platform and LGTM releases).
+  - name: kubernetes.core
+    version: 6.6.0

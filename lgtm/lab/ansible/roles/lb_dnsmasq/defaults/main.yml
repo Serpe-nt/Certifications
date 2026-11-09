@@ -1,0 +1,12 @@
+---
+# Address dnsmasq listens on: the load balancer's own address. Binding to one address leaves
+# 127.0.0.53 to systemd-resolved.
+lb_dnsmasq_listen_address: "{{ k8s_net_ip }}"
+# Zone served from this host, and the names in it.
+lb_dnsmasq_domain: "{{ dns_search_domain | default('k8s.local') }}"
+lb_dnsmasq_endpoint_name: "{{ control_plane_endpoint | default('cluster-endpoint.' ~ lb_dnsmasq_domain) }}"
+# Every name under this subdomain answers with the load balancer address.
+lb_dnsmasq_wildcard_domain: "lab.{{ lb_dnsmasq_domain }}"
+lb_dnsmasq_target_address: "{{ k8s_net_ip }}"
+# Resolvers for every other name.
+lb_dnsmasq_upstream_servers: "{{ lab_upstream_dns | default(['1.1.1.1', '9.9.9.9']) }}"

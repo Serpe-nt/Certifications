@@ -1,3 +1,12 @@
 ---
 pod_network_cidr: 10.100.0.0/16
-tigera_operator_manifest_url: "https://raw.githubusercontent.com/projectcalico/calico/v3.31.4/manifests/tigera-operator.yaml"
+# kubeadm's default service subnet, 10.96.0.0/12, contains pod_network_cidr. A /16 keeps the
+# usual service addresses (10.96.0.1, 10.96.0.10) and no longer overlaps the pods.
+master_init_service_network_cidr: 10.96.0.0/16
+# Extra names and addresses for the API server certificate, for example the load balancer
+# address. Only used by `kubeadm init`.
+master_init_apiserver_cert_extra_sans: []
+# calico_version is set in the inventory (group_vars/all.yml), the one place for versions.
+# Since Calico 3.30 the operator CRDs are a separate manifest.
+master_init_calico_crds_manifest_url: "https://raw.githubusercontent.com/projectcalico/calico/v{{ calico_version }}/manifests/operator-crds.yaml"
+tigera_operator_manifest_url: "https://raw.githubusercontent.com/projectcalico/calico/v{{ calico_version }}/manifests/tigera-operator.yaml"

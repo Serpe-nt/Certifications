@@ -1,6 +1,17 @@
 ---
+# The load balancer and the lab DNS come first: kubeadm init on the first control-plane node
+# needs cluster-endpoint.k8s.local to resolve and port 6443 to answer through HAProxy.
+- name: Load balancer and lab DNS
+  hosts: load_balancer
+  become: true
+  roles:
+    - ssh_hardening
+    - node_prereqs
+    - lb_haproxy
+    - lb_dnsmasq
+
 - name: Common setup
-  hosts: all
+  hosts: k8s_cluster
   become: true
   roles:
     - ssh_hardening
@@ -8,6 +19,7 @@
     - k8s_kernel_modules
     - containerd
     - network
+    - node_prereqs
     - k8s_packages
 
 - name: Initialize first master node
@@ -28,3 +40,9 @@
   become: true
   roles:
     - worker_join
+
+- name: Write the lab kubeconfig on the control machine
+  hosts: control_plane[0]
+  become: true
+  roles:
+    - kubeconfig_fetch

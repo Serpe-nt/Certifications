@@ -1,0 +1,12 @@
+---
+# Settings for the original k8s-provision shape: KVM VMs with a management network
+# (192.168.10.x, used by Ansible) and a separate cluster network on eth2 (10.10.0.x),
+# a hand-made load balancer and a DNS server at 10.10.0.5.
+primary_master: "{{ groups['control_plane'][0] }}"
+control_plane_endpoint: cluster-endpoint.k8s.local
+
+k8s_minor_version: "1.35"
+calico_version: "3.31.4"
+
+# The network role writes a netplan file for eth2 with the address k8s_net_ip.
+network_manage_k8s_interface: true

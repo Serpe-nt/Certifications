@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: kubeconfig_fetch
+  namespace: lgtm_lab
+  author: LGTM study project
+  description: Writes the lab admin kubeconfig to its own file on the control machine
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+dependencies: []

@@ -1,25 +1,41 @@
 ---
+# Skip the whole join on a node that has already joined, so a re-run creates no tokens.
+- name: Check whether this node has joined
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: worker_join_joined
+
 - name: Get join token
   ansible.builtin.command:
     cmd: "kubeadm token create --print-join-command"
   register: worker_join_token_result
   delegate_to: "{{ primary_master }}"
   changed_when: false
+  when: not worker_join_joined.stat.exists
 
 - name: Set join facts
   ansible.builtin.set_fact:
     worker_join_token: "{{ worker_join_token_result.stdout.split()[4] }}"
     worker_join_ca_cert_hash: "{{ worker_join_token_result.stdout.split()[6] }}"
+  when: not worker_join_joined.stat.exists
 
 - name: Copy join template
   ansible.builtin.template:
     src: worker-join-config.yaml.j2
-    dest: /tmp/k8s-join-config.yaml
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
+    dest: /root/k8s-join-config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  when: not worker_join_joined.stat.exists
 
 - name: Join k8s cluster
   ansible.builtin.command:
-    cmd: "kubeadm join --config /tmp/k8s-join-config.yaml"
+    cmd: "kubeadm join --config /root/k8s-join-config.yaml"
     creates: /etc/kubernetes/kubelet.conf
+  when: not worker_join_joined.stat.exists
+
+# The join file holds a bootstrap token (and, for control-plane nodes, the certificate key).
+- name: Remove the join file
+  ansible.builtin.file:
+    path: /root/k8s-join-config.yaml
+    state: absent

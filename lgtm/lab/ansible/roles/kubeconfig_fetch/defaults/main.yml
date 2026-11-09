@@ -1,0 +1,7 @@
+---
+# Where the admin kubeconfig is written on the control machine. Never ~/.kube/config.
+kubeconfig_fetch_dest: "{{ lookup('ansible.builtin.env', 'HOME') }}/.kube/{{ lab_cluster_name | default('lgtm-lab') }}.config"
+# API server address written into the file. The default goes through the load balancer by name.
+kubeconfig_fetch_server: "https://{{ control_plane_endpoint }}:6443"
+# Names of the cluster, user and context inside the file, so it can sit next to other configs.
+kubeconfig_fetch_cluster_name: "{{ lab_cluster_name | default('lgtm-lab') }}"

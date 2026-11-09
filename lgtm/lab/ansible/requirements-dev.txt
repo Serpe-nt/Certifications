@@ -1,0 +1,5 @@
+# Python tools for `make lint`, installed into lgtm/lab/.venv (git-ignored) by `make venv`.
+# Pinned on 2026-11-09 from https://pypi.org/project/<name>/ (see lgtm/docs/adr/l1-tool-pins.md).
+ansible-core==2.21.5
+ansible-lint==26.11.0
+yamllint==1.38.0

@@ -1,0 +1,11 @@
+---
+# Inventory groups whose hosts become the backends. Each host needs k8s_net_ip.
+lb_haproxy_control_plane_group: control_plane
+lb_haproxy_worker_group: workers
+# NodePorts of the Gateway listeners on the workers (lab contract).
+lb_haproxy_http_node_port: 30080
+lb_haproxy_https_node_port: 30443
+# The owner's haproxy.cfg checked GET /healthz on the ingress NodePorts. The lab gateway has
+# no such route, so the default is a plain TCP check; set this to true to restore the HTTP check.
+lb_haproxy_ingress_http_check: false
+lb_haproxy_ingress_http_check_path: /healthz

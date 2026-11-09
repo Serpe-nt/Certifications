@@ -1,4 +1,6 @@
 ---
+# Only for machines with a separate cluster network card. When the single card was
+# configured at first boot (cloud-init), set network_manage_k8s_interface to false.
 - name: Drop in netplan config for the k8s interface
   ansible.builtin.template:
     src: k8s-net.yaml.j2
@@ -7,6 +9,7 @@
     group: root
     mode: "0600"
   notify: Reapply netplan
+  when: network_manage_k8s_interface | bool
 
 - name: Create systemd-resolved config dir
   ansible.builtin.file:

@@ -1,3 +1,5 @@
+# {{ ansible_managed }}
+# Rendered by the lb_haproxy role from the owner's haproxy.cfg; servers come from the inventory groups.
 #---------------------------------------------------------------------
 # Global settings
 #---------------------------------------------------------------------
@@ -59,7 +61,7 @@ frontend stats
     monitor-uri /healthz
 
 #---------------------------------------------------------------------
-# Kubernetes API Server – TCP passthrough (6443)
+# Kubernetes API Server - TCP passthrough (6443)
 #---------------------------------------------------------------------
 frontend k8s_api
     bind *:6443
@@ -71,12 +73,12 @@ backend k8s_api_servers
     option httpchk GET /healthz
     http-check expect status 200
     default-server check check-ssl verify none inter 10s downinter 5s fall 3 rise 2
-    server master1 10.10.0.11:6443
-    server master2 10.10.0.12:6443
-    server master3 10.10.0.13:6443
+{% for host in groups[lb_haproxy_control_plane_group] %}
+    server {{ host }} {{ hostvars[host].k8s_net_ip }}:6443
+{% endfor %}
 
 #---------------------------------------------------------------------
-# Ingress HTTP – TCP passthrough (80 → NodePort 30080)
+# Ingress HTTP - TCP passthrough (80 -> NodePort {{ lb_haproxy_http_node_port }})
 #---------------------------------------------------------------------
 frontend ingress_http
     bind *:80
@@ -85,16 +87,17 @@ frontend ingress_http
 
 backend ingress_http_workers
     balance roundrobin
-    option httpchk GET /healthz
+{% if lb_haproxy_ingress_http_check %}
+    option httpchk GET {{ lb_haproxy_ingress_http_check_path }}
     http-check expect status 200
+{% endif %}
     default-server check inter 10s downinter 5s fall 3 rise 2
-    server worker1 10.10.0.30:30080
-    server worker2 10.10.0.31:30080
-    server worker3 10.10.0.32:30080
-    server worker4 10.10.0.33:30080
+{% for host in groups[lb_haproxy_worker_group] %}
+    server {{ host }} {{ hostvars[host].k8s_net_ip }}:{{ lb_haproxy_http_node_port }}
+{% endfor %}
 
 #---------------------------------------------------------------------
-# Ingress HTTPS – TCP passthrough (443 → NodePort 30443)
+# Ingress HTTPS - TCP passthrough (443 -> NodePort {{ lb_haproxy_https_node_port }})
 #---------------------------------------------------------------------
 frontend ingress_https
     bind *:443
@@ -103,10 +106,13 @@ frontend ingress_https
 
 backend ingress_https_workers
     balance roundrobin
-    option httpchk GET /healthz
+{% if lb_haproxy_ingress_http_check %}
+    option httpchk GET {{ lb_haproxy_ingress_http_check_path }}
     http-check expect status 200
     default-server check check-ssl verify none inter 10s downinter 5s fall 3 rise 2
-    server worker1 10.10.0.30:30443
-    server worker2 10.10.0.31:30443
-    server worker3 10.10.0.32:30443
-    server worker4 10.10.0.33:30443
+{% else %}
+    default-server check inter 10s downinter 5s fall 3 rise 2
+{% endif %}
+{% for host in groups[lb_haproxy_worker_group] %}
+    server {{ host }} {{ hostvars[host].k8s_net_ip }}:{{ lb_haproxy_https_node_port }}
+{% endfor %}

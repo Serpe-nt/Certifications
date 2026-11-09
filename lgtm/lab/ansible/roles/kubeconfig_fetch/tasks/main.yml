@@ -1,0 +1,61 @@
+---
+- name: Refuse to write the default kubeconfig
+  ansible.builtin.assert:
+    that:
+      - (kubeconfig_fetch_dest | ansible.builtin.realpath) != ((lookup('ansible.builtin.env', 'HOME') ~ '/.kube/config') | ansible.builtin.realpath)
+    fail_msg: "kubeconfig_fetch_dest must not be ~/.kube/config: the lab never overwrites it."
+    quiet: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Read the admin kubeconfig
+  ansible.builtin.slurp:
+    src: /etc/kubernetes/admin.conf
+  register: kubeconfig_fetch_admin
+  run_once: true
+  no_log: true
+
+- name: Create the kubeconfig directory on the control machine
+  ansible.builtin.file:
+    path: "{{ kubeconfig_fetch_dest | dirname }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Write the lab kubeconfig on the control machine
+  ansible.builtin.copy:
+    content: "{{ kubeconfig_fetch_document | to_nice_yaml(indent=2) }}"
+    dest: "{{ kubeconfig_fetch_dest }}"
+    mode: "0600"
+  vars:
+    kubeconfig_fetch_admin_doc: "{{ kubeconfig_fetch_admin.content | b64decode | from_yaml }}"
+    kubeconfig_fetch_document:
+      apiVersion: v1
+      kind: Config
+      clusters:
+        - name: "{{ kubeconfig_fetch_cluster_name }}"
+          cluster:
+            certificate-authority-data: "{{ kubeconfig_fetch_admin_doc.clusters[0].cluster['certificate-authority-data'] }}"
+            server: "{{ kubeconfig_fetch_server }}"
+      users:
+        - name: "{{ kubeconfig_fetch_cluster_name }}-admin"
+          user: "{{ kubeconfig_fetch_admin_doc.users[0].user }}"
+      contexts:
+        - name: "{{ kubeconfig_fetch_cluster_name }}"
+          context:
+            cluster: "{{ kubeconfig_fetch_cluster_name }}"
+            user: "{{ kubeconfig_fetch_cluster_name }}-admin"
+      current-context: "{{ kubeconfig_fetch_cluster_name }}"
+      preferences: {}
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+
+- name: Say where the kubeconfig is
+  ansible.builtin.debug:
+    msg: "Lab kubeconfig: {{ kubeconfig_fetch_dest }} (export KUBECONFIG={{ kubeconfig_fetch_dest }})"
+  run_once: true

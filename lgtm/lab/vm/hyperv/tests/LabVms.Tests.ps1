@@ -82,11 +82,14 @@ Describe 'ConvertFrom-LabYaml' {
     }
 
     It 'reads nodes.yml the same way as PyYAML' {
-        $python = @('python3', 'python') | Where-Object { Get-Command $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
-        if (-not $python) { Set-ItResult -Skipped -Because 'Python is not on PATH'; return }
         $ErrorActionPreference = 'Continue'
-        $json = & $python -c 'import json,sys,yaml; print(json.dumps(yaml.safe_load(open(sys.argv[1], encoding="utf-8"))))' $script:NodesFile 2>$null
-        if ($LASTEXITCODE -ne 0) { Set-ItResult -Skipped -Because 'PyYAML is not installed for this Python'; return }
+        $json = $null
+        foreach ($python in @('python', 'python3')) {
+            if (-not (Get-Command $python -ErrorAction SilentlyContinue)) { continue }
+            $out = & $python -c 'import json,sys,yaml; print(json.dumps(yaml.safe_load(open(sys.argv[1], encoding="utf-8"))))' $script:NodesFile 2>$null
+            if ($LASTEXITCODE -eq 0) { $json = $out; break }
+        }
+        if (-not $json) { Set-ItResult -Skipped -Because 'no Python with PyYAML on PATH'; return }
         $expected = $json | ConvertFrom-Json | ConvertTo-Json -Depth 10 -Compress
         $actual = ConvertFrom-LabYaml -Text ([IO.File]::ReadAllText($script:NodesFile)) | ConvertTo-Json -Depth 10 -Compress
         $actual | Should -Be $expected

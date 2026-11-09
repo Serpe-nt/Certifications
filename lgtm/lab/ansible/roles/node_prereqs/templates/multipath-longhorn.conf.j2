@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# Keep multipathd away from the SCSI disks that Longhorn attaches over iSCSI.
+# See https://longhorn.io/kb/troubleshooting-volume-with-multipath/
+blacklist {
+    devnode "^sd[a-z0-9]+"
+}

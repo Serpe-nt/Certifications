@@ -1,0 +1,26 @@
+---
+# Time sync on every node (Kubernetes certificates and etcd need correct clocks).
+node_prereqs_time_package: chrony
+node_prereqs_time_service: chrony
+
+# Longhorn prerequisites and the data disk. The inventory sets this to true on workers.
+node_prereqs_longhorn: false
+node_prereqs_longhorn_packages:
+  - open-iscsi
+  - nfs-common
+  - cryptsetup
+  - dmsetup
+node_prereqs_longhorn_modules:
+  - iscsi_tcp
+  - dm_crypt
+
+# Where the data disk is mounted: Longhorn's default data path.
+node_prereqs_data_mount: /var/lib/longhorn
+node_prereqs_data_label: longhorn
+node_prereqs_data_fstype: ext4
+# Give the device (for example /dev/sdc) to skip detection. Otherwise the role looks for the
+# one whole disk with no partition table and no filesystem, of node_prereqs_data_disk_size_gb
+# (plus or minus 1 GB) if that is above 0. Without a data disk the mount is skipped and
+# Longhorn uses the root disk.
+node_prereqs_data_disk_device: ""
+node_prereqs_data_disk_size_gb: 0
