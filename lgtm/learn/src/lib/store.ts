@@ -50,6 +50,11 @@ export class Store {
   /** Counts local changes, so a push knows whether more arrived while it was on its way. */
   private changes = 0;
   status: SyncStatus = 'local';
+  /** True once the first pull has finished (answered or failed). Automatic changes wait for it. */
+  firstSyncDone = false;
+  private firstSyncResolve!: () => void;
+  /** Resolves when the first pull has finished. Nothing saves on its own before that (see CLAUDE.md). */
+  readonly firstSync: Promise<void> = new Promise((r) => (this.firstSyncResolve = r));
 
   private deps: StoreDeps;
 
@@ -147,8 +152,19 @@ export class Store {
 
   /** Asks the server for news. Costs a 304 when nothing changed. */
   pull(): Promise<void> {
-    this.pulling ??= this.doPull().finally(() => (this.pulling = null));
+    this.pulling ??= this.doPull().finally(() => {
+      this.pulling = null;
+      if (!this.firstSyncDone) {
+        this.firstSyncDone = true;
+        this.firstSyncResolve();
+      }
+    });
     return this.pulling;
+  }
+
+  /** True while a pull is on its way: a clock must not act on a copy that may be behind. */
+  isPulling(): boolean {
+    return this.pulling !== null;
   }
 
   private async doPull(): Promise<void> {

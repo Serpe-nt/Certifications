@@ -43,3 +43,13 @@ export const DOMAINS: Record<string, { cert: Cert; name: string; competencies: r
 
 /** Lab addresses a lesson may link to with <LabLink to="...">; from 02-lab-contract.md, "Addresses in the browser". */
 export const LAB_HOSTS = ['grafana', 'shop', 'flags', 'loadgen', 'prometheus', 'alertmanager', 'mimir', 'loki', 'tempo', 'alloy', 'otlp', 'longhorn', 's3'] as const;
+
+/**
+ * The two exams as the mock exams and the readiness panel use them. Domain weights, question
+ * count, duration and pass mark come from lgtm/docs/plan/01-curriculum.md ("Exam domains used
+ * for mapping"), which cites the official curriculum PDFs and the Linux Foundation exam FAQ.
+ */
+export const EXAMS: Record<Cert, { name: string; questions: number; minutes: number; pass: number; weights: Readonly<Record<string, number>> }> = {
+  otca: { name: 'OpenTelemetry Certified Associate (OTCA)', questions: 60, minutes: 90, pass: 0.75, weights: { O1: 18, O2: 46, O3: 26, O4: 10 } },
+  pca: { name: 'Prometheus Certified Associate (PCA)', questions: 60, minutes: 90, pass: 0.75, weights: { P1: 18, P2: 20, P3: 28, P4: 16, P5: 18 } },
+};

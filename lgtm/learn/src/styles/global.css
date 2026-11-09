@@ -128,3 +128,97 @@
     border: 0;
   }
 }
+
+/* Celebrations (src/lib/fx.ts). Plain on purpose: the design card (DZ) styles them. */
+@layer components {
+  .fx-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 50;
+  }
+  .fx-banner,
+  .fx-notice {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 51;
+    max-width: calc(100vw - 2rem);
+    padding: var(--lg-space-3) var(--lg-space-6);
+    border-radius: var(--lg-radius-lg);
+    border: 1px solid var(--lg-line);
+    background: var(--lg-surface);
+    color: var(--lg-ink);
+    box-shadow: var(--lg-shadow);
+    font-weight: 700;
+    pointer-events: none;
+  }
+  .fx-banner {
+    top: var(--lg-space-6);
+    font-size: 1.125rem;
+  }
+  .fx-banner-module,
+  .fx-banner-mock,
+  .fx-banner-all {
+    font-size: 1.5rem;
+    border-color: var(--lg-accent);
+  }
+  .fx-notice {
+    bottom: var(--lg-space-6);
+    font-weight: 600;
+  }
+  /* Quiz squares: one per question; the tone says right, wrong, answered or flagged. */
+  .q-square {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    border-radius: var(--lg-radius-sm);
+    border: 1px solid var(--lg-line);
+    background: var(--lg-surface);
+    color: var(--lg-ink);
+    font: inherit;
+    cursor: pointer;
+  }
+  .q-square[aria-current="true"] {
+    outline: 2px solid var(--lg-accent);
+  }
+  .q-square[data-tone="right"] {
+    border-color: var(--lg-good);
+    color: var(--lg-good);
+  }
+  .q-square[data-tone="wrong"] {
+    border-color: var(--lg-bad);
+    color: var(--lg-bad);
+  }
+  .q-square[data-tone="answered"] {
+    background: var(--lg-surface-2);
+    border-color: var(--lg-ink-3);
+  }
+  .q-square[data-flagged="true"] {
+    border-style: dashed;
+    border-color: var(--lg-warn);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fx-banner {
+    animation: fx-drop 420ms ease-out;
+  }
+  .fx-banner-module,
+  .fx-banner-mock,
+  .fx-banner-all {
+    animation: fx-drop 520ms cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+}
+
+@keyframes fx-drop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -1.5rem) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
