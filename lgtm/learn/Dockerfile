@@ -10,7 +10,7 @@ ARG NODE_IMAGE=node:26.13.0-trixie-slim
 FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS build
 WORKDIR /src
 ENV ASTRO_TELEMETRY_DISABLED=1
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY . .
 ARG SAMPLE=
@@ -19,7 +19,7 @@ RUN if [ -n "$SAMPLE" ]; then npm run build:sample && mv dist-sample /out-site; 
 
 FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS deps
 WORKDIR /src
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
 # Run: the official Node image as its non-root user "node" (uid 1000). The compose file
