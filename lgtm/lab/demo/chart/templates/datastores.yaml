@@ -1,0 +1,230 @@
+{{- /*
+The shop's own data stores, one instance each with a volume: Kafka (orders
+topic), PostgreSQL (product catalog) and Valkey (carts). They are separate
+from the lab's telemetry Kafka in the kafka namespace.
+*/ -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-postgresql
+  labels:
+    {{- include "shop.labels" (list . "astronomy-db") | nindent 4 }}
+type: Opaque
+stringData:
+  admin-password: {{ .Values.postgresql.adminPassword | quote }}
+  astronomy-password: {{ .Values.postgresql.astronomyPassword | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-postgresql-init
+  labels:
+    {{- include "shop.labels" (list . "astronomy-db") | nindent 4 }}
+data:
+  init.sql: |-
+    {{- .Files.Get "files/init.sql" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: astronomy-db
+  labels:
+    {{- include "shop.labels" (list . "astronomy-db") | nindent 4 }}
+spec:
+  serviceName: astronomy-db
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "shop.selectorLabels" (list . "astronomy-db") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "shop.labels" (list . "astronomy-db") | nindent 8 }}
+      annotations:
+        checksum/init: {{ .Files.Get "files/init.sql" | sha256sum }}
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgresql
+          image: {{ .Values.postgresql.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]
+          ports:
+            - { name: postgresql, containerPort: 5432 }
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql
+                  key: admin-password
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            periodSeconds: 5
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d, readOnly: true }
+          resources:
+            {{- toYaml .Values.postgresql.resources | nindent 12 }}
+      volumes:
+        - name: init
+          configMap:
+            name: {{ .Release.Name }}-postgresql-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- include "shop.storageClass" . | nindent 8 }}
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: astronomy-db
+  labels:
+    {{- include "shop.labels" (list . "astronomy-db") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "shop.selectorLabels" (list . "astronomy-db") | nindent 4 }}
+  ports:
+    - { name: tcp-postgresql, port: 5432, targetPort: postgresql }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey-cart
+  labels:
+    {{- include "shop.labels" (list . "valkey-cart") | nindent 4 }}
+spec:
+  serviceName: valkey-cart
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "shop.selectorLabels" (list . "valkey-cart") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "shop.labels" (list . "valkey-cart") | nindent 8 }}
+    spec:
+      # The image's entrypoint starts as root, makes /data its own and drops
+      # to the valkey user.
+      containers:
+        - name: valkey
+          image: {{ .Values.valkey.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Snapshot to the volume once a minute when anything changed.
+          args: ["valkey-server", "--save", "60", "1", "--dir", "/data"]
+          ports:
+            - { name: valkey, containerPort: 6379 }
+          readinessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            periodSeconds: 5
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          resources:
+            {{- toYaml .Values.valkey.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- include "shop.storageClass" . | nindent 8 }}
+        resources:
+          requests:
+            storage: {{ .Values.valkey.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-cart
+  labels:
+    {{- include "shop.labels" (list . "valkey-cart") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "shop.selectorLabels" (list . "valkey-cart") | nindent 4 }}
+  ports:
+    - { name: tcp-valkey, port: 6379, targetPort: valkey }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  labels:
+    {{- include "shop.labels" (list . "kafka") | nindent 4 }}
+spec:
+  serviceName: kafka
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "shop.selectorLabels" (list . "kafka") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "shop.labels" (list . "kafka") | nindent 8 }}
+    spec:
+      securityContext:
+        fsGroup: 1000
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: kafka
+          image: {{ include "shop.image" (list . "kafka") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: plaintext, containerPort: 9092 }
+            - { name: controller, containerPort: 9093 }
+          env:
+            {{- include "shop.otelEnv" (list . "kafka" "http" "low" "statefulset" "kafka") | nindent 12 }}
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: PLAINTEXT://kafka:9092
+            - name: KAFKA_LISTENERS
+              value: PLAINTEXT://:9092,CONTROLLER://:9093
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: 1@localhost:9093
+            # A subdirectory, so a filesystem's lost+found never sits among
+            # the partition directories.
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data/logs
+            - name: KAFKA_HEAP_OPTS
+              value: -Xmx400m -Xms400m
+            - name: OTEL_EXPERIMENTAL_SDK_TELEMETRY_VERSION
+              value: latest
+          readinessProbe:
+            tcpSocket: { port: 9092 }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/kafka/data }
+          resources:
+            {{- toYaml .Values.kafka.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- include "shop.storageClass" . | nindent 8 }}
+        resources:
+          requests:
+            storage: {{ .Values.kafka.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  labels:
+    {{- include "shop.labels" (list . "kafka") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "shop.selectorLabels" (list . "kafka") | nindent 4 }}
+  ports:
+    - { name: tcp-kafka, port: 9092, targetPort: plaintext }

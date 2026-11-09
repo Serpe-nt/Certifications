@@ -1,0 +1,129 @@
+{{- /*
+flagd and its flag screen (flagd-ui) in one pod. An init container copies the
+flag file from the ConfigMap into a shared emptyDir, where flagd-ui can edit
+it and flagd picks up each change. Edits made on the flag screen last until
+the pod restarts; the ConfigMap holds the defaults (every flag off).
+*/ -}}
+{{- $secretName := printf "%s-flagd-ui" .Release.Name -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-flags
+  labels:
+    {{- include "shop.labels" (list . "flagd") | nindent 4 }}
+data:
+  demo.flagd.json: |-
+    {{- .Files.Get "files/demo.flagd.json" | nindent 4 }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "shop.labels" (list . "flagd") | nindent 4 }}
+type: Opaque
+data:
+  {{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName }}
+  {{- if .Values.flagd.uiSecretKeyBase }}
+  secret-key-base: {{ .Values.flagd.uiSecretKeyBase | b64enc | quote }}
+  {{- else if and $existing (index $existing.data "secret-key-base") }}
+  secret-key-base: {{ index $existing.data "secret-key-base" | quote }}
+  {{- else }}
+  secret-key-base: {{ randAlphaNum 64 | b64enc | quote }}
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flagd
+  labels:
+    {{- include "shop.labels" (list . "flagd") | nindent 4 }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      {{- include "shop.selectorLabels" (list . "flagd") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "shop.labels" (list . "flagd") | nindent 8 }}
+      annotations:
+        checksum/flags: {{ .Files.Get "files/demo.flagd.json" | sha256sum }}
+    spec:
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        # The flagd image has no shell, so the flag screen's image does the copy.
+        - name: copy-flags
+          image: {{ include "shop.image" (list . "flagd-ui") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["sh", "-c", "cp /defaults/demo.flagd.json /data/demo.flagd.json && chmod 666 /data/demo.flagd.json"]
+          volumeMounts:
+            - { name: flag-defaults, mountPath: /defaults, readOnly: true }
+            - { name: flags, mountPath: /data }
+          resources:
+            {{- toYaml .Values.flagd.initResources | nindent 12 }}
+      containers:
+        - name: flagd
+          image: {{ .Values.flagd.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["start", "--port", "8013", "--ofrep-port", "8016", "--uri", "file:/etc/flagd/demo.flagd.json"]
+          ports:
+            - { name: rpc, containerPort: 8013 }
+            - { name: ofrep, containerPort: 8016 }
+          env:
+            {{- include "shop.otelEnv" (list . "flagd" "http" "low" "deployment" "flagd") | nindent 12 }}
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: GOMEMLIMIT
+              value: 60MiB
+          volumeMounts:
+            - { name: flags, mountPath: /etc/flagd }
+          resources:
+            {{- toYaml .Values.flagd.resources | nindent 12 }}
+        - name: flagd-ui
+          image: {{ include "shop.image" (list . "flagd-ui") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: ui, containerPort: 4000 }
+          env:
+            {{- include "shop.otelEnv" (list . "flagd-ui" "http" "low" "deployment" "flagd") | nindent 12 }}
+            - name: FLAGD_UI_PORT
+              value: "4000"
+            - name: PHX_HOST
+              value: localhost
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: secret-key-base
+          readinessProbe:
+            tcpSocket: { port: 4000 }
+          volumeMounts:
+            - { name: flags, mountPath: /app/data }
+          resources:
+            {{- toYaml .Values.flagd.uiResources | nindent 12 }}
+      volumes:
+        - name: flags
+          emptyDir: {}
+        - name: flag-defaults
+          configMap:
+            name: {{ .Release.Name }}-flags
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flagd
+  labels:
+    {{- include "shop.labels" (list . "flagd") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "shop.selectorLabels" (list . "flagd") | nindent 4 }}
+  ports:
+    - { name: grpc-rpc, port: 8013, targetPort: rpc }
+    - { name: http-ofrep, port: 8016, targetPort: ofrep }
+    - { name: http-ui, port: 4000, targetPort: ui }

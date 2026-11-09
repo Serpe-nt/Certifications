@@ -1,0 +1,16 @@
+apiVersion: v2
+name: shop
+description: >-
+  The lab copy of the OpenTelemetry Demo shop (Astronomy Shop 3.1.0, trimmed):
+  eleven services, flagd with its flag screen, Kafka, PostgreSQL and Valkey.
+  Telemetry goes to an OTLP endpoint outside the chart.
+type: application
+version: 0.1.0
+appVersion: "3.1.0-lab.1"
+kubeVersion: ">=1.29.0-0"
+home: https://github.com/Serpe-nt/Certifications/tree/main/lgtm/lab/demo
+sources:
+  - https://github.com/open-telemetry/opentelemetry-demo/tree/3.1.0
+keywords:
+  - opentelemetry
+  - demo

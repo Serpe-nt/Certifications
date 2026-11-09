@@ -1,0 +1,18 @@
+Lab copy of the OpenTelemetry Demo (Astronomy Shop)
+
+This directory contains a modified copy of the OpenTelemetry Demo,
+https://github.com/open-telemetry/opentelemetry-demo, at tag 3.1.0
+(commit dedc0178918e260823323b8d95005a8cb924b007).
+
+Copyright The OpenTelemetry Authors.
+Licensed under the Apache License, Version 2.0; see LICENSE in this directory.
+
+The upstream project ships no NOTICE file. Files copied from it keep their
+copyright and licence headers. They were changed for the LGTM study lab:
+services and observability backends were removed, calls to removed services
+were replaced by in-process stand-ins, and two feature flags were backported
+from the upstream main branch. Every change is listed in TRIMMING.md.
+UPSTREAM.md records where the copy came from.
+
+New files written for the lab (compose.yaml, Makefile, scripts/, chart/,
+test/ and the documents) are also licensed under the Apache License, Version 2.0.
