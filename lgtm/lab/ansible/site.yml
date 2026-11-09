@@ -1,0 +1,30 @@
+---
+- name: Common setup
+  hosts: all
+  become: true
+  roles:
+    - ssh_hardening
+    - swapoff
+    - k8s_kernel_modules
+    - containerd
+    - network
+    - k8s_packages
+
+- name: Initialize first master node
+  hosts: control_plane[0]
+  become: true
+  roles:
+    - master_init
+
+- name: Join remaining control plane nodes
+  hosts: control_plane[1:]
+  become: true
+  serial: 1
+  roles:
+    - control_plane_join
+
+- name: Join workers
+  hosts: workers
+  become: true
+  roles:
+    - worker_join

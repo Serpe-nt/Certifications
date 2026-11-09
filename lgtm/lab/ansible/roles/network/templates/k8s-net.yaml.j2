@@ -1,0 +1,12 @@
+network:
+  version: 2
+  ethernets:
+    {{ k8s_interface }}:
+      dhcp4: false
+      addresses:
+        - {{ k8s_net_ip }}/24
+      nameservers:
+        addresses:
+          - {{ dns_server_ip }}
+        search:
+          - {{ dns_search_domain }}
