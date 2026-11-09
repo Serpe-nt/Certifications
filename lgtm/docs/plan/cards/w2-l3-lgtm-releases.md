@@ -1,17 +1,27 @@
 # L3: LGTM releases
 
-Wave 2. Model Opus 5.5, high effort. Runs beside L2 and S2. The planner re-checks this card against what L1 and D1 delivered before starting it.
+Wave 2. Model Opus 5.5, high effort. Runs beside L2 and S2. Re-checked against what wave 1 delivered on 2026-11-09.
 
 ## Owns
 
-`lgtm/lab/helm/**` except `lgtm/lab/helm/platform/`, `lgtm/lab/charts/lab-glue/**`, `lgtm/lab/ansible/roles/lab_*/**`, `lgtm/lab/ansible/playbooks/lab.yml`, `lgtm/lab/mk/lab.mk`, `lgtm/lab/docs/lgtm.md`, `lgtm/lab/docs/budget.md`, `lgtm/lab/tests/lab/**`, `.github/workflows/lgtm-lab-helm.yml`, `lgtm/docs/adr/l3-*.md`
+`lgtm/lab/helm/**` except `lgtm/lab/helm/platform/`, `lgtm/lab/charts/lab-glue/**`, `lgtm/lab/ansible/roles/lab_*/**`, `lgtm/lab/ansible/playbooks/lab.yml`, `lgtm/lab/mk/lab.mk`, `lgtm/lab/mk/demo.mk`, `lgtm/lab/docs/lgtm.md`, `lgtm/lab/docs/budget.md`, `lgtm/lab/tests/lab/**`, `.github/workflows/lgtm-lab-helm.yml`, `lgtm/docs/adr/l3-*.md`
+
+You do not edit `lgtm/lab/ansible/requirements.yml` or `requirements-dev.txt`: L2 may, you may not, so the two pull requests cannot collide. If you need a collection or a tool that is not pinned there, say so in the pull request. You do not edit anything under `lgtm/lab/demo/`.
 
 ## Read first
 
-- `lgtm/docs/plan/00-overview.md` (sections 3, 5, 6, 7), `02-lab-contract.md` (all of it)
+- `lgtm/docs/plan/00-overview.md` (sections 3, 5, 6, 7), `02-lab-contract.md` (all of it, above all "Platform interfaces" and "The shop chart"), `cards/README.md` (the machine notes and your host ports)
 - `lgtm/docs/research/01-stack-versions.md` (all of it: charts moved, modes were removed, Kafka became part of the write path)
-- `lgtm/lab/docs/demo.md` and `lgtm/lab/demo/chart/` as D1 left them
-- `lgtm/docs/research/03-otel-demo.md`, section 4, for the collector configuration the shop expects
+- `lgtm/lab/docs/demo.md`, `lgtm/lab/demo/TRIMMING.md`, `lgtm/docs/adr/d1-trimmed-demo.md` and `lgtm/lab/demo/chart/` as D1 left them
+- `lgtm/lab/demo/otel-config.yml` and `lgtm/lab/demo/src/otel-collector/`: the collector configuration the shop was tested with, and what upstream scraped
+- `lgtm/lab/mk/cluster.mk`, `lgtm/lab/docs/cluster.md` and `lgtm/lab/ansible/.ansible-lint`: the make and lint conventions L1 set
+
+## What wave 1 gives you
+
+- The shop chart, its 13 images on GHCR as `ghcr.io/serpe-nt/lgtm-demo:3.1.0-lab.1-<service>`, and 16 working fault flags. The GHCR package may still be private: for kind, build the images with `lgtm/lab/demo/Makefile` and load them, the way `lgtm/lab/demo/scripts/kind-test.sh` does.
+- `make venv`, `make collections` and `make lint` from `mk/cluster.mk`; `kubernetes.core` 6.6.0 is pinned. Your roles and playbook must pass `make lint`; add them to what it covers from your own `mk/lab.mk`.
+- `mk/demo.mk` is yours to add: it forwards the shop's targets (`build`, `smoke`, `kind-test`, `chart-lint` and the like) to `lgtm/lab/demo/Makefile`, so they can be run from `lgtm/lab`.
+- The real cluster does not exist yet: the owner has not run the acceptance checklist. Everything you prove, you prove on kind.
 
 ## Goal
 
@@ -39,7 +49,7 @@ One Ansible role and one values folder per release. In each folder: `values.yaml
 
 ## Test cluster
 
-A kind cluster named `lgtm-l3`. The kind profile may run single replicas and monolithic or single-binary settings where the full shape does not fit, but the wiring (endpoints, tenants, UIDs, routes) must be the same as in the full profile. Delete the cluster when done.
+A kind cluster named `lgtm-l3`, gateway NodePorts mapped to 127.0.0.1:28080 and 127.0.0.1:28443, with its own kubeconfig file passed through `LAB_KUBECONFIG`. L2 runs a second kind cluster at the same time and Docker Desktop has about 30 GB for both, so size the kind profile to stay under about 14 GB. The kind profile may run single replicas and monolithic or single-binary settings where the full shape does not fit, but the wiring (endpoints, tenants, UIDs, routes) must be the same as in the full profile. Delete the cluster when done.
 
 ## Done when
 

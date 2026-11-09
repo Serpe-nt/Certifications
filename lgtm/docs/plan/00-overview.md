@@ -1,7 +1,7 @@
 # LGTM study helper: plan overview
 
-Status: draft for the owner's review, written 2026-11-09 by the planning session.
-Nothing here is built yet. The research behind it is in `../research/`.
+Status on 2026-11-09: approved by the owner. Wave 1 is merged (pull requests 22, 23 and 24): the site engine, the VM script with the cluster playbooks, and the trimmed demo with its chart and images. The VM script and `make cluster` have not yet run against real VMs; the owner runs `lgtm/lab/docs/acceptance-cluster.md`. Wave 2 is next.
+The research behind the plan is in `../research/`; decisions taken by workers are in `../adr/`.
 
 ## 1. What we are building
 

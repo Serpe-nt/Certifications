@@ -1,6 +1,6 @@
 # Lab contract
 
-The names every part of the project agrees on, so the lab, the site and the lesson text can be written at the same time. Version 0, owned by the planner. A worker who needs a change asks for it in the pull request and does not edit this file.
+The names every part of the project agrees on, so the lab, the site and the lesson text can be written at the same time. Version 1 (2026-11-09: what wave 1 delivered is folded in), owned by the planner. A worker who needs a change asks for it in the pull request and does not edit this file.
 
 ## Machines and network
 
@@ -13,8 +13,9 @@ The names every part of the project agrees on, so the lab, the site and the less
 
 - Network 10.10.0.0/24. One network card per VM, static address from cloud-init.
 - DNS zone `k8s.local`, served by dnsmasq on `lb`. `cluster-endpoint.k8s.local` points at `lb`. `*.lab.k8s.local` points at `lb`.
-- HAProxy on `lb`: 6443 to the three API servers; 80 to worker NodePort 30080; 443 to worker NodePort 30443 (as in the copied `haproxy.cfg`).
-- Guest OS: Ubuntu Server LTS cloud image. SSH user `vaka` with the key `~/.ssh/ansible`, as in the copied `ansible.cfg`; both are variables.
+- HAProxy on `lb`: 6443 to the three API servers; 80 to worker NodePort 30080; 443 to worker NodePort 30443 (as in the copied `haproxy.cfg`). The health check on the two ingress ports is a plain TCP check, so whatever listens on the NodePorts needs no `/healthz` route.
+- Inventory groups: `load_balancer` (host `lb`), `control_plane`, `workers`; the last two are children of `k8s_cluster`.
+- Guest OS: Ubuntu Server 24.04 cloud image. SSH user `vaka` with the key `~/.ssh/ansible`, as in the copied `ansible.cfg`; both are variables.
 - One file, `lgtm/lab/vm/nodes.yml`, lists the machines (name, address, vCPU, memory, disks). The Hyper-V script and the Ansible inventory are both generated from it.
 - The Ansible roles never mention a hypervisor. Given SSH-reachable Ubuntu machines and an inventory, they must work on Hyper-V, KVM or bare metal.
 - Kubeconfig for the lab is written to `~/.kube/lgtm-lab.config` on the control machine. Nothing overwrites `~/.kube/config`.
@@ -72,10 +73,20 @@ Example: `http://grafana.lab.k8s.local`. Lesson text never hard-codes the domain
 | S3 endpoint and keys | Secret `lab-s3` with keys `endpoint`, `region`, `access_key`, `secret_key`, copied by the platform playbook into `mimir`, `loki` and `tempo` |
 | Kafka bootstrap | `telemetry-kafka-bootstrap.kafka.svc:9092`, no authentication inside the cluster |
 | Gateway | Gateway `lab` in namespace `gateway`, listeners on NodePorts 30080 (HTTP) and 30443 (HTTPS), routes allowed from all namespaces |
-| Profile switch | Ansible variable `lab_profile`: `full` (real cluster) or `kind` (smoke test: small values, no Longhorn) |
+| Profile switch | Ansible variable `lab_profile`: `full` (real cluster) or `kind` (smoke test: small values, no Longhorn). From make: `LAB_PROFILE=kind` |
+| Kubeconfig | make variable `LAB_KUBECONFIG`, default `~/.kube/lgtm-lab.config` (already in `mk/cluster.mk`); a kind test passes its own file, never `~/.kube/config` |
 | Tool binaries | pinned `helm`, `kubectl`, `kind` and similar downloaded with checksum into `lgtm/lab/.bin/` (git-ignored); nothing is installed system-wide |
-| Make targets | `lgtm/lab/Makefile` only includes `mk/*.mk`; each card adds its own fragment |
+| Ansible tooling | `make venv` and `make collections` from `mk/cluster.mk` give the pinned ansible-core, linters and collections (`kubernetes.core` 6.6.0 is already in `ansible/requirements.yml`). Lint settings are `ansible/.ansible-lint` and `ansible/.yamllint`; new roles must pass them. Only L2 may add to `requirements.yml` and `requirements-dev.txt` in wave 2 |
+| Make targets | `lgtm/lab/Makefile` only includes `mk/*.mk`; each card adds its own fragment: `cluster.mk` (L1, exists), `platform.mk` (L2), `lab.mk` and `demo.mk` (L3; `demo.mk` forwards to `lgtm/lab/demo/Makefile`) |
 | Docs | `lgtm/lab/docs/cluster.md` (L1), `platform.md` (L2), `lgtm.md` (L3), `demo.md` (D1) |
+
+## The shop chart (delivered by D1)
+
+- Chart `shop` in `lgtm/lab/demo/chart`, images `ghcr.io/serpe-nt/lgtm-demo:3.1.0-lab.1-<service>` (version in `lgtm/lab/demo/VERSION`), 13 images, amd64.
+- Values that matter to the lab: `otlp.endpoint` (default `http://otel-gateway.otel.svc:4317`) and `otlp.httpEndpoint` (`:4318`), `storageClass`, `gateway.enabled` with `gateway.domain` (routes for `shop`, `flags`, `loadgen`), `image.registry`, `image.tag`, `image.pullSecrets`.
+- Browser spans go to the shop's own proxy at `/otlp-http/`, which forwards them to the gateway; the gateway needs no public route for them.
+- The shop sends only what its SDKs produce. Metrics of its PostgreSQL, Valkey, Kafka and NGINX come from receivers on the lab's collector gateway; `lgtm/lab/demo/otel-config.yml` and `lgtm/lab/demo/src/otel-collector/` show what upstream scraped and which processors it ran.
+- Memory: requests 2.4 GiB, limits 4.5 GiB in total.
 
 ## Tenants
 
@@ -98,7 +109,13 @@ The site computes the expected token in the browser from the stored seed and the
 
 ## Fault flags available to lessons
 
-From the trimmed demo, toggled on the flag screen: `adFailure`, `adHighCpu`, `adManualGc`, `cartFailure`, `failedReadinessProbe`, `imageSlowLoad`, `kafkaQueueProblems`, `loadGeneratorFloodHomepage`, `paymentFailure`, `paymentUnreachable`, `productCatalogFailure`, `productCatalogLockContention`, `recommendationCacheFailure`, `emitRawPii`. Worker D1 says in `TRIMMING.md` which of these survived the trim and whether `cartMetricCardinalityOverflow` and `kafkaConsumerDead` were backported from upstream `main`. A lesson uses only flags that file lists.
+Sixteen flags, all switched on once and seen to work by D1 (`lgtm/lab/demo/TRIMMING.md` has the evidence and what each one breaks), toggled on the flag screen: `adFailure`, `adHighCpu`, `adManualGc`, `cartFailure`, `cartMetricCardinalityOverflow`, `emitRawPii`, `failedReadinessProbe`, `imageSlowLoad`, `kafkaConsumerDead`, `kafkaQueueProblems`, `loadGeneratorFloodHomepage`, `paymentFailure`, `paymentUnreachable`, `productCatalogFailure`, `productCatalogLockContention`, `recommendationCacheFailure`.
+
+Things a lesson must know:
+- `kafkaQueueProblems` keeps its 3.1.0 meaning (extra messages and a one-second consumer delay), not the 1, 3 and 5 second variants in upstream's current docs.
+- `productCatalogFailure` is switched through its targeting rule, as the flag screen does it.
+- `cartFailure` and `failedReadinessProbe` take more than a minute to show.
+- A lesson uses only flags in this list.
 
 ## Images
 
