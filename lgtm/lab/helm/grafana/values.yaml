@@ -30,9 +30,11 @@ initChownData:
 testFramework:
   enabled: false
 
+# Measured on the lab cluster after 30 minutes of load: 462 MiB for the pod
+# (docs/budget.md). The request follows the measurement.
 resources:
-  requests: { cpu: 50m, memory: 192Mi }
-  limits: { cpu: "1", memory: 512Mi }
+  requests: { cpu: 50m, memory: 384Mi }
+  limits: { cpu: "1", memory: 768Mi }
 
 grafana.ini:
   server:

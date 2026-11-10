@@ -27,10 +27,11 @@ storageclass:
   dataStorageSize: 25Gi
 ingress:
   enabled: false
+# Measured on the lab cluster after 30 minutes of load: 449 MiB (docs/budget.md).
 resources:
   requests:
     cpu: 100m
-    memory: 256Mi
+    memory: 512Mi
   limits:
     cpu: "1"
     memory: 1Gi

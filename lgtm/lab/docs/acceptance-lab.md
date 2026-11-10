@@ -145,3 +145,221 @@ localhost : ok=29 changed=0 unreachable=0 failed=0 skipped=1 rescued=0 ignored=0
 ```
 
 `make lint` and `make platform-lint` pass (`RENDER CHECK PASSED`).
+
+## The VMs are resized, and the first restart
+
+After the platform run the owner raised the masters to 4 GB and, to fit the PC's free memory,
+lowered the workers to 6 GB (`vm/nodes.yml` now matches: masters 2 vCPU and 4 GB, workers 4 vCPU
+and 6 GB). That meant stopping and starting every VM: the lab's first real restart.
+
+```
+kubectl get nodes -o custom-columns=N:.metadata.name,MEM:.status.capacity.memory,CPU:.status.capacity.cpu
+master1..master3   4009268Ki   2
+worker1..worker4   6066796Ki   4
+kubectl get events -A --field-selector reason=Rebooted
+master1..master3 rebooted at 15:57:10, worker1..worker4 at 15:57:30
+```
+
+The platform came back by itself, with nothing done by hand. Pods not Ready, sampled every 30
+seconds:
+
+```
+15:59:28 5 not ready: kafka/telemetry-dual-role-0..2 (Unknown), telemetry-entity-operator (CrashLoopBackOff), s3/rustfs (Unknown)
+16:00:29 4 not ready
+16:01:00 2 not ready
+16:01:30 1 not ready: kafka/telemetry-dual-role-1 (Running)
+16:02:00 0 not ready: ALL READY
+```
+
+About five minutes from the reboot to every pod Ready. With 4 GB the masters used 1665 to
+2057 MiB (43 to 53%) with the platform installed.
+
+### Fitting the lab on 6 GB workers
+
+Allocatable memory per worker is 5964396Ki (5.69 GiB), 22.75 GiB on four. Requests then: the
+platform and the system pods 5.42 GiB, the LGTM releases and the shop 13.24 GiB (`budget.py`),
+18.66 GiB in all, 82%. The owner accepts up to 90% use in the lab, so the only cut is where a
+request was far above use: the Kafka nodes asked for 1 GiB each and used 451 to 475 MiB. Their
+heap is now 512 MiB, request 768Mi, limit 1280Mi (`helm/platform/strimzi/kafka-cluster.yaml`;
+`make platform TAGS=kafka`, and Strimzi rolled the three nodes one at a time). A first attempt
+that also removed second replicas, the Loki chunks cache and the second collector gateway was
+undone within the hour, because the lessons use them. Details: `budget.md` and
+`lgtm/docs/adr/l4-fit-6gb-workers.md`.
+
+## Lab
+
+### First `make lab` (16:21 to 16:30)
+
+```
+PLAY RECAP
+localhost : ok=28 changed=12 unreachable=0 failed=0 skipped=18 rescued=0 ignored=0
+```
+
+165 pods, all Ready; `checkout` restarted once while the shop's Kafka was starting. No pod was
+Pending and no container was OOM-killed in the 40 minutes that followed (`kubectl top nodes` and
+the containers' last termination reasons, sampled every minute): workers at 65 to 76% memory,
+masters at 54 to 69%.
+
+`make status` prints the release list and the addresses (`changed=0`).
+
+### Defect 3: Tempo lost the traces of half its Kafka partitions
+
+`make lab-check` passed 24 of 25 checks:
+
+```
+FAIL  no checkout PlaceOrder trace in the last 15 minutes
+PASS  span metrics for 5 services
+PASS  service graph with 5 edges
+LAB CHECK FAILED: 1 check(s)
+```
+
+Tempo's search knew only 7 services (`/api/v2/search/tag/resource.service.name/values`), none of
+them `checkout`, `payment`, `ad` or `recommendation`. The topic had one partition where Tempo
+expects two:
+
+```
+kafka-topics.sh --describe --topic tempo-traces
+Topic: tempo-traces  PartitionCount: 1  ReplicationFactor: 3
+kubectl -n tempo logs deploy/tempo-distributor
+level=error msg="failed to write to kafka" err="invalid record partitioning choice of 1 from 1 available" tenant=lab
+kubectl -n tempo logs tempo-block-builder-0
+level=error msg="consumeCycle failed" err="no partitions assigned"
+kubectl -n tempo logs tempo-live-store-1
+level=error msg="metric lag failed:" err="UNKNOWN_TOPIC_OR_PARTITION: This server does not host this topic-partition."
+```
+
+Cause: Tempo and Mimir rely on auto-creation for their topics (`auto_create_topic_enabled`).
+Whichever client asks for the topic first creates it, and a consumer's metadata request creates
+it with the broker's default of one partition. `mimir-ingest` got its six partitions by the order
+of events; `tempo-traces` did not. On kind, Tempo runs with one partition, so it never showed.
+
+Fix: `lab_release` creates a Strimzi `KafkaTopic` for a release that names the path of its Kafka
+block (`kafka_topic` in `lab_mimir` and `lab_tempo`), with the topic name and partition count
+read from the release's values, and waits for it to be Ready before the Helm release. `make reset`
+deletes the two topics. Proof on the running lab:
+
+```
+make lab TAGS=mimir,tempo
+TASK [lab_release : Create the Kafka topic of the release tempo]  changed
+kubectl -n kafka get kafkatopic
+mimir-ingest   telemetry   6   3   True
+tempo-traces   telemetry   2   3   True
+```
+
+A minute later Tempo knew 13 services and `tempo-block-builder-1` consumed partition 1, and
+`make lab-check` printed `trace 519e74ad... has spans from 8 services: cart checkout flagd
+frontend frontend-proxy load-generator payment product-catalog` and `LAB CHECK PASSED`. The proof
+from empty topics is the reset path below.
+
+### Second `make lab`
+
+```
+PLAY RECAP
+localhost : ok=25 changed=0 unreachable=0 failed=0 skipped=21 rescued=0 ignored=0
+```
+
+## The lab survives losing one pod
+
+One pod was deleted at a time. Every 20 seconds the script sampled three counts over the last
+minute, all through Grafana at `http://10.10.0.5`:
+
+- span-metric samples in Mimir (`sum(count_over_time(traces_spanmetrics_calls_total[1m]))`),
+  written by Tempo's metrics-generator through Mimir's Kafka ingest;
+- log lines in Loki (`sum(count_over_time({cluster="lgtm-lab"}[1m]))`);
+- traces in Tempo (a search for `{}`, capped at 500).
+
+```
+### delete mimir/mimir-ingester-2
+17:14:23 mimir_samples_1m=324 loki_lines_1m=2913 tempo_traces_1m=500
+deleted at 17:14:23
+17:14:43 mimir_samples_1m=432 loki_lines_1m=2996 tempo_traces_1m=500
+17:15:44 mimir_samples_1m=432 loki_lines_1m=2911 tempo_traces_1m=500
+17:16:44 mimir_samples_1m=432 loki_lines_1m=3009 tempo_traces_1m=500
+mimir-ingester-2 Ready again at 17:17:25
+
+### delete loki/loki-ingester-1
+17:07:49 loki_lines_1m=2885 tempo_traces_1m=500
+deleted at 17:07:49
+17:08:09 loki_lines_1m=3132
+17:08:50 loki_lines_1m=2953
+17:09:50 loki_lines_1m=2996
+loki-ingester-1 Ready again at 17:10:51
+
+### delete kafka/telemetry-dual-role-2
+17:17:25 mimir_samples_1m=324 loki_lines_1m=2837 tempo_traces_1m=500
+deleted at 17:17:25
+17:17:45 mimir_samples_1m=432 loki_lines_1m=7483 tempo_traces_1m=500
+17:18:46 mimir_samples_1m=432 loki_lines_1m=2669 tempo_traces_1m=500
+17:19:46 mimir_samples_1m=432 loki_lines_1m=3006 tempo_traces_1m=500
+telemetry-dual-role-2 Ready again at 17:20:27
+
+### errors in the last 15 minutes
+mimir distributor push errors: 0
+loki distributor errors: 0
+tempo distributor errors: 0
+otel-gateway export failures: 0
+```
+
+No count dropped. The extra Loki lines during the Kafka drill are the brokers' own logs about the
+lost member. A first run of the same drill, on `mimir-ingester-1` and `telemetry-dual-role-1`,
+used a wrong Mimir query path in the sampling script; Loki and Tempo kept their counts there too,
+and every distributor logged 0 errors.
+
+## Through the front door
+
+From WSL, `curl -H 'Host: <name>.lab.k8s.local' http://10.10.0.5<path>`:
+
+```
+grafana       /api/health                              200  {"database": "ok", "version": "13.3.0", ...
+shop          /                                        200  text/html
+flags         /                                        302  to http://flags.lab.k8s.local/feature
+loadgen       /                                        302  to http://loadgen.lab.k8s.local/loadgen/
+prometheus    /-/ready                                 200  Prometheus Server is Ready.
+alertmanager  /-/ready                                 200  OK
+mimir         /                                        200  OK
+mimir         /prometheus/api/v1/query?query=count(up) 200  {"status":"success",...   (X-Scope-OrgID: prom)
+loki          /                                        200  OK
+loki          /loki/api/v1/labels                      200  {"status":"success",...   (X-Scope-OrgID: lab)
+tempo         /ready                                   200  ready
+tempo         /api/search?q=%7B%7D&limit=1             200  {"traces":[...            (X-Scope-OrgID: lab)
+alloy         /-/ready                                 200  Alloy is ready.
+otlp          /v1/logs (POST {})                       200  {"partialSuccess":{}}
+longhorn      /                                        200  text/html
+s3            /rustfs/console/                         200  text/html
+grafana over HTTPS with --cacert lab-root-ca.crt       200
+```
+
+`http://s3.lab.k8s.local/` itself is the S3 API and answers 403 `AccessDenied` without keys.
+
+## Reset path (17:20 to 17:34)
+
+```
+make reset
+TASK [lab_reset : Uninstall the lab releases, the shop first]  changed: shop, lab-glue, grafana,
+  k8s-monitoring, otel-gateway, tempo, loki, mimir, kube-prometheus-stack
+TASK [lab_reset : Delete the releases' volumes]                 changed: shop, loki, mimir, prom
+TASK [lab_reset : Delete the Kafka topics of the releases]      changed
+TASK [lab_reset : Empty the lab buckets with a one-off Job in namespace mimir]  changed
+localhost : ok=7 changed=5 unreachable=0 failed=0
+pods left in the lab namespaces: 0
+kubectl -n kafka get kafkatopic: No resources found in kafka namespace.
+PVCs left: 3 in kafka, 1 in s3 (the platform's own)
+
+make lab
+localhost : ok=29 changed=11 unreachable=0 failed=0 skipped=35
+
+make lab-check
+PASS  trace 471e2d8d778046d1393d307c43997c4a has spans from 8 services: cart checkout flagd frontend frontend-proxy load-generator payment product-catalog
+PASS  span metrics for 13 services
+PASS  service graph with 29 edges
+PASS  metric to trace: exemplar on traces_spanmetrics_latency_bucket opens trace e8dc9f583b7c3207e71f28b915e3f60f
+PASS  log to trace: trace f43d8642b944f9e1a9e615708a09d669 of a checkout log line is in Tempo
+PASS  trace to log: 4 checkout log lines for trace f43d8642b944f9e1a9e615708a09d669
+LAB CHECK PASSED
+
+make lab        (second run)
+localhost : ok=29 changed=0 unreachable=0 failed=0 skipped=35
+```
+
+The reset, the new install, the check and the second run took 14 minutes together. `make lab`
+created both topics from nothing, which proves the fix of defect 3 on a clean start.

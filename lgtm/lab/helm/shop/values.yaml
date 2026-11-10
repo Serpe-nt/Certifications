@@ -16,3 +16,16 @@ gateway:
   name: lab
   namespace: gateway
   domain: lab.k8s.local
+# Sizes measured on the lab cluster after 30 minutes of load (docs/budget.md):
+# the shop's Kafka used 534 MiB of its 620 MiB limit, the load generator 689 MiB
+# of a 600 MiB request. Requests follow the measurement; the Kafka limit leaves
+# room for the kafkaQueueProblems flag.
+kafka:
+  resources:
+    requests: { cpu: 100m, memory: 576Mi }
+    limits: { cpu: "1", memory: 832Mi }
+components:
+  load-generator:
+    resources:
+      requests: { cpu: 200m, memory: 704Mi }
+      limits: { cpu: "2", memory: 1500Mi }
