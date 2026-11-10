@@ -47,7 +47,7 @@ prometheus:
     externalLabels:
       cluster: lgtm-lab
     retention: 1d
-    retentionSize: 4GB
+    retentionSize: 3GB
     # Select every ServiceMonitor, PodMonitor, Probe and rule in the cluster,
     # not only those of this release.
     serviceMonitorSelectorNilUsesHelmValues: false
@@ -73,7 +73,7 @@ prometheus:
           accessModes: [ReadWriteOnce]
           resources:
             requests:
-              storage: 5Gi
+              storage: 4Gi
 
 alertmanager:
   alertmanagerSpec:

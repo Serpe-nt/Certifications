@@ -113,7 +113,7 @@ ingester:
   zoneAwareReplication:
     enabled: false
   persistentVolume:
-    size: 5Gi
+    size: 3Gi
   resources:
     requests: { cpu: 100m, memory: 512Mi }
     limits: { cpu: "1", memory: 1Gi }
@@ -149,7 +149,7 @@ store_gateway:
 compactor:
   replicas: 1
   persistentVolume:
-    size: 5Gi
+    size: 3Gi
   resources:
     requests: { cpu: 50m, memory: 192Mi }
     limits: { cpu: "1", memory: 512Mi }

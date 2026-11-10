@@ -14,7 +14,15 @@
 - name: Read the pinned chart of the release
   ansible.builtin.set_fact:
     lab_release_pin: "{{ lookup('ansible.builtin.file', lab_release_dir ~ '/VERSION') | from_yaml }}"
-    lab_release_values_files: "{{ [lab_release_dir ~ '/values.yaml'] + ([lab_release_dir ~ '/values-kind.yaml'] if lab_profile == 'kind' else []) }}"
+    # values.yaml, then values-kind.yaml for the kind profile, then the values
+    # the calling role computes, merged here into one set of values. Passing
+    # one dictionary (not values_files) lets the helm module compare it with
+    # the installed release and report no change when nothing changed.
+    lab_release_values: >-
+      {{ ([lookup('ansible.builtin.file', lab_release_dir ~ '/values.yaml') | from_yaml]
+          + ([lookup('ansible.builtin.file', lab_release_dir ~ '/values-kind.yaml') | from_yaml] if lab_profile == 'kind' else [])
+          + [lab_release_spec.extra_values | default({})])
+         | select | ansible.builtin.combine(recursive=True) }}
   vars:
     lab_release_dir: "{{ lab_dir }}/helm/{{ lab_release_spec.folder }}"
 
@@ -26,8 +34,7 @@
     chart_ref: "{{ lab_release_pin.chart if lab_release_pin.repository is defined else lab_dir ~ '/' ~ lab_release_pin.path }}"
     chart_repo_url: "{{ lab_release_pin.repository | default(omit) }}"
     chart_version: "{{ lab_release_pin.version if lab_release_pin.repository is defined else omit }}"
-    values_files: "{{ lab_release_values_files }}"
-    values: "{{ lab_release_spec.extra_values | default({}) }}"
+    values: "{{ lab_release_values }}"
     wait: true
     timeout: "{{ lab_release_timeout }}"
   when: lab_render_dir is not defined
@@ -40,8 +47,7 @@
     chart_ref: "{{ lab_release_pin.chart if lab_release_pin.repository is defined else lab_dir ~ '/' ~ lab_release_pin.path }}"
     chart_repo_url: "{{ lab_release_pin.repository | default(omit) }}"
     chart_version: "{{ lab_release_pin.version if lab_release_pin.repository is defined else omit }}"
-    values_files: "{{ lab_release_values_files }}"
-    values: "{{ lab_release_spec.extra_values | default({}) }}"
+    values: "{{ lab_release_values }}"
   register: lab_release_rendered
   when: lab_render_dir is defined
 
