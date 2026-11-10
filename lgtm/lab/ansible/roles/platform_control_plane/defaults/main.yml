@@ -1,0 +1,37 @@
+---
+# Required node affinity that keeps a pod off every control-plane node. kubeadm
+# labels its control-plane nodes node-role.kubernetes.io/control-plane.
+platform_control_plane_affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: DoesNotExist
+
+# The Deployment override that the Tigera operator's resources accept
+# (https://docs.tigera.io/calico/3.31/reference/installation/api).
+platform_control_plane_calico_override:
+  spec:
+    template:
+      spec:
+        affinity: "{{ platform_control_plane_affinity }}"
+
+# The Tigera operator resources and the field of each that holds the override.
+# The Installation carries two: calico-kube-controllers and Typha.
+platform_control_plane_calico:
+  - kind: Installation
+    fields: [calicoKubeControllersDeployment, typhaDeployment]
+  - kind: APIServer
+    fields: [apiServerDeployment]
+  - kind: Goldmane
+    fields: [goldmaneDeployment]
+  - kind: Whisker
+    fields: [whiskerDeployment]
+
+# Plain Deployments that kubeadm and the Calico manifest create.
+platform_control_plane_deployments:
+  - namespace: kube-system
+    name: coredns
+  - namespace: tigera-operator
+    name: tigera-operator
