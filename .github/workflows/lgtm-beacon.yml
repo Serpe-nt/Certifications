@@ -1,0 +1,112 @@
+# Tests and builds the lab's check-token beacon (lgtm/lab/tools/beacon).
+# Pull requests: run the unit test against the site's shared token vectors,
+# lint the lab-glue chart with the beacon on and off, build the image, push
+# nothing. Pushes to main (and manual runs on main): also push
+# ghcr.io/serpe-nt/lgtm-beacon:<VERSION>, where VERSION is the content of
+# lgtm/lab/tools/beacon/VERSION.
+name: LGTM beacon image
+
+on:
+  pull_request:
+    paths:
+      - "lgtm/lab/tools/beacon/**"
+      - "lgtm/learn/tests/fixtures/token-vectors.json"
+      - "lgtm/lab/charts/lab-glue/**"
+      - ".github/workflows/lgtm-beacon.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lgtm/lab/tools/beacon/**"
+      - "lgtm/learn/tests/fixtures/token-vectors.json"
+      - "lgtm/lab/charts/lab-glue/**"
+      - ".github/workflows/lgtm-beacon.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lgtm-beacon-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: ghcr.io/serpe-nt/lgtm-beacon
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lgtm/lab/tools/beacon
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: lgtm/lab/tools/beacon/go.mod
+          cache-dependency-path: lgtm/lab/tools/beacon/go.sum
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: Vet
+        run: go vet ./...
+      - name: Unit test (the six shared token vectors of the site)
+        run: go test -v ./...
+
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download the pinned tools
+        run: lgtm/lab/demo/scripts/tools.sh
+      - name: helm lint and schema check of lab-glue, beacon off and on
+        working-directory: lgtm/lab
+        run: |
+          set -euo pipefail
+          for on in false true; do
+            echo "==> beacon.enabled=$on"
+            .bin/helm lint charts/lab-glue --strict -f helm/lab-glue/values.yaml --set beacon.enabled=$on
+            .bin/helm template lab-glue charts/lab-glue -n lab-tools -f helm/lab-glue/values.yaml \
+              --set beacon.enabled=$on > "$RUNNER_TEMP/lab-glue-$on.yaml"
+            .bin/kubeconform -strict -summary -ignore-missing-schemas -kubernetes-version 1.35.0 \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+              "$RUNNER_TEMP/lab-glue-$on.yaml"
+          done
+          grep -q "name: beacon" "$RUNNER_TEMP/lab-glue-true.yaml"
+          ! grep -q "name: beacon" "$RUNNER_TEMP/lab-glue-false.yaml"
+
+  image:
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the version
+        id: version
+        run: echo "version=$(cat lgtm/lab/tools/beacon/VERSION)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: lgtm/lab/tools/beacon
+          platforms: linux/amd64
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+          push: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.description=Check-token beacon of the LGTM study lab
+          cache-from: type=gha,scope=lgtm-beacon
+          cache-to: type=gha,mode=max,scope=lgtm-beacon

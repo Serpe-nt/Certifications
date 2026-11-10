@@ -1,8 +1,8 @@
 {{- /*
 The check-token beacon (lab contract, "Check tokens"): service name beacon,
 namespace lab-tools, reading the lab seed from Secret lab-tools/lab-seed and
-sending OTLP to the collector gateway. Off until card D2 publishes the image;
-D2 may change this template.
+sending OTLP over HTTP to the collector gateway. Source and image:
+lgtm/lab/tools/beacon; what it emits: lgtm/lab/docs/beacon.md.
 */ -}}
 {{- if .Values.beacon.enabled }}
 {{- $b := .Values.beacon }}
@@ -16,6 +16,9 @@ metadata:
     app.kubernetes.io/component: beacon
 spec:
   replicas: 1
+  # One beacon at a time: two would publish every token twice.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: lab-glue
@@ -26,19 +29,61 @@ spec:
         app.kubernetes.io/name: lab-glue
         app.kubernetes.io/component: beacon
     spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      {{- with $b.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: beacon
           image: {{ printf "%s:%s" $b.image (required "beacon.tag is required when the beacon is enabled" $b.tag) }}
+          imagePullPolicy: {{ $b.pullPolicy }}
           env:
-            - name: OTEL_SERVICE_NAME
-              value: beacon
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: {{ $b.otlpEndpoint | quote }}
+            - name: BEACON_INTERVAL
+              value: {{ $b.interval | quote }}
             - name: LAB_SEED
               valueFrom:
                 secretKeyRef:
-                  name: lab-seed
-                  key: seed
+                  name: {{ $b.seedSecret.name }}
+                  key: {{ $b.seedSecret.key }}
+            # The Go runtime keeps its heap under 90% of the memory limit.
+            - name: BEACON_MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: beacon
+                  resource: limits.memory
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: {{ printf "k8s.namespace.name=%s" $b.namespace | quote }}
+          ports:
+            - name: health
+              containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           resources:
             {{- toYaml $b.resources | nindent 12 }}
 {{- end }}
