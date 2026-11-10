@@ -14,8 +14,9 @@ On the real cluster:
   6 GB (5.69 GiB allocatable each, 22.75 GiB on four).
 - With the plan's sizes, the platform, the system pods, the LGTM releases and the shop requested
   18.66 GiB, 82% of the workers' allocatable memory. The planner first asked for at least 15% free
-  by requests. The owner then said that up to 90% use is fine in the lab, and that nothing should
-  be cut where the lessons may need it.
+  by requests. On 2026-11-10 the owner said, in worker L4's session, that up to 90% worker use is
+  fine in the lab, and that nothing should be cut where the lessons may need it. 90% is the
+  ceiling for measured use on a worker, not a target to fill.
 
 ## Options
 

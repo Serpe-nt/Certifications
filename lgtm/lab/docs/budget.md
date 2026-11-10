@@ -50,6 +50,16 @@ of the pods on the node (`kubectl describe node`).
 | worker4 | 4404 MiB (75%) | 1418 MiB | 5116 MiB (87%) | 11566 MiB | 492m | 1760m |
 | **workers** | **16.7 GiB (73%)** | **7.0 GiB** | **17.9 GiB (79%)** | **42.5 GiB** | **2.3 CPU** | **6.5 CPU** |
 
+Peak memory in use per node during the 30 minutes of load (`kubectl top nodes`, 26 samples one
+minute apart, 17:34 to 17:59), with no OOM kill, no eviction and no memory pressure in any sample:
+
+| Node | master1 | master2 | master3 | worker1 | worker2 | worker3 | worker4 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Peak in use | 2396 MiB (62%) | 2655 MiB (69%) | 2908 MiB (76%) | 4314 MiB (74%) | 4136 MiB (71%) | 4589 MiB (78%) | 4241 MiB (72%) |
+
+The limits are far above what the workers have, so measured use, not requests, decides whether
+the lab fits; the peaks stay under the owner's ceiling of 90%.
+
 The masters' requests are the control plane's own (kubeadm sets them on the API server, the
 controller manager, the scheduler and etcd) plus node exporter and Alloy. Their use is mostly the
 API server: 1220, 1377 and 1472 MiB; etcd 137 to 172 MiB; the controller manager and the scheduler
