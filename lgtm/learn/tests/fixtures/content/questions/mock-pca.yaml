@@ -1,0 +1,901 @@
+# Sample PCA mock pool: exactly the 60 questions of the domain split. Never shipped.
+- id: q-mock-pca-001
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 1 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 1
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 1, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 1, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 1, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-002
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 2 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 2
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 2, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 2, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 2, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-003
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 3 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 3
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 3, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 3, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 3, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-004
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 4 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 4
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 4, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 4, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 4, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-005
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 5 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 5
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 5, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 5, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 5, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-006
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 6 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 6
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 6, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 6, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 6, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-007
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 7 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 7
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 7, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 7, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 7, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-008
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 8 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 8
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 8, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 8, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 8, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-009
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 9 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 9
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 9, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 9, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 9, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-010
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 10 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 10
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 10, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 10, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 10, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-011
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Sample PCA mock question 11 on P1. Which answer is the right one?
+  options:
+    - text: The right answer to sample 11
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 11, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 11, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 11, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-012
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 12 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 12
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 12, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 12, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 12, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-013
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 13 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 13
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 13, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 13, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 13, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-014
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 14 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 14
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 14, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 14, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 14, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-015
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 15 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 15
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 15, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 15, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 15, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-016
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 16 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 16
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 16, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 16, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 16, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-017
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 17 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 17
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 17, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 17, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 17, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-018
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 18 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 18
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 18, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 18, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 18, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-019
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 19 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 19
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 19, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 19, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 19, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-020
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 20 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 20
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 20, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 20, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 20, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-021
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 21 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 21
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 21, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 21, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 21, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-022
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 22 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 22
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 22, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 22, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 22, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-023
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Sample PCA mock question 23 on P2. Which answer is the right one?
+  options:
+    - text: The right answer to sample 23
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 23, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 23, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 23, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-024
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 24 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 24
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 24, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 24, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 24, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-025
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 25 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 25
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 25, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 25, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 25, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-026
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 26 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 26
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 26, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 26, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 26, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-027
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 27 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 27
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 27, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 27, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 27, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-028
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 28 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 28
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 28, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 28, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 28, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-029
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 29 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 29
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 29, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 29, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 29, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-030
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 30 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 30
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 30, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 30, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 30, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-031
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 31 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 31
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 31, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 31, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 31, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-032
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 32 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 32
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 32, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 32, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 32, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-033
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 33 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 33
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 33, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 33, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 33, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-034
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 34 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 34
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 34, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 34, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 34, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-035
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 35 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 35
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 35, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 35, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 35, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-036
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 36 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 36
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 36, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 36, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 36, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-037
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 37 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 37
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 37, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 37, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 37, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-038
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 38 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 38
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 38, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 38, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 38, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-039
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 39 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 39
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 39, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 39, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 39, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-040
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Sample PCA mock question 40 on P3. Which answer is the right one?
+  options:
+    - text: The right answer to sample 40
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 40, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 40, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 40, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-041
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: Sample PCA mock question 41 on P4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 41
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 41, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 41, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 41, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-042
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: Sample PCA mock question 42 on P4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 42
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 42, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 42, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 42, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-043
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: Sample PCA mock question 43 on P4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 43
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 43, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 43, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 43, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-044
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: Sample PCA mock question 44 on P4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 44
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 44, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 44, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 44, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-045
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: Sample PCA mock question 45 on P4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 45
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 45, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 45, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 45, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-046
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: Sample PCA mock question 46 on P4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 46
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 46, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 46, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 46, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-047
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: Sample PCA mock question 47 on P4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 47
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 47, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 47, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 47, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-048
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: Sample PCA mock question 48 on P4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 48
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 48, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 48, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 48, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-049
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: Sample PCA mock question 49 on P4. Which answer is the right one?
+  options:
+    - text: The right answer to sample 49
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 49, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 49, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 49, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-050
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 50 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 50
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 50, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 50, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 50, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-051
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 51 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 51
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 51, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 51, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 51, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-052
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 52 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 52
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 52, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 52, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 52, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-053
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 53 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 53
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 53, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 53, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 53, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-054
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 54 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 54
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 54, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 54, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 54, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-055
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 55 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 55
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 55, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 55, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 55, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-056
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 56 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 56
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 56, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 56, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 56, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-057
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 57 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 57
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 57, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 57, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 57, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-058
+  tags: [sample-lab]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 58 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 58
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 58, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 58, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 58, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-059
+  tags: [sample-drill]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 59 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 59
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 59, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 59, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 59, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-mock-pca-060
+  tags: [sample-metrics]
+  exam: {cert: pca, domain: P5, competency: Dashboarding basics}
+  q: Sample PCA mock question 60 on P5. Which answer is the right one?
+  options:
+    - text: The right answer to sample 60
+      why: Correct. This sample marks its right answer in its text so tests can be read.
+    - text: A wrong answer to sample 60, kind one
+      why: Wrong. A sample distractor.
+    - text: A wrong answer to sample 60, kind two
+      why: Wrong. Another sample distractor.
+    - text: A wrong answer to sample 60, kind three
+      why: Wrong. The last sample distractor.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/

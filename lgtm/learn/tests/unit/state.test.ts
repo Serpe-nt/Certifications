@@ -56,14 +56,15 @@ describe('parseState', () => {
 });
 
 describe('mergeStates', () => {
-  it('unions completed steps and passed checks, earliest time wins, the rest from the server', () => {
+  it('unions completed steps and passed checks, earliest time wins, settings from the server', () => {
     const local = parseState({ savedAt: 50, done: { a: 10, b: 20 }, checks: { a: 11 }, settings: { theme: 'light' }, answers: { q: { right: false, n: 1, at: 1 } } });
     const server = parseState({ savedAt: 40, done: { b: 15, c: 30 }, checks: { c: 31 }, settings: { theme: 'dark' } });
     const m = mergeStates(local, server);
     expect({ ...m.done }).toEqual({ a: 10, b: 15, c: 30 });
     expect({ ...m.checks }).toEqual({ a: 11, c: 31 });
     expect(m.settings.theme).toBe('dark');
-    expect(m.answers.q).toBeUndefined();
+    // Card S2: card answers merge per question (the copy that answered more), so the local answer survives.
+    expect(m.answers.q).toEqual({ right: false, n: 1, at: 1 });
     expect(m.savedAt).toBe(50);
   });
 

@@ -103,3 +103,120 @@ describe('sync between two devices', () => {
     expect(Object.keys(a.store.get().done)).not.toContain('<script>');
   });
 });
+
+describe('sync of the study features (card S2)', () => {
+  const mockBank = ['q-mock-pca-001', 'q-mock-pca-002'].map((id) => ({ id, pool: 'mock-pca', tags: ['t'], cert: 'pca' as const, domain: 'P1', n: 4, a: [0] }));
+  const by = new Map(mockBank.map((x) => [x.id, x]));
+  // Earlier tests leave progress on the shared server copy; these start from an empty one.
+  beforeEach(() => void db.put(db.get().rev, JSON.stringify({ v: 2 })));
+
+  it('a mock exam submitted on one device is not submitted again by another that had it open', async () => {
+    const { startExam, markExam, submitExam } = await import('../../src/lib/runs.ts');
+    const pc = device();
+    const phone = device();
+    await pc.store.pull();
+    pc.store.update((s) => startExam(s, 'pca', mockBank, Date.now()));
+    await pc.store.push();
+    await phone.store.pull();
+    expect(phone.store.get().exam?.ids).toHaveLength(2);
+    // The phone changes an answer offline while the PC submits.
+    online = false;
+    phone.store.update((s) => markExam(s, 'q-mock-pca-001', { a: [3] }, Date.now()));
+    await phone.store.push();
+    online = true;
+    pc.store.update((s) => {
+      markExam(s, 'q-mock-pca-001', { a: [0] }, Date.now() - 1000);
+      submitExam(s, by, Date.now(), false);
+    });
+    await pc.store.push();
+    await phone.store.pull(); // 200 with the new copy; the phone was dirty, so it merges and pushes
+    await pc.store.pull();
+    for (const s of [pc.store.get(), phone.store.get()]) {
+      expect(s.exam?.done).toBeGreaterThan(0);
+      expect(s.exam?.marks['q-mock-pca-001'].a).toEqual([0]);
+      expect(s.mocks).toHaveLength(1);
+    }
+  });
+
+  it('three devices that changed different things offline converge', async () => {
+    const devices = [device(), device(), device()];
+    for (const d of devices) await d.store.pull();
+    online = false;
+    const [a, b, c] = devices;
+    a.store.update((s) => {
+      s.done['m90-s01'] = 1;
+      s.qs['q-m90-101'] = { seen: 2, right: 1, last: 1, at: 10, xp: 1 };
+    });
+    b.store.update((s) => {
+      s.done['m90-s02'] = 2;
+      s.qs['q-m90-101'] = { seen: 1, right: 0, last: 0, at: 20, xp: 0 };
+      s.srs['q-m90-101'] = { step: 0, due: '2026-11-10' };
+      s.quizzes.m90 = { best: 87, passed: 20, tries: [{ at: 20, score: 13, n: 15 }] };
+    });
+    c.store.update((s) => {
+      s.checks['m90-s02'] = 3;
+      s.rowBest = 9;
+      s.quizzes.m90 = { best: 60, passed: 0, tries: [{ at: 30, score: 9, n: 15 }] };
+    });
+    online = true;
+    for (const d of devices) await d.store.pull();
+    for (const d of devices) await d.store.pull();
+    const docs = devices.map((d) => JSON.stringify(d.store.get(), (k, v) => (k === 'savedAt' ? undefined : v)));
+    expect(new Set(docs).size).toBe(1);
+    const s = a.store.get();
+    expect(Object.keys(s.done).sort()).toEqual(['m90-s01', 'm90-s02']);
+    expect(s.checks['m90-s02']).toBe(3);
+    expect(s.qs['q-m90-101'].seen).toBe(2);
+    expect('q-m90-101' in s.srs).toBe(false);
+    expect(s.quizzes.m90).toMatchObject({ best: 87, passed: 20 });
+    expect(s.quizzes.m90.tries).toHaveLength(2);
+    expect(s.rowBest).toBe(9);
+  });
+
+  it('a setting changed on one device stamps settingsAt; other changes do not', () => {
+    const a = device();
+    a.store.update((s) => void (s.done['m90-s01'] = 1));
+    expect(a.store.get().settingsAt).toBe(0);
+    a.store.update((s) => void (s.settings.theme = 'dark'));
+    expect(a.store.get().settingsAt).toBe(a.store.get().savedAt);
+  });
+
+  it('three devices: a lab seed typed offline on one survives the merge on all three', async () => {
+    const devices = [device(), device(), device()];
+    for (const d of devices) await d.store.pull();
+    const [a, b, c] = devices;
+    // An older settings change everyone has seen.
+    a.store.update((s) => void (s.settings.theme = 'light'));
+    await a.store.push();
+    for (const d of [b, c]) await d.store.pull();
+    // B types the lab seed while offline; A and C change other things and push first.
+    online = false;
+    b.store.update((s) => void (s.settings.labSeed = '0123456789abcdef'));
+    await b.store.push();
+    online = true;
+    a.store.update((s) => void (s.done['m90-s01'] = 1));
+    await a.store.push();
+    c.store.update((s) => void (s.checks['m90-s02'] = 2));
+    await c.store.push(); // 409, merge, push
+    await b.store.pull(); // the server moved on: B merges and pushes its seed
+    for (const d of devices) await d.store.pull();
+    for (const d of devices) {
+      const s = d.store.get();
+      expect(s.settings.labSeed).toBe('0123456789abcdef');
+      expect(s.settings.theme).toBe('light');
+      expect(s.done['m90-s01']).toBe(1);
+      expect(s.checks['m90-s02']).toBe(2);
+    }
+  });
+
+  it('the first sync is reported once the first pull has finished', async () => {
+    const a = device();
+    expect(a.store.firstSyncDone).toBe(false);
+    const p = a.store.pull();
+    expect(a.store.isPulling()).toBe(true);
+    await p;
+    await a.store.firstSync;
+    expect(a.store.firstSyncDone).toBe(true);
+    expect(a.store.isPulling()).toBe(false);
+  });
+});
