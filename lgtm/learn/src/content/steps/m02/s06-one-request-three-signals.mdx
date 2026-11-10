@@ -26,6 +26,9 @@ sources:
   - title: Configure trace to logs correlation (Grafana Tempo data source)
     url: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-logs/
     checked: 2026-11-10
+  - title: Configure the Loki data source, derived fields (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/loki/configure/
+    checked: 2026-11-10
   - title: Trace Context (W3C Recommendation)
     url: https://www.w3.org/TR/trace-context/
     checked: 2026-11-10
@@ -40,31 +43,31 @@ The lab links the three signals by one value: the trace ID. A latency graph carr
 </Idea>
 
 <Points>
-  <Point label="Metric to trace: exemplars">An exemplar is one real trace kept next to a metric value. Grafana shows exemplars as small highlighted stars on a graph. Hover over one to see its trace ID.</Point>
-  <Point label="The trace view">The trace view shows the root span's name and the trace ID at the top. Below it, each row is a span with its service, its operation and a bar for its duration.</Point>
-  <Point label="Trace to logs">In this lab, a span offers a "Logs for this span" link. It searches Loki for lines of the same service that carry the trace's ID, a few minutes either side of the span.</Point>
-  <Point label="Log back to trace">Each shop log line in Loki carries the trace ID as a field. The lab adds an "Open trace" link to that field, so you can go back to Tempo.</Point>
+  <Point label="Metric to trace: exemplars">An exemplar is one real trace kept next to a metric value. In this lab, Grafana draws exemplars as small green diamonds on the latency graph. Hover over one to see its trace ID.</Point>
+  <Point label="The trace view">The trace view shows the root span's name and the trace ID at the top. Below it, each row is a span with its service, its operation and a bar for its duration. A search box in the header highlights the spans that match a word.</Point>
+  <Point label="Trace to logs">The span details offer a **Related logs** link. It searches Loki for lines of the same service that carry the trace's ID, a few minutes either side of the span.</Point>
+  <Point label="Log back to trace">Each shop log line in Loki carries the trace ID as a field. In the log details, a Links section shows `trace_id` with an **Open trace** link back to Tempo.</Point>
 </Points>
 
-<Figure id="m02-s06-three-hops" alt="Three Grafana screens in a row: a latency graph with a star on a peak, a trace waterfall, and a list of log lines. Arrows go from the star to the trace and from the trace to the logs, and the same trace ID is highlighted on all three." brief="A cursor walks through three fake Grafana screens. It hovers over a star on a latency graph, and a tooltip shows a trace ID. A click opens a trace waterfall with the same ID in its header. A click on a checkout span and then on 'Logs for this span' opens log lines, each with the same ID in a field. The learner should notice that one ID ties the three screens together." />
+<Figure id="m02-s06-three-hops" alt="Three Grafana screens in a row: a latency graph with green diamonds on it, a trace waterfall, and a list of log lines. Arrows go from a diamond to the trace and from the trace to the logs, and the same trace ID is highlighted on all three." brief="A cursor walks through three fake Grafana screens. It hovers over a green diamond on a latency graph, and a tooltip shows a trace ID with a 'Query with Tempo' link. A click opens a trace waterfall with the same ID in its header. A click on a checkout span and then on 'Related logs' opens log lines; one is expanded, and its Links section shows trace_id with 'Open trace'. The learner should notice that one ID ties the three screens together." />
 
 <Do>
 1. Open the dashboard <LabLink to="grafana" path="/d/shop-red-checkout">Shop / checkout (RED)</LabLink> in Grafana and set the time range to the last 15 minutes. The load generator places orders all the time, so the panels have data.
-2. Read the three panels. Rate is requests per second, Errors is the share of failed spans, Duration is latency at p50, p95 and p99. All three come from Mimir.
-3. In the Duration panel, hover over one of the highlighted stars near the p99 line. The tooltip shows a `traceID`. Click **Query with Tempo** next to it.
-4. The trace opens in Explore. Read the trace ID in the header and copy it. Find the rows of checkout, cart, product-catalog and payment, and see which bar is the longest.
+2. Read the four panels. Rate is requests per second, Errors is the share of failed spans, Duration is latency at p50, p95 and p99: these three come from Mimir. The fourth, "Logs of checkout", comes from Loki.
+3. In the Duration panel, hover over one of the green diamonds. The tooltip shows a `traceID`. Click **Query with Tempo** next to it.
+4. The trace opens in Explore. Copy the trace ID from the header. The trace can hold more than a hundred spans, and services show as `opentelemetry-demo/<name>`. Type `checkout` in the search box of the trace view to highlight the checkout spans.
 5. Click a span of the checkout service. In its details, look at the resource attributes and find `service.name`.
-6. In the same span details, click **Logs for this span**. Loki opens beside the trace with a query on `service_name` and `trace_id`.
-7. Expand one log line. Check that its `trace_id` field is the ID you copied, and that the field has an **Open trace** link.
+6. In the same span details, click **Related logs**. Loki opens beside the trace with the query `{service_name="checkout"} | trace_id="..."`.
+7. Expand one log line. Check that its `trace_id` is the ID you copied. Under Links, `trace_id` has an **Open trace** link that opens the same trace again.
 8. Paste the trace ID in the lab check below.
 </Do>
 
 <Done>
-You opened one trace from a star on the Duration panel. The log lines Loki showed all carry the same trace ID as the trace header.
+You opened one trace from a diamond on the Duration panel. The log lines Loki showed all carry the same trace ID as the trace header.
 </Done>
 
 <Trap>
-If "Logs for this span" shows no lines, the span you picked may belong to a service that wrote no log during this request. Pick a span of another service, such as payment, and try again. Do not search Loki by time alone: you would see the lines of many requests mixed together.
+Copy the trace ID from the trace header. An ID read from an exemplar tooltip or a search result can lose a leading zero and have only 31 characters, which the check refuses. If **Related logs** shows no lines, the service may have written none in this request: try a span of payment.
 </Trap>
 
 <Question id="q-m02-s06" answer="a">

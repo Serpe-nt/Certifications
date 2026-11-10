@@ -44,7 +44,7 @@ Semantic conventions are OpenTelemetry's shared dictionary. They fix the names, 
   <Point label="An HTTP example">An HTTP server span carries `http.request.method`, `http.route` and `http.response.status_code`. Its name is the method and a low-cardinality target, such as `GET /webshop/articles/:article_id`, never the full path with an ID in it.</Point>
   <Point label="service.name matters most">`service.name` is the logical name of a service, the same for every replica. If you do not set it, SDKs use `unknown_service`, so set it, for example with the `OTEL_SERVICE_NAME` variable.</Point>
   <Point label="Conventions have versions">The conventions change over time. Many older HTTP instrumentations still send the old names by default. `OTEL_SEMCONV_STABILITY_OPT_IN=http` switches them to the stable names, and `http/dup` sends both while you migrate.</Point>
-  <Point label="In this lab">Mimir and Loki turn `service.name` into the label `service_name`. That is the label you saw in the "Logs for this span" query.</Point>
+  <Point label="In this lab">Mimir and Loki turn `service.name` into the label `service_name`. That is the label you saw in the "Related logs" query.</Point>
 </Points>
 
 <Trap>

@@ -240,7 +240,7 @@
 - id: q-m02-016
   tags: [correlation]
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
-  q: In a Grafana trace view with trace to logs set up for Loki, a span shows a "Logs for this span" link. Which logs does the link find?
+  q: In a Grafana trace view with trace to logs set up for Loki, a span offers a link to its logs. Which logs does the link find?
   options:
     - text: Every log line of every service in the time range
       why: The query is filtered by trace ID and the configured tags, not just by time.
