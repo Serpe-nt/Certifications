@@ -33,6 +33,13 @@ If the `/caveman` prefix did not load the skill, load it with the Skill tool bef
 - Host ports by card in wave 2, all on 127.0.0.1: S2 uses 8095 and 8096; L2 uses 18080 and 18443 for its kind cluster's gateway NodePorts and 8097 for anything else; L3 uses 28080 and 28443 and 8098. Nobody uses 8080, 8091 or 8181.
 - Docker Desktop has about 30 GB for everything. Two kind clusters run at the same time in wave 2: keep yours small, and delete it as soon as your evidence is collected.
 
+## Wave 3: the real cluster exists
+
+- Since 2026-11-10 the lab cluster runs on the owner's Hyper-V VMs (40 GB of the PC's 61.6 GB), reached from WSL with `KUBECONFIG=~/.kube/lgtm-lab.config`, context `lgtm-lab`. Only the card that says so (L4) may change anything on it. Every other card stays off it, or reads it only when its card allows.
+- With the VMs running, Docker Desktop has much less memory than before. Only D2 may run a kind cluster in wave 3, and it must stay under 6 GB.
+- Host ports in wave 3, all on 127.0.0.1: C0 uses 8095 and 8096 (the site), D2 uses 8097, L4 uses 8098 if it needs one.
+- In WSL the name `cluster-endpoint.k8s.local` resolves; the `lab.k8s.local` names do not. Use `http://10.10.0.5` with a `Host:` header.
+
 ## Pull request text
 
 - Title: `[lgtm <card id>] <what it delivers>`
@@ -52,6 +59,9 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 2 | `w2-l2-platform.md` | L2 platform add-ons |
 | 2 | `w2-l3-lgtm-releases.md` | L3 LGTM releases |
 | 2 | `w2-s2-site-features.md` | S2 site features |
-| 3 and later | `content-module-template.md` | one copy per module, filled in by the planner |
+| 3 | `w3-l4-lab-acceptance.md` | L4 lab acceptance on the real cluster |
+| 3 | `w3-d2-beacon-workshop.md` | D2 beacon and workshop service |
+| 3 | `w3-c0-content-pilot.md` | C0 content pilot, module m02 |
+| 4 and later | `content-module-template.md` | one copy per module, filled in by the planner |
 
-Cards for wave 3 and later (D2, L4, C0, DZ, FG) are written by the planner when the wave before them is merged. DZ uses the `web-design-engineer` skill and FG the `stageshow` skill; no other card uses them.
+Cards for wave 4 and later (DZ, C1 and the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `web-design-engineer` skill and FG the `stageshow` skill; no other card uses them.
