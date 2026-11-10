@@ -743,11 +743,22 @@ make venv
 and the Python client `kubernetes` 37.0.2 used by the later playbooks. Nothing is installed
 system-wide. Run it once; run it again after `requirements-dev.txt` changes.
 
-*Run here (2026-11-10), real output:*
+*Run here (2026-11-10), real output* (`/mnt/c/...` stands for the checkout path; pip runs quietly,
+so the two commands are all it prints; it took about 5 minutes on `/mnt/c`):
 
 ```
-@@VENV@@
+python3 -m venv /mnt/c/.../lgtm/lab/.venv
+/mnt/c/.../lgtm/lab/.venv/bin/pip install --disable-pip-version-check -q -r /mnt/c/.../lgtm/lab/ansible/requirements-dev.txt
 ```
+
+Check the versions:
+
+```bash
+.venv/bin/ansible --version | head -1
+.venv/bin/yamllint --version
+```
+
+*Run here:* `ansible [core 2.21.5]` and `yamllint 1.38.0`.
 
 **Undo:** `rm -rf .venv`.
 
@@ -764,8 +775,22 @@ make collections
 *Run here (2026-11-10), real output:*
 
 ```
-@@COLLECTIONS@@
+cd /mnt/c/.../lgtm/lab/ansible && /mnt/c/.../lgtm/lab/.venv/bin/ansible-galaxy collection install -r requirements.yml -p ./.ansible/collections
+Starting galaxy collection install process
+Process install dependency map
+Starting collection install process
+Downloading https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/artifacts/ansible-posix-2.2.2.tar.gz to /home/vaka/.ansible/tmp/...
+Installing 'ansible.posix:2.2.2' to '/mnt/c/.../lgtm/lab/ansible/.ansible/collections/ansible_collections/ansible/posix'
+ansible.posix:2.2.2 was installed successfully
+...
+community.general:14.0.1 was installed successfully
+...
+kubernetes.core:6.6.0 was installed successfully
+...
+community.library_inventory_filtering_v1:1.1.5 was installed successfully
 ```
+
+The last one is a dependency of `community.general`. On `/mnt/c` this took several minutes.
 
 **Undo:** `rm -rf ansible/.ansible`.
 
@@ -785,7 +810,18 @@ the proxy ports instead. `make cluster` runs it too. The file is committed; neve
 *Run here (2026-11-10), real output:*
 
 ```
-@@INVENTORY@@
+cd /mnt/c/.../lgtm/lab/ansible && /mnt/c/.../lgtm/lab/.venv/bin/ansible-playbook -i localhost, -c local playbooks/inventory.yml
+
+PLAY [Generate the Ansible inventory from the nodes file] **********************
+
+TASK [Check the nodes file] ****************************************************
+ok: [localhost]
+
+TASK [Write the inventory] *****************************************************
+ok: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
 ```
 
 `changed=0` means the committed `hosts.yml` already matches `nodes.yml`; `git status` shows no
@@ -830,6 +866,17 @@ cd /mnt/c/.../lgtm/lab/ansible && ansible-playbook site.yml
 ```
 
 (`make -n` was run before `make venv`; after it, the commands start with `.venv/bin/`.)
+
+To see every task without touching a VM:
+
+```bash
+cd ansible && ANSIBLE_CONFIG=$PWD/ansible.cfg ../.venv/bin/ansible-playbook site.yml --list-tasks; cd ..
+```
+
+*Run here (2026-11-10):* six plays, 14 tasks on lb, 25 in "Common setup", 12 in
+`master_init`, 7 per control-plane join, 6 per worker join, 5 for the kubeconfig. Every run
+prints a `[DEPRECATION WARNING]` for `ansible.builtin.apt_repository` in `k8s_packages` (it goes
+away in ansible-core 2.25); it is harmless today.
 
 `site.yml` runs six plays, in this order. The last column is what changed from the owner's
 original `k8s-provision` playbooks (commit `8442dee`), from `ansible/CHANGES.md`.
@@ -998,7 +1045,7 @@ from the code* were not seen on this PC.
 | `Test-NetConnection 10.10.0.5 -Port 22` works on Windows, but `ssh` or `make ping` from WSL times out | Mirrored WSL does not reach the internal switch on this PC. | Use the port-proxy fallback **before `make cluster`** (the API server certificate gets 127.0.0.1 only at `kubeadm init`): 1. set `network.control_access: portproxy` in `vm/nodes.yml`; 2. run `create -ConfigureDns` again in the elevated PowerShell, which adds only the port proxies (`netsh interface portproxy show v4tov4` lists them: 127.0.0.1:6443 to lb, 127.0.0.1:220xx to port 22 of each VM); 3. in WSL `ssh -i ~/.ssh/ansible -p 22005 vaka@127.0.0.1 hostname` prints `lb`; 4. `make inventory` and go on. If the cluster was already built, also run the `kubeadm reset -f` command of section 5.5 before `make cluster`. Background: `lgtm/docs/adr/l1-wsl-networking.md`. |
 | `UNREACHABLE` with `Permission denied (publickey)` | The VMs carry another public key than `~/.ssh/ansible.pub`; the key is written only at creation. | Point `ssh.public_key_file` and `ssh.private_key_file` at the right pair, or destroy and create the VMs with the current key. |
 | `WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!` or `Host key verification failed.` | The VMs were recreated and have new host keys. | `make forget-host-keys` (or `ssh-keygen -f ~/.ssh/known_hosts_lgtm-lab -R <address>` for one VM). |
-| `No package matching 'containerd' is available` in the task "Install Containerd" (*expected from the code, not seen*) | The seed sets `package_update: false`, and the `containerd` role installs without refreshing the apt cache; on the k8s nodes it runs before any role that refreshes it. | `cd ansible && ANSIBLE_CONFIG=$PWD/ansible.cfg ../.venv/bin/ansible k8s_cluster -b -m ansible.builtin.apt -a update_cache=true`, then `make cluster` again. Send the planner the error: it is then a defect to fix in the role. |
+| `No package matching 'containerd' is available` in the task "Install Containerd" (*expected from the code, not seen*) | The seed sets `package_update: false`, and the `containerd` role installs without refreshing the apt cache; `--list-tasks` shows "Install Containerd" before the first task that refreshes it (`node_prereqs : Install time sync`). | `cd ansible && ANSIBLE_CONFIG=$PWD/ansible.cfg ../.venv/bin/ansible k8s_cluster -b -m ansible.builtin.apt -a update_cache=true`, then `make cluster` again. Send the planner the error: it is then a defect to fix in the role. |
 | Any apt or download task fails with a timeout or `Temporary failure resolving` | The VMs have no way out: NAT missing, or the host has no internet. | Elevated PowerShell: `Get-NetNat -Name lgtm-lab` and `Get-NetIPAddress -InterfaceAlias 'vEthernet (lgtm-lab)'`. On a VM: `ping -c1 10.10.0.1`, `ping -c1 1.1.1.1`, `resolvectl query pkgs.k8s.io`. Run `create` again to restore a missing part. |
 | `kubeadm init` fails in "Initialize k8s master" with a timeout waiting for the API server or `context deadline exceeded` | kubeadm talks to the API server through `cluster-endpoint.k8s.local:6443`: the name must resolve on master1 to 10.10.0.5, and HAProxy must forward to a healthy API server. | On master1: `resolvectl query cluster-endpoint.k8s.local` (must be 10.10.0.5), `nc -zv -w 2 10.10.0.5 6443`; open `http://10.10.0.5:8404/stats` and look at `k8s_api_servers`. Kubernetes' HA guide expects "connection refused" from the load balancer before the API server runs and treats a timeout as a load balancer problem ([kubeadm HA](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/high-availability/)). Then on master1 `sudo kubeadm reset -f` and `make cluster` again. |
 | "Wait for Calico to be ready" fails after its 20 retries | Calico images are still downloading through the NAT, or a Calico pod fails. | `kubectl get tigerastatus`, `kubectl get pods -n calico-system -o wide`, `kubectl logs -n tigera-operator deploy/tigera-operator`. Slow downloads: run `make cluster` again, it continues. A pod in error: send the planner its `kubectl describe pod` output. |
@@ -1061,7 +1108,7 @@ What the agent ran on 2026-11-10 while writing this guide, and what only the own
 | `make collections` | 5.2 | Run here: output shown |
 | `make inventory` | 5.3 | Run here: output shown, `hosts.yml` unchanged |
 | `make ping` | 5.4 | Not run here: needs the VMs |
-| `make cluster` | 5.5 | `make -n cluster` run here; the real run: not run here, needs the VMs |
+| `make cluster` | 5.5 | `make -n cluster` and `site.yml --list-tasks` run here; the real run: not run here, needs the VMs |
 | `make cluster-check` | 5.6 | Not run here: needs the VMs |
 | kubeconfig use | 5.7 | Not run here: needs the VMs |
 | `stop` and `start` | 6.1 | Not run here: needs an elevated PowerShell (a normal window gives `'Stop-VM' needs administrator rights`) |
