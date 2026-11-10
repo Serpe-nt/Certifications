@@ -10,3 +10,5 @@
       namespace: mimir
       folder: mimir
       extra_values: "{{ lab_mimir_values }}"
+      # The Kafka block of values.yaml: topic and partition count.
+      kafka_topic: [mimir, structuredConfig, ingest_storage, kafka]

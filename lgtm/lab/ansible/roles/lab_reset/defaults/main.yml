@@ -11,6 +11,11 @@ lab_reset_releases:
   - { name: mimir, namespace: mimir }
   - { name: kube-prometheus-stack, namespace: prom }
 
+# The Kafka topics the releases write to (KafkaTopic resources in namespace
+# kafka, created by lab_release). Deleting them drops the data still in Kafka
+# and the consumers' offsets; the next make lab creates them again.
+lab_reset_kafka_topics: [mimir-ingest, tempo-traces]
+
 # A Job that deletes every object in the lab's buckets, with the platform's
 # S3 keys (Secret lab-s3 in namespace mimir). The buckets themselves stay.
 lab_reset_job:

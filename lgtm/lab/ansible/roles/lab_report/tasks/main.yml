@@ -32,6 +32,8 @@
       - "Tempo         http://tempo.{{ lab_domain }}{{ lab_report_port }}  (header X-Scope-OrgID: lab)"
       - "Alloy         http://alloy.{{ lab_domain }}{{ lab_report_port }}"
       - "OTLP (HTTP)   http://otlp.{{ lab_domain }}{{ lab_report_port }}"
+      - "Longhorn      http://longhorn.{{ lab_domain }}{{ lab_report_port }}  (real cluster only)"
+      - "S3 console    http://s3.{{ lab_domain }}{{ lab_report_port }}/rustfs/console/  (keys in Secret s3/lab-s3)"
       - "Lab seed      {{ lab_report_seed.stdout | b64decode }}  (enter it once in the site settings)"
       - "Grafana password: Secret grafana/grafana-admin, key admin-password. Show it with"
       - "  kubectl --kubeconfig {{ lab_kubeconfig }} -n grafana get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d"

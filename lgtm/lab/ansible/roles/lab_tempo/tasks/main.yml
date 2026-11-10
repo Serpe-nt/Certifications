@@ -9,3 +9,5 @@
       name: tempo
       namespace: tempo
       folder: tempo
+      # The Kafka block of values.yaml: topic and partition count.
+      kafka_topic: [ingest, kafka]

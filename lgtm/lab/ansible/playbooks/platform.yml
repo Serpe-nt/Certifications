@@ -47,6 +47,10 @@
   roles:
     - role: platform_tools
       tags: [always, tools]
+    # First, so the add-ons find the control-plane nodes with room to spare.
+    - role: platform_control_plane
+      tags: [control-plane]
+      when: lab_profile == 'full'
     # Runs with every add-on tag, never with `tools` alone.
     - role: platform_namespaces
       tags: [namespaces, metrics-server, cert-manager, gateway, longhorn, s3, kafka]

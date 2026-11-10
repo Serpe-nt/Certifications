@@ -1,0 +1,56 @@
+---
+# The control-plane nodes have kubeadm's minimum of 2 GB. The API server, etcd,
+# the controller manager and the scheduler use most of it, and the Deployments
+# that tolerate the control-plane taint (CoreDNS, the Tigera operator and the
+# Calico control plane) all land on the first master, because it is the only
+# node when `make cluster` installs them. On the lab cluster this left master1
+# with no free memory and made it NotReady during the first `make platform`.
+# These tasks move those Deployments to the workers; the DaemonSets (calico-node,
+# kube-proxy, the Calico CSI driver) stay on every node.
+- name: Keep the Calico control plane off the control-plane nodes
+  kubernetes.core.k8s:
+    state: patched
+    merge_type: merge
+    api_version: operator.tigera.io/v1
+    kind: "{{ item.kind }}"
+    name: default
+    definition:
+      spec: "{{ dict(item.fields | product([platform_control_plane_calico_override])) }}"
+  loop: "{{ platform_control_plane_calico }}"
+  loop_control:
+    label: "{{ item.kind }}"
+
+- name: Keep CoreDNS and the Tigera operator off the control-plane nodes
+  kubernetes.core.k8s:
+    state: patched
+    merge_type: strategic-merge
+    api_version: apps/v1
+    kind: Deployment
+    namespace: "{{ item.namespace }}"
+    name: "{{ item.name }}"
+    definition:
+      spec:
+        template:
+          spec:
+            affinity: "{{ platform_control_plane_affinity }}"
+  loop: "{{ platform_control_plane_deployments }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }}"
+
+- name: Wait for CoreDNS on the workers
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    namespace: kube-system
+    name: coredns
+  register: platform_control_plane_coredns
+  until: >-
+    platform_control_plane_coredns.resources | length == 1
+    and (platform_control_plane_coredns.resources[0].status.updatedReplicas | default(0))
+        == platform_control_plane_coredns.resources[0].spec.replicas
+    and (platform_control_plane_coredns.resources[0].status.readyReplicas | default(0))
+        == platform_control_plane_coredns.resources[0].spec.replicas
+    and (platform_control_plane_coredns.resources[0].status.replicas | default(0))
+        == platform_control_plane_coredns.resources[0].spec.replicas
+  retries: 30
+  delay: 10

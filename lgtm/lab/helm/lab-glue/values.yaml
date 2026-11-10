@@ -1,3 +1,5 @@
 # The lab's values for the lab-glue chart (lgtm/lab/charts/lab-glue).
-# The chart's defaults already match the lab contract.
-{}
+# The chart's defaults already match the lab contract; the lab switches the
+# check-token beacon on (lab contract, "Check tokens"; docs/beacon.md).
+beacon:
+  enabled: true
