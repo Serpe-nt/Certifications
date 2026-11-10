@@ -1,0 +1,72 @@
+---
+id: m02-s03
+title: Logs and events
+kind: concept
+minutes: 10
+order: 3
+exam:
+  - cert: pca
+    domain: P1
+    competency: Understand logs and events
+  - cert: otca
+    domain: O1
+    competency: Telemetry Data
+tags: [logs]
+sources:
+  - title: Logs (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/signals/logs/
+    checked: 2026-11-10
+  - title: Event v1 (Kubernetes API reference)
+    url: https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/
+    checked: 2026-11-10
+  - title: kube-apiserver command line reference (--event-ttl)
+    url: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+    checked: 2026-11-10
+  - title: Logging architecture (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/cluster-administration/logging/
+    checked: 2026-11-10
+  - title: Prometheus FAQ (How to feed logs into Prometheus?)
+    url: https://prometheus.io/docs/introduction/faq/
+    checked: 2026-11-10
+---
+
+<Why>
+The error rate of payment jumped at 02:14. The metric tells you how many requests failed, but not what went wrong. Somewhere a program wrote down the exact error message at that moment. You need those records, kept in one place you can search, even after the pod that wrote them is gone.
+</Why>
+
+<Idea>
+A log is a timestamped record of something that happened, written by a program. An event is a log for one named kind of happening, such as "pod scheduled". Logs carry the detail that metrics leave out.
+</Idea>
+
+<Points>
+  <Point label="What a log is">A log is a timestamped text record with optional metadata. Logs are the oldest signal: almost every language and framework can write them.</Point>
+  <Point label="Structured logs are easier to use">A structured log has a stable schema: the same field names and types every time. Machines can then parse, filter and count them reliably. Plain text needs a regular expression for each format. JSON alone does not make a log structured if its fields change from line to line.</Point>
+  <Point label="Events are a kind of log">In OpenTelemetry, every event is a log, and its event name says which kind of thing happened. Not every log is an event.</Point>
+  <Point label="Kubernetes events do not last">Kubernetes reports things like a failed image pull as Event objects. The API server keeps them for one hour by default (`--event-ttl`). To keep them longer, a collector must copy them to a log store.</Point>
+  <Point label="Logs need a home outside the node">`kubectl logs` reads a container's stdout and stderr from its node. When a pod is evicted, its logs go with it. Kubernetes has no cluster-level log store of its own, so you add one.</Point>
+  <Point label="In this lab">Loki stores the logs. The shop sends its logs over OpenTelemetry, with the trace ID of the request on each line. Alloy sends pod logs and Kubernetes events. Prometheus does not take logs at all.</Point>
+</Points>
+
+<Trap>
+Do not turn every log line into a metric, or every metric into a log line. Logs are for detail about single happenings. Metrics are for counting and trends. A log store can count lines, but it is slower and costlier than a metric for a simple rate.
+</Trap>
+
+<Question id="q-m02-s03" answer="b">
+A pod could not pull its image two hours ago. Now `kubectl get events` shows nothing about it. What is the most likely reason?
+
+- The kubelet deletes events as soon as the pod starts
+
+  The kubelet does not delete events. The API server keeps them for a set time.
+
+- Events expire after one hour by default
+
+  The `--event-ttl` flag defaults to one hour. A collector must copy events to a log store to keep them.
+
+- Image pull errors are written only to the container log
+
+  Kubernetes reports image pull problems as Event objects, not in the container log.
+
+- Events exist only while `kubectl` is watching
+
+  Events are API objects that exist whether anyone watches or not, until they expire.
+</Question>

@@ -1,0 +1,77 @@
+---
+id: m02-s10
+title: "Cardinality: why labels cost money"
+kind: concept
+minutes: 12
+order: 10
+exam:
+  - cert: pca
+    domain: P1
+    competency: Metrics
+  - cert: otca
+    domain: O1
+    competency: Telemetry Data
+tags: [cardinality]
+sources:
+  - title: Metric and label naming, labels (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/naming/
+    checked: 2026-11-10
+  - title: Instrumentation, do not overuse labels (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/instrumentation/
+    checked: 2026-11-10
+  - title: Data model (Prometheus)
+    url: https://prometheus.io/docs/concepts/data_model/
+    checked: 2026-11-10
+  - title: Metrics, cardinality limits (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/signals/metrics/
+    checked: 2026-11-10
+  - title: Label best practices (Loki)
+    url: https://grafana.com/docs/loki/latest/get-started/labels/bp-labels/
+    checked: 2026-11-10
+  - title: What is structured metadata (Loki)
+    url: https://grafana.com/docs/loki/latest/get-started/labels/structured-metadata/
+    checked: 2026-11-10
+---
+
+<Why>
+A developer adds a `user_id` label to the request counter, to see requests per user. The next day the metrics store uses ten times more memory, queries time out, and the cloud bill jumps. Nothing else changed. One label with too many values did all that.
+</Why>
+
+<Idea>
+Cardinality is the number of different label combinations a metric has. Every combination is its own series, and every series costs memory, CPU, disk and network. Keep labels to small, fixed sets of values, and put unique values such as user IDs somewhere else.
+</Idea>
+
+<Points>
+  <Point label="Series multiply">A counter with `method` (4 values) and `status_code` (5 values) can have 4 times 5, so 20 series. Add a `pod` label with 50 values and it can reach 1,000. Each new label multiplies.</Point>
+  <Point label="Never use unbounded values">Prometheus warns against labels with many or endless values: user IDs, email addresses, request IDs. A good label has a small set of values that does not grow with traffic.</Point>
+  <Point label="A rule of thumb">Prometheus suggests keeping most metrics below about 10 series, and having only a handful of metrics above that. A metric that could grow past 100 series needs a different design.</Point>
+  <Point label="OpenTelemetry protects itself">The OpenTelemetry metrics SDK tracks at most 2,000 attribute combinations per metric stream by default. After that it folds new combinations into one series marked `otel.metric.overflow=true`. Totals stay right, but filters by attribute undercount.</Point>
+  <Point label="Logs have labels too">Loki indexes only labels, and each label combination is a stream. Many small streams make a big index and slow queries. Loki's advice: keep label values bounded, and never put a trace ID or an order ID in a label.</Point>
+  <Point label="Where unique values belong">Put per-request values in spans and log lines. In Loki, use structured metadata for high-cardinality fields: they are kept with the line but not indexed. In this lab the shop's `trace_id` is stored that way.</Point>
+</Points>
+
+<Figure id="m02-s10-series-multiply" alt="A grid of small boxes, one per time series. Adding a label with three values turns one row of boxes into three rows, and adding a user ID label makes the grid explode beyond the frame." brief="A fake metric panel counts series. It starts with one counter and one series box. A 'method' label is added and the boxes split into four. A 'status_code' label is added and the four become twenty. Then a 'user_id' label is added and the boxes multiply until they fill the frame, while a memory gauge beside them turns red. The learner should notice that each label multiplies the series count, and that an unbounded label has no ceiling." />
+
+<Trap>
+High cardinality is not always the user's fault. A client library, an exporter or a collector can add labels such as a full URL path with IDs in it. When series counts jump, look at what the newest labels are, not only at the code you wrote.
+</Trap>
+
+<Question id="q-m02-s10" answer="c">
+Which label is the worst choice for a Prometheus request counter?
+
+- `method`, with values such as GET and POST
+
+  HTTP methods are a small, fixed set. This is a normal label.
+
+- `status_code`, with the HTTP status of the response
+
+  Status codes are a bounded set. This is a common and useful label.
+
+- `session_id`, with one value per user session
+
+  Session IDs never stop growing, so every new session creates a new series.
+
+- `region`, with three values
+
+  Three fixed values add little cost.
+</Question>

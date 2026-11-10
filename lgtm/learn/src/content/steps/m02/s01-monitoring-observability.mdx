@@ -1,0 +1,69 @@
+---
+id: m02-s01
+title: "Monitoring versus observability: the 3 a.m. question"
+kind: concept
+minutes: 8
+order: 1
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+  - cert: otca
+    domain: O1
+    competency: Telemetry Data
+tags: [observability]
+sources:
+  - title: Observability primer (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/observability-primer/
+    checked: 2026-11-10
+  - title: What is OpenTelemetry?
+    url: https://opentelemetry.io/docs/what-is-opentelemetry/
+    checked: 2026-11-10
+  - title: Monitoring distributed systems (Google SRE book, chapter 6)
+    url: https://sre.google/sre-book/monitoring-distributed-systems/
+    checked: 2026-11-10
+  - title: Signals (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/signals/
+    checked: 2026-11-10
+---
+
+<Why>
+At 3 a.m. your phone rings: checkout errors are up. The dashboard shows a red line, so you know that something is broken. It does not tell you why, and this failure is new: nobody planned a graph for it. You need to ask the system a question that nobody asked before.
+</Why>
+
+<Idea>
+Monitoring collects numbers you chose in advance and shows them on dashboards and in alerts. It tells you what is broken. Observability means the system sends enough data that you can ask new questions later, so you can also find out why.
+</Idea>
+
+<Points>
+  <Point label="What monitoring does">Monitoring collects, aggregates and shows numbers about a system in real time: request counts, error counts, processing times. You decide in advance what to measure.</Point>
+  <Point label="What observability adds">Observability lets you understand a system from the outside, without knowing how it works inside. It helps with problems you did not expect, the "unknown unknowns", and answers the question "Why is this happening?"</Point>
+  <Point label="The data it needs">The application must be instrumented: its code must send signals. OpenTelemetry supports traces, metrics and logs today. Profiles, an emerging fourth signal, are still under development.</Point>
+  <Point label="When instrumentation is good enough">An application is properly instrumented when you do not have to add new instrumentation to troubleshoot an issue. The data you need is already there.</Point>
+  <Point label="Symptom and cause">A good monitoring system answers two questions: what is broken, and why. "Checkout returns errors" is the symptom. "The payment service cannot reach its database" is a cause.</Point>
+  <Point label="Where this lab fits">OpenTelemetry produces and sends the signals. It is not a backend. In this lab, Mimir, Loki and Tempo store them, and Grafana is where you ask the questions.</Point>
+</Points>
+
+<Trap>
+Observability is not a product you install, and it does not replace monitoring. Dashboards and alerts still tell you that something is wrong. Observability is what lets you go from that alert to the cause.
+</Trap>
+
+<Question id="q-m02-s01" answer="c">
+An alert says checkout errors are high. The team has a dashboard for checkout, but the failure is new and no graph shows its cause. What do they need most?
+
+- A second dashboard with the same checkout error graph
+
+  The same graph only repeats the symptom. It cannot answer a question nobody planned for.
+
+- A lower alert threshold, so the alert fires sooner
+
+  An earlier alert still only says that something is wrong, not why.
+
+- Traces and logs rich enough to ask new questions
+
+  Observability means you can ask questions you did not plan for and find the cause of a new failure.
+
+- An OpenTelemetry backend to replace Grafana
+
+  OpenTelemetry is not a backend. It produces and sends telemetry to tools that store and show it.
+</Question>

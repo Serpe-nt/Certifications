@@ -1,0 +1,88 @@
+---
+id: m02-s06
+title: One request, three signals
+kind: lab
+minutes: 20
+order: 6
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+  - cert: pca
+    domain: P1
+    competency: Tracing and Spans
+tags: [correlation]
+check:
+  kind: regex
+  prompt: Paste the trace ID you followed from the latency panel to the logs (32 hexadecimal characters).
+  pattern: "(?!0{32})[0-9a-fA-F]{32}"
+sources:
+  - title: Introduction to exemplars (Grafana)
+    url: https://grafana.com/docs/grafana/latest/fundamentals/exemplars/
+    checked: 2026-11-10
+  - title: Traces in Explore, trace view (Grafana)
+    url: https://grafana.com/docs/grafana/latest/explore/trace-integration/
+    checked: 2026-11-10
+  - title: Configure trace to logs correlation (Grafana Tempo data source)
+    url: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-logs/
+    checked: 2026-11-10
+  - title: Trace Context (W3C Recommendation)
+    url: https://www.w3.org/TR/trace-context/
+    checked: 2026-11-10
+---
+
+<Why>
+You now know three signals, but only as ideas. In a real incident you jump between them fast: a graph shows a slow minute, you need one slow request from that minute, then the log lines it wrote. If you have never made those jumps, the first time should not be at 3 a.m.
+</Why>
+
+<Idea>
+The lab links the three signals by one value: the trace ID. A latency graph carries example trace IDs, called exemplars. A trace links to the logs that carry its trace ID, and each of those log lines links back to the trace.
+</Idea>
+
+<Points>
+  <Point label="Metric to trace: exemplars">An exemplar is one real trace kept next to a metric value. Grafana shows exemplars as small highlighted stars on a graph. Hover over one to see its trace ID.</Point>
+  <Point label="The trace view">The trace view shows the root span's name and the trace ID at the top. Below it, each row is a span with its service, its operation and a bar for its duration.</Point>
+  <Point label="Trace to logs">In this lab, a span offers a "Logs for this span" link. It searches Loki for lines of the same service that carry the trace's ID, a few minutes either side of the span.</Point>
+  <Point label="Log back to trace">Each shop log line in Loki carries the trace ID as a field. The lab adds an "Open trace" link to that field, so you can go back to Tempo.</Point>
+</Points>
+
+<Figure id="m02-s06-three-hops" alt="Three Grafana screens in a row: a latency graph with a star on a peak, a trace waterfall, and a list of log lines. Arrows go from the star to the trace and from the trace to the logs, and the same trace ID is highlighted on all three." brief="A cursor walks through three fake Grafana screens. It hovers over a star on a latency graph, and a tooltip shows a trace ID. A click opens a trace waterfall with the same ID in its header. A click on a checkout span and then on 'Logs for this span' opens log lines, each with the same ID in a field. The learner should notice that one ID ties the three screens together." />
+
+<Do>
+1. Open the dashboard <LabLink to="grafana" path="/d/shop-red-checkout">Shop / checkout (RED)</LabLink> in Grafana and set the time range to the last 15 minutes. The load generator places orders all the time, so the panels have data.
+2. Read the three panels. Rate is requests per second, Errors is the share of failed spans, Duration is latency at p50, p95 and p99. All three come from Mimir.
+3. In the Duration panel, hover over one of the highlighted stars near the p99 line. The tooltip shows a `traceID`. Click **Query with Tempo** next to it.
+4. The trace opens in Explore. Read the trace ID in the header and copy it. Find the rows of checkout, cart, product-catalog and payment, and see which bar is the longest.
+5. Click a span of the checkout service. In its details, look at the resource attributes and find `service.name`.
+6. In the same span details, click **Logs for this span**. Loki opens beside the trace with a query on `service_name` and `trace_id`.
+7. Expand one log line. Check that its `trace_id` field is the ID you copied, and that the field has an **Open trace** link.
+8. Paste the trace ID in the lab check below.
+</Do>
+
+<Done>
+You opened one trace from a star on the Duration panel. The log lines Loki showed all carry the same trace ID as the trace header.
+</Done>
+
+<Trap>
+If "Logs for this span" shows no lines, the span you picked may belong to a service that wrote no log during this request. Pick a span of another service, such as payment, and try again. Do not search Loki by time alone: you would see the lines of many requests mixed together.
+</Trap>
+
+<Question id="q-m02-s06" answer="a">
+A latency graph has a spike at 14:02. What does an exemplar on that spike give you?
+
+- The trace ID of one request from that interval
+
+  An exemplar links a metric value to one example trace.
+
+- The average latency of all requests in that minute
+
+  The graph line already shows the latency. The exemplar points to one request.
+
+- Every log line written during the spike
+
+  Logs are reached from the trace by its ID. The exemplar itself holds a trace ID.
+
+- A list of all traces slower than the p99
+
+  An exemplar is one example, not a list of all slow traces.
+</Question>
