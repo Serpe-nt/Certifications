@@ -102,7 +102,9 @@ rollout_operator:
   enabled: false
 
 distributor:
-  replicas: 2
+  # One replica (docs/budget.md, lgtm/docs/adr/l4-fit-6gb-workers.md): the workers have
+  # 6 GB, and a second copy of this stateless part teaches nothing new.
+  replicas: 1
   resources:
     requests: { cpu: 100m, memory: 256Mi }
     limits: { cpu: "1", memory: 512Mi }
@@ -119,7 +121,9 @@ ingester:
     limits: { cpu: "1", memory: 1Gi }
 
 querier:
-  replicas: 2
+  # One replica (docs/budget.md, lgtm/docs/adr/l4-fit-6gb-workers.md): the workers have
+  # 6 GB, and a second copy of this stateless part teaches nothing new.
+  replicas: 1
   resources:
     requests: { cpu: 100m, memory: 192Mi }
     limits: { cpu: "1", memory: 512Mi }

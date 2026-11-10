@@ -7,14 +7,17 @@
 # are both KRaft controller and broker: one may be down without losing writes.
 replicas: 3
 storage_size: 5Gi
+# Measured on the lab cluster after a restart: about 470 MiB per node with a
+# 768 MiB heap. A 512 MiB heap is plenty for the lab's write rate, and the
+# request follows (lgtm/docs/adr/l4-fit-6gb-workers.md).
 resources:
   requests:
     cpu: 200m
-    memory: 1Gi
+    memory: 768Mi
   limits:
     cpu: "1"
-    memory: 1536Mi
-jvm_heap: 768m
+    memory: 1280Mi
+jvm_heap: 512m
 config:
   default.replication.factor: 3
   min.insync.replicas: 2

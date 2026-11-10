@@ -21,7 +21,9 @@
 
 fullnameOverride: otel-gateway
 mode: deployment
-replicaCount: 2
+# One replica (lgtm/docs/adr/l4-fit-6gb-workers.md): two scraped the shop's data
+# stores twice and reserved 256 MiB more on 6 GB workers.
+replicaCount: 1
 
 image:
   repository: otel/opentelemetry-collector-contrib
