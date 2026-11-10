@@ -18,6 +18,8 @@
   ansible.builtin.shell:
     cmd: "set -o pipefail && curl -fsSL {{ k8s_sign_key }} | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg"
     creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    # /bin/sh is dash on Ubuntu, which has no pipefail.
+    executable: /bin/bash
   # noqa: command-instead-of-module
 
 - name: Touch up gpg key prem

@@ -14,6 +14,7 @@ made to the copied files, with its reason. Files that are new in this project ar
 | `roles/network/tasks/main.yml`, `roles/network/defaults/main.yml` | The netplan task runs only when `network_manage_k8s_interface` is true (default true, the original behaviour). | The task gives a second network card the cluster address. A VM with one card, configured by cloud-init at first boot, must not get a second netplan file for the same card. The generated inventory sets the variable to false; the KVM example sets it to true. |
 | `roles/network/handlers/main.yml` | "Reapply netplan" has `changed_when: true`. | ansible-lint `no-changed-when`. No change in behaviour. |
 | `roles/k8s_packages/defaults/main.yml` | The apt key and repository URLs use `k8s_minor_version` instead of a fixed `v1.35`. | The Kubernetes minor version is set in one place, `inventory/group_vars/all.yml` (still 1.35). |
+| `roles/k8s_packages/tasks/main.yml` | "Download k8s apt sign key" runs with `executable: /bin/bash`. | The command starts with `set -o pipefail`, and the shell module runs `/bin/sh`, which is dash on Ubuntu. The owner's first run on the lab VMs (2026-11-10) failed on all three masters with `/bin/sh: 1: set: Illegal option -o pipefail`. |
 | `roles/k8s_packages/tasks/main.yml` | "Set kubelet node IP" has `regexp: "^KUBELET_EXTRA_ARGS="` and `mode: "0644"`. | Without the regexp a changed address added a second line instead of replacing the first. The mode is required by ansible-lint `risky-file-permissions`. |
 | `roles/master_init/defaults/main.yml` | `tigera_operator_manifest_url` uses `calico_version`; new `master_init_calico_crds_manifest_url`, `master_init_service_network_cidr` (10.96.0.0/16) and `master_init_apiserver_cert_extra_sans` ([]). | Calico version in one place (`inventory/group_vars/all.yml`, still 3.31.4). See the next rows for the other three. |
 | `roles/master_init/tasks/main.yml` | Calico is installed by applying `operator-crds.yaml` and then `tigera-operator.yaml` with `kubectl apply --server-side --force-conflicts`, each only when it is not installed yet. | Since Calico 3.30 the operator CRDs are no longer in `tigera-operator.yaml` (checked on 2026-11-09: the 3.31.4 file holds 0 CustomResourceDefinitions, `operator-crds.yaml` holds 32), so the original role would wait forever for `installations.operator.tigera.io`. The CRD file is 2.6 MB, too large for client-side apply. Calico's own guide installs both files: https://docs.tigera.io/calico/3.31/getting-started/kubernetes/self-managed-onprem/onpremises |
@@ -46,3 +47,12 @@ nine roles are as they were in `8442dee` (ansible-lint and yamllint skip `roles/
 - `requirements.yml` (Ansible collections), `requirements-dev.txt` (Python lint tools),
   `.ansible-lint`, `.yamllint`.
 - `inventory/examples/kvm-multi-nic/README.md` and `group_vars/all.yml` for the KVM shape.
+
+## Fixes to the new roles from the first run on the VMs
+
+- `node_prereqs` (2026-11-10): "Keep multipathd off the Longhorn devices" wrote
+  `/etc/multipath/conf.d/longhorn.conf`, a folder the Ubuntu 24.04 cloud image does not have, and
+  failed on every worker with `Destination directory /etc/multipath/conf.d does not exist`. It now
+  adds a managed block to `/etc/multipath.conf` (created when missing), as Longhorn's knowledge
+  base describes: https://longhorn.io/kb/troubleshooting-volume-with-multipath/. The template
+  `multipath-longhorn.conf.j2` is removed.
