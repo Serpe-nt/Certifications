@@ -1,0 +1,16 @@
+# A debug-only collector standing in for the lab's gateway in the workshop
+# tests: OTLP over HTTP on port 80, as the lab's otlp address answers, and
+# everything it receives printed in detail.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:80
+exporters:
+  debug:
+    verbosity: detailed
+service:
+  pipelines:
+    traces: { receivers: [otlp], exporters: [debug] }
+    metrics: { receivers: [otlp], exporters: [debug] }
+    logs: { receivers: [otlp], exporters: [debug] }
