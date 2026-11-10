@@ -11,8 +11,8 @@ From a clean Windows 11 Pro PC, with every prerequisite and step explained: `boo
 |---|---|---|---|---|---|
 | Windows host | 10.10.0.1 | | | | Hyper-V internal switch `lgtm-lab`, NAT to the internet |
 | lb | 10.10.0.5 | 2 | 2 GB | 10 GB | HAProxy (6443 API, 80 and 443 to worker NodePorts 30080 and 30443, 8404 statistics), dnsmasq for `k8s.local` |
-| master1 to master3 | 10.10.0.11 to .13 | 2 | 2 GB | 25 GB | kubeadm control plane, etcd |
-| worker1 to worker4 | 10.10.0.30 to .33 | 6 | 8 GB | 30 GB + 40 GB at `/var/lib/longhorn` | workloads, Longhorn data |
+| master1 to master3 | 10.10.0.11 to .13 | 2 | 4 GB | 25 GB | kubeadm control plane, etcd |
+| worker1 to worker4 | 10.10.0.30 to .33 | 4 | 6 GB | 30 GB + 40 GB at `/var/lib/longhorn` | workloads, Longhorn data |
 
 Ubuntu Server 24.04, Kubernetes 1.35 with containerd and Calico 3.31.4, one network card per VM,
 SSH user `vaka` with the key `~/.ssh/ansible`, no password login. `cluster-endpoint.k8s.local`
