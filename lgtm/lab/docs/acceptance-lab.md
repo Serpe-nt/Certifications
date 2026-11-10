@@ -363,3 +363,42 @@ localhost : ok=29 changed=0 unreachable=0 failed=0 skipped=35
 
 The reset, the new install, the check and the second run took 14 minutes together. `make lab`
 created both topics from nothing, which proves the fix of defect 3 on a clean start.
+
+## 30 minutes of load (17:29 to 18:01)
+
+The load generator ran from the reset install on. Sampled every minute for 26 minutes, then
+measured (`budget.md` has every number):
+
+- No pod Pending, in a crash loop or evicted, and no container with `OOMKilled` as its last
+  termination reason.
+- Every pod Ready. Restarts since the reset install: `checkout` 2 and `product-catalog` 3, all
+  within 45 seconds of their start at 17:29:42 (`checkout`: `panic: runtime error: invalid memory
+  address or nil pointer dereference` before its Kafka producer was connected; `product-catalog`
+  exited until PostgreSQL answered), none in the 31 minutes after. Every other restart count
+  dates from the VM restart at 15:57.
+- Workers 69 to 76% memory in use, 1.4 to 2.2 GiB available each, `/proc/pressure/memory` at 0;
+  CPU 10 to 19%. Masters 59 to 71%; the API server 1220 to 1472 MiB.
+
+Five pods used as much as or more than they request; their requests now follow the measurement
+(Grafana, RustFS, the Kafka nodes, the shop's Kafka with a higher limit, the load generator).
+Applied with `make platform TAGS=s3,kafka` (`changed=2`) and `make lab TAGS=grafana,shop`
+(`changed=2`); `make platform-lint` and `make lab-lint` pass.
+
+## Final state (18:10 to 18:16)
+
+```
+make platform   localhost : ok=29 changed=0 unreachable=0 failed=0 skipped=1
+make lab        localhost : ok=29 changed=0 unreachable=0 failed=0 skipped=35
+make lab-check  PASS  trace dc72e7c671d78c7501f2ccdc48a9d38f has spans from 8 services: cart checkout flagd frontend frontend-proxy load-generator payment product-catalog
+                LAB CHECK PASSED
+pods not Ready: none; containers last terminated by OOMKilled: 0
+kubectl top nodes: masters 62 to 72%, workers 68 to 75%
+```
+
+## What stays unverified
+
+- A run of `make platform` on a cluster with only Calico, with the two platform fixes in place
+  from the start. The fixes were applied to the running cluster (`make platform TAGS=...`) and
+  the full second run reports no changes, but the first full run had neither.
+- The beacon (card D2), off until its pull request is merged.
+- `make cluster` on the resized VMs: the cluster was not rebuilt, only the VMs' memory changed.
