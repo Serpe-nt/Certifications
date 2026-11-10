@@ -3,13 +3,16 @@
 
 BeforeAll {
     $script:HyperVDir = Split-Path -Parent $PSScriptRoot
+    # The real file: the owner changes its sizes, so tests only check that it parses and validates.
     $script:NodesFile = Join-Path (Split-Path -Parent $script:HyperVDir) 'nodes.yml'
+    # A copy with fixed sizes (31 vCPU, 46 GB): every test that asserts numbers or rewrites lines uses it.
+    $script:FixtureFile = Join-Path $PSScriptRoot 'fixtures\nodes.yml'
     Import-Module (Join-Path $script:HyperVDir 'LabVms.psm1') -Force
     $script:KeyLine = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBj2+fakefakefakefakefakefakefakefakefakefake vaka@test'
 
     function script:New-TestNodesFile {
         param([scriptblock]$Edit = { param($t) $t })
-        $text = [IO.File]::ReadAllText($script:NodesFile)
+        $text = [IO.File]::ReadAllText($script:FixtureFile)
         $key = Join-Path $TestDrive 'test.pub'
         [IO.File]::WriteAllText($key, $script:KeyLine + "`n")
         $text = $text -replace '(?m)^  public_key_file: .*$', "  public_key_file: $key"
@@ -97,7 +100,16 @@ Describe 'ConvertFrom-LabYaml' {
 }
 
 Describe 'Get-LabConfig with the real nodes.yml' {
-    BeforeAll { $script:Config = Get-LabConfig -Path $script:NodesFile -CacheDir (Join-Path $TestDrive 'cache') }
+    It 'parses and passes validation, whatever sizes the owner chose' {
+        $config = Get-LabConfig -Path $script:NodesFile -CacheDir (Join-Path $TestDrive 'cache')
+        @($config.Nodes | Where-Object Role -EQ 'lb').Count | Should -Be 1
+        @($config.Nodes | Where-Object Role -EQ 'control_plane').Count | Should -BeGreaterThan 0
+        @($config.Nodes | Where-Object Role -EQ 'worker').Count | Should -BeGreaterThan 0
+    }
+}
+
+Describe 'Get-LabConfig with the fixture nodes file' {
+    BeforeAll { $script:Config = Get-LabConfig -Path (New-TestNodesFile) -CacheDir (Join-Path $TestDrive 'cache') }
 
     It 'lists the 8 machines of the lab contract in creation order' {
         @($script:Config.Nodes | ForEach-Object Name) | Should -Be @('lb', 'master1', 'master2', 'master3', 'worker1', 'worker2', 'worker3', 'worker4')
@@ -115,7 +127,7 @@ Describe 'Get-LabConfig with the real nodes.yml' {
         $script:Config.SshUser | Should -Be 'vaka'
     }
 
-    It 'has the sizes of the overview (46 GB memory, 31 vCPU)' {
+    It 'has the fixture sizes (46 GB memory, 31 vCPU)' {
         ($script:Config.Nodes | Measure-Object MemoryGB -Sum).Sum | Should -Be 46
         ($script:Config.Nodes | Measure-Object Vcpu -Sum).Sum | Should -Be 31
         @($script:Config.Nodes | Where-Object DataDiskGB -GT 0 | ForEach-Object Name) | Should -Be @('worker1', 'worker2', 'worker3', 'worker4')

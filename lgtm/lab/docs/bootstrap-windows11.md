@@ -258,6 +258,24 @@ the converted base VHDX) in `lgtm\lab\vm\hyperv\.cache\`.
 15.6 GB left for Windows; 910.7 GB free on C:. To put the VMs on another drive, change
 `hyperv.vm_path` in `lgtm/lab/vm/nodes.yml` before `create`.
 
+The sizes are yours to change in `nodes.yml` (the tests of the script use their own copy of the
+file, so changing them does not break CI). The figures in this guide are the planned ones.
+
+### 2.8 No old entry for the API endpoint name in WSL
+
+kubectl in WSL reaches the cluster by the name `cluster-endpoint.k8s.local`. An older cluster may
+have used the same name, and a hand-kept `/etc/hosts` in WSL then still sends it to that old
+address. Check, in WSL:
+
+```bash
+getent hosts cluster-endpoint.k8s.local
+```
+
+It must print nothing (the name is not known yet) or `10.10.0.5`. *Run here (2026-11-10), after
+the owner corrected the file:* `10.10.0.5`. Fix when it prints another address: remove or correct
+that line in WSL's `/etc/hosts` (with `sudo`). `make cluster-check` makes the same check and fails
+with the address it found.
+
 ## 3. Part 1: the VMs, from PowerShell
 
 All commands in this part run in the folder of the script:
@@ -930,7 +948,9 @@ make cluster-check
 - on master1: waits up to 300 seconds for every node to be Ready, checks that every inventory
   host is a node, waits for the pods in `kube-system` and `calico-system`, and counts one etcd pod
   per control-plane node;
-- in WSL: `kubectl --kubeconfig ~/.kube/lgtm-lab.config get --raw /readyz` must print `ok`;
+- in WSL: reads the server from `~/.kube/lgtm-lab.config`; when it is a name, resolves it with
+  `getent ahostsv4` and fails unless it gives lb's address, naming the address it found, `/etc/hosts`
+  and both fixes; then `kubectl --kubeconfig ~/.kube/lgtm-lab.config get --raw /readyz` must print `ok`;
 - finally `KUBECONFIG=~/.kube/lgtm-lab.config kubectl get nodes -o wide`.
 
 **Expect** `failed=0`, the messages `API servers up behind HAProxy: master1, master2, master3`
@@ -943,13 +963,23 @@ and `Nodes: ...` with all seven Kubernetes nodes, then seven nodes `Ready`, INTE
 
 The file `~/.kube/lgtm-lab.config` holds the cluster's CA, the `kubernetes-admin` client
 certificate and the server `https://cluster-endpoint.k8s.local:6443`. It is a cluster-admin
-credential: keep it out of the repository. Use it for one shell:
+credential: keep it out of the repository.
+
+The kubeconfig of an older cluster in `~/.kube/config` is left alone on purpose: the lab never
+writes that file, so kubectl uses it until you point it at the lab file. Select the lab file for
+the current shell, in bash:
 
 ```bash
 export KUBECONFIG=~/.kube/lgtm-lab.config
 kubectl config get-contexts
 kubectl get nodes -o wide
 kubectl get pods -A
+```
+
+or in fish, the login shell of the `archlinux` distribution:
+
+```fish
+set -gx KUBECONFIG ~/.kube/lgtm-lab.config
 ```
 
 or for one command:
@@ -1037,9 +1067,9 @@ Recreate with sections 3.3 to 3.5 and 5.4 to 5.6. Keep the VMs and redo only Kub
 
 ## 7. Part 5: when it goes wrong
 
-Messages in `code` are the text the script, Ansible or the tools print. The first two rows were
-seen in the owner's first run (2026-11-10) and are fixed in the roles; the others come from the
-code and the sources.
+Messages in `code` are the text the script, Ansible or the tools print. The first two rows and
+the `cluster-check` row on `192.168.10.21` were seen in the owner's first run (2026-11-10); the
+others come from the code and the sources.
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -1063,6 +1093,7 @@ code and the sources.
 | "Wait for Calico to be ready" fails after its 20 retries | Calico images are still downloading through the NAT, or a Calico pod fails. | `kubectl get tigerastatus`, `kubectl get pods -n calico-system -o wide`, `kubectl logs -n tigera-operator deploy/tigera-operator`. Slow downloads: run `make cluster` again, it continues. A pod in error: send the planner its `kubectl describe pod` output. |
 | On a node, `cluster-endpoint.k8s.local` does not resolve | systemd-resolved does not send `.local` names to unicast DNS unless the domain is configured as a search or routing domain ([systemd-resolved](https://www.freedesktop.org/software/systemd/man/latest/systemd-resolved.service.html)); the `network` role sets `Domains=~k8s.local`. Or dnsmasq on lb is not running. | On the node: `cat /etc/systemd/resolved.conf.d/k8s.conf`, `resolvectl status`; on lb: `systemctl status dnsmasq`, `dig +short @10.10.0.5 cluster-endpoint.k8s.local`. Run `make cluster` again to restore the files. |
 | On Windows, `Resolve-DnsName cluster-endpoint.k8s.local` fails | `create` ran without `-ConfigureDns`, or dnsmasq does not run yet (before `make cluster` that is normal). | `Get-DnsClientNrptRule` must list `.k8s.local` with 10.10.0.5; if not, run `create -ConfigureDns` again. |
+| `make cluster-check` fails in its last play with `dial tcp 192.168.10.21:6443: connect: no route to host` (seen in the owner's run, 2026-11-10), or, since this check exists, `cluster-endpoint.k8s.local resolves to 192.168.10.21 on this machine, not to the load balancer 10.10.0.5` | WSL's hand-kept `/etc/hosts` still had `192.168.10.21 cluster-endpoint.k8s.local` from an older cluster that used the same endpoint name. Windows resolved the name correctly through the name resolution rule. | Correct or remove that line in WSL's `/etc/hosts`, then `getent hosts cluster-endpoint.k8s.local` prints `10.10.0.5`. Or write the address into the kubeconfig: `make cluster ANSIBLE_ARGS="-e kubeconfig_fetch_server=https://10.10.0.5:6443"`. |
 | kubectl in WSL: `dial tcp: lookup cluster-endpoint.k8s.local ... no such host` | WSL does not resolve the lab zone. | Use the lb address, which is in the API server certificate: `make cluster ANSIBLE_ARGS="-e kubeconfig_fetch_server=https://10.10.0.5:6443"` rewrites the kubeconfig (pass the same argument on later runs, or the next run writes the name back). |
 
 ## 8. What comes next
@@ -1109,6 +1140,7 @@ What the agent ran on 2026-11-10 while writing this guide, and what only the own
 | SSH key pair | 2.5 | Run here: both files exist; `plan` reports `found` |
 | qemu-img | 2.6 | Run here: **not found**; the owner must install it before `create` |
 | Memory and disk | 2.7 | Run here (`plan`): 15.6 GB left, 910.7 GB free |
+| Endpoint name in WSL | 2.8 | Run here: `10.10.0.5` (after the owner corrected `/etc/hosts`) |
 | `lab-vms.ps1 plan -ConfigureDns` | 3.1 | Run here: output shown |
 | `create -ConfigureDns -WhatIf` | 3.2 | Run here in a normal window (stops at the first Hyper-V call, as designed); elevated: not run here, needs an elevated PowerShell |
 | `create -ConfigureDns` | 3.3 | Not run here: needs an elevated PowerShell |
