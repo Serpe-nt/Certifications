@@ -38,15 +38,15 @@ Eight VMs on a private Hyper-V network, made from `lgtm/lab/vm/nodes.yml`:
 
 | VM | Address | vCPU | Memory (static) | Disks (dynamic VHDX) | Runs |
 |---|---|---|---|---|---|
-| lb | 10.10.0.5 | 1 | 1 GB | 10 GB | HAProxy (6443 to the API servers; 80 and 443 to worker NodePorts 30080 and 30443; statistics on 8404) and dnsmasq for the zone `k8s.local` |
-| master1 | 10.10.0.11 | 2 | 3 GB | 25 GB | kubeadm control plane and etcd |
-| master2 | 10.10.0.12 | 2 | 3 GB | 25 GB | kubeadm control plane and etcd |
-| master3 | 10.10.0.13 | 2 | 3 GB | 25 GB | kubeadm control plane and etcd |
-| worker1 | 10.10.0.30 | 6 | 9 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
-| worker2 | 10.10.0.31 | 6 | 9 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
-| worker3 | 10.10.0.32 | 6 | 9 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
-| worker4 | 10.10.0.33 | 6 | 9 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
-| **Total** | | **31** | **46 GB** | **365 GB at most** | |
+| lb | 10.10.0.5 | 2 | 2 GB | 10 GB | HAProxy (6443 to the API servers; 80 and 443 to worker NodePorts 30080 and 30443; statistics on 8404) and dnsmasq for the zone `k8s.local` |
+| master1 | 10.10.0.11 | 2 | 2 GB | 25 GB | kubeadm control plane and etcd |
+| master2 | 10.10.0.12 | 2 | 2 GB | 25 GB | kubeadm control plane and etcd |
+| master3 | 10.10.0.13 | 2 | 2 GB | 25 GB | kubeadm control plane and etcd |
+| worker1 | 10.10.0.30 | 6 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
+| worker2 | 10.10.0.31 | 6 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
+| worker3 | 10.10.0.32 | 6 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
+| worker4 | 10.10.0.33 | 6 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
+| **Total** | | **32** | **40 GB** | **365 GB at most** | |
 
 - **Network.** Hyper-V internal switch `lgtm-lab`, subnet 10.10.0.0/24. Windows has 10.10.0.1 on
   the adapter `vEthernet (lgtm-lab)` and is the VMs' gateway; a Windows NAT named `lgtm-lab` takes
@@ -232,8 +232,10 @@ and in WSL:
 command -v qemu-img
 ```
 
-*Run here (2026-11-10):* none of the three finds it (`False`, and no output in WSL), and `plan`
-reports `qemu-img: NOT FOUND`. **Install it before `create`.** Either, in PowerShell (normal):
+*Run here (2026-11-10), before the owner installed it:* none of the three found it (`False`, and
+no output in WSL), and `plan` reported `qemu-img: NOT FOUND`. After the winget install below,
+`plan` reports `qemu-img: windows: C:\Program Files\qemu\qemu-img.exe` (section 3.1).
+**Install it before `create`.** Either, in PowerShell (normal):
 
 ```powershell
 winget install --id SoftwareFreedomConservancy.QEMU
@@ -249,17 +251,19 @@ Why a converted QCOW2 image: `lgtm/docs/adr/l1-vm-image-and-seed.md`.
 
 ### 2.7 Free memory and disk
 
-The VMs use 46 GB of static memory: a running VM holds all of its memory, whatever the guest
+The VMs use 40 GB of static memory: a running VM holds all of its memory, whatever the guest
 uses. The disks are dynamic: 365 GB at most, planned for up to about 90 GB of real use in
 `hyperv.vm_path` (`C:\Hyper-V\lgtm-lab`), plus a few GB of image cache (the downloaded image and
 the converted base VHDX) in `lgtm\lab\vm\hyperv\.cache\`.
 
 `lab-vms.ps1 plan` checks both (section 3.1). *Run here (2026-11-10):* 61.6 GB on the host,
-15.6 GB left for Windows; 910.7 GB free on C:. To put the VMs on another drive, change
+21.6 GB left for Windows; 849.1 GB free on C:. To put the VMs on another drive, change
 `hyperv.vm_path` in `lgtm/lab/vm/nodes.yml` before `create`.
 
 The sizes are yours to change in `nodes.yml` (the tests of the script use their own copy of the
-file, so changing them does not break CI). The figures in this guide are the planned ones.
+file, so changing them does not break CI). The figures in this guide are those of `nodes.yml` on
+2026-11-10: lb and masters 2 GB each, workers 8 GB each, 40 GB in total. To change the memory of
+VMs that exist, see section 6.4.
 
 ### 2.8 No old entry for the API endpoint name in WSL
 
@@ -318,19 +322,19 @@ Image
       to C:\Users\serpe\Projects\saa-c03-tracker\.claude\worktrees\lgtm-b1-bootstrap-guide-ee174d\lgtm\lab\vm\hyperv\.cache\ubuntu-24.04-server-cloudimg-amd64.img
       SHA-256 04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94
   - convert with qemu-img QCOW2 to VHDX C:\Users\serpe\Projects\saa-c03-tracker\.claude\worktrees\lgtm-b1-bootstrap-guide-ee174d\lgtm\lab\vm\hyperv\.cache\ubuntu-24.04-server-cloudimg-amd64.vhdx
-      qemu-img: NOT FOUND (see the acceptance checklist, step 0)
+      qemu-img: windows: C:\Program Files\qemu\qemu-img.exe
 
 VMs (8), created in this order; folder C:\Hyper-V\lgtm-lab\<name>
   Name      Role           Address      vCPU  Memory  OS disk Data disk  MAC
-  lb        lb             10.10.0.5       1    1 GB    10 GB         -  02:4c:47:0a:00:05
-  master1   control_plane  10.10.0.11      2    3 GB    25 GB         -  02:4c:47:0a:00:0b
-  master2   control_plane  10.10.0.12      2    3 GB    25 GB         -  02:4c:47:0a:00:0c
-  master3   control_plane  10.10.0.13      2    3 GB    25 GB         -  02:4c:47:0a:00:0d
-  worker1   worker         10.10.0.30      6    9 GB    30 GB     40 GB  02:4c:47:0a:00:1e
-  worker2   worker         10.10.0.31      6    9 GB    30 GB     40 GB  02:4c:47:0a:00:1f
-  worker3   worker         10.10.0.32      6    9 GB    30 GB     40 GB  02:4c:47:0a:00:20
-  worker4   worker         10.10.0.33      6    9 GB    30 GB     40 GB  02:4c:47:0a:00:21
-  Total: 31 vCPU, 46 GB memory (static), 365 GB of dynamic disks at most.
+  lb        lb             10.10.0.5       2    2 GB    10 GB         -  02:4c:47:0a:00:05
+  master1   control_plane  10.10.0.11      2    2 GB    25 GB         -  02:4c:47:0a:00:0b
+  master2   control_plane  10.10.0.12      2    2 GB    25 GB         -  02:4c:47:0a:00:0c
+  master3   control_plane  10.10.0.13      2    2 GB    25 GB         -  02:4c:47:0a:00:0d
+  worker1   worker         10.10.0.30      6    8 GB    30 GB     40 GB  02:4c:47:0a:00:1e
+  worker2   worker         10.10.0.31      6    8 GB    30 GB     40 GB  02:4c:47:0a:00:1f
+  worker3   worker         10.10.0.32      6    8 GB    30 GB     40 GB  02:4c:47:0a:00:20
+  worker4   worker         10.10.0.33      6    8 GB    30 GB     40 GB  02:4c:47:0a:00:21
+  Total: 32 vCPU, 40 GB memory (static), 365 GB of dynamic disks at most.
 
 For each VM
   a. Copy the base VHDX to <name>-os.vhdx and grow it to the OS disk size.
@@ -347,12 +351,12 @@ Checks
   - Hyper-V PowerShell module: installed
   - SSH public key \\wsl.localhost\archlinux\home\vaka\.ssh\ansible.pub: found
   - Host addresses: none inside 10.10.0.0/24 except the planned 10.10.0.1.
-  - Memory: 46 GB for VMs of 61.6 GB on the host, 15.6 GB left for Windows.
-  - Free space on the drive of C:\Hyper-V\lgtm-lab: 910.7 GB (the lab is planned for up to 90 GB of real use).
+  - Memory: 40 GB for VMs of 61.6 GB on the host, 21.6 GB left for Windows.
+  - Free space on the drive of C:\Hyper-V\lgtm-lab: 849.1 GB (the lab is planned for up to 90 GB of real use).
 ```
 
-**Expect** the same, except `qemu-img:` must name a path once you installed it (section 2.6), and
-`Administrator rights: yes` in an elevated window. Any line that starts with `WARNING:` needs
+**Expect** the same, with `Administrator rights: yes` in an elevated window. `qemu-img:` must
+name a path (section 2.6); this run was made after the owner installed it. Any line that starts with `WARNING:` needs
 attention before `create`: an address of the host inside 10.10.0.0/24, less than 8 GB of memory
 left for Windows, or less than 90 GB free.
 
@@ -1065,6 +1069,51 @@ ssh-keygen -f ~/.ssh/known_hosts_lgtm-lab -R 10.10.0.30
 Recreate with sections 3.3 to 3.5 and 5.4 to 5.6. Keep the VMs and redo only Kubernetes with the
 `kubeadm reset -f` command at the end of section 5.5.
 
+### 6.4 Change a VM's memory without rebuilding it
+
+`create` never changes a VM that exists (it prints `VM <name> exists; kept as it is.`), so a new
+`memory_gb` in `nodes.yml` does not reach running VMs by itself. Change the VMs by hand, then make
+`nodes.yml` say the same. *Not run here: needs an elevated PowerShell.* The example gives the four
+workers 8 GB each.
+
+1. Stop the lab with the script, in the elevated PowerShell in `lgtm\lab\vm\hyperv`, so the
+   workers, masters and lb shut down in order:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 stop
+   ```
+
+2. Set the memory. The lab VMs have dynamic memory off, and for such a VM `-StartupBytes` is the
+   total memory it gets ([Set-VMMemory](https://learn.microsoft.com/en-us/powershell/module/hyper-v/set-vmmemory));
+   `-VMName` takes several names:
+
+   ```powershell
+   Set-VMMemory -VMName worker1, worker2, worker3, worker4 -StartupBytes 8GB
+   Get-VM | Where-Object Notes -match 'lgtm-lab' | Format-Table Name, State, MemoryStartup, DynamicMemoryEnabled
+   ```
+
+   Expect `MemoryStartup` 8589934592 (8 GB) for the workers and `DynamicMemoryEnabled` False for all.
+
+3. Start the lab, wait about three minutes, then check from WSL:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 start
+   ```
+
+   ```bash
+   make cluster-check
+   ```
+
+4. Edit `lgtm/lab/vm/nodes.yml` to the same numbers (`memory_gb: 8` for each worker), so that
+   `plan` shows the real totals and `status` and a later `create` agree with the VMs. Check:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 plan
+   ```
+
+   The `Total:` line and the `Memory:` check then give the new sum. The Ansible inventory does not
+   hold memory sizes, so `make inventory` has nothing to change.
+
 ## 7. Part 5: when it goes wrong
 
 Messages in `code` are the text the script, Ansible or the tools print. The first two rows and
@@ -1083,7 +1132,7 @@ others come from the code and the sources.
 | `A VM named '<name>' exists without the 'lgtm-lab' tag.` | A VM of another project has a lab name. | Rename that VM in Hyper-V Manager, or change the lab names in `nodes.yml` and run `make inventory`. |
 | The VM console shows a Secure Boot or "No operating system was loaded" message; `status` shows SSH `closed`. | The image did not pass Secure Boot with the template `MicrosoftUEFICertificateAuthority`. Microsoft notes that some Linux VMs boot only with Secure Boot off ([Ubuntu on Hyper-V](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/supported-ubuntu-virtual-machines-on-hyper-v)). | Elevated PowerShell: `Get-VMFirmware -VMName worker1` shows the template. To boot without Secure Boot: `Stop-VM -Name worker1 -TurnOff -Force`, `Set-VMFirmware -VMName worker1 -EnableSecureBoot Off`, `Start-VM -Name worker1`. Tell the planner, so `hyperv.secure_boot_template` or the script changes for all VMs. |
 | The VM booted (login prompt on the console) but SSH is `closed`, or the console shows the hostname `ubuntu` | cloud-init did not find the seed, or the network config did not match the card. | Section 4.3: check the MAC (`Get-VMNetworkAdapter`), read the seed disk with `Mount-VHD -ReadOnly`. If the seed is right, destroy and create that VM and send the planner the console messages. |
-| `Start-VM` fails because there is not enough memory | The VMs use 46 GB of static memory and Windows, Docker Desktop and other apps use the rest. | Close memory-heavy apps (Docker Desktop's WSL VM counts too), then `start` again; it skips running VMs. Or lower `memory_gb` in `nodes.yml` (destroy and create the VM). |
+| `Start-VM` fails because there is not enough memory | The VMs use 40 GB of static memory and Windows, Docker Desktop and other apps use the rest. | Close memory-heavy apps (Docker Desktop's WSL VM counts too), then `start` again; it skips running VMs. Or lower `memory_gb` in `nodes.yml` (destroy and create the VM). |
 | `Test-NetConnection 10.10.0.5 -Port 22` works on Windows, but `ssh` or `make ping` from WSL times out | Mirrored WSL does not reach the internal switch on this PC. | Use the port-proxy fallback **before `make cluster`** (the API server certificate gets 127.0.0.1 only at `kubeadm init`): 1. set `network.control_access: portproxy` in `vm/nodes.yml`; 2. run `create -ConfigureDns` again in the elevated PowerShell, which adds only the port proxies (`netsh interface portproxy show v4tov4` lists them: 127.0.0.1:6443 to lb, 127.0.0.1:220xx to port 22 of each VM); 3. in WSL `ssh -i ~/.ssh/ansible -p 22005 vaka@127.0.0.1 hostname` prints `lb`; 4. `make inventory` and go on. If the cluster was already built, also run the `kubeadm reset -f` command of section 5.5 before `make cluster`. Background: `lgtm/docs/adr/l1-wsl-networking.md`. |
 | `UNREACHABLE` with `Permission denied (publickey)` | The VMs carry another public key than `~/.ssh/ansible.pub`; the key is written only at creation. | Point `ssh.public_key_file` and `ssh.private_key_file` at the right pair, or destroy and create the VMs with the current key. |
 | `WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!` or `Host key verification failed.` | The VMs were recreated and have new host keys. | `make forget-host-keys` (or `ssh-keygen -f ~/.ssh/known_hosts_lgtm-lab -R <address>` for one VM). |
@@ -1114,6 +1163,7 @@ Fetched on 2026-11-10:
 - Set up a NAT network: https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/setup-nat-network
 - Supported Ubuntu virtual machines on Hyper-V: https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/supported-ubuntu-virtual-machines-on-hyper-v
 - about_Execution_Policies (fetched 2026-11-10, after the first run report): https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies
+- Set-VMMemory (fetched 2026-11-10): https://learn.microsoft.com/en-us/powershell/module/hyper-v/set-vmmemory
 - Set-VMFirmware: https://learn.microsoft.com/en-us/powershell/module/hyper-v/set-vmfirmware
 - Add-DnsClientNrptRule: https://learn.microsoft.com/en-us/powershell/module/dnsclient/add-dnsclientnrptrule
 - netsh interface (portproxy): https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-interface
@@ -1138,8 +1188,8 @@ What the agent ran on 2026-11-10 while writing this guide, and what only the own
 | WSL distribution and `.wslconfig` | 2.3 | Run here: `archlinux` version 2, `networkingMode=mirrored` |
 | Python, make, kubectl in WSL | 2.4 | Run here: 3.14.8, 4.4.1, v1.36.1 |
 | SSH key pair | 2.5 | Run here: both files exist; `plan` reports `found` |
-| qemu-img | 2.6 | Run here: **not found**; the owner must install it before `create` |
-| Memory and disk | 2.7 | Run here (`plan`): 15.6 GB left, 910.7 GB free |
+| qemu-img | 2.6 | Run here: not found at first; after the owner's winget install, `plan` finds `C:\Program Files\qemu\qemu-img.exe` |
+| Memory and disk | 2.7 | Run here (`plan`): 21.6 GB left, 849.1 GB free |
 | Endpoint name in WSL | 2.8 | Run here: `10.10.0.5` (after the owner corrected `/etc/hosts`) |
 | `lab-vms.ps1 plan -ConfigureDns` | 3.1 | Run here: output shown |
 | `create -ConfigureDns -WhatIf` | 3.2 | Run here in a normal window (stops at the first Hyper-V call, as designed); elevated: not run here, needs an elevated PowerShell |
@@ -1159,4 +1209,5 @@ What the agent ran on 2026-11-10 while writing this guide, and what only the own
 | `stop` and `start` | 6.1 | Not run here: needs an elevated PowerShell (a normal window gives `'Stop-VM' needs administrator rights`) |
 | Second `make cluster` | 6.2 | Not run here: needs the VMs |
 | `destroy`, `make forget-host-keys` | 6.3 | Not run here: needs an elevated PowerShell (`make -n forget-host-keys` run here: `rm -f /home/vaka/.ssh/known_hosts_lgtm-lab`) |
+| Change a VM's memory | 6.4 | Not run here: needs an elevated PowerShell |
 | Troubleshooting rows | 7 | From the code and the sources; none seen on this PC |
