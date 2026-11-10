@@ -9,7 +9,8 @@ prepares the node for Longhorn as described on <https://longhorn.io/docs/latest/
 
 - packages `open-iscsi`, `nfs-common`, `cryptsetup`, `dmsetup`;
 - kernel modules `iscsi_tcp` and `dm_crypt`, loaded now and at boot; `iscsid` enabled;
-- a multipath blacklist for `sd*` devices when `multipath-tools` is installed;
+- a multipath blacklist for `sd*` devices, as a managed block in `/etc/multipath.conf`, when
+  `multipath-tools` is installed;
 - the data disk formatted as ext4 with label `longhorn` and mounted at `/var/lib/longhorn`.
 
 The data disk is found the same way on any machine: it is the one whole disk with no

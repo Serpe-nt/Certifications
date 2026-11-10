@@ -24,13 +24,21 @@
   ansible.builtin.package_facts:
     manager: apt
 
+# Longhorn's knowledge base puts this blacklist in /etc/multipath.conf, creating the file when it
+# does not exist: https://longhorn.io/kb/troubleshooting-volume-with-multipath/
+# (/etc/multipath/conf.d does not exist on the Ubuntu 24.04 cloud image.)
 - name: Keep multipathd off the Longhorn devices
-  ansible.builtin.template:
-    src: multipath-longhorn.conf.j2
-    dest: /etc/multipath/conf.d/longhorn.conf
+  ansible.builtin.blockinfile:
+    path: /etc/multipath.conf
+    create: true
     owner: root
     group: root
     mode: "0644"
+    marker: "# {mark} Longhorn: keep multipathd away from the SCSI disks it attaches over iSCSI"
+    block: |
+      blacklist {
+          devnode "^sd[a-z0-9]+"
+      }
   when: "'multipath-tools' in ansible_facts.packages"
   notify: Restart multipathd
 
