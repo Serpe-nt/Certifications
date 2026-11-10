@@ -6,6 +6,8 @@
 #   folder     the folder under lgtm/lab/helm with values.yaml, values-kind.yaml
 #              and VERSION
 #   extra_values  extra values computed by the calling role (storage classes)
+#   kafka_topic   optional: the path of the release's Kafka block in its values
+#                 (topic, auto_create_topic_default_partitions); see below
 # VERSION says where the chart comes from: a chart repository (repository,
 # chart, version) or a chart in this repository (path, relative to lgtm/lab).
 #
@@ -25,6 +27,48 @@
          | select | ansible.builtin.combine(recursive=True) }}
   vars:
     lab_release_dir: "{{ lab_dir }}/helm/{{ lab_release_spec.folder }}"
+
+# A release that writes to the platform's Kafka (Mimir, Tempo) names the path
+# of its Kafka block in its values (kafka_topic). Its topic is created here,
+# before the release starts, with the partition count of that block. Left to
+# auto-creation, a consumer's first metadata request can create the topic with
+# the broker's default of one partition: on the lab cluster tempo-traces got
+# one partition while two live-stores and two block-builders expected two,
+# and every trace written for partition 1 was lost. Real cluster only: the
+# kind test cluster's Kafka is a stand-in without the Strimzi topic operator.
+- name: Create the Kafka topic of the release {{ lab_release_spec.name }}
+  when:
+    - lab_release_spec.kafka_topic is defined
+    - lab_profile == 'full'
+    - lab_render_dir is not defined
+  vars:
+    lab_release_kafka: >-
+      {%- set ns = namespace(block=lab_release_values) -%}
+      {%- for key in lab_release_spec.kafka_topic | default([]) -%}{%- set ns.block = ns.block[key] -%}{%- endfor -%}
+      {{ ns.block }}
+    lab_release_topic_manifest:
+      apiVersion: kafka.strimzi.io/v1
+      kind: KafkaTopic
+      metadata:
+        name: "{{ lab_release_kafka.topic }}"
+        namespace: kafka
+        labels:
+          strimzi.io/cluster: telemetry
+      spec:
+        partitions: "{{ lab_release_kafka.auto_create_topic_default_partitions | int }}"
+        replicas: 3
+  block:
+    - name: Apply the KafkaTopic of the release {{ lab_release_spec.name }}
+      ansible.builtin.command:
+        cmd: "{{ lab_kubectl }} apply -f -"
+        stdin: "{{ lab_release_topic_manifest | to_nice_json }}"
+      register: lab_release_topic
+      changed_when: "' created' in lab_release_topic.stdout or ' configured' in lab_release_topic.stdout"
+
+    - name: Wait for the KafkaTopic of the release {{ lab_release_spec.name }}
+      ansible.builtin.command:
+        cmd: "{{ lab_kubectl }} -n kafka wait --for=condition=Ready kafkatopic/{{ lab_release_topic_manifest.metadata.name }} --timeout=120s"
+      changed_when: false
 
 - name: Install or upgrade the release {{ lab_release_spec.name }}
   kubernetes.core.helm:

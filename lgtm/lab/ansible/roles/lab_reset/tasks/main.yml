@@ -2,7 +2,7 @@
 # make reset: remove the lab releases and their data, keep the cluster, the
 # platform and the two secrets (the lab seed stays valid in the site, the
 # Grafana password stays the same). Data means the releases' volumes and the
-# objects in the six buckets of the lab contract.
+# objects in the six buckets of the lab contract, and the ingest topics in Kafka.
 - name: Uninstall the lab releases, the shop first
   kubernetes.core.helm:
     name: "{{ item.name }}"
@@ -19,6 +19,13 @@
   loop: "{{ lab_reset_releases | map(attribute='namespace') | unique | list }}"
   register: lab_reset_pvc
   changed_when: "'deleted' in lab_reset_pvc.stdout"
+
+- name: Delete the Kafka topics of the releases
+  ansible.builtin.command:
+    cmd: "{{ lab_kubectl }} -n kafka delete kafkatopic {{ lab_reset_kafka_topics | join(' ') }} --ignore-not-found --wait=true"
+  register: lab_reset_topics
+  changed_when: "'deleted' in lab_reset_topics.stdout"
+  when: lab_profile == 'full'
 
 - name: Empty the lab buckets with a one-off Job in namespace mimir
   ansible.builtin.command:
