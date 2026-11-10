@@ -1,0 +1,21 @@
+---
+- name: Install cert-manager
+  kubernetes.core.helm:
+    name: cert-manager
+    chart_ref: "{{ platform_charts.cert_manager.chart }}"
+    chart_repo_url: "{{ platform_charts.cert_manager.repo }}"
+    chart_version: "{{ platform_charts.cert_manager.version }}"
+    release_namespace: "{{ platform_cert_manager_namespace }}"
+    values: "{{ platform_cert_manager_values }}"
+    wait: true
+    timeout: 5m
+
+- name: Create the lab certificate authority
+  kubernetes.core.k8s:
+    state: present
+    template: lab-ca.yaml.j2
+    wait: true
+    wait_condition:
+      type: Ready
+      status: "True"
+    wait_timeout: 120

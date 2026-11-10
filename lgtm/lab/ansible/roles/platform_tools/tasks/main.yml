@@ -1,0 +1,44 @@
+---
+# The tools come from helm/platform/versions.yml (platform_tools) and are checked against
+# the SHA-256 recorded there. Nothing is installed outside lgtm/lab/.bin.
+- name: Create the tool folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ lab_bin_dir }}"
+    - "{{ platform_tools_download_dir }}"
+
+- name: Download the pinned tools
+  ansible.builtin.get_url:
+    url: "{{ item.value.url }}"
+    dest: "{{ platform_tools_download_dir }}/{{ item.value.url | basename }}"
+    checksum: "sha256:{{ item.value.sha256 }}"
+    mode: "0644"
+  loop: "{{ platform_tools | dict2items }}"
+  loop_control:
+    label: "{{ item.key }} {{ item.value.version }}"
+
+- name: Unpack the tools that ship as archives
+  ansible.builtin.unarchive:
+    src: "{{ platform_tools_download_dir }}/{{ item.value.url | basename }}"
+    dest: "{{ platform_tools_download_dir }}"
+    creates: "{{ platform_tools_download_dir }}/{{ item.key }}-{{ item.value.version }}/{{ item.key }}"
+    extra_opts:
+      - "--transform=s|^\\(linux-amd64/\\)\\?|{{ item.key }}-{{ item.value.version }}/|"
+    mode: "0755"
+  loop: "{{ platform_tools | dict2items | selectattr('value.url', 'search', '\\.tar\\.gz$') }}"
+  loop_control:
+    label: "{{ item.key }} {{ item.value.version }}"
+
+- name: Install the tools into lgtm/lab/.bin
+  ansible.builtin.copy:
+    src: >-
+      {{ platform_tools_download_dir }}/{{ (item.key ~ '-' ~ item.value.version ~ '/' ~ item.key)
+         if item.value.url is search('\.tar\.gz$') else (item.value.url | basename) }}
+    dest: "{{ lab_bin_dir }}/{{ item.key }}"
+    mode: "0755"
+  loop: "{{ platform_tools | dict2items }}"
+  loop_control:
+    label: "{{ item.key }} {{ item.value.version }}"

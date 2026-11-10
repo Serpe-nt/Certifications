@@ -1,0 +1,24 @@
+---
+# Envoy Gateway chart (gateway-helm, version pinned in ../versions.yml). Namespace gateway.
+# The chart installs the Gateway API CRDs (experimental channel, as Envoy Gateway's
+# install guide does by default) and the controller. The platform_gateway role then
+# creates the EnvoyProxy settings, the GatewayClass lab-envoy and the Gateway lab.
+deployment:
+  replicas: 1
+  envoyGateway:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 384Mi
+certgen:
+  job:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 200m
+        memory: 96Mi

@@ -1,0 +1,35 @@
+---
+# Longhorn needs open-iscsi, the NFS client and the data disk on every worker; the
+# node_prereqs role of `make cluster` provides them. It cannot run on kind.
+- name: Install Longhorn
+  kubernetes.core.helm:
+    name: longhorn
+    chart_ref: "{{ platform_charts.longhorn.chart }}"
+    chart_repo_url: "{{ platform_charts.longhorn.repo }}"
+    chart_version: "{{ platform_charts.longhorn.version }}"
+    release_namespace: "{{ platform_longhorn_namespace }}"
+    values: "{{ platform_longhorn_values }}"
+    wait: true
+    timeout: 15m
+
+- name: Check that longhorn is the only default StorageClass
+  kubernetes.core.k8s_info:
+    api_version: storage.k8s.io/v1
+    kind: StorageClass
+  register: platform_longhorn_classes
+
+- name: Report the default StorageClasses
+  ansible.builtin.assert:
+    that:
+      - platform_longhorn_defaults == ['longhorn']
+    fail_msg: "Default StorageClasses: {{ platform_longhorn_defaults }}; expected only longhorn."
+    quiet: true
+  vars:
+    platform_longhorn_defaults: >-
+      {%- set names = [] -%}
+      {%- for sc in platform_longhorn_classes.resources -%}
+      {%- if (sc.metadata.annotations | default({})).get('storageclass.kubernetes.io/is-default-class') == 'true' -%}
+      {%- set _ = names.append(sc.metadata.name) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ names }}

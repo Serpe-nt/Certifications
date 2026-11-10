@@ -1,0 +1,85 @@
+---
+# The keys are generated once and kept in the Secret lab-s3 in namespace s3; a later
+# run reads them back, so a second run changes nothing. They are never written to disk.
+- name: Read the existing S3 keys
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: "{{ platform_s3_secret }}"
+    namespace: "{{ platform_s3_namespace }}"
+  register: platform_s3_existing
+  no_log: true
+
+- name: Choose the S3 keys
+  ansible.builtin.set_fact:
+    platform_s3_access_key: >-
+      {{ (platform_s3_existing.resources[0].data.access_key | b64decode) if platform_s3_existing.resources
+         else 'lab' ~ lookup('ansible.builtin.password', '/dev/null', length=17, chars=['ascii_lowercase', 'digits']) }}
+    platform_s3_secret_key: >-
+      {{ (platform_s3_existing.resources[0].data.secret_key | b64decode) if platform_s3_existing.resources
+         else lookup('ansible.builtin.password', '/dev/null', length=40, chars=['ascii_letters', 'digits']) }}
+  no_log: true
+
+- name: Create the RustFS credentials Secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      type: Opaque
+      metadata:
+        name: rustfs-credentials
+        namespace: "{{ platform_s3_namespace }}"
+      data:
+        RUSTFS_ACCESS_KEY: "{{ platform_s3_access_key | b64encode }}"
+        RUSTFS_SECRET_KEY: "{{ platform_s3_secret_key | b64encode }}"
+  no_log: true
+
+- name: Install RustFS
+  kubernetes.core.helm:
+    name: "{{ platform_s3_release }}"
+    chart_ref: "{{ platform_charts.rustfs.chart }}"
+    chart_repo_url: "{{ platform_charts.rustfs.repo }}"
+    chart_version: "{{ platform_charts.rustfs.version }}"
+    release_namespace: "{{ platform_s3_namespace }}"
+    values: "{{ platform_s3_values }}"
+    wait: true
+    timeout: 10m
+
+- name: Create the Secret lab-s3 in the store's namespace and in each consumer's
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      type: Opaque
+      metadata:
+        name: "{{ platform_s3_secret }}"
+        namespace: "{{ item }}"
+        labels:
+          app.kubernetes.io/part-of: lgtm-lab
+      data:
+        endpoint: "{{ platform_s3_endpoint | b64encode }}"
+        endpoint_url: "{{ ('http://' ~ platform_s3_endpoint) | b64encode }}"
+        region: "{{ platform_s3_region | b64encode }}"
+        access_key: "{{ platform_s3_access_key | b64encode }}"
+        secret_key: "{{ platform_s3_secret_key | b64encode }}"
+  loop: "{{ [platform_s3_namespace] + platform_s3_consumer_namespaces }}"
+  no_log: true
+
+# A Job named after its bucket list: the same list on a later run finds the finished
+# Job and changes nothing; a changed list runs a new Job. A bucket that exists is skipped.
+- name: Create the lab buckets
+  kubernetes.core.k8s:
+    state: present
+    template: buckets-job.yaml.j2
+    wait: true
+    wait_condition:
+      type: Complete
+      status: "True"
+    wait_timeout: 300
+
+- name: Route the RustFS screen through the Gateway lab
+  kubernetes.core.k8s:
+    state: present
+    template: httproute.yaml.j2

@@ -1,0 +1,34 @@
+---
+# The namespaces of the lab contract that the platform creates. `limits` adds a
+# LimitRange that gives every container without its own requests and limits a small
+# default, so nothing in these namespaces runs unbounded. Longhorn sizes its own
+# instance managers, so its namespace gets no LimitRange.
+platform_namespaces_list:
+  - name: cert-manager
+    limits: true
+  - name: gateway
+    limits: true
+  - name: s3
+    limits: true
+  - name: kafka
+    limits: true
+  - name: longhorn-system
+    limits: false
+    when_profile: full
+  # The consumers of the lab-s3 Secret; their releases come from card L3.
+  - name: mimir
+    limits: false
+  - name: loki
+    limits: false
+  - name: tempo
+    limits: false
+# The namespaces of this profile: those without `when_profile`, and those for this profile.
+platform_namespaces_active: >-
+  {{ platform_namespaces_list | rejectattr('when_profile', 'defined')
+     + platform_namespaces_list | selectattr('when_profile', 'defined') | selectattr('when_profile', 'equalto', lab_profile) }}
+platform_namespaces_default_request:
+  cpu: 50m
+  memory: 64Mi
+platform_namespaces_default_limit:
+  cpu: 500m
+  memory: 256Mi

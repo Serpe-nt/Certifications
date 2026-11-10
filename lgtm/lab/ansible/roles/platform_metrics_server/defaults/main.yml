@@ -1,0 +1,4 @@
+---
+platform_metrics_server_namespace: kube-system
+# Values: the file for the profile, then nothing else. The kind profile uses the same file.
+platform_metrics_server_values: "{{ lookup('ansible.builtin.file', platform_values_dir ~ '/metrics-server/values.yaml') | from_yaml }}"

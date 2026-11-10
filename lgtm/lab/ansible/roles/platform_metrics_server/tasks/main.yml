@@ -1,0 +1,11 @@
+---
+- name: Install metrics-server
+  kubernetes.core.helm:
+    name: metrics-server
+    chart_ref: "{{ platform_charts.metrics_server.chart }}"
+    chart_repo_url: "{{ platform_charts.metrics_server.repo }}"
+    chart_version: "{{ platform_charts.metrics_server.version }}"
+    release_namespace: "{{ platform_metrics_server_namespace }}"
+    values: "{{ platform_metrics_server_values }}"
+    wait: true
+    timeout: 5m

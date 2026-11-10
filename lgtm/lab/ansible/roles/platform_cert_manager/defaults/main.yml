@@ -1,0 +1,7 @@
+---
+platform_cert_manager_namespace: cert-manager
+platform_cert_manager_values: "{{ lookup('ansible.builtin.file', platform_values_dir ~ '/cert-manager/values.yaml') | from_yaml }}"
+# The lab certificate authority: a self-signed root kept in this Secret, and the
+# ClusterIssuer that signs with it. The gateway's HTTPS certificate comes from lab-ca.
+platform_cert_manager_root_secret: lab-root-ca
+platform_cert_manager_ca_issuer: lab-ca

@@ -1,0 +1,15 @@
+---
+# Strimzi Kafka operator chart (strimzi-kafka-operator, version pinned in ../versions.yml).
+# Namespace kafka. The operator watches only its own namespace, where the platform_kafka
+# role creates the Kafka cluster `telemetry` (see kafka-cluster.yaml beside this file).
+# The chart's crds/ folder installs the CRDs on the first install only; read Strimzi's
+# upgrade notes before raising the chart version.
+replicas: 1
+watchAnyNamespace: false
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+  limits:
+    cpu: "1"
+    memory: 384Mi

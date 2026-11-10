@@ -1,0 +1,37 @@
+---
+- name: Install Envoy Gateway
+  kubernetes.core.helm:
+    name: envoy-gateway
+    chart_ref: "{{ platform_charts.envoy_gateway.ref }}"
+    chart_version: "{{ platform_charts.envoy_gateway.version }}"
+    release_namespace: "{{ platform_gateway_namespace }}"
+    values: "{{ platform_gateway_values }}"
+    wait: true
+    timeout: 5m
+
+- name: Create the gateway certificate, the proxy settings and the GatewayClass
+  kubernetes.core.k8s:
+    state: present
+    template: gateway-class.yaml.j2
+
+- name: Wait for the certificate of the HTTPS listener
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: "{{ platform_gateway_tls_secret }}"
+    namespace: "{{ platform_gateway_namespace }}"
+    wait: true
+    wait_condition:
+      type: Ready
+      status: "True"
+    wait_timeout: 120
+
+- name: Create the Gateway lab
+  kubernetes.core.k8s:
+    state: present
+    template: gateway.yaml.j2
+    wait: true
+    wait_condition:
+      type: Programmed
+      status: "True"
+    wait_timeout: 300

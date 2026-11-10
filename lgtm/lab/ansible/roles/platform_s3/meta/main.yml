@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: platform_s3
+  namespace: lgtm_lab
+  author: LGTM study project
+  description: RustFS as the lab S3 store, its buckets and the lab-s3 Secret
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+dependencies: []

@@ -1,0 +1,59 @@
+---
+# Longhorn chart (version pinned in ../versions.yml). Namespace longhorn-system.
+# Real cluster only: the kind profile uses kind's own StorageClass instead.
+# The workers keep Longhorn's data on their second disk, mounted at /var/lib/longhorn
+# by the node_prereqs role (card L1).
+persistence:
+  # The default StorageClass `longhorn` (lab contract: lab_storage_class).
+  defaultClass: true
+  defaultClassReplicaCount: 2
+  reclaimPolicy: Delete
+defaultSettings:
+  defaultDataPath: /var/lib/longhorn
+  # Two copies of every volume on two different workers: one worker may be down.
+  defaultReplicaCount: 2
+  # Share of each node's CPU reserved for each instance manager (default 12).
+  # The lab is small; 5 percent of 6 vCPU is 300m.
+  guaranteedInstanceManagerCPU: 5
+  storageOverProvisioningPercentage: 100
+  storageMinimalAvailablePercentage: 15
+csi:
+  # One of each CSI sidecar per two workers is enough for a lab (default 3).
+  attacherReplicaCount: 2
+  provisionerReplicaCount: 2
+  resizerReplicaCount: 2
+  snapshotterReplicaCount: 2
+longhornGlobalManager:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+longhornManager:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+longhornUI:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+# The Longhorn screen at http://longhorn.lab.k8s.local, through the Gateway lab.
+httproute:
+  enabled: true
+  parentRefs:
+    - name: lab
+      namespace: gateway
+  hostnames:
+    - longhorn.lab.k8s.local

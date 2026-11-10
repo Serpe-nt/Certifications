@@ -1,0 +1,56 @@
+---
+# Lints the LGTM lab platform add-ons (card L2): ansible-lint and yamllint for the platform
+# roles and playbook, helm lint, and a schema check of every rendered platform chart for both
+# profiles. Nothing here reaches a cluster.
+name: lgtm lab platform
+
+"on":
+  pull_request:
+    paths:
+      - lgtm/lab/ansible/roles/platform_*/**
+      - lgtm/lab/ansible/playbooks/platform.yml
+      - lgtm/lab/ansible/requirements.yml
+      - lgtm/lab/ansible/requirements-dev.txt
+      - lgtm/lab/helm/platform/**
+      - lgtm/lab/mk/platform.mk
+      - lgtm/lab/tests/platform/**
+      - .github/workflows/lgtm-lab-platform.yml
+  push:
+    branches: [main]
+    paths:
+      - lgtm/lab/ansible/roles/platform_*/**
+      - lgtm/lab/ansible/playbooks/platform.yml
+      - lgtm/lab/ansible/requirements.yml
+      - lgtm/lab/ansible/requirements-dev.txt
+      - lgtm/lab/helm/platform/**
+      - lgtm/lab/mk/platform.mk
+      - lgtm/lab/tests/platform/**
+      - .github/workflows/lgtm-lab-platform.yml
+
+permissions:
+  contents: read
+
+jobs:
+  platform:
+    name: ansible-lint, helm lint, rendered-manifest schema check
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: lgtm/lab
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install the pinned tools into lgtm/lab/.venv
+        run: make venv
+      - name: Install the pinned collections
+        run: make collections
+      - name: Download the pinned helm, kubectl, kind and kubeconform into lgtm/lab/.bin
+        run: make platform-tools
+      - name: yamllint, ansible-lint and syntax checks (includes the platform playbook)
+        run: make lint
+      - name: yamllint, helm lint and kubeconform for the platform charts
+        run: make platform-lint
+      - name: shellcheck for the platform test scripts
+        run: shellcheck tests/platform/*.sh

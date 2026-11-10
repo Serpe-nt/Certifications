@@ -1,0 +1,39 @@
+---
+# cert-manager chart (version pinned in ../versions.yml). Namespace cert-manager.
+# The lab issuers (a self-signed root and the CA issuer lab-ca) are created by the
+# platform_cert_manager role after the chart is installed.
+crds:
+  enabled: true
+  # Keep the CRDs, and with them every Certificate, if the release is uninstalled.
+  keep: true
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 192Mi
+webhook:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 96Mi
+cainjector:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 192Mi
+startupapicheck:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 96Mi
