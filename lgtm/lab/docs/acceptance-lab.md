@@ -400,5 +400,76 @@ kubectl top nodes: masters 62 to 72%, workers 68 to 75%
 - A run of `make platform` on a cluster with only Calico, with the two platform fixes in place
   from the start. The fixes were applied to the running cluster (`make platform TAGS=...`) and
   the full second run reports no changes, but the first full run had neither.
-- The beacon (card D2), off until its pull request is merged.
 - `make cluster` on the resized VMs: the cluster was not rebuilt, only the VMs' memory changed.
+
+## Second restart, with the whole lab (2026-11-10, 21:48)
+
+The owner stopped the VMs in the evening and started them again. Every pod came back by itself:
+reboot at 21:48:47, all Ready at 21:56:48, eight minutes. The last to become Ready were the two
+Mimir distributors, once Kafka and the ingesters answered.
+
+## The beacon (card step 8, 21:57 to 22:00)
+
+Card D2's pull request is merged. The image `ghcr.io/serpe-nt/lgtm-beacon:0.1.0` pulls without
+a secret (an anonymous request for its manifest answers 200). With `beacon.enabled: true` in
+`helm/lab-glue/values.yaml` and `lab-glue` 0.2.0:
+
+```
+make lab TAGS=glue
+changed: [localhost]
+localhost : ok=9 changed=1 unreachable=0 failed=0
+deployment "beacon" successfully rolled out      beacon-5c78788fdb-7lmp4  1/1 Running  worker3
+```
+
+The expected tokens were computed from the lab seed with HMAC-SHA256, as `tools/beacon/token.go`
+and `learn/src/lib/token.ts` do. The same code gives the shared test vectors (seed
+`0123456789abcdef`: `log-m12-3` `3c7b30fb`, `metric-m12-3` `966435`, `span-m09-1` `73470561`).
+The lab's own tokens are not written here: they are the answers to the owner's lab checks.
+Then the three queries of `beacon.md`, through Grafana at `http://10.10.0.5`, after two minutes:
+
+| Channel | Query | Result |
+|---|---|---|
+| log | `{service_name="beacon"} \| slot="log-m12-3" \| json \| line_format "{{.payload_token}}"` | one distinct value, equal to the expected token |
+| metric | `lab_beacon_value{slot="metric-m12-3"}` | 1 series (`job="lab-tools/beacon"`, `service_name="beacon"`, `cluster="lgtm-lab"`), value equal to the expected token |
+| span | `{ resource.service.name = "beacon" && name = "beacon.slot" && span.beacon.slot = "span-m09-1" } \| select(span.beacon.token)` | three traces (root `beacon.tick`), `beacon.token` equal to the expected token in each |
+
+`slot` is structured metadata in Loki, not a label, as the lab contract says:
+`/loki/api/v1/labels` does not list `slot`; the stream labels of a beacon line are `cluster`,
+`k8s_*`, `service_instance_id`, `service_name`, `service_namespace`; with
+`X-Loki-Response-Encoding-Flags: categorize-labels` the line carries `"slot": "log-m12-3"` under
+`structuredMetadata`. The line itself is
+`{"msg":"beacon token","slot":"log-m12-3","payload":{"token":"..."}}`.
+
+The beacon pod uses 8 MiB (`kubectl top`), within its 64Mi limit. `beacon.md` and the beacon
+template needed no change; the queries are now also in `reference.md`.
+
+## Lab step m02-s06 walked on the lab (22:05 to 22:15)
+
+The eight actions of `learn/src/content/steps/m02/s06-one-request-three-signals.mdx`, as written,
+in Grafana 13.3.0 in a browser, signed in as `admin`:
+
+| Action | What the lab showed | Matches |
+|---|---|---|
+| 1. Open `Shop / checkout (RED)`, last 15 minutes | The dashboard opens (folder Shop); its default range is 30 minutes, so setting 15 is needed, as the step says | yes |
+| 2. Read the three panels, all from Mimir | Rate, Errors and Duration from `mimir`, plus a fourth panel, "Logs of checkout", from Loki. Errors showed "No data" when no span had failed | partly: four panels; Errors was empty (fixed, below) |
+| 3. Hover a highlighted star near p99, click **Query with Tempo** | Exemplars are drawn as green diamonds scattered across the latency range, not stars; the tooltip shows `traceID` and a **Query with Tempo** link | yes, except "stars" |
+| 4. Trace opens in Explore, ID in the header; rows of checkout, cart, product-catalog, payment | Trace `5631eb2750421f808f7179c07b3c8b02`, root `load-generator user_checkout_multi`, 8 services, 162 spans. Rows name services `opentelemetry-demo/checkout` and so on; the checkout spans sit far down a long trace | yes; the service names carry the namespace |
+| 5. Click a checkout span, find `service.name` in the resource attributes | `oteldemo.CheckoutService/PlaceOrder`, Resource attributes, Service: `service.name` `checkout` | yes |
+| 6. Click **Logs for this span** | The span details offer **Related logs**, **Request rate** and **Latency p95**; there is no "Logs for this span". **Related logs** opens Loki beside the trace with `{service_name="checkout"} \| trace_id="5631eb..."`, 4 lines | yes, but the button is "Related logs" |
+| 7. Expand a line: `trace_id` equals the copied ID and has an **Open trace** link | `trace_id` `5631eb2750421f808f7179c07b3c8b02`, the same ID. **Open trace** is not on the field: it is in a separate "Links" section, named after the derived field (`TraceID`, renamed below). It opens the same trace in Tempo | partly |
+| 8. Paste the trace ID | 32 hexadecimal characters, matches the check's pattern | yes |
+
+Fixed in the lab, applied with `make lab TAGS=grafana,glue` (`changed=2`, second run
+`changed=0`, then `LAB CHECK PASSED`):
+
+- The Errors panel of every shop RED dashboard now reads 0 when no span failed:
+  `(sum(rate(...status_code="STATUS_CODE_ERROR"...)) or vector(0)) / sum(rate(...))`
+  (`charts/lab-glue/dashboards/shop-service-red.json`, `lab-glue` 0.2.1).
+- Loki's derived field is named `trace_id` instead of `TraceID` (`helm/grafana/values.yaml`), so
+  the log details show the link as `trace_id` with **Open trace**.
+
+For the content worker: "highlighted stars" are diamonds; "Logs for this span" is **Related
+logs** in Grafana 13.3; the dashboard has a fourth (logs) panel; **Open trace** sits under
+"Links" in the log details. Trace ids from Tempo's search API and from exemplar labels can
+lose leading zeros (seen: a 31-character `traceID` label); the 32-character id in the trace
+header is the one to paste.

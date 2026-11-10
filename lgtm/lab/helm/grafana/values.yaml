@@ -90,7 +90,8 @@ datasources:
           # OTLP logs keep the trace id in the structured metadata field
           # trace_id; the derived field turns it into a link to Tempo.
           derivedFields:
-            - name: TraceID
+            # Named like the field, so the log details show "trace_id: Open trace".
+            - name: trace_id
               matcherType: label
               matcherRegex: trace_id
               datasourceUid: tempo

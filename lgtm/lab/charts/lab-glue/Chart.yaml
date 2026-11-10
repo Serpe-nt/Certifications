@@ -5,7 +5,7 @@ description: >-
   dashboards the lessons start from (one RED dashboard per shop service and
   one for the collector gateway), and the switch for the check-token beacon.
 type: application
-version: 0.2.0
+version: 0.2.1
 appVersion: "0.1.0"
 kubeVersion: ">=1.29.0-0"
 home: https://github.com/Serpe-nt/Certifications/tree/main/lgtm/lab/charts/lab-glue
