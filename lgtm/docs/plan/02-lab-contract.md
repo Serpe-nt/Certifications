@@ -1,6 +1,6 @@
 # Lab contract
 
-The names every part of the project agrees on, so the lab, the site and the lesson text can be written at the same time. Version 1 (2026-11-09: what wave 1 delivered is folded in), owned by the planner. A worker who needs a change asks for it in the pull request and does not edit this file.
+The names every part of the project agrees on, so the lab, the site and the lesson text can be written at the same time. Version 2 (2026-11-10: what wave 2 delivered and the real cluster are folded in), owned by the planner. A worker who needs a change asks for it in the pull request and does not edit this file.
 
 ## Machines and network
 
@@ -19,6 +19,8 @@ The names every part of the project agrees on, so the lab, the site and the less
 - One file, `lgtm/lab/vm/nodes.yml`, lists the machines (name, address, vCPU, memory, disks). The Hyper-V script and the Ansible inventory are both generated from it.
 - The Ansible roles never mention a hypervisor. Given SSH-reachable Ubuntu machines and an inventory, they must work on Hyper-V, KVM or bare metal.
 - Kubeconfig for the lab is written to `~/.kube/lgtm-lab.config` on the control machine. Nothing overwrites `~/.kube/config`.
+- Names on the control machine. Windows sends `.k8s.local` to the lab DNS through a name resolution rule, so a browser on Windows resolves every lab address. WSL does not: its `/etc/hosts` is kept by hand and has `cluster-endpoint.k8s.local` (10.10.0.5) but none of the `lab.k8s.local` names. From WSL, reach a lab address as `http://10.10.0.5` with a `Host:` header, or add the names to `/etc/hosts`; the reference page that card L4 writes gives the line to add.
+- The cluster as it runs since 2026-11-10: seven nodes on Kubernetes 1.35.10 and containerd 2.2.1; masters 2 vCPU and 2 GB; workers 4 vCPU and 8 GB (sizes: `00-overview.md`, section 7).
 
 ## Namespaces
 
@@ -50,8 +52,13 @@ Example: `http://grafana.lab.k8s.local`. Lesson text never hard-codes the domain
 - The gateway exports metrics to Mimir (`/otlp`), logs to Loki (`/otlp`), traces to Tempo (OTLP), all as tenant `lab`.
 - Alloy sends pod logs and cluster events to Loki and, where a lesson turns it on, metrics to Mimir, as tenant `lab`.
 - Prometheus in `prom` remote-writes to Mimir as tenant `prom`. The same series never reach one tenant by two routes.
-- Tempo's metrics-generator writes span metrics and service graphs to Mimir, tenant `lab`.
+- Tempo's metrics-generator writes span metrics and service graphs to Mimir, tenant `lab`. Span metrics carry both Tempo's `service` label and `service_name`.
 - Every signal carries `cluster="lgtm-lab"`. `service.name` appears as `service_name` in Mimir and Loki.
+- OTLP metric names arrive in Mimir with Prometheus suffixes (a counter ends in `_total`).
+- Alloy does not tail pod logs in the `shop` namespace: the shop sends its logs over OTLP with the trace id, and tailing the files too would store every line twice.
+- The two gateway replicas both scrape the shop's PostgreSQL, Valkey, Kafka and NGINX; the copies differ by `instance` (the pod name).
+- kube-proxy, the scheduler, the controller manager and etcd are not scraped: kubeadm binds their metrics to localhost.
+- Tenant limits are Mimir runtime overrides in `lgtm/lab/helm/mimir/values.yaml`; a tenant exists as soon as data arrives with its `X-Scope-OrgID`.
 
 ## Grafana
 
@@ -70,7 +77,7 @@ Example: `http://grafana.lab.k8s.local`. Lesson text never hard-codes the domain
 | Thing | Name |
 |---|---|
 | StorageClass | variable `lab_storage_class`, `longhorn` on the real cluster |
-| S3 endpoint and keys | Secret `lab-s3` with keys `endpoint`, `region`, `access_key`, `secret_key`, copied by the platform playbook into `mimir`, `loki` and `tempo` |
+| S3 endpoint and keys | Secret `lab-s3` with keys `endpoint`, `endpoint_url`, `region`, `access_key`, `secret_key`, copied by the platform playbook into `mimir`, `loki` and `tempo`. `endpoint` is host and port with no scheme (`rustfs-svc.s3.svc:9000`), plain HTTP inside the cluster, path-style; `endpoint_url` is the same with `http://` in front. The keys are generated on the first run and kept |
 | Kafka bootstrap | `telemetry-kafka-bootstrap.kafka.svc:9092`, no authentication inside the cluster |
 | Gateway | Gateway `lab` in namespace `gateway`, listeners on NodePorts 30080 (HTTP) and 30443 (HTTPS), routes allowed from all namespaces |
 | Profile switch | Ansible variable `lab_profile`: `full` (real cluster) or `kind` (smoke test: small values, no Longhorn). From make: `LAB_PROFILE=kind` |
@@ -78,7 +85,9 @@ Example: `http://grafana.lab.k8s.local`. Lesson text never hard-codes the domain
 | Tool binaries | pinned `helm`, `kubectl`, `kind` and similar downloaded with checksum into `lgtm/lab/.bin/` (git-ignored); nothing is installed system-wide |
 | Ansible tooling | `make venv` and `make collections` from `mk/cluster.mk` give the pinned ansible-core, linters and collections (`kubernetes.core` 6.6.0 is already in `ansible/requirements.yml`). Lint settings are `ansible/.ansible-lint` and `ansible/.yamllint`; new roles must pass them. Only L2 may add to `requirements.yml` and `requirements-dev.txt` in wave 2 |
 | Make targets | `lgtm/lab/Makefile` only includes `mk/*.mk`; each card adds its own fragment: `cluster.mk` (L1, exists), `platform.mk` (L2), `lab.mk` and `demo.mk` (L3; `demo.mk` forwards to `lgtm/lab/demo/Makefile`) |
-| Docs | `lgtm/lab/docs/cluster.md` (L1), `platform.md` (L2), `lgtm.md` (L3), `demo.md` (D1) |
+| Playbooks outside `site.yml` | `playbooks/platform.yml` and `playbooks/lab.yml` run against `localhost` with `ANSIBLE_ROLES_PATH=ansible/roles`; a release is a role with a tag, and `lab_release` renders or installs one chart |
+| Local charts | The Helm module upgrades a local chart (`shop`, `lab-glue`) only when its `Chart.yaml` version or its values change; bump the chart version with every template change |
+| Docs | `lgtm/lab/docs/bootstrap-windows11.md` (B1), `cluster.md` (L1), `platform.md` (L2), `lgtm.md` and `budget.md` (L3), `demo.md` (D1), `reference.md` and `runbook.md` (L4), `beacon.md` and `workshop.md` (D2) |
 
 ## The shop chart (delivered by D1)
 

@@ -1,6 +1,6 @@
 # LGTM study helper: plan overview
 
-Status on 2026-11-09: approved by the owner. Wave 1 is merged (pull requests 22, 23 and 24): the site engine, the VM script with the cluster playbooks, and the trimmed demo with its chart and images. The VM script and `make cluster` have not yet run against real VMs; the owner runs `lgtm/lab/docs/acceptance-cluster.md`. Wave 2 is next.
+Status on 2026-11-10: waves 1 and 2 are merged (pull requests 22 to 28): the site with its study features, the VM script and cluster playbooks, the platform add-ons, the LGTM releases, the trimmed demo with its chart and images. The owner bootstrapped the real cluster with `lgtm/lab/docs/bootstrap-windows11.md` (pull requests 29 to 32 hold the guide and the defects that run exposed): seven nodes Ready on Kubernetes 1.35.10, reachable from WSL through `~/.kube/lgtm-lab.config`. Nothing beyond Calico is installed on it yet: the platform and the LGTM releases have run on kind only. Wave 3 is next.
 The research behind the plan is in `../research/`; decisions taken by workers are in `../adr/`.
 
 ## 1. What we are building
@@ -104,7 +104,26 @@ Grafana reads Mimir, Loki, Tempo and Prometheus; alerts go through Alertmanager 
 | Kubernetes | 1.35 (as in the copied role) | kubeadm |
 | Calico | 3.31.4 (as in the copied role) | Tigera operator |
 
-The worker who installs a component re-checks its version on the day and records the pin in the values file. Longhorn, the S3 store, the Gateway API controller, the Kafka operator and Helm itself are pinned by worker L2 in an ADR.
+The table above is the plan of 2026-11-09. What wave 2 pinned, each with its source in an ADR:
+
+| Component | Pinned | Where |
+|---|---|---|
+| Helm | 4.3.1 | `lgtm/lab/helm/platform/versions.yml`, `adr/l2-helm-version.md` |
+| Longhorn | 1.13.0 | same file, `adr/l2-platform-pins.md` |
+| S3 store | RustFS, chart 1.0.4 | `adr/l2-s3-store.md` |
+| Gateway API controller | Envoy Gateway 1.10.0 | `adr/l2-gateway-controller.md` |
+| Kafka | Strimzi 1.3.1 with Kafka 4.3.2, KRaft, dual-role nodes | `adr/l2-kafka-operator.md` |
+| cert-manager, metrics-server | v1.21.3, chart 3.14.0 | `adr/l2-platform-pins.md` |
+| Mimir | 3.2.4, chart `mimir-distributed` 6.2.2 | `lgtm/lab/helm/mimir/VERSION`, `adr/l3-mimir-chart-source.md` |
+| Loki | 3.7.9, chart `loki` 21.1.0 | `lgtm/lab/helm/loki/VERSION` |
+| Tempo | 3.1.1, chart `tempo-distributed` 3.27.0 | `lgtm/lab/helm/tempo/VERSION` |
+| Grafana | 13.3.0, chart `grafana` 14.4.0 | `lgtm/lab/helm/grafana/VERSION` |
+| Collector gateway | contrib 0.165.0, chart `opentelemetry-collector` 0.178.2 | `lgtm/lab/helm/otel-gateway/VERSION` |
+| Alloy | v1.21.3 through `k8s-monitoring` 4.6.0 | `lgtm/lab/helm/k8s-monitoring/VERSION` |
+| Prometheus stack | `kube-prometheus-stack` 93.1.1 with Prometheus 3.13.5 | `lgtm/lab/helm/kube-prometheus-stack/VERSION` |
+| Shop | 3.1.0-lab.1, 13 public images on GHCR | `lgtm/lab/demo/VERSION` |
+
+Lesson text names the versions in these files, not the plan table.
 
 Facts that change old tutorials, to keep in mind everywhere:
 - Grafana, Loki and Tempo charts moved to `grafana-community/helm-charts`. `helm repo add grafana https://grafana.github.io/helm-charts` is outdated for them.
@@ -119,13 +138,13 @@ Facts that change old tutorials, to keep in mind everywhere:
 
 | VM | Count | vCPU | RAM | Disks (dynamic VHDX) |
 |---|---|---|---|---|
-| lb | 1 | 1 | 1 GB | 10 GB |
-| master | 3 | 2 | 3 GB | 25 GB |
-| worker | 4 | 6 | 9 GB | 30 GB system + 40 GB Longhorn |
+| lb | 1 | 2 | 2 GB | 10 GB |
+| master | 3 | 2 | 2 GB | 25 GB |
+| worker | 4 | 4 on the running VMs (`nodes.yml` says 6) | 8 GB | 30 GB system + 40 GB Longhorn |
 
-Total 46 GB of the PC's 61.6 GB. All sizes are variables in one nodes file. Worker L3 must give every pod requests and limits and deliver a budget table; the target is the whole lab running with 15% of worker memory free.
+Total 40 GB of the PC's 61.6 GB. These are the sizes the owner set on 2026-11-10, after a first plan of 46 GB (masters 3 GB, workers 9 GB). All sizes are variables in `lgtm/lab/vm/nodes.yml`; `create` never resizes a VM that exists, so the file and the VMs can drift, as the worker vCPU count shows. The lab's memory requests on the workers are about 22 GiB of 32 (`lgtm/lab/docs/budget.md`, written for 36 GiB). Two things to watch on the real cluster, both for card L4: the masters have kubeadm's minimum of 2 GB while the lab adds many CRDs, and the budget must be measured, not only added up.
 
-Disk is the tight resource: drive C: has 121 GB free. The lab is planned for at most 90 GB of real use (short retention: 48 hours for logs and traces, 7 days for metrics). The owner should free space or name another drive for the VHDX files before wave 2 ends.
+Disk: the owner freed space (more than 900 GB free on C: on 2026-11-10). The lab is planned for at most 90 GB of real use (short retention: 48 hours for logs and traces, 7 days for metrics).
 
 ## 8. Work plan
 
@@ -139,8 +158,9 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | 2 | L2 platform add-ons | `lgtm/lab/ansible/roles/platform_*`, `playbooks/platform.yml`, `lgtm/lab/helm/platform/**` | Longhorn, S3 store, gateway, Kafka, cert-manager, metrics-server |
 | 2 | L3 LGTM releases | `lgtm/lab/helm/**` (not `platform/`), `lgtm/lab/charts/lab-glue/**`, `playbooks/lab.yml` | Mimir, Loki, Tempo, Grafana, collectors, Prometheus stack, wired together |
 | 2 | S2 site features | `lgtm/learn/**` | Quizzes, review, weak spots, mock exams, XP and badges, answer checks, multi-device merge |
-| 3 | D2 beacon and workshop | `lgtm/lab/tools/**`, `lgtm/lab/workshop/**` | Check-token emitter, the service to instrument by hand |
-| 3 | L4 lab acceptance | fixes across `lgtm/lab/**` | The whole lab running on the real cluster, reference page of addresses, runbook |
+| between 2 and 3 | B1 bootstrap guide | `lgtm/lab/docs/bootstrap-windows11.md`, defect fixes in `lgtm/lab/vm/**` and the cluster plays | The step-by-step guide for a Windows 11 host, and the fixes the owner's first real run exposed (done) |
+| 3 | D2 beacon and workshop | `lgtm/lab/tools/**`, `lgtm/lab/workshop/**`, the beacon template of `lab-glue` | Check-token emitter, the service to instrument by hand |
+| 3 | L4 lab acceptance | the rest of `lgtm/lab/**` | `make platform` and `make lab` on the real cluster, defects fixed, budget measured, reference page of addresses, runbook |
 | 3 | C0 content pilot | module m02 (observability fundamentals) | One finished concept module that sets the pattern; the owner reads it before the rest is written |
 | 4 | DZ design | `lgtm/learn/src/styles/**`, component styling | The site's design with `web-design-engineer`; the owner answers its checkpoints (direction, first draft, key choices) in that session |
 | 6 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
@@ -150,7 +170,7 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | 10 | C17 capstone and mocks | module m18, mock exam pools | Game days, interview bank, OTCA and PCA mock exams |
 | 10 | QA sweep | none (planner) | Full walk-through on the live lab, link check, release |
 
-That is about 29 worker sessions: 9 to build the site and the lab, 18 for content, 2 for figures.
+That is about 30 worker sessions: 10 to build the site and the lab, 18 for content, 2 for figures.
 
 How the two design skills are used here:
 - `web-design-engineer` gives the direction, the design system, the first draft and the critique. Its defaults are stand-alone HTML prototypes that load React, fonts and chart libraries from CDNs; this project does not do that. The design lands in the Astro project's tokens and components, fonts are self-hosted, and no third-party origin is added to the content security policy. A throwaway prototype for choosing a direction may follow the skill's defaults, outside `lgtm/learn`.
