@@ -5,16 +5,16 @@
 - id: q-m02-001
   tags: [observability]
   exam: {cert: otca, domain: O1, competency: Telemetry Data}
-  q: Which three signals does OpenTelemetry list as stable and widely supported, with profiles still under development?
+  q: Which three observability signals does OpenTelemetry support today, while profiles are still under development?
   options:
     - text: Traces, metrics and logs
-      why: Correct. These are the three stable signals; profiles are newer and still in development.
+      why: Correct. OpenTelemetry supports traces, metrics and logs, and lists profiles as under development.
     - text: Metrics, alerts and dashboards
       why: Alerts and dashboards are ways to use telemetry, not signals that a program emits.
     - text: Traces, exemplars and events
-      why: Exemplars link metrics to traces, and events are a kind of log. Neither is a separate stable signal.
+      why: Exemplars link metrics to traces. Events are a kind of log, and as a signal of their own they are still under development.
     - text: Logs, baggage and profiles
-      why: Baggage carries context between services, and profiles are still in development.
+      why: Baggage is supported, but it carries context between services rather than observing them, and profiles are still under development.
   answer: [0]
   source: https://opentelemetry.io/docs/concepts/signals/
 - id: q-m02-002
@@ -61,7 +61,7 @@
     - text: The SDK sends them as log records instead
       why: The SDK keeps them in the metric, in a single overflow data point.
     - text: They go into one overflow data point, without their attributes
-      why: Correct. The overflow point is marked <code>otel.metric.overflow=true</code>. The total stays right, but filters by attribute undercount.
+      why: Correct. The default limit is 2,000 combinations per metric stream. Past it, measurements go into one point marked <code>otel.metric.overflow=true</code>, so the total stays right but filters by attribute undercount.
   answer: [3]
   source: https://opentelemetry.io/docs/concepts/signals/metrics/
 
@@ -176,20 +176,20 @@
 - id: q-m02-012
   tags: [instrumentation]
   exam: {cert: otca, domain: O1, competency: Instrumentation}
-  q: Which two statements about zero-code and code-based instrumentation are true? (Choose two.)
+  q: Which two statements about OpenTelemetry zero-code instrumentation are true? (Choose two.)
   options:
-    - text: They can be used in the same service at the same time
-      why: Correct. OpenTelemetry says both can be used together.
-    - text: Zero-code agents are configured mainly with environment variables
-      why: Correct. Agents read environment variables, system properties or start-up arguments.
-    - text: Code-based instrumentation needs no SDK in a service process
-      why: A service process takes both the API and the SDK. Only a library depends on the API alone.
-    - text: Zero-code instrumentation works only for Go
-      why: It exists for several languages, including Java, Python, .NET and JavaScript.
-    - text: Code-based instrumentation cannot record business data
-      why: Recording your own business logic is exactly what code-based instrumentation is for.
+    - text: It mostly instruments the libraries the application uses
+      why: Correct. Requests, responses, database calls and queue calls are covered; your own code usually is not.
+    - text: It can be configured with environment variables
+      why: Correct. Environment variables and other language-specific mechanisms configure it.
+    - text: It records your own business logic in full
+      why: Your own code is not usually instrumented. That needs code-based instrumentation.
+    - text: It works only for services written in Go
+      why: It is available for several languages, including .NET, Java, JavaScript, PHP and Python.
+    - text: It requires changes to the application source code
+      why: Its purpose is to add telemetry without editing the source.
   answer: [0, 1]
-  source: https://opentelemetry.io/docs/concepts/instrumentation/
+  source: https://opentelemetry.io/docs/concepts/instrumentation/zero-code/
 
 # O1 Analysis and Outcomes
 - id: q-m02-013
@@ -343,7 +343,7 @@
     - text: Keep unbounded values such as emails out of labels
       why: Correct. Prometheus warns against labels such as email addresses, which have endless values.
   answer: [3]
-  source: https://prometheus.io/docs/practices/instrumentation/
+  source: https://prometheus.io/docs/practices/naming/
 
 # P1 Understand logs and events
 - id: q-m02-023

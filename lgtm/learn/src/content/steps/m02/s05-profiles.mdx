@@ -13,6 +13,9 @@ sources:
   - title: Profiles (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/signals/profiles/
     checked: 2026-11-10
+  - title: Specification status summary (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/status/
+    checked: 2026-11-10
   - title: Introduction (Grafana Pyroscope)
     url: https://grafana.com/docs/pyroscope/latest/introduction/
     checked: 2026-11-10
@@ -38,7 +41,7 @@ A profile records where a program spends its resources, down to the function. It
 <Points>
   <Point label="The question profiles answer">Logs say what happened, metrics say how much, traces say where a request went. Profiles say which code uses the CPU or memory.</Point>
   <Point label="Kinds of profile">On-CPU: which functions use processor time. Off-CPU: where threads wait, for example on locks or disk. Heap: which functions hold memory. Allocations: which code allocates the most memory.</Point>
-  <Point label="Still young in OpenTelemetry">The OpenTelemetry profiles signal is in Alpha, and its OTLP format is still in development. Traces, metrics and logs are stable.</Point>
+  <Point label="Still young in OpenTelemetry">OpenTelemetry marks the profiles signal as Alpha. Traces, metrics and logs are further along: their protocol, OTLP, is stable.</Point>
   <Point label="eBPF: watching from the kernel">eBPF runs small, safe programs inside the Linux kernel. A profiler can use it to sample stacks of any process, with no code change. It works on Linux only and needs root access on the host.</Point>
   <Point label="Pyroscope stores profiles">Grafana Pyroscope is a profile database built like Loki, Mimir and Tempo. Alloy can collect CPU profiles with eBPF and send them to it.</Point>
   <Point label="eBPF does more than profiles">OBI, OpenTelemetry eBPF Instrumentation, uses eBPF to create traces and rate, error and duration metrics without code changes. Grafana Beyla is Grafana's distribution of OBI. This lab runs neither Pyroscope nor OBI.</Point>

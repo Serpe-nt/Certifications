@@ -38,7 +38,7 @@ Monitoring collects numbers you chose in advance and shows them on dashboards an
 <Points>
   <Point label="What monitoring does">Monitoring collects, aggregates and shows numbers about a system in real time: request counts, error counts, processing times. You decide in advance what to measure.</Point>
   <Point label="What observability adds">Observability lets you understand a system from the outside, without knowing how it works inside. It helps with problems you did not expect, the "unknown unknowns", and answers the question "Why is this happening?"</Point>
-  <Point label="The data it needs">The application must be instrumented: its code must send signals. OpenTelemetry names three stable ones, traces, metrics and logs. Profiles are a newer fourth signal.</Point>
+  <Point label="The data it needs">The application must be instrumented: its code must send signals. OpenTelemetry supports traces, metrics and logs today. Profiles, an emerging fourth signal, are still under development.</Point>
   <Point label="When instrumentation is good enough">An application is properly instrumented when you do not have to add new instrumentation to troubleshoot an issue. The data you need is already there.</Point>
   <Point label="Symptom and cause">A good monitoring system answers two questions: what is broken, and why. "Checkout returns errors" is the symptom. "The payment service cannot reach its database" is a cause.</Point>
   <Point label="Where this lab fits">OpenTelemetry produces and sends the signals. It is not a backend. In this lab, Mimir, Loki and Tempo store them, and Grafana is where you ask the questions.</Point>

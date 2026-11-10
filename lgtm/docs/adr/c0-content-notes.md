@@ -37,4 +37,6 @@ Card C0, module m02, 2026-11-10. What the pilot taught about writing a module fo
 3. Before finishing, measure the option lengths of the pool and of the card questions.
 4. Write card explanations without "Right:", and question YAML with `<code>`, never backticks.
 5. Walk every card: scroll the question into view before clicking; restart the dev server after YAML edits.
-6. For PCA P1 "Service Discovery": m02 covers it lightly inside push versus pull (three questions); m03 step 6 should go deep and add its own questions.
+6. Every word about status or maturity (stable, alpha, beta, experimental, deprecated, GA, in development) must match a cited page in meaning; for OpenTelemetry signal status cite https://opentelemetry.io/docs/specs/status/ and say which part (API, SDK or protocol) is stable.
+7. Every question's `source` must be the page that states the fact its right answer depends on, not just a page on the same topic.
+8. For PCA P1 "Service Discovery": m02 covers it lightly inside push versus pull (three questions); m03 step 6 should go deep and add its own questions.
