@@ -1,0 +1,3 @@
+---
+# Downloaded archives and binaries, before they are copied into lab_bin_dir.
+platform_tools_download_dir: "{{ lab_bin_dir }}/downloads"

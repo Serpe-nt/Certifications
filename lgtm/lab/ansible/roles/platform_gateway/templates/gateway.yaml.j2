@@ -1,0 +1,31 @@
+---
+# The one entry point of the lab (contract: Gateway lab in namespace gateway).
+# HTTP on 80 (NodePort 30080) accepts any host name; HTTPS on 443 (NodePort 30443)
+# serves *.{{ lab_domain }} with the lab CA's certificate. Routes may attach from
+# every namespace.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ platform_gateway_name }}
+  namespace: {{ platform_gateway_namespace }}
+spec:
+  gatewayClassName: {{ platform_gateway_class }}
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.{{ lab_domain }}"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: {{ platform_gateway_tls_secret }}
+      allowedRoutes:
+        namespaces:
+          from: All

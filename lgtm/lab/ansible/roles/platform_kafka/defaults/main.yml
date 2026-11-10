@@ -1,0 +1,9 @@
+---
+platform_kafka_namespace: kafka
+# The cluster name gives the bootstrap Service telemetry-kafka-bootstrap (lab contract).
+platform_kafka_cluster: telemetry
+platform_kafka_values: "{{ lookup('ansible.builtin.file', platform_values_dir ~ '/strimzi/values.yaml') | from_yaml }}"
+platform_kafka_settings: >-
+  {{ lookup('ansible.builtin.file', platform_values_dir ~ '/strimzi/kafka-cluster.yaml') | from_yaml
+     | combine((lookup('ansible.builtin.file', platform_values_dir ~ '/strimzi/kafka-cluster-kind.yaml') | from_yaml)
+               if lab_profile == 'kind' else {}, recursive=True) }}

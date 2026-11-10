@@ -1,0 +1,14 @@
+---
+# metrics-server chart (version pinned in ../versions.yml). Namespace kube-system.
+# Gives `kubectl top` and the resource metrics API that autoscalers read.
+args:
+  # The kubelets of the lab serve self-signed certificates (kubeadm's default, no
+  # serverTLSBootstrap), so metrics-server cannot verify them. Lab simplification.
+  - --kubelet-insecure-tls
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 192Mi

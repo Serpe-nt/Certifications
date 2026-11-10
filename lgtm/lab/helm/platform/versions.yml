@@ -1,0 +1,91 @@
+---
+# Every version the platform add-ons use, in one file (card L2). The playbook
+# playbooks/platform.yml loads it with vars_files; the render check in
+# tests/platform/render.sh reads it too. Checked on 2026-11-09; the sources and the
+# reasons are in lgtm/docs/adr/l2-*.md.
+#
+# To upgrade an add-on: change its version here, read the upgrade notes linked in the
+# ADR, run `make platform-lint`, then `make platform TAGS=<tag>`.
+
+# Tools downloaded into lgtm/lab/.bin and checked against the published SHA-256.
+platform_tools:
+  helm:
+    version: v4.3.1
+    url: https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz
+    sha256: 0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b
+  kubectl:
+    version: v1.35.10
+    url: https://dl.k8s.io/release/v1.35.10/bin/linux/amd64/kubectl
+    sha256: c49a28f1f4efc4d475ed05f47f2ce8e563bf7bef69ed77fe1b924ea6d83b6327
+  kind:
+    version: v0.33.0
+    url: https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64
+    sha256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+  kubeconform:
+    version: v0.8.0
+    url: https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz
+    sha256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+
+# The node image of the kind test cluster: kind v0.33.0's image for Kubernetes 1.35.
+platform_kind_node_image: kindest/node:v1.35.8@sha256:07b2536e30b803ed61d1677a79df6115f798ce64c80f9e22f6ed45afd09323c0
+
+# One Helm release per add-on. `repo` is a classic chart repository; `ref` an OCI chart.
+platform_charts:
+  metrics_server:
+    repo: https://kubernetes-sigs.github.io/metrics-server
+    chart: metrics-server
+    version: 3.14.0
+    app_version: v0.9.0
+  cert_manager:
+    repo: https://charts.jetstack.io
+    chart: cert-manager
+    version: v1.21.3
+    app_version: v1.21.3
+  envoy_gateway:
+    ref: oci://docker.io/envoyproxy/gateway-helm
+    chart: gateway-helm
+    version: v1.10.0
+    app_version: v1.10.0
+  longhorn:
+    repo: https://charts.longhorn.io
+    chart: longhorn
+    version: 1.13.0
+    app_version: v1.13.0
+  rustfs:
+    repo: https://charts.rustfs.com
+    chart: rustfs
+    version: 1.0.4
+    app_version: 1.0.4
+  strimzi:
+    ref: oci://quay.io/strimzi-helm/strimzi-kafka-operator
+    chart: strimzi-kafka-operator
+    version: 1.3.1
+    app_version: 1.3.1
+
+# Versions that are not a chart's own default and are therefore set as values.
+platform_kafka_version: 4.3.2
+platform_kafka_metadata_version: 4.3-IV0
+
+# Every container image the platform runs. The images a chart brings follow from the
+# chart version above; tests/platform/render.sh fails when a rendered chart uses an
+# image that is not in this list. The images set by the playbook itself (RustFS, the
+# bucket job, the Kafka cluster, the Envoy proxy) are taken from here.
+platform_images:
+  rustfs: docker.io/rustfs/rustfs:1.0.4
+  busybox: docker.io/library/busybox:1.37.0
+  aws_cli: docker.io/amazon/aws-cli:2.39.7
+  envoy_proxy: docker.io/envoyproxy/envoy:distroless-v1.40.2
+  kafka: quay.io/strimzi/kafka:1.3.1-kafka-4.3.2
+  # Brought by the charts (listed so the render check can compare).
+  chart_images:
+    - registry.k8s.io/metrics-server/metrics-server:v0.9.0
+    - quay.io/jetstack/cert-manager-controller:v1.21.3
+    - quay.io/jetstack/cert-manager-webhook:v1.21.3
+    - quay.io/jetstack/cert-manager-cainjector:v1.21.3
+    - quay.io/jetstack/cert-manager-startupapicheck:v1.21.3
+    - docker.io/envoyproxy/gateway:v1.10.0
+    - docker.io/envoyproxy/ratelimit:5ae0682e
+    - quay.io/strimzi/operator:1.3.1
+    - longhornio/longhorn-manager:v1.13.0
+    - longhornio/longhorn-ui:v1.13.0
+    - longhornio/longhorn-share-manager:v1.13.0

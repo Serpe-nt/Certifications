@@ -1,0 +1,67 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: s3-buckets-{{ (platform_s3_buckets | join(' ') | hash('sha1'))[:8] }}
+  namespace: {{ platform_s3_namespace }}
+  labels:
+    app.kubernetes.io/part-of: lgtm-lab
+    app.kubernetes.io/component: s3-buckets
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: buckets
+          image: {{ platform_images.aws_cli }}
+          command: ["bash", "-ec"]
+          args:
+            - |
+              export HOME=/tmp
+              aws configure set default.s3.addressing_style path
+              for b in {{ platform_s3_buckets | join(' ') }}; do
+                if aws --endpoint-url "$S3_ENDPOINT_URL" s3api head-bucket --bucket "$b" 2>/dev/null; then
+                  echo "bucket $b exists"
+                else
+                  aws --endpoint-url "$S3_ENDPOINT_URL" s3api create-bucket --bucket "$b" >/dev/null
+                  echo "bucket $b created"
+                fi
+              done
+          env:
+            - name: S3_ENDPOINT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ platform_s3_secret }}
+                  key: endpoint_url
+            - name: AWS_DEFAULT_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ platform_s3_secret }}
+                  key: region
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ platform_s3_secret }}
+                  key: access_key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ platform_s3_secret }}
+                  key: secret_key
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]

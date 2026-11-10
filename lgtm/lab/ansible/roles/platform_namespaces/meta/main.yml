@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: platform_namespaces
+  namespace: lgtm_lab
+  author: LGTM study project
+  description: The namespaces of the platform add-ons and their default container resources
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+dependencies: []

@@ -1,0 +1,76 @@
+---
+# The wildcard certificate of the HTTPS listener, signed by the lab CA.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ platform_gateway_tls_secret }}
+  namespace: {{ platform_gateway_namespace }}
+spec:
+  secretName: {{ platform_gateway_tls_secret }}
+  commonName: "*.{{ lab_domain }}"
+  dnsNames:
+    - "{{ lab_domain }}"
+    - "*.{{ lab_domain }}"
+  duration: 8760h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: {{ platform_cert_manager_ca_issuer | default('lab-ca') }}
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# How Envoy Gateway runs the proxy for this class: a NodePort Service whose ports are
+# fixed at 30080 and 30443, because HAProxy on lb forwards 80 and 443 there. The
+# traffic policy is Cluster so that every node answers on the NodePorts, whichever
+# node the proxy pods run on; HAProxy's TCP health check relies on that.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: lab-proxy
+  namespace: {{ platform_gateway_namespace }}
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: {{ platform_gateway_proxy_replicas }}
+        container:
+          image: {{ platform_images.envoy_proxy }}
+          resources: {{ platform_gateway_proxy_resources | to_json }}
+        pod:
+          # The proxy pods on different workers where possible.
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    topologyKey: kubernetes.io/hostname
+                    labelSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: envoy
+                        gateway.envoyproxy.io/owning-gateway-name: {{ platform_gateway_name }}
+      envoyService:
+        type: NodePort
+        externalTrafficPolicy: Cluster
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              ports:
+                - port: 80
+                  nodePort: {{ platform_gateway_http_node_port }}
+                - port: 443
+                  nodePort: {{ platform_gateway_https_node_port }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: {{ platform_gateway_class }}
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: lab-proxy
+    namespace: {{ platform_gateway_namespace }}

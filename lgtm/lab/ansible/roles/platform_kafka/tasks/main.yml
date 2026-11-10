@@ -1,0 +1,27 @@
+---
+- name: Install the Strimzi operator
+  kubernetes.core.helm:
+    name: strimzi
+    chart_ref: "{{ platform_charts.strimzi.ref }}"
+    chart_version: "{{ platform_charts.strimzi.version }}"
+    release_namespace: "{{ platform_kafka_namespace }}"
+    values: "{{ platform_kafka_values }}"
+    wait: true
+    timeout: 5m
+
+- name: Create the Kafka cluster telemetry
+  kubernetes.core.k8s:
+    state: present
+    template: kafka.yaml.j2
+
+- name: Wait for the Kafka cluster telemetry to be ready
+  kubernetes.core.k8s_info:
+    api_version: kafka.strimzi.io/v1
+    kind: Kafka
+    name: "{{ platform_kafka_cluster }}"
+    namespace: "{{ platform_kafka_namespace }}"
+    wait: true
+    wait_condition:
+      type: Ready
+      status: "True"
+    wait_timeout: 900

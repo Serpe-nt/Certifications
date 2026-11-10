@@ -1,0 +1,18 @@
+---
+platform_gateway_namespace: gateway
+platform_gateway_values: "{{ lookup('ansible.builtin.file', platform_values_dir ~ '/envoy-gateway/values.yaml') | from_yaml }}"
+platform_gateway_class: lab-envoy
+platform_gateway_name: lab
+# The NodePorts HAProxy on lb forwards 80 and 443 to (lab contract).
+platform_gateway_http_node_port: 30080
+platform_gateway_https_node_port: 30443
+platform_gateway_tls_secret: lab-gateway-tls
+# Envoy proxy pods: two on the real cluster so a node restart does not cut the lab off.
+platform_gateway_proxy_replicas: "{{ 2 if lab_profile == 'full' else 1 }}"
+platform_gateway_proxy_resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi

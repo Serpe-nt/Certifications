@@ -3,3 +3,6 @@
 ansible-core==2.21.5
 ansible-lint==26.11.0
 yamllint==1.38.0
+# Python client for the kubernetes.core modules of the platform and lab playbooks (card L2),
+# checked on 2026-11-09 at https://pypi.org/project/kubernetes/ (see lgtm/docs/adr/l2-platform-pins.md).
+kubernetes==37.0.2

@@ -1,0 +1,3 @@
+---
+platform_longhorn_namespace: longhorn-system
+platform_longhorn_values: "{{ lookup('ansible.builtin.file', platform_values_dir ~ '/longhorn/values.yaml') | from_yaml }}"

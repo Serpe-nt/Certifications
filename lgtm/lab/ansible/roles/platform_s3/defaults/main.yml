@@ -1,0 +1,33 @@
+---
+platform_s3_namespace: s3
+platform_s3_release: rustfs
+platform_s3_service: rustfs-svc
+platform_s3_region: us-east-1
+# The S3 address the consumers use: host and port, plain HTTP inside the cluster.
+platform_s3_endpoint: "{{ platform_s3_service }}.{{ platform_s3_namespace }}.svc:9000"
+# The Secret of the lab contract and the namespaces it is copied into.
+platform_s3_secret: lab-s3
+platform_s3_consumer_namespaces: [mimir, loki, tempo]
+# The buckets of the lab contract.
+platform_s3_buckets:
+  - mimir-blocks
+  - mimir-ruler
+  - mimir-alertmanager
+  - loki-chunks
+  - loki-ruler
+  - tempo-traces
+platform_s3_values: >-
+  {{ lookup('ansible.builtin.file', platform_values_dir ~ '/rustfs/values.yaml') | from_yaml
+     | combine((lookup('ansible.builtin.file', platform_values_dir ~ '/rustfs/values-kind.yaml') | from_yaml)
+               if lab_profile == 'kind' else {}, recursive=True)
+     | combine(platform_s3_values_from_play, recursive=True) }}
+platform_s3_values_from_play:
+  storageclass:
+    name: "{{ lab_storage_class }}"
+  image:
+    rustfs:
+      repository: "{{ platform_images.rustfs.split(':')[0] }}"
+      tag: "{{ platform_images.rustfs.split(':')[1] }}"
+    initImage:
+      repository: "{{ platform_images.busybox.split(':')[0] }}"
+      tag: "{{ platform_images.busybox.split(':')[1] }}"

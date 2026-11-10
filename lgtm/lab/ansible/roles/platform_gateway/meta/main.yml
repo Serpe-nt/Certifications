@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: platform_gateway
+  namespace: lgtm_lab
+  author: LGTM study project
+  description: Envoy Gateway and the Gateway lab on NodePorts 30080 and 30443
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+dependencies: []

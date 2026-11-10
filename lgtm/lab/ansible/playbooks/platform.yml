@@ -1,0 +1,65 @@
+---
+# Platform add-ons (card L2): everything the LGTM stack needs from the cluster.
+# Run it with `make platform` (the real cluster) or `make platform LAB_PROFILE=kind`
+# (a kind test cluster). One tag per add-on: `make platform TAGS=kafka`.
+#
+# Every release is a pinned Helm chart (helm/platform/versions.yml) with its values in
+# helm/platform/<add-on>/. The play runs on the control machine and talks to the
+# cluster through the kubeconfig in `lab_kubeconfig`; it never reads ~/.kube/config.
+- name: Install the platform add-ons
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../helm/platform/versions.yml
+  vars:
+    # `full` is the real cluster; `kind` is the smoke-test profile (small values, no Longhorn).
+    lab_profile: full
+    lab_kubeconfig: "{{ lookup('ansible.builtin.env', 'HOME') }}/.kube/lgtm-lab.config"
+    lab_dir: "{{ playbook_dir | dirname | dirname }}"
+    lab_bin_dir: "{{ lab_dir }}/.bin"
+    lab_domain: lab.k8s.local
+    # Longhorn on the real cluster, kind's default class in the kind profile.
+    lab_storage_class: "{{ 'longhorn' if lab_profile == 'full' else 'standard' }}"
+    platform_values_dir: "{{ lab_dir }}/helm/platform"
+    platform_helm_binary: "{{ lab_bin_dir }}/helm"
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  environment:
+    # Keep Helm's cache, configuration and plugins inside the git-ignored .bin folder.
+    HELM_CACHE_HOME: "{{ lab_bin_dir }}/helm-home/cache"
+    HELM_CONFIG_HOME: "{{ lab_bin_dir }}/helm-home/config"
+    HELM_DATA_HOME: "{{ lab_bin_dir }}/helm-home/data"
+  module_defaults:
+    group/kubernetes.core.helm:
+      binary_path: "{{ platform_helm_binary }}"
+      kubeconfig: "{{ lab_kubeconfig }}"
+    group/kubernetes.core.k8s:
+      kubeconfig: "{{ lab_kubeconfig }}"
+  pre_tasks:
+    - name: Check the profile and the kubeconfig
+      ansible.builtin.assert:
+        that:
+          - lab_profile in ['full', 'kind']
+          - (lab_kubeconfig | ansible.builtin.realpath) != ((lookup('ansible.builtin.env', 'HOME') ~ '/.kube/config') | ansible.builtin.realpath)
+        fail_msg: "lab_profile must be full or kind, and lab_kubeconfig must not be ~/.kube/config."
+        quiet: true
+      tags: [always]
+  roles:
+    - role: platform_tools
+      tags: [always, tools]
+    # Runs with every add-on tag, never with `tools` alone.
+    - role: platform_namespaces
+      tags: [namespaces, metrics-server, cert-manager, gateway, longhorn, s3, kafka]
+    - role: platform_metrics_server
+      tags: [metrics-server]
+    - role: platform_cert_manager
+      tags: [cert-manager]
+    - role: platform_gateway
+      tags: [gateway]
+    - role: platform_longhorn
+      tags: [longhorn]
+      when: lab_profile == 'full'
+    - role: platform_s3
+      tags: [s3]
+    - role: platform_kafka
+      tags: [kafka]

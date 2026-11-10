@@ -1,0 +1,34 @@
+---
+# Settings of the Kafka cluster `telemetry` for the real cluster (profile full). The
+# platform_kafka role reads this file and its kind overlay, kafka-cluster-kind.yaml,
+# and renders the Kafka and KafkaNodePool resources from them.
+#
+# Mimir 3 (ingest storage) and Tempo 3 write to it and read from it. Three nodes that
+# are both KRaft controller and broker: one may be down without losing writes.
+replicas: 3
+storage_size: 5Gi
+resources:
+  requests:
+    cpu: 200m
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 1536Mi
+jvm_heap: 768m
+config:
+  default.replication.factor: 3
+  min.insync.replicas: 2
+  offsets.topic.replication.factor: 3
+  transaction.state.log.replication.factor: 3
+  transaction.state.log.min.isr: 2
+  # The ingest topics only bridge the gap until Mimir and Tempo store blocks in S3.
+  log.retention.hours: 24
+  log.segment.bytes: 134217728
+  auto.create.topics.enable: true
+entity_operator_resources:
+  requests:
+    cpu: 50m
+    memory: 192Mi
+  limits:
+    cpu: 500m
+    memory: 384Mi

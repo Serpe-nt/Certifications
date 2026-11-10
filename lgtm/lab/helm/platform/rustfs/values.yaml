@@ -1,0 +1,36 @@
+---
+# RustFS chart (version pinned in ../versions.yml). Namespace s3. Release name rustfs.
+# One RustFS server with one volume ("standalone" mode): the lab's S3 store for Mimir,
+# Loki and Tempo. The platform_s3 role adds what depends on the run: the StorageClass,
+# the image tags from versions.yml and the credentials Secret.
+# S3 API: http://rustfs-svc.s3.svc:9000. Screen: http://s3.lab.k8s.local (port 9001).
+fullnameOverride: rustfs
+mode:
+  standalone:
+    enabled: true
+  distributed:
+    enabled: false
+replicaCount: 1
+secret:
+  # Created by the platform_s3 role with generated keys; never in the repository.
+  existingSecret: rustfs-credentials
+config:
+  rustfs:
+    region: us-east-1
+    console_enable: "true"
+    # Log to the container output instead of a second volume.
+    obs_log_directory: ""
+    log_level: info
+storageclass:
+  # 7 days of metrics and 48 hours of logs and traces fit well inside this
+  # (see lgtm/lab/docs/platform.md). Longhorn keeps two copies.
+  dataStorageSize: 25Gi
+ingress:
+  enabled: false
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi

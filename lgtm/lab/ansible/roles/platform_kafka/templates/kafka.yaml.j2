@@ -1,0 +1,65 @@
+---
+# The Kafka cluster `{{ platform_kafka_cluster }}` in KRaft mode: one pool of nodes that are both
+# controller and broker. Settings: helm/platform/strimzi/kafka-cluster*.yaml.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  namespace: {{ platform_kafka_namespace }}
+  labels:
+    strimzi.io/cluster: {{ platform_kafka_cluster }}
+spec:
+  replicas: {{ platform_kafka_settings.replicas }}
+  roles:
+    - controller
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: {{ platform_kafka_settings.storage_size }}
+        class: {{ lab_storage_class }}
+        deleteClaim: false
+        kraftMetadata: shared
+  resources: {{ platform_kafka_settings.resources | to_json }}
+  jvmOptions:
+    "-Xms": {{ platform_kafka_settings.jvm_heap }}
+    "-Xmx": {{ platform_kafka_settings.jvm_heap }}
+  template:
+    pod:
+      # One Kafka node per worker where possible, so one worker down costs one node.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    strimzi.io/cluster: {{ platform_kafka_cluster }}
+                    strimzi.io/pool-name: dual-role
+---
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: {{ platform_kafka_cluster }}
+  namespace: {{ platform_kafka_namespace }}
+spec:
+  kafka:
+    version: {{ platform_kafka_version }}
+    # The operator picks its own image for this version: {{ platform_images.kafka }}.
+    metadataVersion: {{ platform_kafka_metadata_version }}
+    listeners:
+      # {{ platform_kafka_cluster }}-kafka-bootstrap.{{ platform_kafka_namespace }}.svc:9092, plain text,
+      # no authentication: only reachable inside the cluster (lab contract).
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+    config: {{ platform_kafka_settings.config | to_json }}
+  entityOperator:
+    topicOperator:
+      resources: {{ platform_kafka_settings.entity_operator_resources | to_json }}
+    userOperator:
+      resources: {{ platform_kafka_settings.entity_operator_resources | to_json }}

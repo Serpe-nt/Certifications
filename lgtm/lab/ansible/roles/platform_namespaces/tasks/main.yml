@@ -1,0 +1,32 @@
+---
+- name: Create the platform namespaces
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ item.name }}"
+        labels:
+          app.kubernetes.io/part-of: lgtm-lab
+  loop: "{{ platform_namespaces_active }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Give containers without resources a default in the platform namespaces
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: LimitRange
+      metadata:
+        name: platform-defaults
+        namespace: "{{ item.name }}"
+      spec:
+        limits:
+          - type: Container
+            defaultRequest: "{{ platform_namespaces_default_request }}"
+            default: "{{ platform_namespaces_default_limit }}"
+  loop: "{{ platform_namespaces_active | selectattr('limits') }}"
+  loop_control:
+    label: "{{ item.name }}"
