@@ -4,6 +4,7 @@ The first run of the lab on the PC, step by step. The agent that wrote the scrip
 could not run Hyper-V or reach a cluster, so this run is the real test. Each step says what to
 run, what you should see, and how to undo it. Note anything that differs and give it to the
 planner with the output (the boxes are for you to tick).
+Every step is explained in full, with its prerequisites and fixes, in `bootstrap-windows11.md`.
 
 Paths: the repository is `C:\Users\serpe\Projects\saa-c03-tracker` on Windows and
 `/mnt/c/Users/serpe/Projects/saa-c03-tracker` in WSL. Pull `main` first so the lab files are there.

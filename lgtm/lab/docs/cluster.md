@@ -3,6 +3,7 @@
 How the lab's virtual machines and its Kubernetes cluster are made. Two commands do it: one in
 an elevated PowerShell on Windows creates the VMs, one `make cluster` in WSL turns them into a
 cluster. The first time, follow `acceptance-cluster.md` step by step.
+From a clean Windows 11 Pro PC, with every prerequisite and step explained: `bootstrap-windows11.md`.
 
 ## What you get
 
