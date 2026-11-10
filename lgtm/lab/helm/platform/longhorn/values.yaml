@@ -15,7 +15,12 @@ defaultSettings:
   # Share of each node's CPU reserved for each instance manager (default 12).
   # The lab is small; 5 percent of 6 vCPU is 300m.
   guaranteedInstanceManagerCPU: 5
-  storageOverProvisioningPercentage: 100
+  # Volumes are thin: a replica takes on disk only what was written. Longhorn keeps
+  # 30 percent of each 40 GiB disk in reserve, so at 100 percent only about 117 GiB of
+  # replicas fit on the four workers, less than the 155 GiB that the platform and the
+  # lab ask for with two copies each (docs/budget.md). 200 percent allows about 235 GiB;
+  # storageMinimalAvailablePercentage still stops scheduling on a disk that is really full.
+  storageOverProvisioningPercentage: 200
   storageMinimalAvailablePercentage: 15
 csi:
   # One of each CSI sidecar per two workers is enough for a lab (default 3).
