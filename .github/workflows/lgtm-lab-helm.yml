@@ -1,0 +1,57 @@
+---
+# Lints the LGTM releases (card L3): yamllint, helm lint, every release
+# rendered for the full and the kind profile with the playbook's own charts
+# and values, a schema check of the rendered manifests (Kubernetes 1.35 and
+# the CRD catalog), and requests and limits on every container. It also runs
+# ansible-lint and the syntax checks of mk/cluster.mk (make lint), which cover
+# the lab roles and playbooks/lab.yml. Nothing here reaches a cluster.
+name: lgtm lab helm
+
+"on":
+  pull_request:
+    paths:
+      - lgtm/lab/helm/**
+      - lgtm/lab/charts/**
+      - lgtm/lab/ansible/roles/lab_*/**
+      - lgtm/lab/ansible/playbooks/lab.yml
+      - lgtm/lab/mk/lab.mk
+      - lgtm/lab/tests/lab/**
+      - lgtm/lab/demo/chart/**
+      - .github/workflows/lgtm-lab-helm.yml
+  push:
+    branches: [main]
+    paths:
+      - lgtm/lab/helm/**
+      - lgtm/lab/charts/**
+      - lgtm/lab/ansible/roles/lab_*/**
+      - lgtm/lab/ansible/playbooks/lab.yml
+      - lgtm/lab/mk/lab.mk
+      - lgtm/lab/tests/lab/**
+      - lgtm/lab/demo/chart/**
+      - .github/workflows/lgtm-lab-helm.yml
+
+permissions:
+  contents: read
+
+jobs:
+  lab-lint:
+    name: helm lint, render both profiles, schema check
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: lgtm/lab
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install the pinned tools into lgtm/lab/.venv
+        run: make venv
+      - name: Install the pinned collections
+        run: make collections
+      - name: Download the pinned helm, kubectl, kind and kubeconform into lgtm/lab/.bin
+        run: make lab-tools
+      - name: ansible-lint, yamllint and syntax checks (includes playbooks/lab.yml)
+        run: make lint
+      - name: Render and check every release for both profiles
+        run: make lab-lint

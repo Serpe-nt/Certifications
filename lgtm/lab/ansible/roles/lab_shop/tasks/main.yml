@@ -1,0 +1,12 @@
+---
+# Install or upgrade the shop: Helm release shop in namespace shop,
+# values from lgtm/lab/helm/shop/.
+- name: Install or upgrade the shop
+  ansible.builtin.import_role:
+    name: lab_release
+  vars:
+    lab_release_spec:
+      name: shop
+      namespace: shop
+      folder: shop
+      extra_values: "{{ lab_shop_values }}"

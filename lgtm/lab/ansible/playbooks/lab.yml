@@ -1,0 +1,87 @@
+---
+# The LGTM lab (card L3): Mimir, Loki, Tempo, Grafana, the collector gateway,
+# Alloy, the Prometheus stack and the shop, wired together. Run it with
+# `make lab` (the real cluster) or `make lab LAB_PROFILE=kind` (a kind test
+# cluster). One tag per release: `make lab TAGS=loki`.
+#
+# Every release is a pinned Helm chart (helm/<release>/VERSION) with its values
+# in helm/<release>/: values.yaml for the real cluster, values-kind.yaml added
+# on top for the kind profile. The play runs on the control machine and talks
+# to the cluster through the kubeconfig in `lab_kubeconfig`; it never reads
+# ~/.kube/config. It needs the platform (make platform): the StorageClass,
+# Secret lab-s3, the telemetry Kafka and Gateway lab.
+- name: Install the LGTM lab releases
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    # `full` is the real cluster; `kind` is the smoke-test profile.
+    lab_profile: full
+    lab_kubeconfig: "{{ lookup('ansible.builtin.env', 'HOME') }}/.kube/lgtm-lab.config"
+    lab_dir: "{{ playbook_dir | dirname | dirname }}"
+    lab_bin_dir: "{{ lab_dir }}/.bin"
+    lab_kubectl: "{{ lab_bin_dir }}/kubectl --kubeconfig {{ lab_kubeconfig }}"
+    lab_domain: lab.k8s.local
+    # The port the gateway answers on from the browser: 80 on the real cluster,
+    # the kind test cluster's host port in the kind profile.
+    lab_http_port: "{{ 80 if lab_profile == 'full' else 28080 }}"
+    # Longhorn on the real cluster, kind's default class in the kind profile.
+    lab_storage_class: "{{ 'longhorn' if lab_profile == 'full' else 'standard' }}"
+    lab_grafana_admin_user: admin
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  environment:
+    # Keep Helm's cache, configuration and plugins inside the git-ignored .bin folder.
+    HELM_CACHE_HOME: "{{ lab_bin_dir }}/helm-home/cache"
+    HELM_CONFIG_HOME: "{{ lab_bin_dir }}/helm-home/config"
+    HELM_DATA_HOME: "{{ lab_bin_dir }}/helm-home/data"
+  module_defaults:
+    group/kubernetes.core.helm:
+      binary_path: "{{ lab_bin_dir }}/helm"
+      kubeconfig: "{{ lab_kubeconfig }}"
+  pre_tasks:
+    - name: Check the profile, the kubeconfig and the tools
+      ansible.builtin.assert:
+        that:
+          - lab_profile in ['full', 'kind']
+          - (lab_kubeconfig | ansible.builtin.realpath) != ((lookup('ansible.builtin.env', 'HOME') ~ '/.kube/config') | ansible.builtin.realpath)
+          - (lab_bin_dir ~ '/helm') is file
+          - (lab_bin_dir ~ '/kubectl') is file
+        fail_msg: >-
+          lab_profile must be full or kind, lab_kubeconfig must not be ~/.kube/config,
+          and helm and kubectl must be in {{ lab_bin_dir }} (make lab-tools).
+        quiet: true
+      tags: [always]
+  # In dependency order: the Prometheus stack brings the ServiceMonitor CRDs;
+  # Mimir, Loki and Tempo must answer before anything sends to them; Grafana
+  # reads them; the routes and dashboards point at all of them; the shop comes
+  # last so its first telemetry is not lost.
+  # Tags: one per release; `report` alone prints the addresses and the seed
+  # (make status); `reset` alone removes the releases and their data
+  # (make reset). The secrets are created with any release tag.
+  roles:
+    - role: lab_secrets
+      tags: [secrets, prometheus, mimir, loki, tempo, otel-gateway, alloy, grafana, glue, shop]
+      when: lab_render_dir is not defined
+    - role: lab_prometheus
+      tags: [prometheus]
+    - role: lab_mimir
+      tags: [mimir]
+    - role: lab_loki
+      tags: [loki]
+    - role: lab_tempo
+      tags: [tempo]
+    - role: lab_otel_gateway
+      tags: [otel-gateway]
+    - role: lab_k8s_monitoring
+      tags: [alloy]
+    - role: lab_grafana
+      tags: [grafana]
+    - role: lab_glue
+      tags: [glue]
+    - role: lab_shop
+      tags: [shop]
+    - role: lab_report
+      tags: [report, prometheus, mimir, loki, tempo, otel-gateway, alloy, grafana, glue, shop]
+      when: lab_render_dir is not defined
+    - role: lab_reset
+      tags: [never, reset]

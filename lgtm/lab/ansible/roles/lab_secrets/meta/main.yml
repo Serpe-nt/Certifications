@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: lab_secrets
+  namespace: lgtm_lab
+  author: LGTM lab (card L3)
+  description: "Creates the Grafana admin password and the lab seed when they are absent"
+  license: MIT-0
+  min_ansible_version: "2.17"
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+dependencies: []

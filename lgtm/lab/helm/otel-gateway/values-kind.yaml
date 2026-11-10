@@ -1,0 +1,6 @@
+# kind smoke-test overlay for the collector gateway: one replica. Receivers,
+# processors, exporters and tenants are those of values.yaml.
+replicaCount: 1
+resources:
+  requests: { cpu: 50m, memory: 192Mi }
+  limits: { cpu: "1", memory: 512Mi }

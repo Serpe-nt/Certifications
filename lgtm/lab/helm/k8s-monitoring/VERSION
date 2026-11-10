@@ -1,0 +1,9 @@
+---
+# Pinned chart of this release, read by the lab_release role and by
+# tests/lab/render.sh. Checked on 2026-11-09 against the chart repository's
+# index.yaml; sources and reasons in lgtm/docs/adr/l3-chart-pins.md.
+repository: https://grafana.github.io/helm-charts
+chart: k8s-monitoring
+version: 4.6.0
+# The chart's own version; it installs the Alloy Operator 1.14.4, which runs Alloy.
+app_version: 4.6.0

@@ -1,0 +1,11 @@
+---
+# Install or upgrade Tempo: Helm release tempo in namespace tempo,
+# values from lgtm/lab/helm/tempo/.
+- name: Install or upgrade Tempo
+  ansible.builtin.import_role:
+    name: lab_release
+  vars:
+    lab_release_spec:
+      name: tempo
+      namespace: tempo
+      folder: tempo

@@ -1,0 +1,10 @@
+---
+# Values the playbook adds to helm/kube-prometheus-stack: the StorageClass of
+# Prometheus's volume.
+lab_prometheus_values:
+  prometheus:
+    prometheusSpec:
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: "{{ lab_storage_class }}"

@@ -1,0 +1,12 @@
+---
+# Install or upgrade Loki: Helm release loki in namespace loki,
+# values from lgtm/lab/helm/loki/.
+- name: Install or upgrade Loki
+  ansible.builtin.import_role:
+    name: lab_release
+  vars:
+    lab_release_spec:
+      name: loki
+      namespace: loki
+      folder: loki
+      extra_values: "{{ lab_loki_values }}"

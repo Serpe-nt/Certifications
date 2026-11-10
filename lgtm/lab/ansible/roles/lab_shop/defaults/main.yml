@@ -1,0 +1,7 @@
+---
+# Values the playbook adds to helm/shop: the StorageClass of the shop's Kafka,
+# PostgreSQL and Valkey volumes, and the lab domain of its routes.
+lab_shop_values:
+  storageClass: "{{ lab_storage_class }}"
+  gateway:
+    domain: "{{ lab_domain }}"

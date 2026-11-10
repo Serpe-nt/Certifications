@@ -1,0 +1,9 @@
+---
+# Pinned chart of this release, read by the lab_release role and by
+# tests/lab/render.sh. Checked on 2026-11-09 against the chart's own
+# Chart.yaml; sources and reasons in lgtm/docs/adr/l3-chart-pins.md.
+# A chart in this repository (lgtm/lab/charts/lab-glue).
+path: charts/lab-glue
+chart: lab-glue
+version: 0.1.0
+app_version: 0.1.0

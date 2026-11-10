@@ -1,0 +1,47 @@
+---
+# The releases make reset removes, in this order.
+lab_reset_releases:
+  - { name: shop, namespace: shop }
+  - { name: lab-glue, namespace: lab-tools }
+  - { name: grafana, namespace: grafana }
+  - { name: k8s-monitoring, namespace: alloy }
+  - { name: otel-gateway, namespace: otel }
+  - { name: tempo, namespace: tempo }
+  - { name: loki, namespace: loki }
+  - { name: mimir, namespace: mimir }
+  - { name: kube-prometheus-stack, namespace: prom }
+
+# A Job that deletes every object in the lab's buckets, with the platform's
+# S3 keys (Secret lab-s3 in namespace mimir). The buckets themselves stay.
+lab_reset_job:
+  apiVersion: batch/v1
+  kind: Job
+  metadata:
+    name: lab-reset-buckets
+    namespace: mimir
+  spec:
+    backoffLimit: 3
+    template:
+      spec:
+        restartPolicy: Never
+        containers:
+          - name: empty-buckets
+            # The AWS CLI image the platform uses for its own bucket Job.
+            image: docker.io/amazon/aws-cli:2.39.7
+            command: ["/bin/sh", "-c"]
+            args:
+              - >-
+                for b in mimir-blocks mimir-ruler mimir-alertmanager loki-chunks loki-ruler tempo-traces;
+                do aws --endpoint-url "http://$S3_ENDPOINT" s3 rm "s3://$b" --recursive --only-show-errors; done
+            env:
+              - name: S3_ENDPOINT
+                valueFrom: { secretKeyRef: { name: lab-s3, key: endpoint } }
+              - name: AWS_DEFAULT_REGION
+                valueFrom: { secretKeyRef: { name: lab-s3, key: region } }
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom: { secretKeyRef: { name: lab-s3, key: access_key } }
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom: { secretKeyRef: { name: lab-s3, key: secret_key } }
+            resources:
+              requests: { cpu: 50m, memory: 64Mi }
+              limits: { cpu: 500m, memory: 256Mi }

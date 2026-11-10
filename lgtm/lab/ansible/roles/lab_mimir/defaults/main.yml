@@ -1,0 +1,15 @@
+---
+# Values the playbook adds to helm/mimir: the StorageClass of every volume.
+lab_mimir_values:
+  ingester:
+    persistentVolume:
+      storageClass: "{{ lab_storage_class }}"
+  store_gateway:
+    persistentVolume:
+      storageClass: "{{ lab_storage_class }}"
+  compactor:
+    persistentVolume:
+      storageClass: "{{ lab_storage_class }}"
+  alertmanager:
+    persistentVolume:
+      storageClass: "{{ lab_storage_class }}"

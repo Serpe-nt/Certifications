@@ -1,0 +1,186 @@
+# Mimir in microservices mode with the ingest storage architecture (Kafka),
+# full profile for the lab cluster. Chart and versions: VERSION in this folder.
+#
+# Write path: distributor -> Kafka topic mimir-ingest on the platform's
+# telemetry Kafka -> ingesters read their partitions -> blocks in the S3 store.
+# Read path: gateway -> query-frontend -> query-scheduler -> queriers, which ask
+# the ingesters for recent data and the store-gateway for blocks.
+#
+# The role lab_mimir adds the StorageClass of every volume (lab_storage_class).
+# values-kind.yaml shrinks this for the kind smoke test; the wiring stays.
+
+# Short Service names: mimir-gateway.mimir.svc, mimir-distributor, ...
+fullnameOverride: mimir
+
+image:
+  # The chart's appVersion is 3.2.3; 3.2.4 is the latest patch release of 3.2.
+  tag: 3.2.4
+
+global:
+  # The platform's S3 keys (Secret lab-s3, copied into this namespace by the
+  # platform playbook), read into the configuration through -config.expand-env.
+  extraEnv:
+    - name: LAB_S3_ENDPOINT
+      valueFrom: { secretKeyRef: { name: lab-s3, key: endpoint } }
+    - name: LAB_S3_REGION
+      valueFrom: { secretKeyRef: { name: lab-s3, key: region } }
+    - name: LAB_S3_ACCESS_KEY
+      valueFrom: { secretKeyRef: { name: lab-s3, key: access_key } }
+    - name: LAB_S3_SECRET_KEY
+      valueFrom: { secretKeyRef: { name: lab-s3, key: secret_key } }
+
+mimir:
+  structuredConfig:
+    # Tenants come from the X-Scope-OrgID header: "lab" and "prom".
+    multitenancy_enabled: true
+    common:
+      storage:
+        backend: s3
+        s3:
+          endpoint: ${LAB_S3_ENDPOINT}
+          region: ${LAB_S3_REGION}
+          access_key_id: ${LAB_S3_ACCESS_KEY}
+          secret_access_key: ${LAB_S3_SECRET_KEY}
+          insecure: true
+          bucket_lookup_type: path
+    blocks_storage:
+      s3:
+        bucket_name: mimir-blocks
+    ruler_storage:
+      s3:
+        bucket_name: mimir-ruler
+    alertmanager_storage:
+      s3:
+        bucket_name: mimir-alertmanager
+    ingest_storage:
+      enabled: true
+      kafka:
+        # The platform's Kafka (lab contract, "Platform interfaces").
+        address: telemetry-kafka-bootstrap.kafka.svc:9092
+        topic: mimir-ingest
+        auto_create_topic_enabled: true
+        # At least as many partitions as ingesters ever run; a lesson may scale
+        # the ingesters up to six.
+        auto_create_topic_default_partitions: 6
+    limits:
+      # Metrics retention of the lab contract.
+      compactor_blocks_retention_period: 7d
+      native_histograms_ingestion_enabled: true
+      max_global_exemplars_per_user: 100000
+      ingestion_rate: 50000
+      ingestion_burst_size: 500000
+      max_global_series_per_user: 500000
+      # OTLP: service.name becomes the label service_name (lab contract), the
+      # gateway's cluster attribute becomes the label cluster.
+      # OTLP metric names get the Prometheus suffixes (_total, _seconds, ...),
+      # as Prometheus's own OTLP receiver does by default.
+      otel_metric_suffixes_enabled: true
+      promote_otel_resource_attributes: "cluster,service.name,service.namespace,service.version,k8s.namespace.name,k8s.pod.name,k8s.deployment.name,k8s.node.name"
+    compactor:
+      # Retention deletes whole blocks; keep the deletion delay short in a lab.
+      deletion_delay: 2h
+
+# Tenant set-up. A tenant exists as soon as data arrives with its
+# X-Scope-OrgID header; these per-tenant limits are reloaded without a restart.
+# "lab" holds the shop, Alloy and Tempo's span metrics; "prom" holds what the
+# Prometheus stack remote-writes. Module m17 adds team-a and team-b here.
+runtimeConfig:
+  overrides:
+    lab:
+      max_global_series_per_user: 500000
+    prom:
+      max_global_series_per_user: 300000
+
+# Kafka and the S3 store come from the platform, not from this chart.
+kafka:
+  enabled: false
+minio:
+  enabled: false
+# Zone-aware replication is off (the lab's nodes carry no zone labels), so the
+# rollout-operator is not needed.
+rollout_operator:
+  enabled: false
+
+distributor:
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+
+ingester:
+  # Three ingesters (card): each reads its own Kafka partitions.
+  replicas: 3
+  zoneAwareReplication:
+    enabled: false
+  persistentVolume:
+    size: 3Gi
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1Gi }
+
+querier:
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits: { cpu: "1", memory: 512Mi }
+
+query_frontend:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: "1", memory: 256Mi }
+
+query_scheduler:
+  replicas: 1
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 128Mi }
+
+store_gateway:
+  replicas: 1
+  zoneAwareReplication:
+    enabled: false
+  persistentVolume:
+    size: 2Gi
+  resources:
+    requests: { cpu: 50m, memory: 192Mi }
+    limits: { cpu: "1", memory: 512Mi }
+
+compactor:
+  replicas: 1
+  persistentVolume:
+    size: 3Gi
+  resources:
+    requests: { cpu: 50m, memory: 192Mi }
+    limits: { cpu: "1", memory: 512Mi }
+
+ruler:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: "1", memory: 256Mi }
+
+alertmanager:
+  replicas: 1
+  persistentVolume:
+    size: 1Gi
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 128Mi }
+
+# Exposes per-tenant limits as metrics; not needed in the lab.
+overrides_exporter:
+  enabled: false
+
+# The nginx gateway is the single entry point: OTLP (/otlp/v1/metrics),
+# remote write (/api/v1/push) and the Prometheus API (/prometheus).
+gateway:
+  replicas: 1
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+    limits: { cpu: 500m, memory: 128Mi }
+
+# Self-monitoring is off; a lesson turns it on.
+metaMonitoring:
+  serviceMonitor:
+    enabled: false

@@ -1,0 +1,28 @@
+---
+# Values the playbook adds to helm/loki: the StorageClass of every volume. The
+# ingester and the compactor describe their volumes as a list of claims, which
+# Helm replaces as a whole, so their sizes are set here too.
+lab_loki_volume_sizes:
+  full: { ingester: 3Gi, compactor: 2Gi }
+  kind: { ingester: 1Gi, compactor: 1Gi }
+lab_loki_values:
+  ingester:
+    persistence:
+      claims:
+        - name: data
+          accessModes: [ReadWriteOnce]
+          size: "{{ lab_loki_volume_sizes[lab_profile].ingester }}"
+          storageClass: "{{ lab_storage_class }}"
+  compactor:
+    persistence:
+      claims:
+        - name: data
+          accessModes: [ReadWriteOnce]
+          size: "{{ lab_loki_volume_sizes[lab_profile].compactor }}"
+          storageClass: "{{ lab_storage_class }}"
+  indexGateway:
+    persistence:
+      storageClass: "{{ lab_storage_class }}"
+  ruler:
+    persistence:
+      storageClass: "{{ lab_storage_class }}"

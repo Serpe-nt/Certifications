@@ -1,0 +1,11 @@
+---
+# Install or upgrade the collector gateway otel-gateway: Helm release otel-gateway in namespace otel,
+# values from lgtm/lab/helm/otel-gateway/.
+- name: Install or upgrade the collector gateway otel-gateway
+  ansible.builtin.import_role:
+    name: lab_release
+  vars:
+    lab_release_spec:
+      name: otel-gateway
+      namespace: otel
+      folder: otel-gateway

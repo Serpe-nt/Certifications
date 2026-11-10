@@ -1,0 +1,9 @@
+---
+# Pinned chart of this release, read by the lab_release role and by
+# tests/lab/render.sh. Checked on 2026-11-09 against the chart repository's
+# index.yaml; sources and reasons in lgtm/docs/adr/l3-chart-pins.md.
+repository: https://prometheus-community.github.io/helm-charts
+chart: kube-prometheus-stack
+version: 93.1.1
+# The Prometheus Operator; values.yaml sets Prometheus to v3.13.5 (the LTS line).
+app_version: v0.95.1

@@ -1,0 +1,5 @@
+# kind smoke-test overlay for the shop: nothing changes but the comment. The
+# kind cluster pulls the same public images and uses the same endpoints and
+# routes; the StorageClass comes from lab_storage_class like on the real
+# cluster.
+{}

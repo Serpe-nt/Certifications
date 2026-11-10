@@ -1,0 +1,3 @@
+---
+# How long Helm waits for a release's pods to become ready.
+lab_release_timeout: 15m

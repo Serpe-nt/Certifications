@@ -1,0 +1,63 @@
+# The k8s-monitoring chart (Grafana Alloy) in namespace alloy, full profile
+# for the lab cluster. Chart and versions: VERSION in this folder.
+#
+# Two Alloy collectors, managed by the Alloy Operator the chart installs:
+#   alloy-logs       a DaemonSet that tails every pod's log file on its node
+#                    and sends the lines to Loki, tenant "lab";
+#   alloy-singleton  one replica that watches Kubernetes events and sends them
+#                    to Loki, tenant "lab".
+# Cluster metrics stay off: kube-prometheus-stack already collects them into
+# tenant "prom", and the same series never reach Mimir by two routes. A lesson
+# turns clusterMetrics on.
+#
+# The shop's own services send their logs over OTLP through the collector
+# gateway, so the shop namespace is left out of file-based collection to avoid
+# storing every shop log line twice.
+
+cluster:
+  # Becomes the label cluster="lgtm-lab" on everything Alloy sends.
+  name: lgtm-lab
+
+destinations:
+  loki:
+    type: loki
+    url: http://loki-gateway.loki.svc/loki/api/v1/push
+    tenantId: lab
+
+collectors:
+  alloy-logs:
+    presets: [daemonset, filesystem-log-reader]
+    alloy:
+      resources:
+        requests: { cpu: 50m, memory: 128Mi }
+        limits: { cpu: 500m, memory: 384Mi }
+  alloy-singleton:
+    presets: [singleton]
+    alloy:
+      resources:
+        requests: { cpu: 20m, memory: 96Mi }
+        limits: { cpu: 500m, memory: 256Mi }
+
+podLogsViaLoki:
+  enabled: true
+  collector: alloy-logs
+  destinations: [loki]
+  excludeNamespaces: [shop]
+
+clusterEvents:
+  enabled: true
+  collector: alloy-singleton
+  destinations: [loki]
+
+# Alloy's own usage report goes to a metrics destination; there is none here.
+selfReporting:
+  enabled: false
+
+alloy-operator:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  waitForAlloyRemoval:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { cpu: 200m, memory: 128Mi }

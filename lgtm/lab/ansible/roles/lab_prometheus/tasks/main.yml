@@ -1,0 +1,12 @@
+---
+# Install or upgrade kube-prometheus-stack (Prometheus, Alertmanager, exporters): Helm release kube-prometheus-stack in namespace prom,
+# values from lgtm/lab/helm/kube-prometheus-stack/.
+- name: Install or upgrade kube-prometheus-stack (Prometheus, Alertmanager, exporters)
+  ansible.builtin.import_role:
+    name: lab_release
+  vars:
+    lab_release_spec:
+      name: kube-prometheus-stack
+      namespace: prom
+      folder: kube-prometheus-stack
+      extra_values: "{{ lab_prometheus_values }}"

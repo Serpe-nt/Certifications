@@ -1,0 +1,59 @@
+---
+# Install or upgrade one Helm release of the lab. The lab_<component> roles
+# import this role with lab_release_spec set to:
+#   name       the Helm release name
+#   namespace  the namespace (created when missing)
+#   folder     the folder under lgtm/lab/helm with values.yaml, values-kind.yaml
+#              and VERSION
+#   extra_values  extra values computed by the calling role (storage classes)
+# VERSION says where the chart comes from: a chart repository (repository,
+# chart, version) or a chart in this repository (path, relative to lgtm/lab).
+#
+# With lab_render_dir set, nothing is installed: the release is rendered with
+# the same chart and values into <lab_render_dir>/<name>.yaml (make lab-lint).
+- name: Read the pinned chart of the release
+  ansible.builtin.set_fact:
+    lab_release_pin: "{{ lookup('ansible.builtin.file', lab_release_dir ~ '/VERSION') | from_yaml }}"
+    # values.yaml, then values-kind.yaml for the kind profile, then the values
+    # the calling role computes, merged here into one set of values. Passing
+    # one dictionary (not values_files) lets the helm module compare it with
+    # the installed release and report no change when nothing changed.
+    lab_release_values: >-
+      {{ ([lookup('ansible.builtin.file', lab_release_dir ~ '/values.yaml') | from_yaml]
+          + ([lookup('ansible.builtin.file', lab_release_dir ~ '/values-kind.yaml') | from_yaml] if lab_profile == 'kind' else [])
+          + [lab_release_spec.extra_values | default({})])
+         | select | ansible.builtin.combine(recursive=True) }}
+  vars:
+    lab_release_dir: "{{ lab_dir }}/helm/{{ lab_release_spec.folder }}"
+
+- name: Install or upgrade the release {{ lab_release_spec.name }}
+  kubernetes.core.helm:
+    name: "{{ lab_release_spec.name }}"
+    release_namespace: "{{ lab_release_spec.namespace }}"
+    create_namespace: true
+    chart_ref: "{{ lab_release_pin.chart if lab_release_pin.repository is defined else lab_dir ~ '/' ~ lab_release_pin.path }}"
+    chart_repo_url: "{{ lab_release_pin.repository | default(omit) }}"
+    chart_version: "{{ lab_release_pin.version if lab_release_pin.repository is defined else omit }}"
+    values: "{{ lab_release_values }}"
+    wait: true
+    timeout: "{{ lab_release_timeout }}"
+  when: lab_render_dir is not defined
+
+- name: Render the release {{ lab_release_spec.name }}
+  kubernetes.core.helm_template:
+    binary_path: "{{ lab_bin_dir }}/helm"
+    release_name: "{{ lab_release_spec.name }}"
+    release_namespace: "{{ lab_release_spec.namespace }}"
+    chart_ref: "{{ lab_release_pin.chart if lab_release_pin.repository is defined else lab_dir ~ '/' ~ lab_release_pin.path }}"
+    chart_repo_url: "{{ lab_release_pin.repository | default(omit) }}"
+    chart_version: "{{ lab_release_pin.version if lab_release_pin.repository is defined else omit }}"
+    values: "{{ lab_release_values }}"
+  register: lab_release_rendered
+  when: lab_render_dir is defined
+
+- name: Write the rendered release {{ lab_release_spec.name }}
+  ansible.builtin.copy:
+    content: "{{ lab_release_rendered.stdout }}"
+    dest: "{{ lab_render_dir }}/{{ lab_release_spec.name }}.yaml"
+    mode: "0644"
+  when: lab_render_dir is defined

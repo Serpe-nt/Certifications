@@ -1,0 +1,9 @@
+---
+# Pinned chart of this release, read by the lab_release role and by
+# tests/lab/render.sh. Checked on 2026-11-09 against the chart repository's
+# index.yaml; sources and reasons in lgtm/docs/adr/l3-chart-pins.md.
+repository: https://grafana.github.io/helm-charts
+chart: mimir-distributed
+version: 6.2.2
+# The chart's appVersion is 3.2.3; values.yaml sets the image to 3.2.4.
+app_version: 3.2.4

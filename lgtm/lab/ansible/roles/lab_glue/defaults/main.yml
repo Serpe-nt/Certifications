@@ -1,0 +1,4 @@
+---
+# Values the playbook adds to helm/lab-glue: the lab domain.
+lab_glue_values:
+  domain: "{{ lab_domain }}"

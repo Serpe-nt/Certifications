@@ -1,0 +1,11 @@
+---
+# Install or upgrade k8s-monitoring (Grafana Alloy): Helm release k8s-monitoring in namespace alloy,
+# values from lgtm/lab/helm/k8s-monitoring/.
+- name: Install or upgrade k8s-monitoring (Grafana Alloy)
+  ansible.builtin.import_role:
+    name: lab_release
+  vars:
+    lab_release_spec:
+      name: k8s-monitoring
+      namespace: alloy
+      folder: k8s-monitoring

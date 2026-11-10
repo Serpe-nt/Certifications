@@ -1,0 +1,231 @@
+# The OpenTelemetry Collector gateway `otel-gateway` in namespace otel, full
+# profile for the lab cluster. Chart and versions: VERSION in this folder.
+#
+# The shop sends OTLP to otel-gateway.otel.svc:4317 (gRPC) and :4318 (HTTP).
+# The gateway adds Kubernetes attributes and cluster="lgtm-lab", runs the
+# processors the shop was tested with (span name sanitising, redaction of
+# payment data), and exports, all as tenant "lab":
+#   metrics -> Mimir  (OTLP over HTTP, /otlp)
+#   logs    -> Loki   (OTLP over HTTP, /otlp)
+#   traces  -> Tempo  (OTLP over gRPC, distributor)
+# It also scrapes the shop's PostgreSQL, Valkey, Kafka, NGINX, Envoy and the
+# ad service's Prometheus port (the infrastructure receivers of the upstream
+# demo's collector), and its own metrics.
+#
+# The span-metrics connector of the upstream demo is left out: Tempo's
+# metrics-generator already writes span metrics to Mimir.
+#
+# Component names follow the collector's current spelling (otlp_http,
+# k8s_attributes, kafka_metrics); the chart's own presets use the old names
+# and rewrites them (rewriteDeprecatedComponentNames).
+
+fullnameOverride: otel-gateway
+mode: deployment
+replicaCount: 2
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  # The chart's appVersion is 0.163.2; 0.165.0 is the newest published image.
+  tag: "0.165.0"
+
+presets:
+  # The k8s_attributes processor (pod, namespace, node, deployment) and the
+  # ClusterRole it needs. The same role lets the ad scrape list pods.
+  kubernetesAttributes:
+    enabled: true
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: "1", memory: 512Mi }
+
+# The pod name, to tell the replicas' scrapes apart (see resource/scraper).
+extraEnvs:
+  - name: POD_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.name
+
+ports:
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
+
+config:
+  receivers:
+    # The chart's default Jaeger and Zipkin receivers are not used.
+    jaeger: null
+    zipkin: null
+    otlp:
+      protocols:
+        grpc:
+          endpoint: ${env:MY_POD_IP}:4317
+        http:
+          endpoint: ${env:MY_POD_IP}:4318
+          cors:
+            allowed_origins:
+              - "http://*"
+              - "https://*"
+            allowed_headers:
+              - "content-type"
+              - "traceparent"
+              - "baggage"
+    # The gateway's own metrics (the chart's default self-scrape).
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: otel-gateway
+            scrape_interval: 30s
+            static_configs:
+              - targets:
+                  - ${env:MY_POD_IP}:8888
+    # Infrastructure receivers of the upstream demo, pointed at the shop.
+    postgresql:
+      endpoint: astronomy-db.shop.svc:5432
+      # The demo's monitoring user (pg_monitor role), created by the shop's
+      # init.sql with this fixed demo password.
+      username: monitoring_user
+      password: monitoring_password
+      databases: [astronomy_db]
+      collection_interval: 30s
+      tls:
+        insecure: true
+      metrics:
+        postgresql.blks_hit: { enabled: true }
+        postgresql.blks_read: { enabled: true }
+        postgresql.tup_fetched: { enabled: true }
+        postgresql.tup_returned: { enabled: true }
+        postgresql.tup_inserted: { enabled: true }
+        postgresql.tup_updated: { enabled: true }
+        postgresql.tup_deleted: { enabled: true }
+        postgresql.deadlocks: { enabled: true }
+    redis:
+      endpoint: valkey-cart.shop.svc:6379
+      collection_interval: 30s
+    kafka_metrics:
+      brokers: [kafka.shop.svc:9092]
+      collection_interval: 30s
+      scrapers: [brokers, topics, consumers]
+    nginx:
+      endpoint: http://image-provider.shop.svc:8081/status
+      collection_interval: 30s
+    http_check/frontend-proxy:
+      collection_interval: 30s
+      targets:
+        - endpoint: http://frontend-proxy.shop.svc:8080
+    prometheus/ad:
+      config:
+        scrape_configs:
+          - job_name: ad
+            scrape_interval: 30s
+            kubernetes_sd_configs:
+              - role: pod
+                namespaces:
+                  names: [shop]
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+                regex: ad
+                action: keep
+              - source_labels: [__meta_kubernetes_pod_ip]
+                replacement: $$1:9465
+                target_label: __address__
+
+  processors:
+    # Fixed limits under the 512 MiB container limit. The percentage form
+    # fails on Docker Desktop with WSL 2 (opentelemetry-demo issue 4061),
+    # where the kind test runs.
+    memory_limiter:
+      check_interval: 5s
+      limit_mib: 400
+      spike_limit_mib: 100
+    batch: {}
+    # Every signal carries cluster="lgtm-lab" (lab contract).
+    resource/cluster:
+      attributes:
+        - key: cluster
+          value: lgtm-lab
+          action: upsert
+        - key: k8s.cluster.name
+          value: lgtm-lab
+          action: upsert
+    # Each replica scrapes the same targets; the scraping pod becomes the
+    # instance label, so the two copies of a series stay apart.
+    resource/scraper:
+      attributes:
+        - key: service.instance.id
+          value: ${env:POD_NAME}
+          action: upsert
+        - key: service.name
+          value: otel-gateway
+          action: insert
+    # The demo's processors, as in lgtm/lab/demo/src/otel-collector/otelcol-config.yml.
+    transform/sanitize_logs:
+      error_mode: ignore
+      log_statements:
+        - context: scope
+          statements:
+            - set(attributes["otelcol_signal"], attributes["otelcol.signal"]) where attributes["otelcol.signal"] != nil and not IsMap(attributes["otelcol.signal"])
+            - delete_key(attributes, "otelcol.signal") where attributes["otelcol_signal"] != nil
+    transform/sanitize_spans:
+      error_mode: ignore
+      trace_statements:
+        - context: span
+          statements:
+            - set_semconv_span_name("1.43.0", "original_span_name")
+    transform/redact_sensitive_data:
+      error_mode: ignore
+      trace_statements:
+        - context: span
+          statements:
+            - delete_key(attributes, "demo.payment.card_cvv") where attributes["demo.payment.card_cvv"] != nil
+            - set(attributes["user.hash"], SHA256(attributes["user.email"])) where attributes["user.email"] != nil
+            - delete_key(attributes, "user.email") where attributes["user.email"] != nil
+            - replace_pattern(attributes["demo.payment.card_number"], "^\\d{4}-\\d{4}-\\d{4}-", "****-****-****-") where attributes["demo.payment.card_number"] != nil
+    redaction:
+      allow_all_keys: true
+      ignored_keys:
+        - demo.payment.card_number
+      blocked_key_patterns:
+        - "demo\\.payment\\.card_pin"
+        - "password"
+        - "secret"
+      summary: info
+
+  exporters:
+    otlp_http/mimir:
+      endpoint: http://mimir-gateway.mimir.svc/otlp
+      headers:
+        X-Scope-OrgID: lab
+    otlp_http/loki:
+      endpoint: http://loki-gateway.loki.svc/otlp
+      headers:
+        X-Scope-OrgID: lab
+    otlp_grpc/tempo:
+      endpoint: tempo-distributor.tempo.svc:4317
+      tls:
+        insecure: true
+      headers:
+        X-Scope-OrgID: lab
+
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, k8s_attributes, resource/cluster, transform/sanitize_spans, transform/redact_sensitive_data, redaction, batch]
+        exporters: [otlp_grpc/tempo]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, k8s_attributes, resource/cluster, batch]
+        exporters: [otlp_http/mimir]
+      metrics/scraper:
+        receivers: [prometheus, postgresql, redis, kafka_metrics, nginx, http_check/frontend-proxy, prometheus/ad]
+        processors: [memory_limiter, resource/scraper, resource/cluster, batch]
+        exporters: [otlp_http/mimir]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, k8s_attributes, resource/cluster, transform/sanitize_logs, batch]
+        exporters: [otlp_http/loki]

@@ -1,0 +1,106 @@
+# kube-prometheus-stack in namespace prom, full profile for the lab cluster:
+# the Prometheus Operator, one Prometheus, one Alertmanager, node exporter,
+# kube-state-metrics and the default recording and alerting rules. Chart and
+# versions: VERSION in this folder.
+#
+# Prometheus keeps one day locally and remote-writes everything to Mimir as
+# tenant "prom" (lab contract). Its own Grafana is off: the lab's Grafana
+# reads this Prometheus (UID prometheus) and Alertmanager (UID alertmanager).
+#
+# The role lab_prometheus adds the StorageClass of the Prometheus volume
+# (lab_storage_class).
+
+# Short names: prom-prometheus.prom.svc:9090, prom-alertmanager.prom.svc:9093.
+fullnameOverride: prom
+
+grafana:
+  enabled: false
+  # The chart still ships its dashboards as ConfigMaps for the lab's Grafana
+  # to pick up (label grafana_dashboard="1", folder "Kubernetes").
+  forceDeployDashboards: true
+  sidecar:
+    dashboards:
+      label: grafana_dashboard
+      labelValue: "1"
+      annotations:
+        grafana_folder: Kubernetes
+
+# kubeadm binds the controller manager, the scheduler, etcd and kube-proxy
+# metrics to localhost, so Prometheus cannot reach them. A lesson opens them
+# and turns these on.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    image:
+      # Prometheus 3.13 is the long-term support line (supported until
+      # 2027-07-31); the chart's default is 3.16.
+      tag: v3.13.5-distroless
+    # Every signal carries cluster="lgtm-lab" (lab contract).
+    externalLabels:
+      cluster: lgtm-lab
+    retention: 1d
+    retentionSize: 3GB
+    # Select every ServiceMonitor, PodMonitor, Probe and rule in the cluster,
+    # not only those of this release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    # Scrape classic and native histograms (stable since Prometheus 3.8).
+    scrapeClassicHistograms: true
+    remoteWrite:
+      - name: mimir
+        url: http://mimir-gateway.mimir.svc/api/v1/push
+        headers:
+          X-Scope-OrgID: prom
+        sendExemplars: true
+        sendNativeHistograms: true
+    resources:
+      requests: { cpu: 200m, memory: 768Mi }
+      limits: { cpu: "2", memory: 1536Mi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 4Gi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 20m, memory: 64Mi }
+      limits: { cpu: 500m, memory: 128Mi }
+
+prometheusOperator:
+  resources:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  prometheusConfigReloader:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { cpu: 200m, memory: 64Mi }
+  admissionWebhooks:
+    patch:
+      resources:
+        requests: { cpu: 10m, memory: 32Mi }
+        limits: { cpu: 200m, memory: 128Mi }
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 192Mi }
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+    limits: { cpu: 500m, memory: 64Mi }

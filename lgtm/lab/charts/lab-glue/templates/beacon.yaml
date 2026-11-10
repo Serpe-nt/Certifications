@@ -1,0 +1,44 @@
+{{- /*
+The check-token beacon (lab contract, "Check tokens"): service name beacon,
+namespace lab-tools, reading the lab seed from Secret lab-tools/lab-seed and
+sending OTLP to the collector gateway. Off until card D2 publishes the image;
+D2 may change this template.
+*/ -}}
+{{- if .Values.beacon.enabled }}
+{{- $b := .Values.beacon }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beacon
+  namespace: {{ $b.namespace }}
+  labels:
+    {{- include "lab-glue.labels" . | nindent 4 }}
+    app.kubernetes.io/component: beacon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lab-glue
+      app.kubernetes.io/component: beacon
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lab-glue
+        app.kubernetes.io/component: beacon
+    spec:
+      containers:
+        - name: beacon
+          image: {{ printf "%s:%s" $b.image (required "beacon.tag is required when the beacon is enabled" $b.tag) }}
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: beacon
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ $b.otlpEndpoint | quote }}
+            - name: LAB_SEED
+              valueFrom:
+                secretKeyRef:
+                  name: lab-seed
+                  key: seed
+          resources:
+            {{- toYaml $b.resources | nindent 12 }}
+{{- end }}
