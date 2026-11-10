@@ -78,7 +78,42 @@
   gather_facts: false
   vars:
     cluster_check_kubeconfig: "{{ lookup('ansible.builtin.env', 'HOME') }}/.kube/{{ lab_cluster_name | default('lgtm-lab') }}.config"
+    cluster_check_lb_address: "{{ hostvars[groups['load_balancer'][0]].k8s_net_ip }}"
   tasks:
+    - name: Read the API server address from the lab kubeconfig
+      ansible.builtin.command:
+        cmd: "kubectl --kubeconfig {{ cluster_check_kubeconfig }} config view --minify -o jsonpath={.clusters[0].cluster.server}"
+      register: cluster_check_server
+      changed_when: false
+
+    # An older cluster may have used the same endpoint name, and a hand-kept /etc/hosts on the
+    # control machine then sends kubectl there. Resolve the name the way kubectl will.
+    - name: Resolve the API server name on the control machine
+      ansible.builtin.command:
+        cmd: "getent ahostsv4 {{ cluster_check_server_host }}"
+      register: cluster_check_getent
+      changed_when: false
+      failed_when: false
+      when: cluster_check_server_host is not match('^[0-9.]+$')
+      vars:
+        cluster_check_server_host: "{{ cluster_check_server.stdout | ansible.builtin.urlsplit('hostname') }}"
+
+    - name: Check that the API server name points at the load balancer
+      ansible.builtin.assert:
+        that:
+          - cluster_check_resolved == [cluster_check_lb_address]
+        fail_msg: >-
+          {{ cluster_check_server_host }} resolves to {{ cluster_check_resolved | join(', ') if cluster_check_resolved else 'nothing' }}
+          on this machine, not to the load balancer {{ cluster_check_lb_address }}.
+          Look at /etc/hosts on the control machine: an older cluster may use the same name.
+          Either correct that entry, or write the address into the kubeconfig with
+          make cluster ANSIBLE_ARGS="-e kubeconfig_fetch_server=https://{{ cluster_check_lb_address }}:6443".
+        success_msg: "{{ cluster_check_server_host }} resolves to the load balancer {{ cluster_check_lb_address }}"
+      when: cluster_check_getent is not skipped
+      vars:
+        cluster_check_server_host: "{{ cluster_check_server.stdout | ansible.builtin.urlsplit('hostname') }}"
+        cluster_check_resolved: "{{ cluster_check_getent.stdout_lines | map('split') | map('first') | unique | list }}"
+
     - name: Ask the API server through the load balancer
       ansible.builtin.command:
         cmd: "kubectl --kubeconfig {{ cluster_check_kubeconfig }} get --raw /readyz"

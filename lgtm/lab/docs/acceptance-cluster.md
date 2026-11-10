@@ -37,7 +37,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 plan -Configur
 
 - [ ] Expect: "Plan for the LGTM lab", the switch, address and NAT steps, the name resolution rule
   for `.k8s.local`, the image URL with its SHA-256, and a table of 8 VMs: lb 10.10.0.5, master1 to
-  master3 10.10.0.11 to .13, worker1 to worker4 10.10.0.30 to .33. "Total: 31 vCPU, 46 GB memory".
+  master3 10.10.0.11 to .13, worker1 to worker4 10.10.0.30 to .33. "Total: 32 vCPU, 40 GB memory".
 - [ ] Under "Checks": the key is `found`, the Hyper-V module is `installed`, qemu-img is found (in
   the Image section), no WARNING about host addresses, memory or free space.
 - Undo: nothing to undo.
