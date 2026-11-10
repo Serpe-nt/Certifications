@@ -1,8 +1,12 @@
 ---
+# The first apt task on a cluster node: a fresh cloud image may have no package lists yet,
+# so the cache is refreshed here (at most once an hour, so a re-run reports no change).
 - name: Install Containerd
   ansible.builtin.apt:
     package: containerd
     state: present
+    update_cache: true
+    cache_valid_time: 3600
 
 - name: Create config dir
   ansible.builtin.file:
