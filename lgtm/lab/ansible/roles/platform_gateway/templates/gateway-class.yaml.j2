@@ -38,6 +38,18 @@ spec:
         container:
           image: {{ platform_images.envoy_proxy }}
           resources: {{ platform_gateway_proxy_resources | to_json }}
+        pod:
+          # The proxy pods on different workers where possible.
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    topologyKey: kubernetes.io/hostname
+                    labelSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: envoy
+                        gateway.envoyproxy.io/owning-gateway-name: {{ platform_gateway_name }}
       envoyService:
         type: NodePort
         externalTrafficPolicy: Cluster

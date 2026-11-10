@@ -26,6 +26,19 @@ spec:
   jvmOptions:
     "-Xms": {{ platform_kafka_settings.jvm_heap }}
     "-Xmx": {{ platform_kafka_settings.jvm_heap }}
+  template:
+    pod:
+      # One Kafka node per worker where possible, so one worker down costs one node.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    strimzi.io/cluster: {{ platform_kafka_cluster }}
+                    strimzi.io/pool-name: dual-role
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: Kafka

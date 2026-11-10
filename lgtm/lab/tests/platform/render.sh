@@ -80,7 +80,8 @@ check() { # key release namespace profile values-args...
   images="$(grep -E '^\s+(- )?image: ' "$file" | sed -E 's/.*image: *//; s/["'\'']//g' | grep -E '[:/]' | normalize)"
   unknown="$(comm -23 <(echo "$images") <(echo "$allowed"))"
   if [ -n "$unknown" ]; then
-    echo "FAIL images not pinned in versions.yml:"; echo "$unknown" | sed 's/^/  /'
+    echo "FAIL images not pinned in versions.yml:"; printf '%s
+' "$unknown" | awk '{print "  " $0}'
     failures=$((failures + 1))
   else
     echo "images: $(echo "$images" | tr '\n' ' ')"

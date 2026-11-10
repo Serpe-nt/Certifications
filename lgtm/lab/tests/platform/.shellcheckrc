@@ -1,0 +1,4 @@
+# shellcheck settings for the platform test scripts (card L2).
+# SC2015: `test && pass || fail` is safe in smoke.sh because pass and fail always return 0.
+# SC2016: Go templates, jsonpath and kubeconform's schema location are single-quoted on purpose.
+disable=SC2015,SC2016

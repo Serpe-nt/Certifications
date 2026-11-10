@@ -90,7 +90,59 @@ These names are the "Platform interfaces" of `lgtm/docs/plan/02-lab-contract.md`
 
 ## Resource budget
 
-BUDGET_TABLE
+Every container has CPU and memory requests and limits. The values set them for each add-on;
+a LimitRange `platform-defaults` in `cert-manager`, `gateway`, `s3` and `kafka` gives any
+container that has none (init containers, jobs) 50m/64Mi requested and 500m/256Mi as limit.
+The smoke test fails if a container in those namespaces, or metrics-server, lacks either.
+Longhorn is the exception: it creates its CSI, engine-image and instance-manager pods itself,
+and only reserves CPU for the instance managers; `make platform-check` lists those containers.
+
+Real cluster (profile `full`), what Kubernetes reserves (requests) and the most each may take
+(limits):
+
+| Component | Pods | Request per pod (CPU, memory) | Limit per pod (CPU, memory) | Requests in total | Limits in total |
+|---|---|---|---|---|---|
+| metrics-server | 1 | 50m, 64Mi | 500m, 192Mi | 50m, 64Mi | 500m, 192Mi |
+| cert-manager controller, cainjector, webhook | 3 | 20m/10m/10m, 64Mi/64Mi/32Mi | 500m/200m/200m, 192Mi/192Mi/96Mi | 40m, 160Mi | 900m, 480Mi |
+| Envoy Gateway controller | 1 | 50m, 128Mi | 500m, 384Mi | 50m, 128Mi | 500m, 384Mi |
+| Envoy proxy (envoy and shutdown-manager) | 2 | 110m, 160Mi | 1500m, 768Mi | 220m, 320Mi | 3000m, 1536Mi |
+| RustFS | 1 | 100m, 256Mi | 1, 1Gi | 100m, 256Mi | 1, 1Gi |
+| Strimzi operator | 1 | 100m, 384Mi | 1, 384Mi | 100m, 384Mi | 1, 384Mi |
+| Kafka `telemetry` (dual-role nodes) | 3 | 200m, 1Gi | 1, 1536Mi | 600m, 3Gi | 3, 4.5Gi |
+| Kafka entity operator (topic and user operators) | 1 | 100m, 384Mi | 1, 768Mi | 100m, 384Mi | 1, 768Mi |
+| Longhorn manager (one per worker) | 4 | 50m, 128Mi | 1, 512Mi | 200m, 512Mi | 4, 2Gi |
+| Longhorn global manager | 2 | 20m, 64Mi | 500m, 256Mi | 40m, 128Mi | 1, 512Mi |
+| Longhorn UI | 1 | 10m, 32Mi | 200m, 128Mi | 10m, 32Mi | 200m, 128Mi |
+| Longhorn instance managers (one per worker) | 4 | 300m (5% of 6 vCPU), memory not set | not set | 1200m | not set |
+| Longhorn CSI sidecars (4 kinds, 2 each), CSI plugin and engine image (one per worker), driver deployer | 17 | not set by the chart | not set | measure | measure |
+| **Total (set values)** | | | | **2710m, 5.3 GiB** | **16.1 CPU, 11.8 GiB** |
+
+Per node: the control-plane nodes run none of this (they keep kubeadm's taint). The four
+workers (6 vCPU, 9 GiB each, 36 GiB together) carry it all. The Longhorn manager and instance
+manager run on every worker (350m and 128Mi requested each); the rest is spread by the
+scheduler, with the three Kafka nodes and the two proxies on different workers where possible.
+On average one worker reserves about 680m CPU and 1.3 GiB for the platform, 15% of its memory,
+before the LGTM stack. The limits add up to more than the requests on purpose; they cap a
+runaway pod.
+
+Measured on the kind cluster with `kubectl top pods` after the smoke test (idle, profile
+`kind`): Kafka node 425Mi, Kafka entity operator 294Mi, Strimzi operator 247Mi, RustFS 64Mi,
+Envoy Gateway controller and proxy 35Mi each, cert-manager 25Mi + 31Mi + 13Mi, metrics-server
+26Mi. About 1.2 GiB in total, so the requests above leave room for load.
+
+On the real cluster, measure the Longhorn pods that the chart does not size after the first
+run, and add them here:
+
+```bash
+kubectl top pods -n longhorn-system --sum
+```
+
+Disk: Longhorn keeps two copies of each volume. The platform asks for RustFS 25 GiB and Kafka
+3 x 5 GiB, so up to 80 GiB of the four 40 GiB Longhorn disks (160 GiB) once they fill. They are
+dynamic VHDX files, so the PC's drive only pays for what is written.
+
+The kind profile reserves less: one Kafka node (100m, 768Mi), one proxy, RustFS 50m/128Mi,
+no Longhorn; about 600m CPU and 2.1 GiB in requests.
 
 ## Checks on the real cluster
 
