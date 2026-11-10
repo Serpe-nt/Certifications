@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: lab_tempo
+  namespace: lgtm_lab
+  author: LGTM lab (card L3)
+  description: "Installs Tempo 3 in microservices mode with the metrics-generator"
+  license: MIT-0
+  min_ansible_version: "2.17"
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+dependencies: []

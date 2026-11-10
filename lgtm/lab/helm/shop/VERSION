@@ -1,0 +1,9 @@
+---
+# Pinned chart of this release, read by the lab_release role and by
+# tests/lab/render.sh. Checked on 2026-11-09 against the chart's own
+# Chart.yaml; sources and reasons in lgtm/docs/adr/l3-chart-pins.md.
+# A chart in this repository (lgtm/lab/demo/chart, card D1), not a chart repository.
+path: demo/chart
+chart: shop
+version: 0.1.0
+app_version: 3.1.0-lab.1

@@ -1,0 +1,86 @@
+{
+  "title": "Collector gateway (otel-gateway)",
+  "uid": "lab-otel-gateway",
+  "description": "What the OpenTelemetry Collector gateway receives, refuses, sends and fails to send, from its own metrics (Mimir, tenant lab).",
+  "tags": ["collector", "lab"],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "refresh": "30s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Accepted by the receivers (items per second)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (receiver) (rate(otelcol_receiver_accepted_spans_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "spans {{receiver}}" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (receiver) (rate(otelcol_receiver_accepted_metric_points_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "metric points {{receiver}}" },
+        { "refId": "C", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (receiver) (rate(otelcol_receiver_accepted_log_records_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "log records {{receiver}}" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Refused by the receivers (memory limiter)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum(rate(otelcol_receiver_refused_spans_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "spans" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum(rate(otelcol_receiver_refused_metric_points_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "metric points" },
+        { "refId": "C", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum(rate(otelcol_receiver_refused_log_records_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "log records" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Sent by the exporters (items per second)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (exporter) (rate(otelcol_exporter_sent_spans_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "spans {{exporter}}" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (exporter) (rate(otelcol_exporter_sent_metric_points_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "metric points {{exporter}}" },
+        { "refId": "C", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (exporter) (rate(otelcol_exporter_sent_log_records_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "log records {{exporter}}" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Failed to send (items per second)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (exporter) (rate(otelcol_exporter_send_failed_spans_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "spans {{exporter}}" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (exporter) (rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "metric points {{exporter}}" },
+        { "refId": "C", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (exporter) (rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-gateway\"}[$__rate_interval]))", "legendFormat": "log records {{exporter}}" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Exporter queue (items waiting)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "sum by (exporter) (otelcol_exporter_queue_size{job=\"otel-gateway\"})", "legendFormat": "{{exporter}}" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Memory per replica (resident set)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "mimir" }, "expr": "max by (instance) (otelcol_process_memory_rss_bytes{job=\"otel-gateway\"})", "legendFormat": "{{instance}}" }
+      ]
+    }
+  ]
+}

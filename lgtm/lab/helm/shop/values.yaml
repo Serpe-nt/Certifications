@@ -1,0 +1,18 @@
+# The shop (the trimmed OpenTelemetry Demo, chart lgtm/lab/demo/chart) as the
+# lab installs it: images from GHCR, OTLP to the collector gateway, routes on
+# the platform's Gateway for shop, flags and loadgen. Chart and versions:
+# VERSION in this folder. The role lab_shop adds the StorageClass of the
+# Kafka, PostgreSQL and Valkey volumes (lab_storage_class).
+image:
+  registry: ghcr.io/serpe-nt
+  repository: lgtm-demo
+  # Empty means the chart's appVersion (lgtm/lab/demo/VERSION).
+  tag: ""
+otlp:
+  endpoint: http://otel-gateway.otel.svc:4317
+  httpEndpoint: http://otel-gateway.otel.svc:4318
+gateway:
+  enabled: true
+  name: lab
+  namespace: gateway
+  domain: lab.k8s.local

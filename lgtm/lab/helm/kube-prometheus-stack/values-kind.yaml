@@ -1,0 +1,16 @@
+# kind smoke-test overlay for the Prometheus stack: a smaller Prometheus. The
+# remote write to Mimir (tenant prom), the selectors and the labels are those
+# of values.yaml.
+prometheus:
+  prometheusSpec:
+    retentionSize: 1GB
+    resources:
+      requests: { cpu: 100m, memory: 384Mi }
+      limits: { cpu: "1", memory: 1Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 2Gi

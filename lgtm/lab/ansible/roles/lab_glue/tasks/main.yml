@@ -1,0 +1,12 @@
+---
+# Install or upgrade lab-glue (routes, dashboards, beacon switch): Helm release lab-glue in namespace lab-tools,
+# values from lgtm/lab/helm/lab-glue/.
+- name: Install or upgrade lab-glue (routes, dashboards, beacon switch)
+  ansible.builtin.import_role:
+    name: lab_release
+  vars:
+    lab_release_spec:
+      name: lab-glue
+      namespace: lab-tools
+      folder: lab-glue
+      extra_values: "{{ lab_glue_values }}"

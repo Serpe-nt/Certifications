@@ -1,0 +1,155 @@
+# Tempo 3 in microservices mode, full profile for the lab cluster. Chart and
+# versions: VERSION in this folder.
+#
+# Write path: distributor (OTLP in) -> Kafka topic tempo-traces on the
+# platform's telemetry Kafka -> block-builders write blocks to the S3 store,
+# live-stores serve the last minutes. Read path: query-frontend -> queriers.
+# The backend-scheduler and backend-workers compact blocks and apply the
+# 48-hour retention (Tempo 3 has no ingester and no compactor). The
+# metrics-generator reads spans and writes span metrics and service graphs to
+# Mimir, tenant "lab".
+#
+# The role lab_tempo adds the StorageClass of every volume (lab_storage_class).
+# values-kind.yaml shrinks this for the kind smoke test; the wiring stays.
+
+# Short Service names: tempo-distributor.tempo.svc, tempo-query-frontend, ...
+fullnameOverride: tempo
+
+# Tenants come from the X-Scope-OrgID header ("lab").
+multitenancyEnabled: true
+
+defaults:
+  # The platform's S3 keys (Secret lab-s3), read into the configuration.
+  extraArgs:
+    - -config.expand-env=true
+  extraEnv:
+    - name: LAB_S3_ENDPOINT
+      valueFrom: { secretKeyRef: { name: lab-s3, key: endpoint } }
+    - name: LAB_S3_REGION
+      valueFrom: { secretKeyRef: { name: lab-s3, key: region } }
+    - name: LAB_S3_ACCESS_KEY
+      valueFrom: { secretKeyRef: { name: lab-s3, key: access_key } }
+    - name: LAB_S3_SECRET_KEY
+      valueFrom: { secretKeyRef: { name: lab-s3, key: secret_key } }
+
+storage:
+  trace:
+    backend: s3
+    s3:
+      bucket: tempo-traces
+      endpoint: ${LAB_S3_ENDPOINT}
+      region: ${LAB_S3_REGION}
+      access_key: ${LAB_S3_ACCESS_KEY}
+      secret_key: ${LAB_S3_SECRET_KEY}
+      insecure: true
+      forcepathstyle: true
+
+ingest:
+  kafka:
+    # The platform's Kafka (lab contract, "Platform interfaces").
+    address: telemetry-kafka-bootstrap.kafka.svc:9092
+    topic: tempo-traces
+    auto_create_topic_enabled: true
+    # Must equal the block-builder and live-store replica counts.
+    auto_create_topic_default_partitions: 2
+
+# OTLP in, gRPC (4317) and HTTP (4318), on the distributor.
+traces:
+  otlp:
+    grpc:
+      enabled: true
+    http:
+      enabled: true
+
+distributor:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: "1", memory: 512Mi }
+
+blockBuilder:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: "1", memory: 768Mi }
+
+liveStore:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: "1", memory: 768Mi }
+
+querier:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 192Mi }
+    limits: { cpu: "1", memory: 768Mi }
+
+queryFrontend:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: "1", memory: 384Mi }
+
+backendScheduler:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  config:
+    provider:
+      compaction:
+        compaction:
+          # Traces retention of the lab contract.
+          block_retention: 48h
+
+backendWorker:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: "1", memory: 512Mi }
+
+metricsGenerator:
+  enabled: true
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 192Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  config:
+    registry:
+      external_labels:
+        # Every signal carries cluster="lgtm-lab" (lab contract).
+        cluster: lgtm-lab
+        source: tempo
+    processor:
+      span_metrics:
+        # Kept as labels on the span metrics, for the RED dashboards.
+        dimensions: [service.namespace]
+        # Tempo names the service label "service"; the lab contract wants
+        # service.name as service_name everywhere, so it is added as well.
+        dimension_mappings:
+          - name: service_name
+            source_labels: [service.name]
+            join: ""
+    storage:
+      # The X-Scope-OrgID header carries the span's own tenant ("lab").
+      remote_write_add_org_id_header: true
+      remote_write:
+        - url: http://mimir-gateway.mimir.svc/api/v1/push
+          send_exemplars: true
+
+# Which metrics-generator processors run, for every tenant.
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics]
+
+memcached:
+  replicas: 1
+  allocatedMemory: 128
+  resources:
+    requests: { cpu: 20m, memory: 160Mi }
+    limits: { cpu: 500m, memory: 192Mi }
+
+# The query-frontend serves Grafana directly; the nginx gateway stays off.
+gateway:
+  enabled: false

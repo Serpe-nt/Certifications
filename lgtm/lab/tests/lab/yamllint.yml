@@ -1,0 +1,25 @@
+---
+# yamllint settings for the LGTM release values (helm/), the lab-glue chart
+# and these tests (make lab-lint). The same rules as ansible/.yamllint, but
+# Helm templates are skipped: they are Go templates, not YAML.
+extends: default
+ignore: |
+  **/templates/
+  # Card L2's platform values are linted by make platform-lint.
+  helm/platform/
+rules:
+  # Helm values files conventionally start without a document marker.
+  document-start: disable
+  line-length:
+    max: 200
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false

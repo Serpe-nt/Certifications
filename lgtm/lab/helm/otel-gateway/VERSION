@@ -1,0 +1,9 @@
+---
+# Pinned chart of this release, read by the lab_release role and by
+# tests/lab/render.sh. Checked on 2026-11-09 against the chart repository's
+# index.yaml; sources and reasons in lgtm/docs/adr/l3-chart-pins.md.
+repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+chart: opentelemetry-collector
+version: 0.178.2
+# The chart's appVersion is 0.163.2; values.yaml sets the contrib image to 0.165.0.
+app_version: 0.165.0

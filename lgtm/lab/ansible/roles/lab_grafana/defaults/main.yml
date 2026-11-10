@@ -1,0 +1,5 @@
+---
+# Values the playbook adds to helm/grafana: the StorageClass of Grafana's volume.
+lab_grafana_values:
+  persistence:
+    storageClassName: "{{ lab_storage_class }}"

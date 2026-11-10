@@ -1,0 +1,12 @@
+---
+# Install or upgrade Mimir: Helm release mimir in namespace mimir,
+# values from lgtm/lab/helm/mimir/.
+- name: Install or upgrade Mimir
+  ansible.builtin.import_role:
+    name: lab_release
+  vars:
+    lab_release_spec:
+      name: mimir
+      namespace: mimir
+      folder: mimir
+      extra_values: "{{ lab_mimir_values }}"

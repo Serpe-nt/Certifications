@@ -1,0 +1,8 @@
+# kind smoke-test overlay for Grafana. The data sources, UIDs and links are
+# those of values.yaml; only the root URL follows the kind cluster's host port.
+grafana.ini:
+  server:
+    root_url: http://grafana.lab.k8s.local:28080
+resources:
+  requests: { cpu: 20m, memory: 128Mi }
+  limits: { cpu: "1", memory: 384Mi }

@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: lab_shop
+  namespace: lgtm_lab
+  author: LGTM lab (card L3)
+  description: "Installs the shop (trimmed OpenTelemetry Demo)"
+  license: MIT-0
+  min_ansible_version: "2.17"
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+dependencies: []

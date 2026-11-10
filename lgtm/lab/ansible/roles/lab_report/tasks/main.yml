@@ -1,0 +1,40 @@
+---
+# End of the run: the addresses, the lab seed, and where the Grafana password
+# is. The password itself is printed only by the run that created it.
+- name: Read the lab seed
+  ansible.builtin.command:
+    cmd: "{{ lab_kubectl }} -n lab-tools get secret lab-seed -o jsonpath={.data.seed}"
+  register: lab_report_seed
+  changed_when: false
+
+- name: Read the Grafana password once, on the run that created it
+  ansible.builtin.command:
+    cmd: "{{ lab_kubectl }} -n grafana get secret grafana-admin -o jsonpath={.data.admin-password}"
+  register: lab_report_password
+  changed_when: false
+  no_log: true
+  when: lab_secrets_password_created | default(false) | bool
+
+- name: Print the addresses, the seed and the password location
+  ansible.builtin.debug:
+    msg: "{{ lab_report_lines + lab_report_password_line }}"
+  vars:
+    lab_report_port: "{{ ':' ~ lab_http_port if lab_http_port | string != '80' else '' }}"
+    lab_report_lines:
+      - "Grafana       http://grafana.{{ lab_domain }}{{ lab_report_port }}  (user {{ lab_grafana_admin_user }})"
+      - "Shop          http://shop.{{ lab_domain }}{{ lab_report_port }}"
+      - "Flag screen   http://flags.{{ lab_domain }}{{ lab_report_port }}"
+      - "Load gen.     http://loadgen.{{ lab_domain }}{{ lab_report_port }}"
+      - "Prometheus    http://prometheus.{{ lab_domain }}{{ lab_report_port }}"
+      - "Alertmanager  http://alertmanager.{{ lab_domain }}{{ lab_report_port }}"
+      - "Mimir         http://mimir.{{ lab_domain }}{{ lab_report_port }}  (header X-Scope-OrgID: lab or prom)"
+      - "Loki          http://loki.{{ lab_domain }}{{ lab_report_port }}  (header X-Scope-OrgID: lab)"
+      - "Tempo         http://tempo.{{ lab_domain }}{{ lab_report_port }}  (header X-Scope-OrgID: lab)"
+      - "Alloy         http://alloy.{{ lab_domain }}{{ lab_report_port }}"
+      - "OTLP (HTTP)   http://otlp.{{ lab_domain }}{{ lab_report_port }}"
+      - "Lab seed      {{ lab_report_seed.stdout | b64decode }}  (enter it once in the site settings)"
+      - "Grafana password: Secret grafana/grafana-admin, key admin-password. Show it with"
+      - "  kubectl --kubeconfig {{ lab_kubeconfig }} -n grafana get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d"
+    lab_report_password_line: >-
+      {{ ['Grafana password (printed once, on this first run): ' ~ (lab_report_password.stdout | b64decode)]
+         if (lab_secrets_password_created | default(false) | bool) else [] }}

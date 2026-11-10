@@ -1,0 +1,54 @@
+# kind smoke-test overlay for Loki: one replica of each component, replication
+# factor 1, small volumes (the ingester and compactor sizes are in role
+# lab_loki). Endpoints, tenant, schema and buckets are those of values.yaml.
+#
+# The chart keeps replicas of a component on different nodes. kind has one
+# node, so a rolling update would wait forever for the new pod; "affinity:
+# null" drops the rule.
+loki:
+  commonConfig:
+    replication_factor: 1
+ingester:
+  affinity: null
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 192Mi }
+    limits: { cpu: "1", memory: 512Mi }
+distributor:
+  affinity: null
+  replicas: 1
+  resources:
+    requests: { cpu: 20m, memory: 96Mi }
+    limits: { cpu: "1", memory: 256Mi }
+querier:
+  affinity: null
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: "1", memory: 512Mi }
+indexGateway:
+  affinity: null
+  persistence:
+    size: 1Gi
+compactor:
+  affinity: null
+ruler:
+  affinity: null
+  persistence:
+    size: 1Gi
+resultsCache:
+  allocatedMemory: 64
+  resources:
+    requests: { cpu: 10m, memory: 96Mi }
+    limits: { cpu: 500m, memory: 96Mi }
+chunksCache:
+  allocatedMemory: 128
+  resources:
+    requests: { cpu: 10m, memory: 160Mi }
+    limits: { cpu: 500m, memory: 192Mi }
+gateway:
+  affinity: null
+queryFrontend:
+  affinity: null
+queryScheduler:
+  affinity: null

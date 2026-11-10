@@ -1,0 +1,88 @@
+# Stand-in for the platform's S3 store (card L2 runs RustFS on the real
+# cluster). One RustFS pod without persistence and the buckets of the lab
+# contract. The root keys come from Secret s3/s3-root, which kind-up.sh creates
+# with random values and copies into the lab-s3 Secret of mimir, loki and tempo.
+apiVersion: v1
+kind: Service
+metadata:
+  name: s3
+  namespace: s3
+spec:
+  selector:
+    app: s3
+  ports:
+    - name: http
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3
+  namespace: s3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: s3
+  template:
+    metadata:
+      labels:
+        app: s3
+    spec:
+      containers:
+        - name: rustfs
+          image: docker.io/rustfs/rustfs:1.0.4
+          ports:
+            - containerPort: 9000
+          env:
+            - { name: RUSTFS_ADDRESS, value: "0.0.0.0:9000" }
+            - { name: RUSTFS_VOLUMES, value: "/data" }
+            - { name: RUSTFS_CONSOLE_ENABLE, value: "false" }
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: s3-root, key: access_key } }
+            - name: RUSTFS_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: s3-root, key: secret_key } }
+          readinessProbe:
+            tcpSocket: { port: 9000 }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: s3-buckets
+  namespace: s3
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: buckets
+          image: docker.io/amazon/aws-cli:2.39.7
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              for b in mimir-blocks mimir-ruler mimir-alertmanager loki-chunks loki-ruler tempo-traces; do
+                aws --endpoint-url http://s3.s3.svc:9000 s3api head-bucket --bucket "$b" 2>/dev/null \
+                  || aws --endpoint-url http://s3.s3.svc:9000 s3 mb "s3://$b"
+              done
+          env:
+            - { name: AWS_DEFAULT_REGION, value: us-east-1 }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: s3-root, key: access_key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: s3-root, key: secret_key } }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }

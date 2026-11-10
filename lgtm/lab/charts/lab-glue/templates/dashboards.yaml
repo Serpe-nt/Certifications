@@ -1,0 +1,39 @@
+{{- /*
+Dashboards for the lab's Grafana, as ConfigMaps its sidecar picks up.
+The JSON files are read as plain files (not templates), because Grafana
+legends use the same {{ }} braces as Helm. The per-service dashboard is one
+file with the placeholder __SERVICE__.
+*/ -}}
+{{- $root := . -}}
+{{- $d := .Values.dashboards -}}
+{{- $red := .Files.Get "dashboards/shop-service-red.json" -}}
+{{- range $d.shopServices }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-shop-red-{{ . }}
+  namespace: {{ $d.namespace }}
+  labels:
+    {{- include "lab-glue.labels" $root | nindent 4 }}
+    {{ $d.label }}: {{ $d.labelValue | quote }}
+  annotations:
+    grafana_folder: Shop
+data:
+  shop-red-{{ . }}.json: |-
+    {{- $red | replace "__SERVICE__" . | nindent 4 }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-otel-gateway
+  namespace: {{ $d.namespace }}
+  labels:
+    {{- include "lab-glue.labels" $root | nindent 4 }}
+    {{ $d.label }}: {{ $d.labelValue | quote }}
+  annotations:
+    grafana_folder: Lab
+data:
+  otel-gateway.json: |-
+    {{- .Files.Get "dashboards/otel-gateway.json" | nindent 4 }}

@@ -1,0 +1,12 @@
+---
+# Install or upgrade Grafana: Helm release grafana in namespace grafana,
+# values from lgtm/lab/helm/grafana/.
+- name: Install or upgrade Grafana
+  ansible.builtin.import_role:
+    name: lab_release
+  vars:
+    lab_release_spec:
+      name: grafana
+      namespace: grafana
+      folder: grafana
+      extra_values: "{{ lab_grafana_values }}"

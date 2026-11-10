@@ -1,0 +1,85 @@
+# Values for the lab-glue chart. The lab's own values are in
+# lgtm/lab/helm/lab-glue/; these are the defaults.
+
+# The Gateway every route attaches to (lab contract: Gateway "lab" in
+# namespace "gateway", routes allowed from all namespaces).
+gateway:
+  name: lab
+  namespace: gateway
+  sectionName: ""
+
+# Host names are <host>.<domain>.
+domain: lab.k8s.local
+
+# One HTTPRoute per address. Each route lives in the namespace of the Service
+# it points at, so no ReferenceGrant is needed. shop, flags and loadgen come
+# from the shop chart; longhorn and s3 from the platform (card L2).
+routes:
+  - host: grafana
+    namespace: grafana
+    service: grafana
+    port: 80
+  - host: prometheus
+    namespace: prom
+    service: prom-prometheus
+    port: 9090
+  - host: alertmanager
+    namespace: prom
+    service: prom-alertmanager
+    port: 9093
+  - host: mimir
+    namespace: mimir
+    service: mimir-gateway
+    port: 80
+  - host: loki
+    namespace: loki
+    service: loki-gateway
+    port: 80
+  - host: tempo
+    namespace: tempo
+    service: tempo-query-frontend
+    port: 3200
+  - host: alloy
+    namespace: alloy
+    service: k8s-monitoring-alloy-singleton
+    port: 12345
+  # OTLP over HTTP into the collector gateway, for the workshop service that
+  # runs on the PC.
+  - host: otlp
+    namespace: otel
+    service: otel-gateway
+    port: 4318
+
+dashboards:
+  # Namespace of the dashboard ConfigMaps; Grafana's sidecar watches every
+  # namespace, this keeps them next to Grafana.
+  namespace: grafana
+  # Label and value the Grafana sidecar looks for.
+  label: grafana_dashboard
+  labelValue: "1"
+  # One RED dashboard (rate, errors, duration from Tempo's span metrics) per
+  # shop service, in the folder "Shop".
+  shopServices:
+    - ad
+    - cart
+    - checkout
+    - fraud-detection
+    - frontend
+    - frontend-proxy
+    - image-provider
+    - load-generator
+    - payment
+    - product-catalog
+    - recommendation
+
+# The check-token beacon (lab contract, "Check tokens"). Card D2 builds the
+# image and fills in this template; until then it stays off.
+beacon:
+  enabled: false
+  image: ghcr.io/serpe-nt/lgtm-beacon
+  tag: ""
+  namespace: lab-tools
+  otlpEndpoint: http://otel-gateway.otel.svc:4318
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { cpu: 200m, memory: 64Mi }

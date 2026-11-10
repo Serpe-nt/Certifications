@@ -1,0 +1,37 @@
+# kind smoke-test overlay for Tempo: one replica of each component and one
+# Kafka partition. Endpoints, tenant, topic, bucket and the metrics-generator
+# wiring are those of values.yaml.
+ingest:
+  kafka:
+    auto_create_topic_default_partitions: 1
+distributor:
+  replicas: 1
+  resources:
+    requests: { cpu: 20m, memory: 96Mi }
+    limits: { cpu: "1", memory: 384Mi }
+blockBuilder:
+  replicas: 1
+  resources:
+    requests: { cpu: 20m, memory: 128Mi }
+    limits: { cpu: "1", memory: 512Mi }
+liveStore:
+  replicas: 1
+  resources:
+    requests: { cpu: 20m, memory: 128Mi }
+    limits: { cpu: "1", memory: 512Mi }
+querier:
+  resources:
+    requests: { cpu: 20m, memory: 128Mi }
+    limits: { cpu: "1", memory: 512Mi }
+memcached:
+  allocatedMemory: 64
+  resources:
+    requests: { cpu: 10m, memory: 96Mi }
+    limits: { cpu: 500m, memory: 96Mi }
+# The chart keeps metrics-generators on different nodes. kind has one node,
+# so a rolling update would wait forever for the new pod; null drops the rule.
+metricsGenerator:
+  affinity: null
+  resources:
+    requests: { cpu: 20m, memory: 128Mi }
+    limits: { cpu: "1", memory: 384Mi }

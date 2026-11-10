@@ -1,0 +1,39 @@
+# kind smoke-test overlay for Mimir: one replica of each component and small
+# volumes. Endpoints, tenants, Kafka topic and buckets are those of values.yaml.
+distributor:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: "1", memory: 384Mi }
+ingester:
+  replicas: 1
+  persistentVolume:
+    size: 1Gi
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: "1", memory: 768Mi }
+querier:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: "1", memory: 384Mi }
+query_frontend:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: "1", memory: 256Mi }
+store_gateway:
+  persistentVolume:
+    size: 1Gi
+  resources:
+    requests: { cpu: 20m, memory: 96Mi }
+    limits: { cpu: "1", memory: 256Mi }
+compactor:
+  persistentVolume:
+    size: 1Gi
+  resources:
+    requests: { cpu: 20m, memory: 96Mi }
+    limits: { cpu: "1", memory: 256Mi }
+ruler:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 192Mi }

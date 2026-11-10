@@ -1,0 +1,75 @@
+---
+# Create the two secrets of the lab when they are absent, and never change
+# them afterwards:
+#   grafana/grafana-admin  Grafana's admin user and a random password
+#   lab-tools/lab-seed     the lab seed: 16 lower-case hex characters
+# Nothing is written to disk; the values go to kubectl on standard input.
+- name: Create the namespaces grafana and lab-tools
+  ansible.builtin.command:
+    cmd: "{{ lab_kubectl }} apply -f -"
+    stdin: "{{ lab_secrets_namespaces | to_nice_json }}"
+  register: lab_secrets_ns
+  changed_when: "' created' in lab_secrets_ns.stdout"
+  vars:
+    lab_secrets_namespaces:
+      apiVersion: v1
+      kind: List
+      items:
+        - { apiVersion: v1, kind: Namespace, metadata: { name: grafana } }
+        - { apiVersion: v1, kind: Namespace, metadata: { name: lab-tools } }
+
+- name: Look for the Grafana admin Secret
+  ansible.builtin.command:
+    cmd: "{{ lab_kubectl }} -n grafana get secret grafana-admin -o name"
+  register: lab_secrets_grafana
+  changed_when: false
+  failed_when: lab_secrets_grafana.rc not in [0, 1]
+
+- name: Create the Grafana admin Secret with a random password
+  ansible.builtin.command:
+    cmd: "{{ lab_kubectl }} -n grafana create -f -"
+    stdin: "{{ lab_secrets_grafana_manifest | to_nice_json }}"
+  when: lab_secrets_grafana.rc != 0
+  changed_when: true
+  no_log: true
+  vars:
+    lab_secrets_grafana_manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-admin
+        namespace: grafana
+      type: Opaque
+      stringData:
+        admin-user: "{{ lab_grafana_admin_user }}"
+        admin-password: "{{ lookup('ansible.builtin.password', '/dev/null', length=24, chars=['ascii_letters', 'digits']) }}"
+
+- name: Look for the lab seed Secret
+  ansible.builtin.command:
+    cmd: "{{ lab_kubectl }} -n lab-tools get secret lab-seed -o name"
+  register: lab_secrets_seed
+  changed_when: false
+  failed_when: lab_secrets_seed.rc not in [0, 1]
+
+- name: Create the lab seed Secret
+  ansible.builtin.command:
+    cmd: "{{ lab_kubectl }} -n lab-tools create -f -"
+    stdin: "{{ lab_secrets_seed_manifest | to_nice_json }}"
+  when: lab_secrets_seed.rc != 0
+  changed_when: true
+  no_log: true
+  vars:
+    lab_secrets_seed_manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: lab-seed
+        namespace: lab-tools
+      type: Opaque
+      stringData:
+        # 64 random bits as 16 lower-case hex characters (lab contract).
+        seed: "{{ '%016x' | format(18446744073709551615 | ansible.builtin.random) }}"
+
+- name: Remember whether this run created the Grafana password
+  ansible.builtin.set_fact:
+    lab_secrets_password_created: "{{ lab_secrets_grafana.rc != 0 }}"
