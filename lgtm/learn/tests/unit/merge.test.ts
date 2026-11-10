@@ -271,3 +271,42 @@ describe('mock exam submit', () => {
     expect(Object.keys(s.qs)).toEqual(['q-mock-pca-001']);
   });
 });
+
+describe('settings in a merge (settingsAt)', () => {
+  const withSettings = (theme: 'light' | 'dark', labSeed: string, settingsAt?: number) =>
+    parseState({ v: 2, savedAt: 1, settings: { theme, labSeed, effects: theme === 'light', sound: true }, ...(settingsAt === undefined ? {} : { settingsAt }) });
+  const SEED = '0123456789abcdef';
+
+  it('local settings changed later win as a whole', () => {
+    const local = withSettings('light', SEED, 200);
+    const server = withSettings('dark', '', 100);
+    const m = mergeStates(local, server);
+    expect(m.settings).toEqual(local.settings);
+    expect(m.settingsAt).toBe(200);
+  });
+
+  it('server settings changed later win as a whole', () => {
+    const local = withSettings('light', SEED, 100);
+    const server = withSettings('dark', '', 200);
+    const m = mergeStates(local, server);
+    expect(m.settings).toEqual(server.settings);
+    expect(m.settingsAt).toBe(200);
+  });
+
+  it('a copy from before the field counts as older than any copy with it', () => {
+    const v1 = parseState({ v: 1, settings: { theme: 'dark', labSeed: 'ffffffffffffffff' } });
+    expect(v1.settingsAt).toBe(0);
+    const v2 = withSettings('light', SEED, 1);
+    expect(mergeStates(v1, v2).settings.labSeed).toBe(SEED);
+    expect(mergeStates(v2, v1).settings.labSeed).toBe(SEED);
+    // Neither copy has a change time: the server copy, as before.
+    expect(mergeStates(withSettings('light', SEED), withSettings('dark', '')).settings.theme).toBe('dark');
+  });
+
+  it('bounds settingsAt like every other time', () => {
+    expect(parseState({ settingsAt: -5 }).settingsAt).toBe(0);
+    expect(parseState({ settingsAt: 'soon' }).settingsAt).toBe(0);
+    expect(parseState({ settingsAt: 1e20 }).settingsAt).toBe(4_102_444_800_000);
+    expect(parseState({ settingsAt: 12.7 }).settingsAt).toBe(12);
+  });
+});

@@ -18,7 +18,7 @@ The review queue, readiness and the mock exams need questions from every module,
 
 ### 2. State version 2: new fields, names that do not collide
 
-The new fields are `qs`, `srs`, `quizzes`, `run`, `runOff`, `exam`, `examOff`, `mocks` and `rowBest`. The module quiz records are called `quizzes`, not `quiz`: an S1 unit test uses a top-level `quiz` field as the example of a field written by a newer version, which must survive untouched. Version 1 had none of the new fields, so the migration only sets `v: 2`; nothing is dropped. The storage key stays `lgtm-learn-v1`.
+The new fields are `qs`, `srs`, `quizzes`, `run`, `runOff`, `exam`, `examOff`, `mocks`, `rowBest` and `settingsAt`. The module quiz records are called `quizzes`, not `quiz`: an S1 unit test uses a top-level `quiz` field as the example of a field written by a newer version, which must survive untouched. Version 1 had none of the new fields, so the migration only sets `v: 2`; nothing is dropped. The storage key stays `lgtm-learn-v1`.
 
 ### 3. Merge rules
 
@@ -27,7 +27,7 @@ Ported from saa-plan and extended for two runs (`run` for quizzes and practice, 
 - Per-question history and the review entry come from the same copy (the one that answered more), so a review step is never paired with the wrong history.
 - Card answers (`answers`) now merge per question too. S1 took them from the server copy, which could drop a card answer made on another device. One S1 unit test asserted the old behaviour; its assertion was changed to the new rule and its title says "settings from the server". The test count is unchanged.
 - A submitted mock exam wins over a copy still running on another device, and `mocks` holds one entry per exam start, so an exam finished on two devices counts once.
-- Settings still come from the server copy (the S1 rule, covered by an S1 test). A settings change made on a device that meets a conflict can therefore be lost; it is a planner question whether settings should carry their own change time.
+- Settings carry their own change time, `settingsAt`, stamped by `Store.update()` whenever the settings differ after a change. In a merge the copy with the later `settingsAt` wins as a whole. The first version of this card took settings from the server copy (the S1 rule), so a lab seed typed on a device that then met a conflict was lost; the planner's review asked for this fix, because the owner uses three devices and types the seed once. A copy without the field counts as older than any copy with it; on a tie (two copies without it) the server copy wins, which keeps the S1 test's case. `settingsAt` joins version 2, which no released build has used, so no extra migration step is needed.
 
 ### 4. The mock exam's clock never acts on stale state
 

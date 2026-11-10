@@ -173,6 +173,42 @@ describe('sync of the study features (card S2)', () => {
     expect(s.rowBest).toBe(9);
   });
 
+  it('a setting changed on one device stamps settingsAt; other changes do not', () => {
+    const a = device();
+    a.store.update((s) => void (s.done['m90-s01'] = 1));
+    expect(a.store.get().settingsAt).toBe(0);
+    a.store.update((s) => void (s.settings.theme = 'dark'));
+    expect(a.store.get().settingsAt).toBe(a.store.get().savedAt);
+  });
+
+  it('three devices: a lab seed typed offline on one survives the merge on all three', async () => {
+    const devices = [device(), device(), device()];
+    for (const d of devices) await d.store.pull();
+    const [a, b, c] = devices;
+    // An older settings change everyone has seen.
+    a.store.update((s) => void (s.settings.theme = 'light'));
+    await a.store.push();
+    for (const d of [b, c]) await d.store.pull();
+    // B types the lab seed while offline; A and C change other things and push first.
+    online = false;
+    b.store.update((s) => void (s.settings.labSeed = '0123456789abcdef'));
+    await b.store.push();
+    online = true;
+    a.store.update((s) => void (s.done['m90-s01'] = 1));
+    await a.store.push();
+    c.store.update((s) => void (s.checks['m90-s02'] = 2));
+    await c.store.push(); // 409, merge, push
+    await b.store.pull(); // the server moved on: B merges and pushes its seed
+    for (const d of devices) await d.store.pull();
+    for (const d of devices) {
+      const s = d.store.get();
+      expect(s.settings.labSeed).toBe('0123456789abcdef');
+      expect(s.settings.theme).toBe('light');
+      expect(s.done['m90-s01']).toBe(1);
+      expect(s.checks['m90-s02']).toBe(2);
+    }
+  });
+
   it('the first sync is reported once the first pull has finished', async () => {
     const a = device();
     expect(a.store.firstSyncDone).toBe(false);

@@ -37,6 +37,7 @@ Key `lgtm-learn-v1` in local storage (never renamed), the same JSON on the serve
 | `checks` | `{stepId: ms}` | passed lab checks |
 | `answers` | `{q-<stepId>: {right, n, at}}` | card questions (the one on each step) |
 | `settings` | `{labDomain, labSeed, theme, effects, sound}` | `effects` and `sound` switch the celebrations |
+| `settingsAt` | ms | when a setting last changed (0 = never); `Store.update()` stamps it whenever the settings differ after a change, an import included |
 | `qs` | `{questionId: {seen, right, last, at, xp}}` | per-question history of pool and mock questions; `xp` counts right answers that taught something |
 | `srs` | `{questionId: {step, due}}` | missed questions waiting for review; `due` is a local day `YYYY-MM-DD` |
 | `quizzes` | `{moduleId: {best, passed, tries: [{at, score, n}]}}` | module quizzes: best percent, first pass (ms, 0 = not yet), the newest 50 tries keyed by the run's start |
@@ -61,7 +62,8 @@ When both copies changed since they last agreed:
 - `run`: a run that started at or before `runOff` (the later of both copies) is gone. Two different runs: the later start stands. The same run: every checked answer of both copies (the first check of a question counts), finished if either finished, the question on screen from this device.
 - `exam`: gone at or before `examOff`. Two different exams: the later start stands. The same exam: a submitted copy wins over a running one (answers given elsewhere after the submit do not count); both submitted, the earlier submit; both running, per question the newer change, the question on screen from this device.
 - `mocks`: the union, one entry per exam start. `rowBest`, `runOff`, `examOff`, `savedAt`: the maximum.
-- `settings` and fields this version does not know: from the server copy (the S1 rule).
+- `settings`: the copy with the later `settingsAt` wins as a whole, and `settingsAt` follows it. A copy without the field (version 1) has 0, so it is older than any copy with it; on a tie the server copy wins.
+- Fields this version does not know: from the server copy.
 
 The client pulls every 30 seconds while the page is in view, on focus, when the network returns and at start; it pushes 800 ms after a change and at once when the page is hidden or left. The header shows "Offline: saved on this device" or "Not synced" when changes cannot reach the server.
 

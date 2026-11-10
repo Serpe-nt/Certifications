@@ -102,8 +102,11 @@ export class Store {
   update(change: (draft: State) => void): void {
     const draft = parseState(JSON.parse(JSON.stringify(this.state)));
     change(draft);
+    const before = JSON.stringify(this.state.settings);
     this.state = parseState(draft);
     this.state.savedAt = this.deps.now();
+    // Any change to a setting stamps settingsAt, so a merge keeps the newest settings (state.ts).
+    if (JSON.stringify(this.state.settings) !== before) this.state.settingsAt = this.state.savedAt;
     this.meta.dirty = true;
     this.changes++;
     this.write();

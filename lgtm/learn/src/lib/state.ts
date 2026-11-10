@@ -154,6 +154,11 @@ export interface State {
   mocks: MockRecord[];
   /** The most right answers in a row ever, in quizzes and practice. */
   rowBest: number;
+  /**
+   * When a setting last changed on any device (ms), 0 when never. In a merge the newer settings
+   * win as a whole; a copy without this field (version 1) counts as older than any copy with it.
+   */
+  settingsAt: number;
   /** Top-level fields this version does not know (written by a newer version). Kept as they are. */
   [extra: string]: unknown;
 }
@@ -184,7 +189,7 @@ const ID = /^[a-z0-9][a-z0-9-]*$/;
 const DOMAIN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;
 const SEED = /^[0-9a-f]{16}$/;
 const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
-const KNOWN = new Set(['v', 'savedAt', 'done', 'checks', 'answers', 'settings', 'qs', 'srs', 'quizzes', 'run', 'runOff', 'exam', 'examOff', 'mocks', 'rowBest']);
+const KNOWN = new Set(['v', 'savedAt', 'done', 'checks', 'answers', 'settings', 'qs', 'srs', 'quizzes', 'run', 'runOff', 'exam', 'examOff', 'mocks', 'rowBest', 'settingsAt']);
 
 export function defaultSettings(): Settings {
   return { labDomain: DEFAULT_LAB_DOMAIN, labSeed: '', theme: 'system', effects: true, sound: true };
@@ -207,6 +212,7 @@ export function defaultState(): State {
     examOff: 0,
     mocks: [],
     rowBest: 0,
+    settingsAt: 0,
   };
 }
 
@@ -437,7 +443,7 @@ export function parseSettings(x: unknown): Settings {
 const MIGRATIONS: ((doc: Record<string, unknown>) => Record<string, unknown>)[] = [
   // Before version 1 there was no shape; a document without "v" is read as version 1.
   (doc) => ({ ...doc, v: 1 }),
-  // Version 2 (card S2) adds qs, srs, quizzes, run, runOff, exam, examOff, mocks and rowBest.
+  // Version 2 (card S2) adds qs, srs, quizzes, run, runOff, exam, examOff, mocks, rowBest and settingsAt.
   // Version 1 had none of them, so every one starts at its default; nothing is dropped.
   (doc) => ({ ...doc, v: 2 }),
 ];
@@ -479,6 +485,7 @@ export function parseState(raw: unknown): State {
   s.examOff = time(m.examOff) ?? 0;
   s.mocks = mockList(m.mocks);
   s.rowBest = int(m.rowBest, 0, LIMITS.row) ?? 0;
+  s.settingsAt = time(m.settingsAt) ?? 0;
   // A document written by a newer version may carry fields this one does not know: keep them.
   for (const [k, v] of Object.entries(m)) {
     if (!KNOWN.has(k) && !FORBIDDEN.has(k) && k.length <= LIMITS.idLength) s[k] = v;
@@ -625,13 +632,17 @@ function mergeMocks(a: MockRecord[], b: MockRecord[]): MockRecord[] {
  * - module quizzes: the best result, the earliest pass, the tries of both;
  * - the quiz run and the mock exam: see mergeRun() and mergeExam(); closed-run markers: the later;
  * - finished mock exams: the union; the longest run of right answers: the maximum;
- * - settings and fields this version does not know: from the server copy.
+ * - settings: the copy whose settings changed last (settingsAt) wins as a whole; on a tie, the server copy;
+ * - fields this version does not know: from the server copy.
  */
 export function mergeStates(local: State, server: State): State {
   const runOff = Math.max(local.runOff, server.runOff);
   const examOff = Math.max(local.examOff, server.examOff);
+  const settingsFrom = local.settingsAt > server.settingsAt ? local : server;
   return {
     ...server,
+    settings: { ...settingsFrom.settings },
+    settingsAt: settingsFrom.settingsAt,
     done: unionTimes(server.done, local.done),
     checks: unionTimes(server.checks, local.checks),
     answers: mergeAnswers(server.answers, local.answers),
