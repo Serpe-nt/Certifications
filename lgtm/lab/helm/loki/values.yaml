@@ -87,18 +87,14 @@ ingester:
     limits: { cpu: "1", memory: 1Gi }
 
 distributor:
-  # One replica (docs/budget.md, lgtm/docs/adr/l4-fit-6gb-workers.md): the workers have
-  # 6 GB, and a second copy of this stateless part teaches nothing new.
-  replicas: 1
+  replicas: 2
   maxUnavailable: 1
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { cpu: "1", memory: 384Mi }
 
 querier:
-  # One replica (docs/budget.md, lgtm/docs/adr/l4-fit-6gb-workers.md): the workers have
-  # 6 GB, and a second copy of this stateless part teaches nothing new.
-  replicas: 1
+  replicas: 2
   maxUnavailable: 1
   resources:
     requests: { cpu: 100m, memory: 192Mi }
@@ -160,11 +156,11 @@ resultsCache:
   resources:
     requests: { cpu: 20m, memory: 160Mi }
     limits: { cpu: 500m, memory: 192Mi }
-# The chunks cache is off: the queriers read the few chunks of a two-day lab from
-# the S3 store fast enough, and it reserved 320 MiB on 6 GB workers
-# (lgtm/docs/adr/l4-fit-6gb-workers.md). The results cache stays for the lessons.
 chunksCache:
-  enabled: false
+  allocatedMemory: 256
+  resources:
+    requests: { cpu: 20m, memory: 320Mi }
+    limits: { cpu: 500m, memory: 384Mi }
 
 # The nginx gateway is the single entry point: OTLP (/otlp/v1/logs), push
 # (/loki/api/v1/push) and the query API.
