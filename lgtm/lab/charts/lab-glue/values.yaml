@@ -72,14 +72,29 @@ dashboards:
     - product-catalog
     - recommendation
 
-# The check-token beacon (lab contract, "Check tokens"). Card D2 builds the
-# image and fills in this template; until then it stays off.
+# The check-token beacon (lab contract, "Check tokens"): a Deployment in
+# lab-tools that publishes every slot's token as a log line, a gauge and a
+# trace once a minute. Source: lgtm/lab/tools/beacon; docs/beacon.md.
+# Off by default; the lab switches it on in lgtm/lab/helm/lab-glue/values.yaml.
 beacon:
   enabled: false
+  # Registry and repository, then the tag (lgtm/lab/tools/beacon/VERSION).
   image: ghcr.io/serpe-nt/lgtm-beacon
-  tag: ""
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+  # Names of image pull Secrets in lab-tools, while the GHCR package is private.
+  pullSecrets: []
   namespace: lab-tools
+  # The Secret the lab playbook creates (role lab_secrets).
+  seedSecret:
+    name: lab-seed
+    key: seed
+  # OTLP over HTTP into the collector gateway (lab contract, Telemetry flow).
   otlpEndpoint: http://otel-gateway.otel.svc:4318
+  # How often every token is published (a Go duration).
+  interval: 1m
+  # Measured on kind: a working set of about 10 MiB, at most 11.3 MiB with
+  # the gateway away for five minutes at six times the load (docs/beacon.md).
   resources:
     requests: { cpu: 10m, memory: 32Mi }
     limits: { cpu: 200m, memory: 64Mi }
