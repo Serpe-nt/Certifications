@@ -102,7 +102,7 @@ Authorities, current user) if you want the browser to trust the lab's HTTPS name
 | `alloy` | the k8s-monitoring chart: `alloy-logs` (pod logs, one per node), `alloy-singleton` (events) |
 | `prom` | kube-prometheus-stack: Prometheus, Alertmanager, the operator, kube-state-metrics, node exporter |
 | `shop` | the shop, its Kafka, PostgreSQL and Valkey, flagd, the load generator |
-| `lab-tools` | the lab seed Secret and, once card D2 is merged, the beacon |
+| `lab-tools` | the lab seed Secret and the check-token beacon |
 
 ## Tenants
 
@@ -114,6 +114,22 @@ Authorities, current user) if you want the browser to trust the lab's HTTPS name
 Module m17 adds `team-a` and `team-b`. Per-tenant limits are in `helm/mimir/values.yaml`
 (`runtimeConfig.overrides`). Every signal carries `cluster="lgtm-lab"`, and `service.name`
 appears as the label `service_name`.
+
+## Check tokens
+
+The beacon (`beacon.md`, namespace `lab-tools`) publishes, once a minute, a token for every slot
+`<channel>-<module>-<n>`. These three queries, run in Grafana's Explore, return the token of one
+slot; they were checked on the lab cluster against the token computed from the lab seed
+(`acceptance-lab.md`). Change the slot id to the one a step names.
+
+| Channel | Data source | Query |
+|---|---|---|
+| log | `loki` | `{service_name="beacon"} \| slot="log-m12-3" \| json \| line_format "{{.payload_token}}"` |
+| metric | `mimir` | `lab_beacon_value{slot="metric-m12-3"}` (the value is the token) |
+| span | `tempo` | `{ resource.service.name = "beacon" && name = "beacon.slot" && span.beacon.slot = "span-m09-1" } \| select(span.beacon.token)` |
+
+In Loki, `slot` is structured metadata, not a stream label: filter it after the stream selector,
+as above, not inside `{...}`.
 
 ## Grafana data sources
 

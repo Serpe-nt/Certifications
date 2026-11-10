@@ -13,8 +13,10 @@ first: every volume has two replicas and Kafka, Mimir and Loki keep three copies
 take in.
 
 Start: `powershell -ExecutionPolicy Bypass -File .\lab-vms.ps1 start` (lb, then the control
-plane, then the workers). Then wait. On 2026-11-10 all VMs restarted at 15:57 and every pod was
-Ready again at 16:02, with nothing done by hand (`acceptance-lab.md`). For a few minutes you
+plane, then the workers). Then wait, with nothing done by hand (`acceptance-lab.md`): on
+2026-11-10, with only the platform installed, every pod was Ready five minutes after the reboot
+(15:57 to 16:02); with the whole lab installed, eight minutes (21:48:47 to 21:56:48), the Mimir
+distributors last, once Kafka and the ingesters answered. For a few minutes you
 see Longhorn instance managers and the Kafka pods in `Unknown`, the Longhorn CSI plugins
 restarting, the Kafka entity operator in `CrashLoopBackOff` until the brokers are back, and
 `kubectl top` answering "Metrics API not available". All of that clears by itself.
