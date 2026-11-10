@@ -1,0 +1,6 @@
+id: m02
+title: Observability fundamentals
+goal: Name the signals, say what each is good for, and follow one request through all of them.
+order: 2
+quiz: true
+exams: [otca, pca]

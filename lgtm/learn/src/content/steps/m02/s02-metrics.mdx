@@ -1,0 +1,72 @@
+---
+id: m02-s02
+title: "Metrics: numbers over time"
+kind: concept
+minutes: 10
+order: 2
+exam:
+  - cert: pca
+    domain: P1
+    competency: Metrics
+  - cert: otca
+    domain: O1
+    competency: Telemetry Data
+tags: [metrics]
+sources:
+  - title: Metrics (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/signals/metrics/
+    checked: 2026-11-10
+  - title: Prometheus overview
+    url: https://prometheus.io/docs/introduction/overview/
+    checked: 2026-11-10
+  - title: Data model (Prometheus)
+    url: https://prometheus.io/docs/concepts/data_model/
+    checked: 2026-11-10
+  - title: Metric types (Prometheus)
+    url: https://prometheus.io/docs/concepts/metric_types/
+    checked: 2026-11-10
+  - title: Observability primer (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/observability-primer/
+    checked: 2026-11-10
+---
+
+<Why>
+The shop serves thousands of requests a minute. You want to know if checkout is slower than yesterday, and whether the error rate is rising. Reading every request one by one would take hours. You need a few numbers that sum up the whole service and show how they change over time.
+</Why>
+
+<Idea>
+A metric is a number measured again and again while the service runs. Each value is stored with its time, so you get a line over time: a time series. Metrics are small and fast to query, which makes them the base of dashboards and alerts.
+</Idea>
+
+<Points>
+  <Point label="What a metric is">A metric is a measurement of a service captured at runtime, with the time it was taken and some metadata. Examples: the request rate, the error rate, the CPU use of a process.</Point>
+  <Point label="Name and labels make a series">In Prometheus, a series is named by a metric name plus labels, key-value pairs such as `method="POST"`. A different label value is a different series. Each sample in it is a number and a timestamp in milliseconds.</Point>
+  <Point label="Why metrics stay cheap">Metrics are aggregated before they are stored. A counter of a million requests is still one number per series. Their cost grows with the number of label combinations, not with the number of requests.</Point>
+  <Point label="Three shapes you will meet">A counter only goes up, and goes back to zero when the process restarts: requests served. A gauge goes up and down: memory in use, queue length. A histogram counts values in buckets: how many requests took less than one second. Module m03 covers them in depth.</Point>
+  <Point label="What metrics cannot tell you">A metric says how many requests failed, not which ones or why. Prometheus also warns that its data is not complete enough for exact work such as billing per request.</Point>
+  <Point label="In this lab">The shop sends its metrics over OpenTelemetry, and Prometheus collects cluster metrics. Both end up in Mimir, and Grafana draws them.</Point>
+</Points>
+
+<Trap>
+A metric gives the same answer for every request in its time window. It cannot show you the one slow request. When you need a single request, go to a trace or a log.
+</Trap>
+
+<Question id="q-m02-s02" answer="a">
+A team counts HTTP requests with a label `method`. They add a second label, `status_code`, with values 200, 404 and 500. What happens to the data Prometheus stores?
+
+- Each method and status code pair becomes its own time series
+
+  Every unique combination of label values is a separate series.
+
+- Nothing changes, because labels are only for display in Grafana
+
+  Labels identify series. Changing or adding a label value creates a new series.
+
+- Prometheus keeps one series and stores the status code inside each sample
+
+  A sample is only a value and a timestamp. Labels live on the series, not in the sample.
+
+- The counter resets to zero for every new status code
+
+  Labels do not reset counters. A counter resets only when the process restarts.
+</Question>

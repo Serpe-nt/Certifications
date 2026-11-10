@@ -1,0 +1,615 @@
+# Quiz pool for module m02, Observability fundamentals. Every fact is checked against the
+# source given on the question; the log is lgtm/docs/verification/m02.md.
+
+# O1 Telemetry Data
+- id: q-m02-001
+  tags: [observability]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: Which three signals does OpenTelemetry list as stable and widely supported, with profiles still under development?
+  options:
+    - text: Traces, metrics and logs
+      why: Correct. These are the three stable signals; profiles are newer and still in development.
+    - text: Metrics, alerts and dashboards
+      why: Alerts and dashboards are ways to use telemetry, not signals that a program emits.
+    - text: Traces, exemplars and events
+      why: Exemplars link metrics to traces, and events are a kind of log. Neither is a separate stable signal.
+    - text: Logs, baggage and profiles
+      why: Baggage carries context between services, and profiles are still in development.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/signals/
+- id: q-m02-002
+  tags: [profiles]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: A Go service is slow, and the trace shows that the time is spent inside one span with no child spans. The team wants to know which functions use the CPU in that span. Which signal answers this?
+  options:
+    - text: A metric of request duration
+      why: The duration metric shows that requests are slow, not which functions are responsible.
+    - text: More log lines in the span
+      why: Logs record events the developer chose to write. They do not sample which code is on the CPU.
+    - text: An on-CPU profile
+      why: Correct. An on-CPU profile shows which functions were running on the processor.
+    - text: A span link to another trace
+      why: Links connect related spans. They do not show where code spends CPU time.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/signals/profiles/
+- id: q-m02-003
+  tags: [traces]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: What does a span's context contain? (Choose two.)
+  options:
+    - text: The trace ID of its trace
+      why: Correct. Span context holds the trace ID, so the span can be placed in its trace.
+    - text: The span's own span ID
+      why: Correct. Span context holds the span ID, along with trace flags and trace state.
+    - text: The full list of child spans
+      why: A parent does not list its children. Each child stores its parent's ID instead.
+    - text: The log lines the span wrote
+      why: Log lines are separate records. They may carry the trace ID, but they are not part of span context.
+    - text: The CPU use of the process
+      why: Span context identifies the span. Resource use belongs to metrics or profiles.
+  answer: [0, 1]
+  source: https://opentelemetry.io/docs/concepts/signals/traces/
+- id: q-m02-004
+  tags: [cardinality]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: An OpenTelemetry metrics SDK with default settings records a counter with a <code>user.id</code> attribute. After 2,000 different users, what happens to measurements for new users?
+  options:
+    - text: They are dropped, so the counter's total becomes too low from then on
+      why: Measurements are not dropped. They are folded into an overflow data point, so the total stays correct.
+    - text: The SDK stops the application to protect its memory
+      why: The cardinality limit bounds memory without stopping anything.
+    - text: The SDK sends them as log records instead
+      why: The SDK keeps them in the metric, in a single overflow data point.
+    - text: They go into one overflow data point, without their attributes
+      why: Correct. The overflow point is marked <code>otel.metric.overflow=true</code>. The total stays right, but filters by attribute undercount.
+  answer: [3]
+  source: https://opentelemetry.io/docs/concepts/signals/metrics/
+
+# O1 Semantic Conventions
+- id: q-m02-005
+  tags: [semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: What is the main benefit of following OpenTelemetry semantic conventions?
+  options:
+    - text: Telemetry is compressed better on the wire, so it costs less to send
+      why: Conventions are about names and meaning, not about encoding or compression.
+    - text: The same data gets the same names in every service
+      why: Correct. A common naming scheme makes data from different code bases and libraries easy to correlate.
+    - text: Spans are sampled automatically
+      why: Sampling is set by samplers, not by naming conventions.
+    - text: Services no longer need a resource
+      why: Resources are still needed. Conventions even define resource attributes such as <code>service.name</code>.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/semantic-conventions/
+- id: q-m02-006
+  tags: [semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: An HTTP server handles <code>GET /webshop/articles/4</code>, and its route template is <code>/webshop/articles/:article_id</code>. Which span name follows the HTTP semantic conventions?
+  options:
+    - text: GET /webshop/articles/4
+      why: The full path with an ID creates a new span name per article, which is high cardinality.
+    - text: webshop-articles-handler-4
+      why: This is an invented name that also contains the ID.
+    - text: GET /webshop/articles/:article_id
+      why: Correct. HTTP span names are the method plus a low-cardinality target such as the route.
+    - text: HTTP 200
+      why: The status code belongs in <code>http.response.status_code</code>, not in the span name.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+- id: q-m02-007
+  tags: [semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: A team runs five replicas of its cart service. How should <code>service.name</code> be set on them?
+  options:
+    - text: The same value, such as <code>cart</code>, on all five replicas
+      why: Correct. <code>service.name</code> is the logical name and must be the same for every instance of a scaled service.
+    - text: A different value per replica, such as <code>cart-1</code> to <code>cart-5</code>
+      why: Telling replicas apart is the job of <code>service.instance.id</code>, not of <code>service.name</code>.
+    - text: The pod IP address of each replica
+      why: An address changes and is per instance. The service name should not.
+    - text: Leave it empty so the SDK picks the best name
+      why: Without a value the SDK falls back to <code>unknown_service</code>, which helps nobody.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/semconv/registry/attributes/service/
+- id: q-m02-008
+  tags: [semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: An older HTTP instrumentation still sends the old experimental HTTP attribute names. The team wants to move to the stable names without breaking existing dashboards for a while. What should they set?
+  options:
+    - text: "<code>OTEL_SERVICE_NAME=http</code>"
+      why: That sets the service name. It does not choose the convention version.
+    - text: "<code>OTEL_SEMCONV_STABILITY_OPT_IN=http</code>"
+      why: This switches to the stable names and stops the old ones at once, so old dashboards break.
+    - text: "<code>OTEL_RESOURCE_ATTRIBUTES=http=stable</code>"
+      why: This only adds a resource attribute. Instrumentations do not read it to choose conventions.
+    - text: "<code>OTEL_SEMCONV_STABILITY_OPT_IN=http/dup</code>"
+      why: Correct. <code>http/dup</code> sends both the old and the stable names during the move.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+
+# O1 Instrumentation
+- id: q-m02-009
+  tags: [instrumentation]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: A service is instrumented with an OpenTelemetry zero-code agent. Which part of its behavior will the agent most likely not show?
+  options:
+    - text: Incoming HTTP requests
+      why: Zero-code instrumentation covers the libraries at the edges, such as HTTP servers.
+    - text: Calls to the database client
+      why: Database clients are libraries, which zero-code instrumentation covers.
+    - text: The service's own business logic
+      why: Correct. Your own code is not usually instrumented; that needs code-based instrumentation.
+    - text: Messages sent to a queue
+      why: Message queue clients are among the libraries zero-code instrumentation covers.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/instrumentation/zero-code/
+- id: q-m02-010
+  tags: [instrumentation]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: You maintain a database client library and want to add OpenTelemetry instrumentation to it. Which dependency should the library take?
+  options:
+    - text: The OpenTelemetry API and the SDK
+      why: The SDK is for the application that runs the code. A library should not force it on its users.
+    - text: Only the OpenTelemetry API
+      why: Correct. A library depends on the API only; its calls do nothing unless the application loads the SDK.
+    - text: The OpenTelemetry Collector
+      why: The Collector is a separate process that receives and forwards telemetry, not a library dependency.
+    - text: A Prometheus exporter
+      why: An exporter exposes metrics of a system you cannot change. It is not how a library adds OpenTelemetry instrumentation.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/instrumentation/code-based/
+- id: q-m02-011
+  tags: [instrumentation]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: According to OpenTelemetry, when is an application properly instrumented?
+  options:
+    - text: When every function in the code has its own span
+      why: That would be far more than needed. The test is whether troubleshooting needs new instrumentation.
+    - text: When it exports metrics to Prometheus
+      why: One signal to one backend does not mean the needed data is there.
+    - text: When a zero-code agent is attached to it at start-up
+      why: An agent is one way to instrument. It does not by itself make the data sufficient.
+    - text: When no new instrumentation is needed to troubleshoot
+      why: Correct. Proper instrumentation means the information needed is already being sent.
+  answer: [3]
+  source: https://opentelemetry.io/docs/concepts/observability-primer/
+- id: q-m02-012
+  tags: [instrumentation]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: Which two statements about zero-code and code-based instrumentation are true? (Choose two.)
+  options:
+    - text: They can be used in the same service at the same time
+      why: Correct. OpenTelemetry says both can be used together.
+    - text: Zero-code agents are configured mainly with environment variables
+      why: Correct. Agents read environment variables, system properties or start-up arguments.
+    - text: Code-based instrumentation needs no SDK in a service process
+      why: A service process takes both the API and the SDK. Only a library depends on the API alone.
+    - text: Zero-code instrumentation works only for Go
+      why: It exists for several languages, including Java, Python, .NET and JavaScript.
+    - text: Code-based instrumentation cannot record business data
+      why: Recording your own business logic is exactly what code-based instrumentation is for.
+  answer: [0, 1]
+  source: https://opentelemetry.io/docs/concepts/instrumentation/
+
+# O1 Analysis and Outcomes
+- id: q-m02-013
+  tags: [observability]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: What does observability let you do that a fixed set of dashboards does not?
+  options:
+    - text: Store metrics for longer than a dashboard can show
+      why: Retention is a storage setting. It does not depend on observability.
+    - text: Ask new questions about a failure nobody planned for
+      why: Correct. Observability is about handling unknown unknowns and answering "Why is this happening?"
+    - text: Avoid the need to instrument the application
+      why: Observability needs instrumentation. Without signals there is nothing to ask.
+    - text: Replace alerts with dashboards
+      why: Alerts still tell you that something is wrong. Observability helps after that.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/observability-primer/
+- id: q-m02-014
+  tags: [correlation]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: In Grafana, what links a metric data point to one example trace?
+  options:
+    - text: A derived field
+      why: Derived fields link log lines to traces, not metric points.
+    - text: A recording rule
+      why: Recording rules compute new series. They do not point to traces.
+    - text: A service graph
+      why: A service graph shows which services call each other. It does not tie one data point to one trace.
+    - text: An exemplar
+      why: Correct. An exemplar is a trace that represents a measurement in a time interval.
+  answer: [3]
+  source: https://grafana.com/docs/grafana/latest/fundamentals/exemplars/
+- id: q-m02-015
+  tags: [analysis]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: Which practice does the Prometheus documentation recommend for alerts?
+  options:
+    - text: Alert on every possible cause, so problems are found early
+      why: Many cause alerts make noise. The advice is to have as few alerts as possible.
+    - text: Page on every internal error, even if users see nothing
+      why: Page on user-visible errors, unless a hidden failure is severe enough to need a person.
+    - text: Alert on symptoms of user pain, and keep alerts simple
+      why: Correct. This is the summary in the Prometheus alerting practices.
+    - text: Use only dashboards, and never send a page to a person
+      why: Pages are still needed for real user-facing problems.
+  answer: [2]
+  source: https://prometheus.io/docs/practices/alerting/
+- id: q-m02-016
+  tags: [correlation]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: In a Grafana trace view with trace to logs set up for Loki, a span shows a "Logs for this span" link. Which logs does the link find?
+  options:
+    - text: Every log line of every service in the time range
+      why: The query is filtered by trace ID and the configured tags, not just by time.
+    - text: Logs that carry the trace's ID, filtered by the configured tags
+      why: Correct. The link filters by trace ID, not span ID, and by tags such as the service name.
+    - text: Only the log lines written during that exact span, matched by span ID
+      why: Grafana filters by trace ID, so logs from the whole trace can appear.
+    - text: The Kubernetes events of the pod that ran the span
+      why: The link queries the configured log data source by trace ID, not Kubernetes events.
+  answer: [1]
+  source: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-logs/
+
+# P1 Metrics
+- id: q-m02-017
+  tags: [metrics]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: In Prometheus, what identifies one time series?
+  options:
+    - text: The metric name and its labels
+      why: Correct. A series is identified by its metric name and its labels.
+    - text: The metric name alone
+      why: One metric name can have many series, one per label combination.
+    - text: The scrape interval and the target address
+      why: These are scrape settings, not what names a series.
+    - text: The timestamp of the first sample
+      why: Timestamps belong to samples inside a series, not to its identity.
+  answer: [0]
+  source: https://prometheus.io/docs/concepts/data_model/
+- id: q-m02-018
+  tags: [metrics]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: A finance team wants to bill customers per API request, exactly. Should they use Prometheus metrics for the bill?
+  options:
+    - text: Yes, because Prometheus stores every single request it sees
+      why: Prometheus stores aggregated numbers, not every request.
+    - text: Yes, if the scrape interval is set to one second
+      why: A shorter interval does not make the data complete per request.
+    - text: No, because Prometheus cannot count requests
+      why: Prometheus counts requests well. It is just not complete enough for exact billing.
+    - text: No, because its data is not complete enough for exact billing
+      why: Correct. Prometheus suggests a separate system for billing and Prometheus for the rest.
+  answer: [3]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-m02-019
+  tags: [golden-signals]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: Which list is the four golden signals from Google's SRE book?
+  options:
+    - text: Rate, errors, duration, saturation
+      why: Rate, errors and duration are RED. The golden signals use latency and traffic.
+    - text: Latency, traffic, errors, saturation
+      why: Correct. These are the four golden signals.
+    - text: Utilization, saturation, errors, latency
+      why: Utilization, saturation and errors are USE, for resources.
+    - text: CPU, memory, disk, network
+      why: These are resources. The golden signals describe a user-facing service.
+  answer: [1]
+  source: https://sre.google/sre-book/monitoring-distributed-systems/
+- id: q-m02-020
+  tags: [golden-signals]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: A disk on a database node is 95% busy and has a long queue of waiting requests. Which method describes these two measurements?
+  options:
+    - text: RED, as rate and duration
+      why: RED describes requests to a service, not how busy a disk is.
+    - text: The golden signals, as traffic and latency
+      why: Traffic and latency describe a service's requests, not a device's busy time and queue.
+    - text: USE, as utilization and saturation
+      why: Correct. USE is for resources; busy time is utilization and the queue is saturation.
+    - text: SLOs, as an indicator and a target
+      why: An SLO is a target for a user-facing measure, not a way to describe a disk.
+  answer: [2]
+  source: https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/best-practices/
+- id: q-m02-021
+  tags: [cardinality]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: A counter has the labels <code>method</code> (4 values), <code>status</code> (5 values) and <code>region</code> (3 values). At most how many series can it have?
+  options:
+    - text: "12"
+      why: That counts only method and region.
+    - text: "60"
+      why: Correct. Every combination is a series, so 4 times 5 times 3.
+    - text: "3"
+      why: The labels multiply; they do not take the smallest count.
+    - text: "1"
+      why: One metric name holds one series per label combination.
+  answer: [1]
+  source: https://prometheus.io/docs/practices/naming/
+- id: q-m02-022
+  tags: [cardinality]
+  exam: {cert: pca, domain: P1, competency: Metrics}
+  q: A developer wants to see which customers send the most requests and plans to add a <code>customer_email</code> label to a Prometheus counter. What is the best advice?
+  options:
+    - text: Do it, because labels cost nothing in Prometheus
+      why: Every label combination is a new series with memory, CPU, disk and network costs.
+    - text: Do it, but only on the <code>_total</code> counter
+      why: The name suffix does not change how many series the label creates.
+    - text: Use a gauge instead of a counter
+      why: The metric type does not change the cardinality of the label.
+    - text: Keep unbounded values such as emails out of labels
+      why: Correct. Prometheus warns against labels such as email addresses, which have endless values.
+  answer: [3]
+  source: https://prometheus.io/docs/practices/instrumentation/
+
+# P1 Understand logs and events
+- id: q-m02-023
+  tags: [logs]
+  exam: {cert: pca, domain: P1, competency: Understand logs and events}
+  q: A team wants to store application logs and search them by service. Where should the logs go?
+  options:
+    - text: Into Prometheus, as one time series per log line
+      why: Prometheus is for metrics, not an event logging system. Its FAQ says not to feed logs into it.
+    - text: Into a log system such as Grafana Loki
+      why: Correct. The Prometheus FAQ points to Loki or OpenSearch for logs.
+    - text: Into Kubernetes Events
+      why: Events are short-lived reports from the cluster, kept for one hour by default.
+    - text: Into span names
+      why: Span names should be short and low in cardinality, not full log messages.
+  answer: [1]
+  source: https://prometheus.io/docs/introduction/faq/
+- id: q-m02-024
+  tags: [logs]
+  exam: {cert: pca, domain: P1, competency: Understand logs and events}
+  q: Which log is structured in the sense the OpenTelemetry docs use?
+  options:
+    - text: A free-text line such as <code>ERROR could not reach the database after 3 tries</code>
+      why: Free text has no fields; each format needs its own parser.
+    - text: Any log written as JSON
+      why: JSON whose field names and types change between lines is only semistructured.
+    - text: A log with a stable schema of field names and types that every line follows
+      why: Correct. A stable schema, not the encoding, makes a log structured.
+    - text: A <code>key=value</code> line whose keys change from service to service
+      why: Key-value lines without a stable schema are semistructured.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/signals/logs/
+- id: q-m02-025
+  tags: [logs]
+  exam: {cert: pca, domain: P1, competency: Understand logs and events}
+  q: A node fails and its pods are rescheduled. The team can no longer read the old containers' logs with <code>kubectl logs</code>. What would have prevented this?
+  options:
+    - text: Setting a longer <code>--event-ttl</code> on the API server
+      why: That flag keeps Kubernetes Events longer. It does not keep container logs.
+    - text: Writing logs to stderr instead of stdout
+      why: Both streams are kept on the node, and both are lost with it.
+    - text: Using <code>kubectl logs --previous</code>
+      why: That reads an earlier container on the same node. It does not help when the node or pod is gone.
+    - text: Shipping logs to a separate store
+      why: Correct. Logs need storage and a lifecycle independent of nodes and pods.
+  answer: [3]
+  source: https://kubernetes.io/docs/concepts/cluster-administration/logging/
+
+# P1 Tracing and Spans
+- id: q-m02-026
+  tags: [traces]
+  exam: {cert: pca, domain: P1, competency: Tracing and Spans}
+  q: What does a trace record?
+  options:
+    - text: The path of one request through the services
+      why: Correct. A trace is made of spans that follow one request end to end.
+    - text: The CPU use of every service over time
+      why: That is a metric, or a profile at the code level.
+    - text: Every log line of a service for one day
+      why: Logs are a separate signal. A trace can be linked to logs by its ID.
+    - text: The list of targets that Prometheus scrapes, with their health
+      why: Scrape targets come from service discovery, not from traces.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/observability-primer/
+- id: q-m02-027
+  tags: [traces]
+  exam: {cert: pca, domain: P1, competency: Tracing and Spans}
+  q: A span finished without error, and the developer did not set a status. What is its status?
+  options:
+    - text: Ok
+      why: Ok is set only when a developer marks the span as successful on purpose.
+    - text: Error
+      why: Error means an error occurred in the operation.
+    - text: Unset
+      why: Correct. Unset is the default and means the operation completed without an error.
+    - text: Unknown
+      why: There is no Unknown status. The three values are Unset, Error and Ok.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/signals/traces/
+- id: q-m02-028
+  tags: [traces]
+  exam: {cert: pca, domain: P1, competency: Tracing and Spans}
+  q: Service A calls service B over HTTP. How does B's span end up in the same trace as A's span?
+  options:
+    - text: The tracing backend matches the two spans by their start times
+      why: Time alone cannot tie spans together. The trace ID does.
+    - text: A sends its trace ID and span ID along with the call
+      why: Correct. This is context propagation, by default in the W3C <code>traceparent</code> header. B then creates a child span in the same trace.
+    - text: B reads A's log lines to find the trace ID of the request
+      why: Services do not read each other's logs. The context travels with the request.
+    - text: Both services use the same <code>service.name</code>
+      why: They are different services, and a shared name would not link spans.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/context-propagation/
+- id: q-m02-029
+  tags: [traces]
+  exam: {cert: pca, domain: P1, competency: Tracing and Spans}
+  q: Which span kind fits a service that takes an order message from a Kafka topic and processes it?
+  options:
+    - text: Server
+      why: A server span handles a synchronous incoming call, not a queued message.
+    - text: Client
+      why: A client span makes a synchronous outgoing call.
+    - text: Internal
+      why: Internal spans do not cross a process boundary.
+    - text: Consumer
+      why: Correct. A consumer span processes a job created by a producer, possibly much later.
+  answer: [3]
+  source: https://opentelemetry.io/docs/concepts/signals/traces/
+
+# P1 Push vs Pull
+- id: q-m02-030
+  tags: [push-pull]
+  exam: {cert: pca, domain: P1, competency: Push vs Pull}
+  q: Which two advantages of pulling does the Prometheus FAQ name? (Choose two.)
+  options:
+    - text: You can more easily and reliably tell if a target is down
+      why: Correct. A failed scrape shows at once, for example in the <code>up</code> series.
+    - text: You can start extra monitoring instances as needed
+      why: Correct. Any Prometheus can scrape the same targets without changing them.
+    - text: Short-lived batch jobs are always captured
+      why: It is the opposite. A job can end before any scrape, which is why the Pushgateway exists.
+    - text: Targets need no network access from the server
+      why: In pull, the server must reach every target over the network.
+    - text: Pull makes metrics exact enough for billing
+      why: Collection method does not change Prometheus's advice against using it for exact billing.
+  answer: [0, 1]
+  source: https://prometheus.io/docs/introduction/faq/
+- id: q-m02-031
+  tags: [push-pull]
+  exam: {cert: pca, domain: P1, competency: Push vs Pull}
+  q: A team pushes the metrics of 200 long-running service instances to one Pushgateway, each with an <code>instance</code> label. Months later, many removed instances still show in Prometheus. Why?
+  options:
+    - text: The Pushgateway keeps pushed series until they are deleted
+      why: Correct. The Pushgateway never forgets series, so removed instances stay until someone deletes them.
+    - text: Prometheus keeps every series forever by default
+      why: Scraped series of a vanished target go away with it. The stale data comes from the Pushgateway.
+    - text: The <code>up</code> series keeps every instance it has seen alive
+      why: With a Pushgateway you lose per-instance <code>up</code> monitoring.
+    - text: The instances still push in the background
+      why: Removed instances push nothing. The old values are kept in the Pushgateway.
+  answer: [0]
+  source: https://prometheus.io/docs/practices/pushing/
+- id: q-m02-032
+  tags: [push-pull]
+  exam: {cert: pca, domain: P1, competency: Push vs Pull}
+  q: An application uses an OpenTelemetry SDK and should send metrics straight to a Prometheus server over OTLP. What must be true on the Prometheus side?
+  options:
+    - text: Nothing, because Prometheus scrapes OTLP by default
+      why: OTLP is a push protocol, and Prometheus's OTLP receiver is off by default.
+    - text: Its OTLP receiver must be turned on with a flag
+      why: Correct. The flag is <code>--web.enable-otlp-receiver</code>. The receiver is off by default because Prometheus may run without authentication.
+    - text: A Pushgateway must translate OTLP into the Prometheus format
+      why: The Pushgateway is for batch jobs. Prometheus has its own OTLP receiver.
+    - text: Prometheus must be switched to push mode for all targets
+      why: Prometheus keeps scraping its targets. The OTLP receiver only adds a way to receive pushes.
+  answer: [1]
+  source: https://prometheus.io/docs/guides/opentelemetry/
+
+# P1 Service Discovery
+- id: q-m02-033
+  tags: [push-pull]
+  exam: {cert: pca, domain: P1, competency: Service Discovery}
+  q: Pods in a Kubernetes cluster are created and deleted all day. How should Prometheus find which pods to scrape?
+  options:
+    - text: A static list of pod IP addresses, updated by hand each week
+      why: Pod addresses change all the time, so a static list goes stale at once.
+    - text: Each pod pushes its address to Prometheus at start-up
+      why: Prometheus does not take target registrations by push. It discovers targets.
+    - text: Kubernetes service discovery, which reads the Kubernetes API
+      why: Correct. Kubernetes SD keeps the target list in sync as pods come and go.
+    - text: The Pushgateway, which lists all running pods
+      why: The Pushgateway holds pushed metrics. It does not discover targets.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+- id: q-m02-034
+  tags: [push-pull]
+  exam: {cert: pca, domain: P1, competency: Service Discovery}
+  q: In which two ways can Prometheus learn its scrape targets? (Choose two.)
+  options:
+    - text: Service discovery
+      why: Correct. Prometheus discovers targets through service discovery.
+    - text: Static configuration
+      why: Correct. Targets can also be listed in the configuration.
+    - text: From the traces it receives
+      why: Prometheus does not take its targets from traces.
+    - text: From the log lines of each target
+      why: Prometheus does not read logs.
+    - text: From the Alertmanager
+      why: Alertmanager handles alerts, not scrape targets.
+  answer: [0, 1]
+  source: https://prometheus.io/docs/introduction/overview/
+- id: q-m02-035
+  tags: [push-pull]
+  exam: {cert: pca, domain: P1, competency: Service Discovery}
+  q: Service discovery found a target, but its scrape fails. What does Prometheus record for that target?
+  options:
+    - text: Nothing at all, until the target answers again
+      why: Prometheus still records a sample for every scrape attempt in <code>up</code>.
+    - text: An error log line in Loki
+      why: Prometheus records scrape health as a series, not as a log in Loki.
+    - text: A Kubernetes Event on the pod
+      why: Prometheus does not write Kubernetes Events.
+    - text: "A sample of <code>up</code> with the value 0"
+      why: Correct. <code>up</code> is 1 when the target was reachable and 0 when the scrape failed.
+  answer: [3]
+  source: https://prometheus.io/docs/concepts/jobs_instances/
+
+# P1 Basics of SLOs, SLAs, and SLIs
+- id: q-m02-036
+  tags: [slo]
+  exam: {cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs"}
+  q: What tells an SLA apart from an SLO?
+  options:
+    - text: An SLA always has a stricter target
+      why: The target can be the same. The difference is the agreed consequence.
+    - text: An SLA is measured by Prometheus and an SLO by Grafana
+      why: The tools do not define the terms.
+    - text: An SLA is a contract with consequences for a miss
+      why: Correct. If nothing happens when the target is missed, it is an SLO.
+    - text: An SLA measures latency and an SLO measures errors
+      why: Both can cover any indicator. That is not the difference.
+  answer: [2]
+  source: https://sre.google/sre-book/service-level-objectives/
+- id: q-m02-037
+  tags: [slo]
+  exam: {cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs"}
+  q: Which is a good SLI for an online shop's checkout?
+  options:
+    - text: The share of checkout requests that succeed
+      why: Correct. An SLI is a carefully defined measure of service, ideally from the user's point of view.
+    - text: The number of servers in the checkout cluster
+      why: Server count is capacity, not a measure of the service users receive.
+    - text: A rule that the team stops releases when the budget is spent
+      why: That is an error budget policy, not an indicator.
+    - text: A refund that the company promises customers after an outage
+      why: A promised consequence is part of an SLA.
+  answer: [0]
+  source: https://sre.google/sre-book/service-level-objectives/
+- id: q-m02-038
+  tags: [slo]
+  exam: {cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs"}
+  q: A service has used all of its error budget for the last four weeks because of its own bugs. Under a typical error budget policy, what happens next?
+  options:
+    - text: The SLO is raised so the budget becomes larger
+      why: Raising the target makes the budget smaller, and it does not fix the cause.
+    - text: Nothing, because the budget resets at midnight
+      why: The budget is measured over a window, such as four weeks, not a day.
+    - text: The team signs a new SLA that allows more errors
+      why: An SLA is a business contract. The policy is about how the team works.
+    - text: Releases stop, except urgent fixes, until it meets its SLO again
+      why: Correct. This is what the example error budget policy says.
+  answer: [3]
+  source: https://sre.google/workbook/error-budget-policy/
+- id: q-m02-039
+  tags: [slo]
+  exam: {cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs"}
+  q: A service has a 99.9% success SLO and receives 3,000,000 requests over four weeks. One outage causes 1,500 failed requests. How much of the error budget did it use?
+  options:
+    - text: 5%
+      why: 1,500 is half of the 3,000 failures the budget allows, not a twentieth.
+    - text: 0.05%
+      why: That is the outage's share of all requests, not of the budget.
+    - text: 50%
+      why: Correct. The budget is 0.1% of 3,000,000, so 3,000 failures; 1,500 is half.
+    - text: 100%
+      why: The budget is 3,000 failures, so 1,500 is not all of it.
+  answer: [2]
+  source: https://sre.google/workbook/implementing-slos/

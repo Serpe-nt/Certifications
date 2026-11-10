@@ -1,0 +1,65 @@
+---
+id: m02-s05
+title: "Profiles in one card: where Pyroscope and eBPF fit"
+kind: concept
+minutes: 6
+order: 5
+exam:
+  - cert: otca
+    domain: O1
+    competency: Telemetry Data
+tags: [profiles]
+sources:
+  - title: Profiles (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/signals/profiles/
+    checked: 2026-11-10
+  - title: Introduction (Grafana Pyroscope)
+    url: https://grafana.com/docs/pyroscope/latest/introduction/
+    checked: 2026-11-10
+  - title: Set up profiling with eBPF with Grafana Alloy (Pyroscope)
+    url: https://grafana.com/docs/pyroscope/latest/configure-client/grafana-alloy/ebpf/
+    checked: 2026-11-10
+  - title: OpenTelemetry eBPF Instrumentation (OBI)
+    url: https://opentelemetry.io/docs/zero-code/obi/
+    checked: 2026-11-10
+  - title: Grafana Beyla
+    url: https://grafana.com/docs/beyla/latest/
+    checked: 2026-11-10
+---
+
+<Why>
+The ad service uses all its CPU. The metric shows the CPU line at the top. The trace shows that one span is slow. Neither tells you which function in the code is burning the CPU, so the developer still has to guess what to fix.
+</Why>
+
+<Idea>
+A profile records where a program spends its resources, down to the function. It takes many samples of the call stack and counts which code was running. Profiles are the newest signal, next to metrics, logs and traces.
+</Idea>
+
+<Points>
+  <Point label="The question profiles answer">Logs say what happened, metrics say how much, traces say where a request went. Profiles say which code uses the CPU or memory.</Point>
+  <Point label="Kinds of profile">On-CPU: which functions use processor time. Off-CPU: where threads wait, for example on locks or disk. Heap: which functions hold memory. Allocations: which code allocates the most memory.</Point>
+  <Point label="Still young in OpenTelemetry">The OpenTelemetry profiles signal is in Alpha, and its OTLP format is still in development. Traces, metrics and logs are stable.</Point>
+  <Point label="eBPF: watching from the kernel">eBPF runs small, safe programs inside the Linux kernel. A profiler can use it to sample stacks of any process, with no code change. It works on Linux only and needs root access on the host.</Point>
+  <Point label="Pyroscope stores profiles">Grafana Pyroscope is a profile database built like Loki, Mimir and Tempo. Alloy can collect CPU profiles with eBPF and send them to it.</Point>
+  <Point label="eBPF does more than profiles">OBI, OpenTelemetry eBPF Instrumentation, uses eBPF to create traces and rate, error and duration metrics without code changes. Grafana Beyla is Grafana's distribution of OBI. This lab runs neither Pyroscope nor OBI.</Point>
+</Points>
+
+<Question id="q-m02-s05" answer="b">
+A service's CPU use is at 95%. The team knows which pod it is, but not which part of the code is responsible. Which signal answers that best?
+
+- A metric of CPU use per pod
+
+  The metric already showed the high CPU. It cannot point inside the code.
+
+- An on-CPU profile
+
+  An on-CPU profile shows which functions were running on the CPU.
+
+- A trace of one slow request
+
+  A trace shows which service and operation were slow, not which function used the CPU.
+
+- Kubernetes events for the pod
+
+  Events report things like scheduling and restarts, not code-level resource use.
+</Question>

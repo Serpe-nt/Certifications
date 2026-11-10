@@ -1,0 +1,81 @@
+---
+id: m02-s09
+title: Push versus pull
+kind: concept
+minutes: 10
+order: 9
+exam:
+  - cert: pca
+    domain: P1
+    competency: Push vs Pull
+  - cert: pca
+    domain: P1
+    competency: Service Discovery
+tags: [push-pull]
+sources:
+  - title: Prometheus FAQ (Why do you pull rather than push?)
+    url: https://prometheus.io/docs/introduction/faq/
+    checked: 2026-11-10
+  - title: Prometheus overview
+    url: https://prometheus.io/docs/introduction/overview/
+    checked: 2026-11-10
+  - title: When to use the Pushgateway (Prometheus)
+    url: https://prometheus.io/docs/practices/pushing/
+    checked: 2026-11-10
+  - title: Configuration, kubernetes_sd_config (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+    checked: 2026-11-10
+  - title: Jobs and instances (Prometheus)
+    url: https://prometheus.io/docs/concepts/jobs_instances/
+    checked: 2026-11-10
+  - title: OTLP specification
+    url: https://opentelemetry.io/docs/specs/otlp/
+    checked: 2026-11-10
+  - title: Using Prometheus as your OpenTelemetry backend
+    url: https://prometheus.io/docs/guides/opentelemetry/
+    checked: 2026-11-10
+  - title: Loki overview
+    url: https://grafana.com/docs/loki/latest/get-started/overview/
+    checked: 2026-11-10
+---
+
+<Why>
+Telemetry has to travel from hundreds of pods to a store. Either the store goes and fetches it, or each pod sends it. The choice decides who must know about whom, how you notice a dead target, and what happens to a job that runs for ten seconds and exits.
+</Why>
+
+<Idea>
+In pull, the collector asks each target for its data on a schedule: Prometheus scrapes an HTTP page. In push, the source sends its data to a receiver: OpenTelemetry's OTLP works this way. Both are fine; each has cases where it fits better.
+</Idea>
+
+<Points>
+  <Point label="Pull: Prometheus scrapes">Prometheus collects metrics by pulling them over HTTP from each target at a fixed interval. Each target only has to serve a page of its current values.</Point>
+  <Point label="Finding what to pull">A puller must know its targets. Prometheus finds them through service discovery or from a static list. Kubernetes service discovery reads targets from the Kubernetes API and stays in step as pods come and go. Module m03 shows how.</Point>
+  <Point label="What pull gives you">For every scrape Prometheus records `up`: 1 if the target answered, 0 if not, so a dead target is easy to see. You can also open a target's page in a browser, or start a second Prometheus on your laptop.</Point>
+  <Point label="Push: the source sends">With OTLP, the client sends export requests to a server, such as a collector or a backend. Loki also receives its logs by push. Prometheus can accept OTLP pushes too, but that receiver is off by default.</Point>
+  <Point label="The Pushgateway is for batch jobs">A short job may end before any scrape. The Pushgateway takes its last results and keeps them for Prometheus. Use it only for service-level batch jobs: it is a single point of failure, you lose `up`, and it keeps every pushed series until you delete it.</Point>
+  <Point label="In this lab, both">The shop pushes OTLP to the collector gateway. Prometheus pulls metrics from exporters, then pushes them on to Mimir with remote write.</Point>
+</Points>
+
+<Trap>
+Do not pick a monitoring system only for push or pull. The Prometheus team says pull is slightly better, but not a major point. And do not push every service's metrics through the Pushgateway: stale series will stay there forever.
+</Trap>
+
+<Question id="q-m02-s09" answer="d">
+A nightly job deletes old users and exits after 20 seconds. The team wants its result in Prometheus. What is the recommended way?
+
+- Lower the scrape interval to 1 second so Prometheus catches the job
+
+  A short-lived job may still end between scrapes, and a 1-second interval adds load everywhere.
+
+- Run a second Prometheus server only for the job
+
+  A second server does not solve the problem: there is still nothing to scrape after the job exits.
+
+- Send the job's log lines to Prometheus
+
+  Prometheus does not take logs. It stores metrics.
+
+- Push the job's result to a Pushgateway, without an instance label
+
+  A service-level batch job is the case the Pushgateway is meant for.
+</Question>

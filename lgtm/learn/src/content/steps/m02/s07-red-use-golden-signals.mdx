@@ -1,0 +1,66 @@
+---
+id: m02-s07
+title: RED, USE and the four golden signals
+kind: concept
+minutes: 10
+order: 7
+exam:
+  - cert: pca
+    domain: P1
+    competency: Metrics
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [golden-signals]
+sources:
+  - title: Grafana dashboard best practices (common observability strategies)
+    url: https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/best-practices/
+    checked: 2026-11-10
+  - title: Monitoring distributed systems (Google SRE book, chapter 6)
+    url: https://sre.google/sre-book/monitoring-distributed-systems/
+    checked: 2026-11-10
+  - title: Instrumentation (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/instrumentation/
+    checked: 2026-11-10
+---
+
+<Why>
+A new service goes live and the team asks you to build its dashboard. It exposes two hundred metrics. If you put all of them on screen, nobody will find the important line during an incident. You need a short, fixed list of what to watch for every service and every machine.
+</Why>
+
+<Idea>
+Three well-known checklists give that list. RED is for services: rate, errors, duration. USE is for resources such as CPU and disks: utilization, saturation, errors. The four golden signals from Google's SRE book are latency, traffic, errors and saturation.
+</Idea>
+
+<Points>
+  <Point label="RED for services">Rate is requests per second. Errors is the number of failing requests. Duration is how long requests take, as a distribution. RED shows what users feel, so it is a good place for alerts.</Point>
+  <Point label="USE for resources">Utilization is how busy a resource is, such as CPU use. Saturation is how much work waits, such as a queue or the load average. Errors counts error events. USE suits CPU, memory, disks and network devices, and it points at causes.</Point>
+  <Point label="The four golden signals">Latency, traffic, errors and saturation. Google's advice: if you can measure only four metrics of a user-facing system, measure these. They are RED plus saturation.</Point>
+  <Point label="Errors are slow and fast">Keep the latency of failed requests apart from successful ones. A fast error can hide in an average and make latency look better. A slow error is even worse than a fast one.</Point>
+  <Point label="Look at the tail, not the mean">An average hides the few very slow requests. Measure a distribution, with buckets or percentiles such as p99, so the slow tail shows.</Point>
+  <Point label="In this lab">Each shop service has a RED dashboard in the Shop folder in Grafana. You used the one for checkout in the previous step.</Point>
+</Points>
+
+<Trap>
+Do not alert on USE signals alone. High CPU on one node may not hurt any user. Alert on symptoms users feel, such as errors and latency, and use USE dashboards to find the cause.
+</Trap>
+
+<Question id="q-m02-s07" answer="c">
+A team wants one dashboard per microservice that shows how users experience it. Which method fits best?
+
+- USE, because it measures how busy each resource is
+
+  USE is for resources such as CPU and disks. It shows causes, not what users feel.
+
+- Only CPU and memory per pod
+
+  These are resource signals. A service can have spare CPU and still fail its users.
+
+- RED: request rate, errors and duration for each service
+
+  RED is made for services and works as a proxy for user experience.
+
+- The average latency of all services together
+
+  An average across services hides which service is slow, and the mean hides the slow tail.
+</Question>
