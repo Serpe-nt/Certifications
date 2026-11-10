@@ -24,7 +24,7 @@ From `lgtm/lab` in WSL:
 
 ```bash
 make platform                    # everything, on the cluster in ~/.kube/lgtm-lab.config
-make platform TAGS=kafka         # one add-on: metrics-server, cert-manager, gateway, longhorn, s3, kafka
+make platform TAGS=kafka         # one add-on: control-plane, metrics-server, cert-manager, gateway, longhorn, s3, kafka
 make platform-check              # the smoke test
 make platform-lint               # helm lint and a schema check of every rendered chart
 ```
@@ -108,21 +108,24 @@ Real cluster (profile `full`), what Kubernetes reserves (requests) and the most 
 | Envoy proxy (envoy and shutdown-manager) | 2 | 110m, 160Mi | 1500m, 768Mi | 220m, 320Mi | 3000m, 1536Mi |
 | RustFS | 1 | 100m, 256Mi | 1, 1Gi | 100m, 256Mi | 1, 1Gi |
 | Strimzi operator | 1 | 100m, 384Mi | 1, 384Mi | 100m, 384Mi | 1, 384Mi |
-| Kafka `telemetry` (dual-role nodes) | 3 | 200m, 1Gi | 1, 1536Mi | 600m, 3Gi | 3, 4.5Gi |
+| Kafka `telemetry` (dual-role nodes, 512 MiB heap) | 3 | 200m, 768Mi | 1, 1280Mi | 600m, 2.25Gi | 3, 3.75Gi |
 | Kafka entity operator (topic and user operators) | 1 | 100m, 384Mi | 1, 768Mi | 100m, 384Mi | 1, 768Mi |
 | Longhorn manager (one per worker) | 4 | 50m, 128Mi | 1, 512Mi | 200m, 512Mi | 4, 2Gi |
 | Longhorn global manager | 2 | 20m, 64Mi | 500m, 256Mi | 40m, 128Mi | 1, 512Mi |
 | Longhorn UI | 1 | 10m, 32Mi | 200m, 128Mi | 10m, 32Mi | 200m, 128Mi |
-| Longhorn instance managers (one per worker) | 4 | 300m (5% of 6 vCPU), memory not set | not set | 1200m | not set |
+| Longhorn instance managers (one per worker) | 4 | 200m (5% of 4 vCPU), memory not set | not set | 800m | not set |
 | Longhorn CSI sidecars (4 kinds, 2 each), CSI plugin and engine image (one per worker), driver deployer | 17 | not set by the chart | not set | measure | measure |
-| **Total (set values)** | | | | **2710m, 5.3 GiB** | **16.1 CPU, 11.8 GiB** |
+| **Total (set values)** | | | | **2310m, 4.55 GiB** | **16.1 CPU, 11.05 GiB** |
 
-Per node: the control-plane nodes run none of this (they keep kubeadm's taint). The four
-workers (6 vCPU, 9 GiB each, 36 GiB together) carry it all. The Longhorn manager and instance
-manager run on every worker (350m and 128Mi requested each); the rest is spread by the
-scheduler, with the three Kafka nodes and the two proxies on different workers where possible.
-On average one worker reserves about 680m CPU and 1.3 GiB for the platform, 15% of its memory,
-before the LGTM stack. The limits add up to more than the requests on purpose; they cap a
+Per node: the control-plane nodes run none of this (they keep kubeadm's taint), and the first
+role, `platform_control_plane` (tag `control-plane`), moves CoreDNS, the Tigera operator and the
+Calico Deployments off them too: with the API server at about 880 MiB, a 2 GB master had no room
+for them (`acceptance-lab.md`, defect 1). The four workers (4 vCPU and 6 GB each, 22.75 GiB
+allocatable together) carry it all. The Longhorn manager and instance manager run on every
+worker (250m and 128Mi requested each); the rest is spread by the scheduler, with the three
+Kafka nodes and the two proxies on different workers where possible. On average one worker
+reserves about 580m CPU and 1.1 GiB for the platform, 20% of its memory, before the LGTM stack.
+Measured numbers on the real cluster are in `budget.md`. The limits add up to more than the requests on purpose; they cap a
 runaway pod.
 
 Measured on the kind cluster with `kubectl top pods` after the smoke test (idle, profile
@@ -140,6 +143,12 @@ kubectl top pods -n longhorn-system --sum
 Disk: Longhorn keeps two copies of each volume. The platform asks for RustFS 25 GiB and Kafka
 3 x 5 GiB, so up to 80 GiB of the four 40 GiB Longhorn disks (160 GiB) once they fill. They are
 dynamic VHDX files, so the PC's drive only pays for what is written.
+
+Longhorn keeps 30% of each disk in reserve (its default for a node's default disk), so with
+over-provisioning at 100% only about 117 GiB of replicas fit on four workers, less than the
+platform and the lab ask for together (about 155 GiB). The values set
+`storageOverProvisioningPercentage: 200`: volumes are thin, and
+`storageMinimalAvailablePercentage: 15` still stops scheduling on a disk that is really full.
 
 The kind profile reserves less: one Kafka node (100m, 768Mi), one proxy, RustFS 50m/128Mi,
 no Longhorn; about 600m CPU and 2.1 GiB in requests.
