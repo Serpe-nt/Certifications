@@ -507,16 +507,25 @@ make a FAT32 VHDX with built-in cmdlets but has no ISO writer, so each VM gets i
 FAT32 disk (`<name>-seed.vhdx`). `meta-data` must contain an `instance-id`; `user-data` is the
 cloud config; `network-config` is the network configuration.
 
-The files are rendered by `ConvertTo-LabCloudInit` in `LabVms.psm1` from `nodes.yml`.
-*Run here (2026-11-10):* rendered with the real public key, whose middle is shown as `<KEY>`:
+The files are rendered by `ConvertTo-LabCloudInit` in `LabVms.psm1` from `nodes.yml`. They are
+shown below for reading; `create` already wrote them onto each VM's seed disk.
+
+**Optional: render them yourself.** You do not need this step to build the lab; skip to 4.2. In a
+PowerShell (normal) in the `vm\hyperv` folder, the first line allows unsigned scripts in this
+window only (Windows' default execution policy refuses to load the module otherwise). The Process
+scope affects only the current session and is not saved, so the policy of the PC is not changed
+([about_Execution_Policies](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies)):
 
 ```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 Import-Module .\LabVms.psm1 -Force
 $config = Get-LabConfig -Path ..\nodes.yml
 $key = Read-LabPublicKey -Path $config.PublicKeyFile
 $seed = ConvertTo-LabCloudInit -Config $config -Node ($config.Nodes | Where-Object Name -EQ 'master1') -PublicKey $key
 $seed['user-data']
 ```
+
+*Run here (2026-11-10):* rendered with the real public key, whose middle is shown as `<KEY>`.
 
 **master1 (control plane)**
 
@@ -1070,6 +1079,7 @@ Fetched on 2026-11-10:
 - Install Hyper-V: https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/get-started/install-hyper-v?pivots=windows
 - Set up a NAT network: https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/setup-nat-network
 - Supported Ubuntu virtual machines on Hyper-V: https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/supported-ubuntu-virtual-machines-on-hyper-v
+- about_Execution_Policies (fetched 2026-11-10, after the first run report): https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies
 - Set-VMFirmware: https://learn.microsoft.com/en-us/powershell/module/hyper-v/set-vmfirmware
 - Add-DnsClientNrptRule: https://learn.microsoft.com/en-us/powershell/module/dnsclient/add-dnsclientnrptrule
 - netsh interface (portproxy): https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-interface
