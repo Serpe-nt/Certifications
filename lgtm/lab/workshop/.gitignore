@@ -1,0 +1,3 @@
+# The SQLite file the service recreates on every start.
+*.db
+__pycache__/

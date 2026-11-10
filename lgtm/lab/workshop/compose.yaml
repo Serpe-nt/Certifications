@@ -1,0 +1,34 @@
+# The workshop service in Docker, one command:
+#   docker compose up --build
+# A solution instead of the starting point (PowerShell, then bash):
+#   $env:WORKSHOP_VARIANT="solutions/03-propagation"; docker compose up --build
+#   WORKSHOP_VARIANT=solutions/03-propagation docker compose up --build
+# With the load script as well:
+#   docker compose --profile load up --build
+# Where the lab is comes from lab.env; lgtm/lab/docs/workshop.md explains it.
+name: lgtm-workshop
+
+services:
+  workshop:
+    build:
+      context: .
+      args:
+        VARIANT: ${WORKSHOP_VARIANT:-.}
+    image: lgtm-workshop:${WORKSHOP_TAG:-local}
+    env_file:
+      - path: lab.env
+      - path: ${WORKSHOP_VARIANT:-.}/workshop.env
+    ports:
+      - "127.0.0.1:${WORKSHOP_PORT:-8000}:8000"
+    # Containers do not use the Windows rule that sends .k8s.local names to
+    # the lab's DNS, so the two lab names the service uses are given here.
+    # LAB_LB_ADDRESS is the lab's load balancer (lab contract: lb 10.10.0.5).
+    extra_hosts:
+      - "otlp.lab.k8s.local:${LAB_LB_ADDRESS:-10.10.0.5}"
+      - "shop.lab.k8s.local:${LAB_LB_ADDRESS:-10.10.0.5}"
+
+  load:
+    profiles: [load]
+    image: lgtm-workshop:${WORKSHOP_TAG:-local}
+    depends_on: [workshop]
+    command: ["python", "load.py", "--url", "http://workshop:8000"]
