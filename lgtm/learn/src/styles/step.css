@@ -997,7 +997,7 @@
   - sections: the heading wipes in, its number slides in, the yellow bar rises and charges;
   - part labels type themselves out, their yellow tab grows and their icon draws;
   - Problem unfolds top down, a yellow light runs over its three dots; Key idea's corner brackets
-    snap in from outside; In this lab's ink edge draws down and its caret blinks; Trap's band drops
+    snap in from outside; In this lab's ink edge draws down; Trap's band drops
     and its stripes crawl; Remember tears in (ticket, notches, stub, a scan over the barcode);
     Do counts its numbers up; How you know it worked draws a check and flashes its frame;
   - Flow stages light one after another, their arrows march; Compare splits open, the columns come in
@@ -1385,7 +1385,7 @@
     animation-range: entry 0% entry 40%, normal;
   }
 
-  /* ---- In this lab: the ink edge draws down; the caret in the icon blinks */
+  /* ---- In this lab: the ink edge draws down */
   .part-lab::before {
     transition:
       background-color 200ms var(--lg-ease-out),
@@ -1397,9 +1397,6 @@
   .part-lab:hover::before {
     transform: scaleX(1.5);
     transform-origin: left;
-  }
-  .part-lab .st-caret {
-    animation: lg-blink 1.1s steps(2) infinite;
   }
 
   /* ---- Trap: the stripe band drops in and crawls; the yellow tab flashes a warning */
@@ -1643,10 +1640,10 @@
     animation: st-stack 480ms var(--lg-ease-out) backwards;
     animation-delay: calc(120ms + var(--st-i) * 140ms);
   }
-  .layer {
+  .layer > * {
     transition: transform 220ms var(--lg-ease-out);
   }
-  .layer:hover {
+  .layer:hover > * {
     transform: translateX(8px);
   }
 
@@ -1781,12 +1778,6 @@
     display: inline-block;
     animation: hd-pop 380ms var(--lg-ease-out) backwards;
     animation-delay: calc(160ms + var(--st-i) * 90ms);
-  }
-  .side-box.st-seen .chip:hover {
-    animation:
-      hd-pop 380ms var(--lg-ease-out) backwards,
-      hd-jolt 180ms steps(1);
-    animation-delay: calc(160ms + var(--st-i) * 90ms), 0s;
   }
 
   /* ---- the step nav: its rule scans, Go to practice points on, Mark complete charges */

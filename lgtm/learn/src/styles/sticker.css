@@ -215,7 +215,7 @@
 /*
   The frame assembles itself like a label printing: the tab wipes out from the left, the rail draws
   from the tab to the chevrons, a scan band runs down the body. Then it idles: the chevrons march,
-  the node pulses, a laser crosses the barcode and the code's cursor blinks. On a step the box builds
+  the node pulses, a laser crosses the barcode. On a step the box builds
   as it scrolls into view (the decoration only: the options never wait). Everything here sits under
   prefers-reduced-motion: no-preference; a running mock exam stops it (quiz.css). Keyframes: stk-.
 */
@@ -242,12 +242,6 @@
   box-shadow: 0 0 0 1px var(--lg-ink);
   opacity: 0;
   pointer-events: none;
-}
-.sticker-code::after {
-  content: "";
-  width: 0.6em;
-  height: 1.1em;
-  background: var(--lg-ink-3);
 }
 .sticker-chevrons polygon:nth-child(2) {
   --stk-i: 1;
@@ -360,11 +354,6 @@
     transform: translateX(107px);
   }
 }
-@keyframes stk-cursor {
-  50% {
-    opacity: 0;
-  }
-}
 
 @media (prefers-reduced-motion: no-preference) {
   .sticker-tab {
@@ -407,9 +396,6 @@
   }
   .sticker-foot::before {
     animation: stk-laser 2.6s ease-in-out 1s infinite;
-  }
-  .sticker-code::after {
-    animation: stk-cursor 1s step-end infinite;
   }
 
   /* On a step the box builds as it scrolls into view; the options are never clipped. */

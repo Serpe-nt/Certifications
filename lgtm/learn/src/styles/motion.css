@@ -87,7 +87,7 @@
 }
 
 /* ================================================================ nav buttons in the top bar */
-/* Ink fills in from the left, the text turns yellow and decodes (fx-ui.ts), a cursor blinks. */
+/* Ink fills in from the left and the text turns yellow and decodes (fx-ui.ts). */
 .navbtn {
   position: relative;
   background-image: linear-gradient(var(--lg-ink), var(--lg-ink));
@@ -103,19 +103,6 @@
 .navbtn[aria-current="true"] {
   background-size: 100% 100%;
   color: var(--lg-signal) !important;
-}
-.navbtn::after {
-  content: "_";
-  margin-left: 2px;
-  opacity: 0;
-}
-.navbtn:hover::after {
-  opacity: 1;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .navbtn:hover::after {
-    animation: lg-blink 0.8s steps(2) infinite;
-  }
 }
 
 /* ================================================================ the brand */

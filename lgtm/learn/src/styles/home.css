@@ -1774,8 +1774,8 @@
 .ov-mod-art .micon {
   position: relative;
 }
-.ov-mod-card:is(:hover, :focus-within) .ov-mod-brk,
-.ov-mod-card:is(:hover, :focus-within) .ov-mod-ring {
+.ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-brk,
+.ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-ring {
   opacity: 1;
 }
 .ov-mod-card:focus-within .ov-mod-art {
@@ -1960,28 +1960,14 @@
     animation-range: entry 0% cover 40%;
   }
   :root:not([data-motion="off"]) .ov-sh::after {
-    animation: lg-wipe 1s steps(6) both, hm-march-x 0.7s linear infinite;
-    animation-timeline: --hm-sh, auto;
-    animation-range: cover 25% cover 45%, normal;
+    animation: lg-wipe 1s steps(6) both;
+    animation-timeline: --hm-sh;
+    animation-range: cover 25% cover 45%;
   }
   :root:not([data-motion="off"]) .ov-sh-n {
     animation: lg-wipe 1s steps(3) both;
     animation-timeline: --hm-sh;
     animation-range: entry 0% entry 100%;
-  }
-  :root:not([data-motion="off"]) .ov-sh-n::after,
-  :root:not([data-motion="off"]) .ov-index::before,
-  :root:not([data-motion="off"]) .ov-badge-next-label::after,
-  :root:not([data-motion="off"]) .ov-readout span:last-child::after,
-  :root:not([data-motion="off"]) .ov-caption span:last-child::after {
-    content: "";
-    display: inline-block;
-    width: 0.6em;
-    height: 1.05em;
-    margin-left: 0.3em;
-    vertical-align: -0.2em;
-    background: currentColor;
-    animation: hm-cursor 1.06s linear infinite;
   }
   :root:not([data-motion="off"]) .ov-sh-t {
     animation: hm-glitch-in 1s linear both;
@@ -1997,11 +1983,6 @@
   :root:not([data-motion="off"]) .ov-index {
     animation: lg-wipe 0.4s steps(3) both;
   }
-  :root:not([data-motion="off"]) .ov-index::before {
-    order: 1;
-    margin: 0;
-    width: 0.6em;
-  }
   :root:not([data-motion="off"]) .ov-index::after {
     order: 2;
     transform-origin: left center;
@@ -2012,16 +1993,6 @@
   }
   :root:not([data-motion="off"]) .page-glass .ov-hero-title {
     animation: lg-wipe var(--lg-dur-slow) var(--lg-ease-out) 0.2s both;
-  }
-  :root:not([data-motion="off"]) .page-glass .ov-hero-title::after {
-    content: "";
-    display: inline-block;
-    width: 0.5em;
-    height: 0.85em;
-    margin-left: 0.15em;
-    vertical-align: -0.08em;
-    background: var(--lg-ink);
-    animation: hm-cursor 0.9s linear 1.1s 6 both;
   }
   :root:not([data-motion="off"]) .ov-hero-lead {
     animation: lg-rise 0.6s var(--lg-ease-out) 0.45s both;
@@ -2228,30 +2199,30 @@
     animation-timeline: --hm-card, auto;
     animation-range: entry 60% entry 90%, normal;
   }
-  :root:not([data-motion="off"]) .ov-mod-card:is(:hover, :focus-within) {
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card {
     translate: -6px -6px;
   }
-  :root:not([data-motion="off"]) .ov-mod-card:is(:hover, :focus-within) .ov-mod-art {
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-art {
     animation: hm-dots 1.6s linear infinite;
   }
-  :root:not([data-motion="off"]) .ov-mod-card:is(:hover, :focus-within) .ov-mod-brk {
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-brk {
     animation: hm-snap 0.28s steps(3) both;
   }
   :root:not([data-motion="off"]) .ov-mod-ring {
     scale: 0.55;
     transition: scale 0.35s var(--lg-ease-out), opacity 0.2s linear;
   }
-  :root:not([data-motion="off"]) .ov-mod-card:is(:hover, :focus-within) .ov-mod-ring {
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-ring {
     scale: 1;
     animation: lg-spin 9s linear infinite;
   }
-  :root:not([data-motion="off"]) .ov-mod-card:is(:hover, :focus-within) .ov-mod-ring::after {
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-ring::after {
     animation: lg-spin 2.4s linear infinite reverse;
   }
   :root:not([data-motion="off"]) .ov-mod-art .micon {
     transition: scale 0.3s var(--lg-ease-out);
   }
-  :root:not([data-motion="off"]) .ov-mod-card:is(:hover, :focus-within) .ov-mod-art .micon {
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-art .micon {
     scale: 1.1;
     animation: hm-glitch 0.45s linear both;
   }
@@ -2848,21 +2819,7 @@
   :root:not([data-motion="off"]) .ov-table tbody tr:hover .rc-verdict {
     rotate: 1turn;
   }
-  /* How the course works: the track runs, a packet travels it, the arrows fire in turn */
-  :root:not([data-motion="off"]) .ov-method-list::before {
-    animation: hm-march-x 0.7s linear infinite;
-  }
-  :root:not([data-motion="off"]) .ov-method-list::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 29px;
-    height: 6px;
-    background: linear-gradient(var(--lg-ink) 0 0) -28px 0 / 28px 6px no-repeat;
-    pointer-events: none;
-    animation: hm-packet-x 3.2s linear infinite;
-  }
+  /* How the course works: the arrows fire in turn; the track itself stands still */
   :root:not([data-motion="off"]) .ov-method-item {
     view-timeline: --hm-step block;
     animation: lg-rise 1s var(--lg-ease-out) both;
@@ -2916,19 +2873,6 @@
     animation-delay: 2.56s;
   }
   @media (max-width: 1100px) {
-  :root:not([data-motion="off"]) .ov-method-list::before {
-      animation-name: hm-march-y;
-    }
-  :root:not([data-motion="off"]) .ov-method-list::after {
-      left: 29px;
-      right: auto;
-      top: 0;
-      bottom: 0;
-      width: 6px;
-      height: auto;
-      background: linear-gradient(var(--lg-ink) 0 0) 0 -28px / 6px 28px no-repeat;
-      animation-name: hm-packet-y;
-    }
   :root:not([data-motion="off"]) .ov-method-item + .ov-method-item::before {
       animation-name: hm-arrow-y;
     }
@@ -2977,9 +2921,13 @@
     animation-delay: 585ms;
   }
   :root:not([data-motion="off"]) .ms-step {
-    transition: translate 0.22s var(--lg-ease-out), background-color var(--lg-dur-fast) linear;
+    transition: background-color var(--lg-dur-fast) linear;
   }
-  :root:not([data-motion="off"]) .ms-step:hover {
+  :root:not([data-motion="off"]) .ms-step > *,
+  :root:not([data-motion="off"]) .me-next > * {
+    transition: translate 0.22s var(--lg-ease-out);
+  }
+  :root:not([data-motion="off"]) .ms-step:hover > * {
     translate: 8px 0;
   }
   :root:not([data-motion="off"]) .ms-step::before {
@@ -3140,7 +3088,7 @@
   :root:not([data-motion="off"]) .me-next-art {
     transition: background-color var(--lg-dur-fast) linear, color var(--lg-dur-fast) linear;
   }
-  :root:not([data-motion="off"]) .me-next:hover {
+  :root:not([data-motion="off"]) .me-next:hover > * {
     translate: 8px 0;
   }
   :root:not([data-motion="off"]) .me-next:hover .me-next-art .micon {
@@ -3185,16 +3133,6 @@
   }
 }
 
-@keyframes hm-cursor {
-  0%,
-  49.9% {
-    opacity: 1;
-  }
-  50%,
-  100% {
-    opacity: 0;
-  }
-}
 @keyframes hm-fade-in {
   from {
     opacity: 0;
@@ -3323,16 +3261,6 @@
   100% {
     opacity: 1;
     transform: scale(1);
-  }
-}
-@keyframes hm-march-x {
-  to {
-    background-position: 14px 0;
-  }
-}
-@keyframes hm-march-y {
-  to {
-    background-position: 0 14px;
   }
 }
 @keyframes hm-march-dash {
@@ -3676,16 +3604,6 @@
   }
   to {
     transform: perspective(240px) rotateY(360deg);
-  }
-}
-@keyframes hm-packet-x {
-  to {
-    background-position: calc(100% + 28px) 0;
-  }
-}
-@keyframes hm-packet-y {
-  to {
-    background-position: 0 calc(100% + 28px);
   }
 }
 @keyframes hm-arrow-x {

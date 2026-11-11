@@ -1153,7 +1153,7 @@
   background-repeat: no-repeat;
 }
 
-/* The status strip: scanlines, a light band that passes, a cursor after the line. */
+/* The status strip: scanlines and a light band that passes. */
 .qz-strip {
   position: relative;
 }
@@ -1174,24 +1174,6 @@
   width: 35%;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--lg-signal) 20%, transparent) 50%, transparent);
   transform: translateX(-100%);
-}
-.qz-status::after,
-.qz-intro-hint::after,
-.pr-kicker::after {
-  content: "";
-  display: inline-block;
-  width: 0.6em;
-  height: 1.1em;
-  margin-left: 6px;
-  vertical-align: -0.2em;
-  background: var(--lg-signal);
-}
-.qz-intro-hint::after,
-.pr-kicker::after {
-  background: var(--lg-ink);
-}
-.qz-exam .qz-status::after {
-  content: none;
 }
 
 /* Submit: a yellow bar charges along its foot once a pick arms it; hovered, hazard stripes march. */
@@ -1409,11 +1391,6 @@
   to {
     opacity: 1;
     clip-path: inset(0 0 0 0);
-  }
-}
-@keyframes qz-cursor {
-  50% {
-    opacity: 0;
   }
 }
 @keyframes qz-sweep {
@@ -1904,7 +1881,7 @@
     transition: background-color var(--lg-dur-fast) var(--lg-ease-out), box-shadow var(--lg-dur-fast) var(--lg-ease-out), transform 120ms var(--lg-ease-out);
   }
   .q-square:hover:not(:disabled):not([aria-current="true"]) {
-    transform: translateY(-3px);
+    box-shadow: inset 0 7px 0 var(--lg-ink);
   }
   .qz:not(.qz-exam) .q-square {
     animation: qz-boot 460ms step-end calc(var(--qz-i, 0) * 35ms) backwards;
@@ -1935,11 +1912,6 @@
   }
   .qz-status {
     animation: qz-type 560ms steps(32, end) backwards;
-  }
-  .qz-status::after,
-  .qz-intro-hint::after,
-  .pr-kicker::after {
-    animation: qz-cursor 1s step-end infinite;
   }
   .qz-strip-kind {
     display: inline-block;
@@ -1977,9 +1949,6 @@
   }
   .qz-notice {
     animation: qz-drop 420ms var(--lg-ease-out) backwards;
-  }
-  .qz-notice-label {
-    animation: qz-cursor 0.5s step-end 300ms 3;
   }
 
   /* ---- intro: tiles boot one after another, the figures glitch in, the bars charge */
