@@ -18,6 +18,7 @@ with the report the card asks for.
 By the owner's instruction (2026-11-11). They are skills of the owner's claude.ai account and appear in the session's skills list under these names.
 
 - `caveman`: the voice of chat only. Everything that is saved (lesson text, code, comments, commits, pull requests, docs) is plain, complete English.
+- In a session's skills list `humanizer` and `ponytail` may appear as `anthropic-skills:humanizer` and `anthropic-skills:ponytail`; load them under the name the list shows.
 - `humanizer`: rewrites text that sounds machine-made so it reads like a person wrote it, without changing what it says. Pass every text a person will read through it before you save it: lesson text first of all, then docs and pull request text. It must not change a fact, a number, a name, a command or a query; check those after it.
 - `ponytail`: for coding work, the smallest change that fully solves the task, and a reply a busy reader takes in at one pass. It does not shrink the card: every item of "Done when" still has to be met.
 
@@ -73,6 +74,7 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 3 | `w3-d2-beacon-workshop.md` | D2 beacon and workshop service |
 | 3 | `w3-c0-content-pilot.md` | C0 content pilot, module m02 |
 | 4 | `w4-dz-article-redesign.md` | DZ the lesson page as an article (with the owner in the session) |
+| 4 | `w4-x-mock-exam-pool.md` | X1 the OTCA mock pool and X2 the PCA mock pool (questions keep their form, so they do not wait for the redesign) |
 | 5 and later | `content-module-template.md` | one copy per module, filled in by the planner once the content contract is at version 2 |
 
 Cards for wave 5 and later (C0b, C1 and the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.

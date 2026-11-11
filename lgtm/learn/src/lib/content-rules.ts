@@ -190,6 +190,7 @@ export function checkContent(corpus: RawCorpus, opts: RuleOptions = {}): { issue
   const questionIds = new Map<string, string>();
   const taughtTags = new Set(checked.steps.flatMap((s) => s.data.tags));
   const poolSize = new Map<string, number>();
+  const report = opts.final ? err : warn;
   for (const { file, data: q } of checked.questions) {
     const stem = file.replace(/^questions\//, '').replace(/\.yaml$/, '');
     const prev = questionIds.get(q.id);
@@ -208,10 +209,11 @@ export function checkContent(corpus: RawCorpus, opts: RuleOptions = {}): { issue
     if (POSITIONAL.test(q.q) || q.options.some((o) => POSITIONAL.test(o.text) || POSITIONAL.test(o.why))) {
       err(file, 'question-positional', `question "${q.id}": options are shuffled on screen, so nothing may refer to positions`);
     }
-    for (const t of q.tags) if (!taughtTags.has(t)) err(file, 'tag-coverage', `question "${q.id}": tag "${t}" is not taught by any step`);
+    // A mock pool may be written before the modules whose steps teach its tags, so there a
+    // missing tag is a warning until the end of the project. In a module pool it is an error.
+    for (const t of q.tags) if (!taughtTags.has(t)) (mock ? report : err)(file, 'tag-coverage', `question "${q.id}": tag "${t}" is not taught by any step`);
     poolSize.set(stem, (poolSize.get(stem) ?? 0) + 1);
   }
-  const report = opts.final ? err : warn;
   for (const m of checked.modules) {
     const n = poolSize.get(m.data.id) ?? 0;
     if (m.data.quiz && n < POOL_MIN) report(`questions/${m.data.id}.yaml`, 'pool-size', `module ${m.data.id} has ${n} quiz questions; it needs at least ${POOL_MIN}`);
