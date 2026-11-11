@@ -148,6 +148,7 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
           </p>
           <Stepper onPrev={() => go(i - 1)} onNext={() => go(i + 1)} prevOff={!ready || i === 0} nextOff={!ready || i >= run.ids.length - 1} />
         </header>
+        <div className="qz-cardbody">
         {q ? (
           <QuestionView
             q={q}
@@ -190,6 +191,7 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
               </button>
             )}
           </div>
+        </div>
         </div>
       </article>
     </section>

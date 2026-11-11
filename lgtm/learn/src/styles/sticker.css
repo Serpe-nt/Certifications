@@ -1,0 +1,226 @@
+/*
+  The sticker frame: the shape of a question box, after the owner's references (2026-11-11, a label
+  sticker and a type specimen). A stepped ink tab with the title, a rail that runs on from the tab
+  with a node and a block of chevrons, a body framed in ink with a chamfered corner, and a foot with
+  a dashed rule, a barcode and the question's code. Used by "Check yourself" on a step
+  (mdx/Question.astro) and by the question card in quizzes and the mock exam (.qz-card).
+*/
+
+.sticker {
+  --stk-line: 3px;
+  --stk-cut: 22px;
+  position: relative;
+}
+
+/* ---------------------------------------------------------------- head: tab and rail */
+.sticker-head,
+.qz-card > .qz-qhead {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 44px;
+  margin: 0;
+  max-width: none;
+}
+.sticker-tab {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 40px 8px 14px;
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+  clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 100%, 0 100%);
+}
+.sticker-tab svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.sticker-rail,
+.qz-card > .qz-qhead::after {
+  position: relative;
+  flex: 1;
+  margin-left: -2px;
+  border-bottom: var(--stk-line, 3px) solid var(--lg-ink);
+}
+/* A node where the rail leaves the tab, and a block of chevrons at its far end. */
+.sticker-rail::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  bottom: -7px;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--lg-ink);
+  border-radius: 50%;
+  background: var(--lg-screen);
+}
+.sticker-rail::after,
+.qz-card > .qz-qhead::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 9px;
+  width: 104px;
+  height: 18px;
+  background:
+    linear-gradient(135deg, var(--lg-ink) 25%, transparent 25%) -9px 0 / 18px 18px,
+    linear-gradient(45deg, var(--lg-ink) 25%, transparent 25%) -9px 0 / 18px 18px;
+  opacity: 0.85;
+}
+
+/* ---------------------------------------------------------------- body: ink frame with a cut corner */
+.sticker-body,
+.qz-card > .qz-cardbody {
+  position: relative;
+  padding: 22px 24px 18px;
+  border: var(--stk-line, 3px) solid var(--lg-ink);
+  border-top: 0;
+  background: var(--lg-paper);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%);
+}
+/* The diagonal of the cut corner, drawn so the frame stays closed. */
+.sticker-body::after,
+.qz-card > .qz-cardbody::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 23px;
+  height: 23px;
+  background: linear-gradient(to top left, transparent calc(50% - 1px), var(--lg-ink) calc(50% - 1px), var(--lg-ink) calc(50% + 3px), transparent calc(50% + 3px));
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- foot: rule, barcode, code */
+.sticker-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lg-space-4);
+  margin-top: var(--lg-space-6);
+  padding: 12px 18px 0 0;
+  border-top: 1px dashed var(--lg-ink-3);
+  color: var(--lg-ink-3);
+}
+.sticker-foot .barcode {
+  width: 110px;
+  height: 22px;
+  flex: none;
+}
+.sticker-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.sticker-code svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* ---------------------------------------------------------------- Check yourself on a step */
+.part.sticker {
+  margin: 2.5rem 0;
+  padding: 0;
+  background: none;
+  clip-path: none;
+}
+.sticker .qv-text,
+.sticker [data-question] > div:first-child p {
+  margin: 0 0 var(--lg-space-4);
+  font-size: var(--lg-text-body);
+  line-height: 1.5;
+  color: var(--lg-ink);
+}
+.sticker .card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lg-space-3) var(--lg-space-4);
+  margin-top: var(--lg-space-4);
+}
+.sticker .card-result {
+  margin: 0;
+  font-size: var(--lg-text-ui);
+  color: var(--lg-ink-2);
+}
+
+/* ---------------------------------------------------------------- the quiz card takes the same shape */
+.qz-card {
+  border-top: 0;
+  padding-top: 0;
+}
+.qz-card > .qz-qhead {
+  gap: 0;
+  flex-wrap: nowrap;
+}
+.qz-card > .qz-qhead::after {
+  content: "";
+  order: 1;
+}
+.qz-card > .qz-qhead::before {
+  right: 150px;
+  z-index: 0;
+}
+.qz-card .qz-qnum {
+  position: relative;
+  z-index: 1;
+  order: 0;
+  padding: 6px 44px 6px 14px;
+  background: var(--lg-ink);
+  clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 100%, 0 100%);
+}
+.qz-card .qz-qnum-n {
+  color: var(--lg-signal);
+}
+.qz-card .qz-qnum-of {
+  color: var(--lg-ink-on-dark);
+}
+.qz-card .qz-qnum::before {
+  box-shadow: none;
+}
+.qz-card > .qz-qhead .qz-stepper,
+.qz-card > .qz-qhead .qz-flag {
+  order: 2;
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  margin-left: var(--lg-space-3);
+  padding-bottom: 6px;
+}
+@media (max-width: 560px) {
+  .sticker-rail::after,
+  .qz-card > .qz-qhead::before {
+    display: none;
+  }
+  .sticker-body,
+  .qz-card > .qz-cardbody {
+    padding: 18px 14px 16px;
+  }
+}
+
+/* In the reading column the article's paragraph rules would grey the tab; the tab keeps its ink and yellow. */
+.prose .sticker-tab {
+  color: var(--lg-signal);
+  line-height: 1.4;
+}
+/* The mock exam's flag button is wider than the quiz stepper. */
+.qz-card > .qz-qhead:has(.qz-flag)::before {
+  right: 230px;
+}
+/* Options and explanations in a step's box come as paragraphs from the MDX; they take the row's size. */
+.prose .sticker .qopt p,
+.prose .sticker .qopt li {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+.prose .sticker .qopt-why p + p {
+  margin-top: 6px;
+}

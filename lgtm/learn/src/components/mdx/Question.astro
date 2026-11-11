@@ -3,6 +3,7 @@
 // Inside: the question, then a list of four options. Each list item holds the option,
 // a blank line, and its explanation indented under it (see lgtm/learn/README.md).
 // Options are shown in a shuffled order, so the letters in `answer` only name list positions.
+// Drawn in the sticker frame (src/styles/sticker.css): a stepped tab, a rail, a framed body, a foot.
 import CardQuestion from '../islands/CardQuestion.tsx';
 import { splitRenderedQuestion } from '../../lib/question-html.ts';
 
@@ -15,7 +16,16 @@ const html = await Astro.slots.render('default');
 const { stem, options } = splitRenderedQuestion(html);
 const answerIndex = 'abcde'.indexOf(answer);
 ---
-<section class="part box" data-block="question">
-  <p class="part-label mono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17v.5"/></svg>Check yourself</p>
-  <CardQuestion client:visible id={id} stemHtml={stem} options={options} answer={answerIndex} />
+<section class="part sticker" data-block="question">
+  <div class="sticker-head">
+    <p class="sticker-tab mono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17v.5"/></svg>Check yourself</p>
+    <span class="sticker-rail" aria-hidden="true"></span>
+  </div>
+  <div class="sticker-body">
+    <CardQuestion client:visible id={id} stemHtml={stem} options={options} answer={answerIndex} />
+    <div class="sticker-foot mono" aria-hidden="true">
+      <span class="barcode"></span>
+      <p class="sticker-code"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5 15 14H1z"/><path d="M8 6v4M8 11.5v1"/></svg>{id}</p>
+    </div>
+  </div>
 </section>

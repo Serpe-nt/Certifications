@@ -265,6 +265,7 @@ function ExamScreen({ exam, bank, now, ready }: { exam: ExamRun; bank: Bank; now
             {mark?.f ? 'Flagged for review' : 'Flag for review'}
           </button>
         </header>
+        <div className="qz-cardbody">
         {q ? (
           <QuestionView q={q} order={shownOrder(exam.ord[i], q.n)} picked={mark?.a ?? []} onPick={pick} disabled={!ready || over} feedback={false} name={`${exam.t0}-${id}`} />
         ) : (
@@ -278,6 +279,7 @@ function ExamScreen({ exam, bank, now, ready }: { exam: ExamRun; bank: Bank; now
             Next
           </button>
         </nav>
+        </div>
       </article>
     </section>
   );

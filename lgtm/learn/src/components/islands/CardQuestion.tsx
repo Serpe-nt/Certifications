@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import type { RenderedOption } from '../../lib/question-html.ts';
+import { Mark } from './QuestionView.tsx';
 import { updateState, useHydrated, useStoreState } from '../../lib/use-store.ts';
 
 interface Props {
@@ -43,37 +44,49 @@ export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
 
   return (
     <div data-question={id}>
-      <div dangerouslySetInnerHTML={{ __html: stemHtml }} />
-      <fieldset className="m-0 border-0 p-0">
-        <legend className="sr-only">Pick one answer</legend>
-        {order.map((i) => {
+      <div className="qv-text" dangerouslySetInnerHTML={{ __html: stemHtml }} />
+      <fieldset className="qv-opts">
+        <legend className="qv-legend mono">Pick one answer</legend>
+        {order.map((i, k) => {
           const o = options[i];
           const right = i === answer;
-          const tone = !answered ? '' : right ? 'border-good' : i === picked ? 'border-bad' : '';
+          const chosen = (answered ? picked : choice) === i;
+          const state = !answered ? (chosen ? 'picked' : 'open') : right ? 'right' : i === picked ? 'wrong' : 'other';
           return (
-            <label key={i} className={`mb-2 block rounded-md border border-line bg-surface p-3 ${tone}`} data-option={right && answered ? 'right' : undefined}>
-              <span className="flex items-start gap-2">
-                <input type="radio" name={name} disabled={answered || !ready} checked={(answered ? picked : choice) === i} onChange={() => setChoice(i)} className="mt-1" />
-                <span dangerouslySetInnerHTML={{ __html: o.html }} />
+            <label key={i} className="qopt" data-state={state} data-option={right && answered ? 'right' : undefined}>
+              <input type="radio" name={name} className="qopt-input" disabled={answered || !ready} checked={chosen} onChange={() => setChoice(i)} />
+              <span className="qopt-key" aria-hidden="true">
+                {'ABCDEF'[k] ?? k + 1}
               </span>
-              {answered && (
-                <span className="mt-2 block text-sm text-ink-2">
-                  <strong>{right ? 'Right. ' : i === picked ? 'Not this one. ' : ''}</strong>
-                  <span dangerouslySetInnerHTML={{ __html: o.whyHtml }} />
-                </span>
-              )}
+              <span className="qopt-body">
+                <span className="qopt-text" dangerouslySetInnerHTML={{ __html: o.html }} />
+                {answered && (right || i === picked) && (
+                  <span className="qopt-tag mono">
+                    <Mark right={right} />
+                    {right ? (i === picked ? 'Your pick, right' : 'The right answer') : 'Your pick, wrong'}
+                  </span>
+                )}
+                {answered && (
+                  <span className="qopt-why">
+                    <strong>{right ? 'Right. ' : i === picked ? 'Not this one. ' : ''}</strong>
+                    <span dangerouslySetInnerHTML={{ __html: o.whyHtml }} />
+                  </span>
+                )}
+              </span>
             </label>
           );
         })}
       </fieldset>
-      {!answered && (
-        <button type="button" className="btn btn-primary mt-2" disabled={choice === null || !ready} onClick={() => choice !== null && submit(choice)} data-check-answer-card>
-          Check answer
-        </button>
-      )}
-      <p className="text-sm text-ink-3" aria-live="polite" data-question-result>
-        {answered ? (picked === answer ? 'Right.' : 'Not quite: the explanations are under each option.') : last ? `Last time: ${last.right ? 'right' : 'wrong'}.` : ''}
-      </p>
+      <div className="card-actions">
+        {!answered && (
+          <button type="button" className="btn btn-primary" disabled={choice === null || !ready} onClick={() => choice !== null && submit(choice)} data-check-answer-card>
+            Check answer
+          </button>
+        )}
+        <p className="card-result" aria-live="polite" data-question-result>
+          {answered ? (picked === answer ? 'Right.' : 'Not quite: the explanations are under each option.') : last ? `Last time: ${last.right ? 'right' : 'wrong'}.` : ''}
+        </p>
+      </div>
     </div>
   );
 }

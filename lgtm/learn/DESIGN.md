@@ -189,6 +189,7 @@ There are no soft cards. Article parts:
 - **Remember:** paper ticket with notches and a barcode stub.
 - Every part's label carries a small yellow tab, an icon and a mono name. Only the `##` sections are numbered (the owner chose "Sections only", 2026-11-11).
 - In this lab, Trap and Remember close the article together, after a heavier rule.
+- **Question box (sticker frame, `sticker.css`):** Check yourself on a step and the question card in quizzes and the mock exam share one shape, after the owner's label-sticker and type-specimen references: a stepped ink tab with the title (or the question number in yellow), a rail running on from it with a node and a block of chevrons, a paper body framed in 3px ink with a cut bottom-right corner, and on a step a foot with a dashed rule, a barcode and the question's code. Options are lettered rows (A to D), the same on a step as in a quiz.
 - **Lab check:** paper panel with an ink frame, right after How you know it worked on the Practice tab; a primary Check button; a red frame and a message that says what is wrong for each kind of check; a green edge once passed.
 
 Information parts (Flow, Compare, Figures, Layers, Timeline) are drawn in ink and paper; the highlighted item is ink with paper text. See `../docs/adr/dz-article-format.md` for when to use each.
