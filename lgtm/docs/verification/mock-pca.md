@@ -318,4 +318,4 @@ Questions per competency (every one has at least 3):
 
 - Scenario questions (a situation, a symptom, a configuration snippet or a query to read): 88 of 109 (81%). The other 21 ask a concept directly: 002, 004, 005, 009, 017, 019, 021, 025, 032, 033, 037, 041, 060, 070, 075, 077, 084, 085, 096, 098, 108.
 - Choose-two questions: 5 of 109 (4.6%).
-- Option lengths (characters of visible text): the right answer averages 43.8, the wrong options 43.6. The right answer is the longest option in 9 questions (8%) and the shortest in 25 (23%); with four options, chance alone gives 25% for each.
+- Option lengths (characters of visible text): the right answer averages 44.0, the wrong options 43.6. The right answer is the longest option in 12 questions (11%) and the shortest in 25 (23%); with four options, chance alone gives 25% for each.

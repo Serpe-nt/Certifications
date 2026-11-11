@@ -139,7 +139,7 @@
   exam: {cert: pca, domain: P1, competency: Tracing and Spans}
   q: You read the spans of one trace as JSON. How do you recognise the root span?
   options:
-    - text: Its <code>parent_id</code> is empty
+    - text: Its <code>parent_id</code> is always empty
       why: Correct. The root span marks the start and end of the whole operation, and it is the span without a parent.
     - text: It has the most span events
       why: Any span can have many or no events. The number of events says nothing about its place in the tree.
@@ -288,7 +288,7 @@
   exam: {cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs"}
   q: For a 99.9% SLO over 30 days, an alert fires whenever the error rate over the last 10 minutes is above 0.1%. What does the SRE workbook say about this alert?
   options:
-    - text: Good recall, but it also fires on events that barely use the budget
+    - text: It has good recall but also fires on events that barely use the budget
       why: Correct. Recall and detection time are good, but precision is low. A 0.1% error rate for 10 minutes fires the alert while using only 0.02% of the monthly budget.
     - text: It never fires during a total outage, because the window is too short
       why: A total outage crosses the threshold almost at once. The workbook gives a detection time of 0.6 seconds for this case.
@@ -489,8 +489,8 @@
   options:
     - text: It would create tens of millions of series, too many
       why: Correct. The guidelines use this very case. Per-user quota on 10,000 nodes quickly reaches a double-digit number of millions of series.
-    - text: It is fine, because labels cost nothing in Prometheus
-      why: Each label set is an extra series with RAM, CPU, disk and network costs.
+    - text: It would create about 10,000 series, which is fine
+      why: Each of the 10,000 users gets a series on every one of the 10,000 nodes, so the counts multiply to tens of millions.
     - text: It is fine, if the scrape interval is raised to 5 minutes
       why: A slower scrape reduces samples per second, not the number of series in memory.
     - text: It is fine, if the user ID goes in the metric name
@@ -504,7 +504,7 @@
   exam: {cert: pca, domain: P2, competency: Data Model and Labels}
   q: An exporter sends some series with the label <code>region=""</code> and others with no <code>region</code> label at all. How does Prometheus treat a label with an empty value?
   options:
-    - text: The same as if the series had no such label
+    - text: As if the series had no such label at all
       why: Correct. The data model says that labels with an empty value are equivalent to labels that do not exist.
     - text: As a separate label value that queries must name
       why: An empty value is not stored as a value of its own. It is the same as no label.
@@ -842,7 +842,7 @@
 - id: q-mock-pca-052
   tags: [promql-over-time, alert-rules]
   exam: {cert: pca, domain: P3, competency: Aggregating over time}
-  q: A batch job pushes <code>backup_last_success_timestamp_seconds</code>. You want an alert if the series has had no samples at all for 2 hours. Which expression fits?
+  q: A backup service exposes <code>backup_last_success_timestamp_seconds</code> on its metrics endpoint. You want an alert if the series has had no samples at all for 2 hours. Which expression fits?
   options:
     - text: <code>absent_over_time(backup_last_success_timestamp_seconds[2h])</code>
       why: Correct. It returns a series with value 1 when the range has no samples, which is what an alert needs.
@@ -1299,7 +1299,7 @@
   exam: {cert: pca, domain: P4, competency: Exporters}
   q: A blackbox exporter probes many URLs. The relabeling copies each URL from <code>__address__</code> to <code>__param_target</code>, then sets <code>__address__</code> to the exporter's address. Why?
   options:
-    - text: So the exporter is scraped and gets each URL as a parameter
+    - text: So that the exporter is scraped and gets each URL as a parameter
       why: Correct. <code>__param_target</code> becomes the URL parameter target, and <code>__address__</code> decides which host is scraped.
     - text: So that each URL is scraped directly, with the exporter as a backup
       why: The URLs are not scraped directly. The exporter probes them and reports the result.
@@ -1347,7 +1347,7 @@
   exam: {cert: pca, domain: P4, competency: Exporters}
   q: A Java framework exposes 1-, 5- and 15-minute request rates and a mean since start. What should an exporter do with these values?
   options:
-    - text: Drop them and expose the underlying counter
+    - text: Expose the underlying counter and drop these values
       why: Correct. Prometheus calculates rates itself, usually more accurately than these decaying averages, so the guidelines say to drop them.
     - text: Expose each one as a separate gauge
       why: The guidelines call these statistics clutter. Prometheus can compute any window from a counter.
@@ -1479,7 +1479,7 @@
   exam: {cert: pca, domain: P5, competency: Dashboarding basics}
   q: A Grafana panel has thresholds in absolute mode, with a Base of green and a red step at 80. What does the Base value mean?
   options:
-    - text: Every value below the first step, down to minus infinity
+    - text: It stands for every value below 80, down to minus infinity
       why: Correct. Base stands for minus infinity, so values below 80 are green and values from 80 are red.
     - text: It is 0, so negative values have no color
       why: Base is not 0. It starts at minus infinity, so negative values are green too.
@@ -1705,9 +1705,9 @@
   exam: {cert: pca, domain: P5, competency: Understand and Use Alertmanager}
   q: A network split makes 300 service instances lose their database at once, and each fires an alert. Two identical Prometheus servers send the alerts. How does the Alertmanager help the on-call person here? (Choose two.)
   options:
-    - text: Grouping turns the alerts into one notification
+    - text: It groups the alerts into one notification
       why: Correct. Grouping, for example by alertname and cluster, puts similar alerts into one notification that still lists the affected instances.
-    - text: Duplicate alerts from the server pair are sent once
+    - text: It sends duplicate alerts from the server pair once
       why: Correct. The Alertmanager deduplicates identical alerts, such as the same alert from both servers of the pair.
     - text: It finds the root cause and closes the other alerts
       why: The Alertmanager does not analyse causes. It groups, deduplicates, routes and mutes.
