@@ -1,8 +1,21 @@
 ---
 import Base from '../../layouts/Base.astro';
+import PageHead from '../../components/PageHead.astro';
 import Settings from '../../components/islands/Settings.tsx';
+import { href } from '../../lib/course.ts';
 ---
-<Base title="Settings">
-  <h1 class="mt-0">Settings</h1>
-  <Settings client:load />
+<Base title="Settings" dialogs={false}>
+  <PageHead
+    slot="head"
+    tag="Settings"
+    crumbText="SYS_00 //"
+    crumb={{ label: 'Overview', href: href.home }}
+    title="Settings"
+    lead="The lab's domain and seed, effects and sound, and a copy of your progress."
+    leadStyle="plain"
+    plate={{ value: 'S', label: 'Settings', foot: ['Sys', 'Config'] }}
+  />
+  <div class="settings-page">
+    <Settings client:load />
+  </div>
 </Base>

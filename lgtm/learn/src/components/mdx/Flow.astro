@@ -1,0 +1,11 @@
+---
+// <Flow caption="..."> holds <Stage> items: a path through steps or components, left to right.
+interface Props {
+  caption?: string;
+}
+const { caption } = Astro.props;
+---
+<figure class="info" data-info="flow">
+  {caption && <figcaption class="info-cap mono"><span>{caption}</span></figcaption>}
+  <div class="flow"><slot /></div>
+</figure>

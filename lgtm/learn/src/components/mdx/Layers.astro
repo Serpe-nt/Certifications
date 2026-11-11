@@ -1,0 +1,11 @@
+---
+// <Layers caption="..."> holds <Layer> items, a stack from top to bottom.
+interface Props {
+  caption?: string;
+}
+const { caption } = Astro.props;
+---
+<figure class="info" data-info="layers">
+  {caption && <figcaption class="info-cap mono"><span>{caption}</span></figcaption>}
+  <div class="layers"><slot /></div>
+</figure>

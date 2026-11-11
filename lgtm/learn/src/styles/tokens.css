@@ -1,14 +1,28 @@
 /*
-  Design tokens. Every colour, radius, space, shadow and font the site uses is defined here,
-  in a light and a dark set, and reaches components through the Tailwind theme in global.css.
-  Components never hard-code a colour. The design card (DZ) replaces these values.
+  Design tokens. Every colour, font, space, radius, shadow and motion value the site uses is defined
+  here and reaches components through the Tailwind theme in global.css or as var(--lg-*).
+  Components never hard-code a colour.
 
-  Theme: "system" follows the device; the settings page can force light or dark, which sets
-  data-theme on <html> (see the inline script in src/layouts/Base.astro).
+  One theme, chosen by the owner at the first design stop (2026-11-11): an ash-grey console with a
+  cyberpunk grid, a near-black bezel, a light grey "screen" that holds the reading text, black ink and
+  one signal yellow. The old light and dark sets are gone; the theme setting no longer changes colours.
+  Decisions and sources: ../../../docs/adr/dz-design-system.md and ../../DESIGN.md.
 */
+@import "@fontsource-variable/archivo/wdth.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+
+/* Display face for headings, numbers, tags and buttons. Control Freak Upset by Graham Meade
+   (Apostrophic Labs), listed as free on 1001freefonts; the owner decided to use it (see the ADR). */
+@font-face {
+  font-family: "Control Freak Upset";
+  src: url("../assets/fonts/control-freak-upset.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
-  --lg-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --lg-font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Menlo, Consolas, monospace;
+  --lg-font-display: "Control Freak Upset", "Archivo Variable", sans-serif;
+  --lg-font-sans: "Archivo Variable", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --lg-font-mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Code", Consolas, monospace;
 
   --lg-space-1: 0.25rem;
   --lg-space-2: 0.5rem;
@@ -16,62 +30,75 @@
   --lg-space-4: 1rem;
   --lg-space-6: 1.5rem;
   --lg-space-8: 2rem;
+  --lg-space-12: 3rem;
 
-  --lg-radius-sm: 0.25rem;
-  --lg-radius-md: 0.5rem;
-  --lg-radius-lg: 0.75rem;
+  --lg-radius-sm: 0.1875rem;
+  --lg-radius-md: 0.375rem;
+  --lg-radius-lg: 0.875rem;
+  --lg-radius-screen: 1.375rem;
+  --lg-cut: 0.875rem; /* the chamfer on cut-corner panels and buttons */
 
-  --lg-measure: 44rem;
+  /* The type ramp. Every font-size in the stylesheets is one of these. */
+  --lg-text-label: 0.75rem; /* mono labels, uppercase */
+  --lg-text-small: 0.9375rem; /* notes, captions, sidebar text */
+  --lg-text-ui: 1.0625rem; /* controls, lists in panels */
+  --lg-text-body: 1.1875rem; /* reading text */
+  --lg-text-lead: 1.375rem; /* the outcome line, part titles, leads */
+  --lg-text-h3: 1.75rem;
+  --lg-text-h2: 2rem;
+  --lg-text-stat: 2.75rem; /* big figures */
+  --lg-text-page: clamp(2rem, 3.6vw, 3.25rem); /* titles of the other pages */
+  --lg-text-display: clamp(2.5rem, 4.6vw, 4.875rem); /* the step title */
 
-  /* Light set */
-  --lg-page: #f4f5f7;
-  --lg-surface: #ffffff;
-  --lg-surface-2: #eef0f3;
-  --lg-line: #d3d7de;
-  --lg-ink: #1b1f27;
-  --lg-ink-2: #4a5160;
-  --lg-ink-3: #5f6776;
-  --lg-accent: #1f5fbf;
-  --lg-accent-ink: #ffffff;
-  --lg-good: #1d7a3e;
-  --lg-bad: #b3261e;
-  --lg-warn: #8a5a00;
-  --lg-focus: #1f5fbf;
-  --lg-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 2px 8px rgb(0 0 0 / 0.04);
-}
+  --lg-measure: 47.5rem; /* the reading column on the step page */
+  --lg-page-max: 104rem;
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --lg-page: #0f1218;
-    --lg-surface: #1a1e27;
-    --lg-surface-2: #232834;
-    --lg-line: #363d4b;
-    --lg-ink: #e8eaef;
-    --lg-ink-2: #b7bcc7;
-    --lg-ink-3: #9aa1ae;
-    --lg-accent: #7fb0ff;
-    --lg-accent-ink: #0f1218;
-    --lg-good: #6fd394;
-    --lg-bad: #ff8a80;
-    --lg-warn: #f0c060;
-    --lg-focus: #7fb0ff;
-    --lg-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
-  }
-}
+  /* The console: the page around the screen */
+  --lg-ash: #5e6367;
+  --lg-ash-line: #666b6f; /* grid lines */
+  --lg-ash-mark: #898e93; /* grid plus marks */
+  --lg-ash-deep: #4c5054;
+  --lg-ash-ink: #26292b; /* drawings on the ash */
+  --lg-ash-hair: #373a3d; /* hairlines on the ash */
 
-:root[data-theme="dark"] {
-  --lg-page: #0f1218;
-  --lg-surface: #1a1e27;
-  --lg-surface-2: #232834;
-  --lg-line: #363d4b;
-  --lg-ink: #e8eaef;
-  --lg-ink-2: #b7bcc7;
-  --lg-ink-3: #9aa1ae;
-  --lg-accent: #7fb0ff;
-  --lg-accent-ink: #0f1218;
-  --lg-good: #6fd394;
-  --lg-bad: #ff8a80;
-  --lg-warn: #f0c060;
-  --lg-focus: #7fb0ff;
-  --lg-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  /* The bezel and the screen */
+  --lg-bezel: #141516;
+  --lg-bezel-2: #3b3f42; /* unlit dots and dark insets on the bezel */
+  --lg-screen: #d4d8da;
+  --lg-screen-2: #c5cacc; /* insets and tracks on the screen */
+  --lg-screen-glass: color-mix(in srgb, var(--lg-screen) 85%, transparent); /* the page's screen: the console's grid shows through; 85% keeps the secondary ink at 4.5:1 */
+  --lg-screen-idea: #ccd1d3; /* the key idea panel, between screen and screen-2 */
+  --lg-scrim: rgb(20 21 22 / 0.72); /* behind an open dialog */
+  --lg-scanline: rgb(0 0 0 / 0.16); /* the scanlines rolling over the dialog backdrop */
+  --lg-rule: #b3b8bb; /* rules on the screen */
+  --lg-paper: #f4f5f2; /* labels and light panels */
+
+  /* Ink */
+  --lg-ink: #141516;
+  --lg-ink-2: #2f3336; /* body text on the screen */
+  --lg-ink-3: #4e5357; /* secondary text on the screen, 5.4:1 on --lg-screen */
+  --lg-ink-on-dark: #e8eaeb;
+
+  /* One signal colour, and the two states a quiz needs */
+  --lg-signal: #f2d40c;
+  --lg-signal-ink: #141516;
+  --lg-good: #1d6b3a;
+  --lg-bad: #a3241c;
+
+  /* Kept so the islands that still use these Tailwind names render in the new palette */
+  --lg-page: var(--lg-ash);
+  --lg-surface: var(--lg-screen);
+  --lg-surface-2: var(--lg-screen-2);
+  --lg-line: var(--lg-rule);
+  --lg-accent: var(--lg-ink);
+  --lg-accent-ink: var(--lg-signal);
+  --lg-warn: #7a5400;
+  --lg-focus: var(--lg-signal);
+
+  --lg-shadow: 0 1px 2px rgb(0 0 0 / 0.18), 0 8px 24px rgb(0 0 0 / 0.12);
+
+  --lg-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --lg-dur-fast: 160ms;
+  --lg-dur: 420ms;
+  --lg-dur-slow: 900ms;
 }

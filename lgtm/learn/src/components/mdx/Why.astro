@@ -1,7 +1,7 @@
 ---
-// <Why> block of a step card (content contract). Label: "Why this matters".
+// <Why>: the old form of <Problem>. It renders the same until the rewrite card has run.
 ---
-<section class="box box-why" data-block="why">
-  <h2>Why this matters</h2>
-  <slot />
+<section class="part part-problem" data-block="why">
+  <p class="part-label mono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 17.5v.5"/></svg>The problem</p>
+  <div class="part-body"><slot /></div>
 </section>

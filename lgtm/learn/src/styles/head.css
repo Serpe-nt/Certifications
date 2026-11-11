@@ -1,0 +1,755 @@
+/*
+  The page header on the console, shared by every page (PageHead.astro): the yellow tag, the crumb,
+  the title on the ash, a lead or outcome line, chips, and the dot-matrix plate with the globe turning
+  behind the header. The owner chose the plate "on every page" (2026-11-11).
+*/
+
+.pagehead {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--lg-space-8) 40px;
+  align-items: end;
+  margin: 0 4px var(--lg-space-8);
+}
+.pagehead-main,
+.pagehead-side {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+.pagehead-side {
+  min-width: 220px;
+}
+@media (max-width: 900px) {
+  .pagehead {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--lg-space-6);
+  }
+  .pagehead-side {
+    min-width: 0;
+    justify-self: start;
+  }
+}
+
+.tagrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--lg-space-6);
+}
+.tag {
+  position: relative;
+  overflow: hidden;
+  background: var(--lg-signal);
+  color: var(--lg-signal-ink);
+  padding: 4px 16px;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-small);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.tag-tail {
+  width: 120px;
+  height: 28px;
+  /* One 10px tile of the 7px hatching, so the hatching can crawl by a tile without a seam. */
+  background: linear-gradient(135deg, var(--lg-ash-ink) 0 14%, transparent 14% 50%, var(--lg-ash-ink) 50% 64%, transparent 64%) 0 0 / 10px 10px;
+}
+
+/* Small ink text never sits straight on the ash (3.4:1); it gets a bone backing (over 15:1). */
+.crumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: var(--lg-space-3);
+  padding: 3px 10px;
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+}
+.crumb::before {
+  content: "\00BB";
+  color: var(--lg-signal);
+  font-size: var(--lg-text-ui);
+  text-shadow: 1px 1px 0 var(--lg-ink);
+}
+.crumb a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: -3px -10px -3px 0;
+  padding: 3px 10px;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: inset 0 -3px 0 var(--lg-signal);
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.crumb a svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+.crumb a:hover {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+  box-shadow: none;
+}
+
+.pagetitle {
+  position: relative;
+  margin: 0;
+  max-width: 58rem;
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: var(--lg-text-page);
+  line-height: 1.04;
+  letter-spacing: 0.01em;
+  color: var(--lg-ink);
+  text-wrap: balance;
+}
+.pagetitle-display {
+  font-size: var(--lg-text-display);
+}
+.outcome {
+  position: relative;
+  max-width: 41rem;
+  margin: var(--lg-space-6) 0 0;
+  padding: 12px 18px 12px 16px;
+  background: var(--lg-paper);
+  border-left: 6px solid var(--lg-signal);
+  font-size: var(--lg-text-body);
+  line-height: 1.5;
+  color: var(--lg-ink);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.pagelead {
+  max-width: 41rem;
+  margin: var(--lg-space-6) 0 0;
+  padding: 12px 18px;
+  background: var(--lg-paper);
+  font-size: var(--lg-text-body);
+  line-height: 1.5;
+  color: var(--lg-ink-2);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: var(--lg-space-4);
+}
+.chip {
+  border: 2px solid var(--lg-ink);
+  padding: 4px 10px;
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+}
+.chip-dark {
+  background: var(--lg-ink);
+  color: var(--lg-paper);
+}
+.chip {
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.chip:hover {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.chip-dark:hover {
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+}
+
+/* The plate: a code lit in an octagon dot matrix, 5 by 7 dots per character */
+.matrix {
+  position: relative;
+  background: var(--lg-bezel);
+  padding: 13px 13px 10px;
+  clip-path: polygon(0 12px, 12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+.matrix::after {
+  content: "";
+  position: absolute;
+  right: 9px;
+  top: 7px;
+  width: 20px;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, var(--lg-signal) 0 4px, transparent 4px 7px);
+}
+.matrix-digits {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+.digit {
+  --dot: 13px;
+  display: grid;
+  grid-template-columns: repeat(5, var(--dot));
+  gap: 3px;
+}
+.digit i {
+  width: var(--dot);
+  height: var(--dot);
+  background: var(--lg-bezel-2);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+.digit i.on {
+  background: var(--lg-paper);
+}
+/* Each dot knows its column (--c), row (--r) and character (--dg): the sweeps below are timed by them. */
+.digit i { --c: 0; --r: 0; }
+.digit i:nth-child(5n + 2) { --c: 1; }
+.digit i:nth-child(5n + 3) { --c: 2; }
+.digit i:nth-child(5n + 4) { --c: 3; }
+.digit i:nth-child(5n) { --c: 4; }
+.digit i:nth-child(n + 6) { --r: 1; }
+.digit i:nth-child(n + 11) { --r: 2; }
+.digit i:nth-child(n + 16) { --r: 3; }
+.digit i:nth-child(n + 21) { --r: 4; }
+.digit i:nth-child(n + 26) { --r: 5; }
+.digit i:nth-child(n + 31) { --r: 6; }
+.digit { --dg: 0; }
+.digit:nth-child(2) { --dg: 1; }
+.digit:nth-child(3) { --dg: 2; }
+.digit:nth-child(4) { --dg: 3; }
+.matrix-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lg-space-4);
+  margin: 8px 0 0;
+  font-size: var(--lg-text-label);
+  color: var(--lg-signal);
+}
+.dashline {
+  height: 3px;
+  margin-top: 8px;
+  /* One 16px tile, repeated, so moving it by exactly one tile loops without a seam. */
+  background: linear-gradient(90deg, var(--lg-signal) 0 12px, transparent 12px 16px) 0 0 / 16px 100% repeat-x;
+}
+/* A completed step: the lit dots turn signal yellow, column by column. */
+.matrix[data-done] .digit i.on {
+  background: var(--lg-signal);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .matrix[data-done] .digit i.on {
+    animation: lg-relight 0.7s var(--lg-ease-out) both;
+  }
+  .matrix[data-done] .digit i:nth-child(5n + 2) {
+    animation-delay: 50ms;
+  }
+  .matrix[data-done] .digit i:nth-child(5n + 3) {
+    animation-delay: 100ms;
+  }
+  .matrix[data-done] .digit i:nth-child(5n + 4) {
+    animation-delay: 150ms;
+  }
+  .matrix[data-done] .digit i:nth-child(5n) {
+    animation-delay: 200ms;
+  }
+  .matrix[data-done] .digit + .digit i.on {
+    animation-delay: 300ms;
+  }
+}
+
+/* Three or more characters, and every phone: smaller dots so the plate stays compact. */
+.matrix[data-len="3"] .digit,
+.matrix[data-len="4"] .digit {
+  --dot: 10px;
+}
+@media (max-width: 900px) {
+  .matrix {
+    padding: 9px 10px 8px;
+  }
+  .digit {
+    --dot: 9px;
+    gap: 2px;
+  }
+  .matrix[data-len="3"] .digit,
+  .matrix[data-len="4"] .digit {
+    --dot: 7px;
+  }
+  .matrix-digits {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .dashline {
+    display: none;
+  }
+}
+
+/* The globe turns behind the left side of the header; its one lit node is the signal colour. */
+.globe {
+  position: absolute;
+  left: -170px;
+  top: -90px;
+  width: 520px;
+  height: 520px;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+  color: var(--lg-ash-ink);
+}
+.globe svg {
+  width: 100%;
+  height: 100%;
+}
+.globe .hot {
+  fill: var(--lg-signal);
+  stroke: var(--lg-ink);
+  stroke-width: 1.5px;
+}
+/* A module's own icon in the globe's place: drawn large and faint, in the ash ink. */
+.globe-module {
+  left: -110px;
+  top: -40px;
+  width: 400px;
+  height: 400px;
+  opacity: 0.4;
+}
+.globe-module .micon {
+  width: 100%;
+  height: 100%;
+}
+/* Behind the title the icon stays all ash ink: its yellow detail would sit under the words. */
+.globe-module .micon .hot {
+  fill: none;
+  stroke: currentColor;
+}
+@media (max-width: 900px) {
+  .globe {
+    left: auto;
+    right: -260px;
+    top: -60px;
+    width: 420px;
+    height: 420px;
+  }
+}
+
+
+/* ---------------------------------------------------------------- motion: the header boots like a HUD */
+/*
+  On load, in this order: the tag stamps down and its hatching wipes in and crawls; the crumb types
+  itself out; a yellow scan bar leads the title's wipe and the title glitches once; the
+  outcome unfolds and its yellow edge draws down; the chips pop in one by one. On the right the plate
+  powers on like a tube, its dots light in a diagonal sweep (a yellow flash, then paper), unlit dots
+  twinkle now and then, a scan band passes over it, the dashed line runs and the corner ticks blink.
+  Hovering the plate sends a ripple through its dots; hovering the title glitches it again.
+  The idle loops are small and slow; all of it stops with reduced motion, Effects off or a running mock exam.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  /* The tag */
+  .tag {
+    animation: hd-stamp 460ms var(--lg-ease-out) both;
+  }
+  .tag::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--lg-paper) 75%, transparent) 50%, transparent 70%);
+    transform: translateX(-130%);
+    pointer-events: none;
+    animation: hd-sheen 7s var(--lg-ease-out) 480ms infinite;
+  }
+  .tag-tail {
+    animation:
+      hd-type 420ms steps(8) 160ms both,
+      hd-hatch 1.8s linear infinite;
+  }
+
+  /* The crumb types itself out */
+  .crumb {
+    animation: hd-type 420ms steps(18) 120ms both;
+  }
+  .crumb::before {
+    animation: lg-blink 260ms steps(2) 600ms 3;
+  }
+  .crumb a {
+    background: linear-gradient(90deg, var(--lg-ink) 50%, transparent 50%) 100% 0 / 200% 100% no-repeat;
+    transition:
+      background-position 240ms var(--lg-ease-out),
+      color var(--lg-dur-fast) var(--lg-ease-out),
+      box-shadow var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .crumb a:hover {
+    background: linear-gradient(90deg, var(--lg-ink) 50%, transparent 50%) 0 0 / 200% 100% no-repeat;
+  }
+  .crumb a svg {
+    transition: transform 240ms var(--lg-ease-out);
+  }
+  .crumb a:hover svg {
+    transform: scaleX(1.45);
+  }
+
+  /* The title: a scan bar rides the wipe's edge, then one glitch */
+  .pagetitle {
+    animation:
+      lg-wipe var(--lg-dur-slow) var(--lg-ease-out) both,
+      hd-glitch 300ms steps(1) 1000ms;
+  }
+  .pagetitle:hover {
+    animation-name: lg-wipe, hd-glitch-again;
+    animation-delay: 0s, 0s;
+  }
+  .pagetitle::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent 0 calc(100% - 120px), color-mix(in srgb, var(--lg-signal) 40%, transparent) calc(100% - 8px), var(--lg-signal) calc(100% - 8px));
+    animation:
+      hd-ride var(--lg-dur-slow) var(--lg-ease-out) both,
+      hd-out 260ms linear 780ms both;
+  }
+
+  /* The outcome or lead unfolds from its left edge; the yellow edge draws down */
+  .outcome,
+  .pagelead {
+    animation: hd-unfold 560ms var(--lg-ease-out) 380ms both;
+  }
+  .outcome {
+    border-left-color: transparent;
+  }
+  .outcome::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: var(--lg-signal);
+    transform-origin: top;
+    animation: hd-draw-y 420ms var(--lg-ease-out) 760ms both;
+  }
+
+  /* Chips pop in one after another and jolt when hovered */
+  .pagehead .chip {
+    display: inline-block;
+    animation: hd-pop 380ms var(--lg-ease-out) both;
+    animation-delay: calc(820ms + var(--hd-i, 0) * 90ms);
+  }
+  .pagehead .chip:nth-child(2) { --hd-i: 1; }
+  .pagehead .chip:nth-child(3) { --hd-i: 2; }
+  .pagehead .chip:nth-child(4) { --hd-i: 3; }
+  .pagehead .chip:nth-child(n + 5) { --hd-i: 4; }
+
+  /* The plate powers on, its dots light in a diagonal sweep */
+  .matrix {
+    animation: hd-boot 620ms var(--lg-ease-out) both;
+  }
+  .digit i.on {
+    animation: hd-lit 520ms var(--lg-ease-out) both;
+    animation-delay: calc(380ms + (var(--c) + var(--r)) * 30ms + var(--dg) * 170ms);
+  }
+  /* Unlit dots twinkle, each set on its own slow beat */
+  .digit i:not(.on):nth-child(7n + 3) {
+    animation: hd-twinkle 5.3s linear 2.2s infinite;
+  }
+  .digit i:not(.on):nth-child(11n + 5) {
+    animation: hd-twinkle 7.1s linear 3.4s infinite;
+  }
+  .digit:nth-child(2n) i:not(.on):nth-child(9n + 8) {
+    animation: hd-twinkle 6.2s linear 4.1s infinite;
+  }
+  /* Hover: a ripple runs through the dots from the top left */
+  .matrix.matrix:hover .digit.digit i {
+    animation: hd-ripple 560ms var(--lg-ease-out) both;
+    animation-delay: calc((var(--c) + var(--r)) * 28ms + var(--dg) * 60ms);
+  }
+  /* A scan band passes over the plate every few seconds */
+  .matrix::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 30%;
+    pointer-events: none;
+    background: linear-gradient(transparent, color-mix(in srgb, var(--lg-paper) 14%, transparent) 70%, color-mix(in srgb, var(--lg-signal) 45%, transparent) 96%, transparent);
+    transform: translateY(-100%);
+    animation: hd-scan 6.5s linear 1.3s infinite;
+  }
+  .matrix::after {
+    animation: lg-blink 1.6s steps(2) 1.2s infinite;
+  }
+  .matrix:hover .dashline {
+    animation-duration: 0.35s;
+  }
+  .matrix-foot {
+    animation: hd-type 520ms steps(14) 900ms both;
+  }
+
+  /* The globe or module icon fades up behind */
+  .globe {
+    animation: hd-globe 1.6s var(--lg-ease-out) both;
+  }
+
+  .dashline {
+    animation: lg-run 1.2s linear infinite;
+  }
+  .sync::before {
+    animation: lg-blink 1.4s steps(2) infinite;
+  }
+  .globe .spin {
+    transform-origin: 270px 270px;
+    animation: lg-spin 80s linear infinite;
+  }
+  .globe .n {
+    animation: lg-blink 3s ease-in-out infinite;
+  }
+  .globe .n:nth-of-type(3n) {
+    animation-delay: 1s;
+  }
+}
+
+/* Effects off: the global rules shorten every animation; the delays go too, so nothing waits hidden. */
+:root[data-motion="off"] .pagehead :is(*, *::before, *::after) {
+  animation-delay: 0s !important;
+  transition-delay: 0s !important;
+}
+/* The running mock exam has no motion at all, the header's included. */
+body:has([data-exam-running]) .pagehead :is(*, *::before, *::after) {
+  animation: none !important;
+}
+
+@keyframes hd-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.9) rotate(-7deg);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(0.9) rotate(1deg);
+  }
+  70% {
+    transform: scale(1.05) rotate(0deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes hd-sheen {
+  0% {
+    transform: translateX(-130%);
+  }
+  14%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+@keyframes hd-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes hd-hatch {
+  to {
+    background-position: 10px 0;
+  }
+}
+@keyframes hd-ride {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes hd-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes hd-glitch {
+  0% {
+    clip-path: inset(0 0 58% 0);
+    transform: translateX(6px) skewX(-10deg);
+  }
+  25% {
+    clip-path: inset(42% 0 0 0);
+    transform: translateX(-5px);
+  }
+  50% {
+    clip-path: inset(18% 0 30% 0);
+    transform: translateX(3px) skewX(6deg);
+  }
+  75% {
+    clip-path: inset(0 0 0 0);
+    transform: translateX(-1px);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+@keyframes hd-glitch-again {
+  0% {
+    clip-path: inset(48% 0 0 0);
+    transform: translateX(-5px) skewX(8deg);
+  }
+  30% {
+    clip-path: inset(0 0 52% 0);
+    transform: translateX(5px);
+  }
+  60% {
+    clip-path: inset(0 0 0 0);
+    transform: translateX(-2px);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+@keyframes hd-unfold {
+  from {
+    clip-path: polygon(0 0, 0 0, 0 14px, 0 100%, 0 100%);
+  }
+}
+@keyframes hd-draw-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes hd-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(8px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes hd-boot {
+  0% {
+    opacity: 0;
+    transform: scale(0.25, 0.03);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1, 0.03);
+  }
+  70% {
+    transform: scale(1, 1);
+  }
+  78% {
+    opacity: 0.35;
+  }
+  86%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hd-lit {
+  0% {
+    background: var(--lg-bezel-2);
+    transform: scale(0.4);
+  }
+  45% {
+    background: var(--lg-signal);
+    transform: scale(1.25);
+  }
+  100% {
+    background: var(--lg-paper);
+    transform: scale(1);
+  }
+}
+@keyframes hd-twinkle {
+  0%,
+  91%,
+  100% {
+    background: var(--lg-bezel-2);
+  }
+  94% {
+    background: var(--lg-ash-mark);
+  }
+  96% {
+    background: var(--lg-signal);
+  }
+}
+@keyframes hd-ripple {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.45);
+    filter: brightness(2.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes hd-scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  22%,
+  100% {
+    transform: translateY(360%);
+  }
+}
+@keyframes hd-globe {
+  from {
+    opacity: 0;
+    transform: scale(0.88) rotate(-10deg);
+  }
+}
+
+/* ---------------------------------------------------------------- the side layout (quiz, practice, mock exam) */
+/* On a wide screen the header stands in a column to the left of the quiz, its parts stacked and the
+   plate under the title, so the question starts at the top of the window (owner, 2026-11-11: "move
+   header to the sides - this way the question itself will always (almost) fit"). On a narrower
+   screen it stays on top, shorter. */
+.pagehead-aside .pagetitle {
+  font-size: var(--lg-text-h2);
+}
+.pagehead-aside .tagrow {
+  margin-bottom: var(--lg-space-3);
+}
+.pagehead-aside .pagelead,
+.pagehead-aside .outcome {
+  margin-top: var(--lg-space-3);
+  padding: 8px 12px;
+  font-size: var(--lg-text-small);
+}
+@media (min-width: 1200px) {
+  main:has(> .pagehead-aside) {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: var(--lg-space-8);
+    align-items: start;
+  }
+  .pagehead-aside {
+    position: sticky;
+    top: var(--lg-space-6);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--lg-space-6);
+    margin: 0;
+  }
+  .pagehead-aside > .pagehead-side {
+    min-width: 0;
+    justify-self: start;
+  }
+  .pagehead-aside .globe {
+    left: -120px;
+    top: -40px;
+    width: 340px;
+    height: 340px;
+  }
+}
+@media (max-width: 1199px) {
+  .pagehead-aside {
+    margin-bottom: var(--lg-space-6);
+  }
+  .pagehead-aside .pagelead {
+    display: none;
+  }
+}

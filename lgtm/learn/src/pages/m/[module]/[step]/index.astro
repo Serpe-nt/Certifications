@@ -1,8 +1,11 @@
 ---
-// One step card, with Back, Mark complete and Next under it. No list of steps beside it.
+// One step as an article: a header on the console, then the screen with Learn and (on lab and drill
+// steps) Practice, the reading column and a sidebar to look things up in. Back, Mark complete and Next
+// close the article. No list of steps to tick beside it. The form: lgtm/docs/adr/dz-article-format.md.
 import Base from '../../../../layouts/Base.astro';
 import CheckWidget from '../../../../components/islands/CheckWidget.tsx';
 import StepNav from '../../../../components/islands/StepNav.tsx';
+import PageHead from '../../../../components/PageHead.astro';
 import { mdxComponents } from '../../../../components/mdx/index.ts';
 import { href, loadCourse } from '../../../../lib/course.ts';
 import { getCollection, render } from 'astro:content';
@@ -25,50 +28,236 @@ export async function getStaticPaths() {
 
 const { module, entry, position, prev, next } = Astro.props;
 const step = entry.data;
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
+const sections = headings.filter((h) => h.depth === 2);
 // Step practice is offered when the question pools have questions on this step's topics.
 const practice = (await getCollection('questions')).some((q) => q.data.tags.some((t) => step.tags.includes(t)));
 const kindLabel = { concept: 'Concept', lab: 'Lab', drill: 'Drill', recap: 'Recap' }[step.kind];
+const hasPractice = !!step.check;
+// The lab check sits right after <Done> when the step has one (Done.astro renders it); otherwise it
+// closes the article.
+const checkInDone = !!step.check && /<Done[\s>]/.test(entry.body ?? '');
+if (step.check && checkInDone) Astro.locals.stepCheck = { stepId: step.id, check: step.check, settingsHref: href.settings };
+const total = module.steps.length;
+const section = `SEC_${String(position).padStart(2, '0')}`;
+const exams = step.exam.filter((e) => e.cert !== 'none').map((e) => `${e.cert.toUpperCase()} ${e.domain} ${e.competency}`);
+// The scale under the screen: one tick per step, the pointer on this one.
+const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
 ---
-<Base title={step.title}>
-  <article class="rounded-lg border border-line bg-surface p-6 shadow-card" data-step={step.id} data-kind={step.kind}>
-    <p class="m-0 text-sm text-ink-3">
-      <a href={module.href}>{module.title}</a>, step {position} of {module.steps.length}. {kindLabel}, about {step.minutes} minutes.
-    </p>
-    <h1 class="mb-2 mt-1 text-2xl">{step.title}</h1>
-    <Content components={mdxComponents} />
-    {step.check && <CheckWidget client:load stepId={step.id} check={step.check} settingsHref={href.settings} />}
-    {
-      step.sources.length > 0 && (
-        <section class="mt-6 text-sm" data-sources>
-          <h2 class="text-base">Look it up</h2>
-          <ul>
-            {step.sources.map((s) => (
-              <li>
-                <a href={s.url} rel="noopener noreferrer" target="_blank">{s.title}</a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )
-    }
-  </article>
-  <StepNav
-    client:load
-    stepId={step.id}
-    backHref={prev ? prev.href : module.href}
-    backLabel="Back"
-    nextHref={next ? next.href : module.endHref}
-    nextLabel={next ? 'Next' : 'Finish the module'}
-    needsCheck={!!step.check}
+<Base title={step.title} bare>
+  <PageHead
+    tag={kindLabel}
+    crumbText={`${section} //`}
+    crumb={{ label: module.title, href: module.href, dialog: 'module' }}
+    title={step.title}
+    size="display"
+    icon={module.id}
+    lead={step.outcome}
+    chips={[{ text: `${step.minutes} min` }, ...exams.map((e) => ({ text: e, dark: true }))]}
+    plate={{ value: String(position).padStart(2, '0'), label: `Step ${position} of ${total}`, foot: ['Step', `${position} / ${total}`] }}
   />
+
+  <section class="screen" aria-label="Step">
+    <div class="glass" data-tab="learn" data-has-practice={hasPractice ? '' : undefined} data-step={step.id} data-kind={step.kind}>
+      {
+        hasPractice && (
+          <div class="tabs mono" role="tablist" aria-label="Learn or practice">
+            <a class="tab" role="tab" href="?tab=learn" data-tab-link="learn" aria-selected="true">Learn</a>
+            <a class="tab" role="tab" href="?tab=practice" data-tab-link="practice" aria-selected="false">Practice</a>
+          </div>
+        )
+      }
+      <div class="stepcols">
+        <article class="prose" aria-label={step.title}>
+          <Content components={mdxComponents} />
+          {
+            step.check && !checkInDone && (
+              <div class="part part-check" data-practice>
+                <CheckWidget client:load stepId={step.id} check={step.check} settingsHref={href.settings} />
+              </div>
+            )
+          }
+        </article>
+
+        <aside class="sidebar" aria-label="Look things up">
+          {
+            sections.length > 0 && (
+              <nav class="side-box toc" aria-label="In this article">
+                <h2 class="mono"><span>In this article</span><span>{String(sections.length).padStart(2, '0')}</span></h2>
+                <ol>
+                  {sections.map((h, i) => (
+                    <li><a href={`#${h.slug}`}><b>{String(i + 1).padStart(2, '0')}</b><span>{h.text}</span></a></li>
+                  ))}
+                </ol>
+              </nav>
+            )
+          }
+          {
+            step.terms.length > 0 && (
+              <section class="side-box">
+                <h2 class="mono"><span>Terms</span><span>{String(step.terms.length).padStart(2, '0')}</span></h2>
+                <dl>
+                  {step.terms.map((t) => (
+                    <div class="term"><dt>{t.term}</dt><dd>{t.def}</dd></div>
+                  ))}
+                </dl>
+              </section>
+            )
+          }
+          {
+            exams.length > 0 && (
+              <section class="side-box">
+                <h2 class="mono"><span>On the exam</span></h2>
+                <p class="chips mono">{exams.map((e) => <span class="chip">{e}</span>)}</p>
+              </section>
+            )
+          }
+          {
+            step.sources.length > 0 && (
+              <section class="side-box sources" data-sources>
+                <h2 class="mono"><span>Look it up</span><span>{String(step.sources.length).padStart(2, '0')}</span></h2>
+                {step.sources.map((s) => <a href={s.url} rel="noopener noreferrer" target="_blank">{s.title}</a>)}
+              </section>
+            )
+          }
+          {
+            practice && (
+              <p class="side-box">
+                <a class="btn" href={href.stepPractice(step.id)} data-dialog="practice" data-practice-step={step.id} data-step-practice-link>Practice three questions</a>
+              </p>
+            )
+          }
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- The end of a step stands under the article, on the console (owner, 2026-11-11): the card question,
+       then Back, Mark complete and Next across the width. The question is written inside the article
+       (<Question> in the MDX); the script right after this block moves it here as the page loads. -->
+  <div class="stepend" data-tab="learn" data-has-practice={hasPractice ? '' : undefined}>
+    <div class="stepend-q" data-stepend-q></div>
+    <div class="stepnav-wrap">
+      <StepNav
+        client:load
+        stepId={step.id}
+        backHref={prev ? prev.href : module.href}
+        backLabel="Back"
+        nextHref={next ? next.href : module.endHref}
+        nextLabel={next ? 'Next' : 'Finish the module'}
+        needsCheck={!!step.check}
+      />
+    </div>
+  </div>
+  <script is:inline>
+    (function () {
+      var q = document.querySelector('.prose > [data-block="question"]');
+      var slot = document.querySelector('[data-stepend-q]');
+      if (q && slot) slot.appendChild(q);
+    })();
+  </script>
+
+  <div class="scale mono" aria-hidden="true">
+    <svg viewBox="0 0 520 54">
+      {Array.from({ length: total }, (_, i) => <path class="scale-tick" d={`M${tickX(i + 1).toFixed(1)} 30 v8`} stroke="currentColor" stroke-width="1.5" />)}
+      <path class="scale-base" pathLength="1" d="M10 38 H510" stroke="currentColor" stroke-width="1" />
+      <g class="scale-ptr" transform={`translate(${tickX(position).toFixed(1)} 0)`}>
+        <path d="M-7 52 l7 -12 l7 12 z" fill="var(--lg-signal)" stroke="currentColor" stroke-width="1.2" />
+      </g>
+    </svg>
+    <span class="scale-label">{position} / {total}</span>
+  </div>
+
+  <script>
+    import { wireToc } from '../../../../lib/toc.ts';
+    wireToc();
+    // Motion only (step.css): sections, parts and the sidebar play their entrance once they come into
+    // view. Nothing waits for this: without it, or with motion off, everything is simply in place.
+    if ('IntersectionObserver' in window) {
+      const seen = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            e.target.classList.add('st-seen');
+            seen.unobserve(e.target);
+          }
+        },
+        { rootMargin: '0px 0px -10% 0px' },
+      );
+      document
+        .querySelectorAll('.prose > h2, .prose .part, .prose .info, .prose [data-figure], .prose [data-query], .prose [data-cmd], .side-box, .stepnav-wrap, .scale')
+        .forEach((el) => seen.observe(el));
+      document.documentElement.classList.add('st-armed');
+    }
+  </script>
+
+  <dialog class="modal modal-module" data-dialog-name="module" aria-labelledby="dlg-module-title">
+    <div class="screen modal-screen">
+      <div class="glass">
+        <div class="modal-head">
+          <h2 id="dlg-module-title" class="modal-title">{module.title}</h2>
+          <button type="button" class="closebtn" data-dialog-close aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16M20 4 4 20" stroke="currentColor" stroke-width="3.5"/></svg></button>
+        </div>
+        <p class="modal-lead">{module.goal}</p>
+        <p class="mono modal-meta">{total} steps, about {module.steps.reduce((n, s) => n + s.minutes, 0)} minutes</p>
+        <ol class="modsteps">
+          {
+            module.steps.map((s, i) => (
+              <li>
+                <a href={s.href} aria-current={s.id === step.id ? 'step' : undefined}>
+                  <b>{String(i + 1).padStart(2, '0')}</b>
+                  <span>{s.title}</span>
+                  <small class="mono">{s.minutes} min</small>
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+        <p class="modal-actions">
+          <a class="btn" href={module.href}>Open the module page</a>
+          <a class="btn" href={module.quizHref}>Module quiz</a>
+        </p>
+      </div>
+    </div>
+  </dialog>
+
   {
-    practice && (
-      <p class="mt-4 text-sm">
-        <a href={href.stepPractice(step.id)} data-step-practice-link>
-          Practice three questions on this step
-        </a>
-      </p>
+    hasPractice && (
+      <script is:inline>
+        (function () {
+          var glass = document.querySelector('.glass[data-tab]');
+          if (!glass) return;
+          var end = document.querySelector('.stepend');
+          function show(tab) {
+            glass.setAttribute('data-tab', tab);
+            if (end) end.setAttribute('data-tab', tab);
+            document.querySelectorAll('.tabs [data-tab-link]').forEach(function (a) {
+              a.setAttribute('aria-selected', String(a.getAttribute('data-tab-link') === tab));
+            });
+          }
+          function fromUrl() {
+            return new URLSearchParams(location.search).get('tab') === 'practice' ? 'practice' : 'learn';
+          }
+          show(fromUrl());
+          // Delegated: "Go to practice" at the end of the article is in an island that hydrates later.
+          document.addEventListener('click', function (e) {
+            var a = e.target instanceof Element ? e.target.closest('[data-tab-link]') : null;
+            if (!a) return;
+            e.preventDefault();
+            var tab = a.getAttribute('data-tab-link');
+            if (tab === fromUrl()) return;
+            var url = new URL(location.href);
+            if (tab === 'practice') url.searchParams.set('tab', 'practice');
+            else url.searchParams.delete('tab');
+            history.pushState(null, '', url);
+            show(tab);
+            if (!a.closest('.tabs')) glass.scrollIntoView({ block: 'start' });
+          });
+          window.addEventListener('popstate', function () {
+            show(fromUrl());
+          });
+        })();
+      </script>
     )
   }
 </Base>

@@ -72,17 +72,24 @@ test('a module quiz is failed, then passed; missed questions come due after 1, 2
 
 test('step practice draws three questions on the step and counts them', async ({ page }) => {
   await page.goto('/m/m90/s01/');
+  // Step practice opens as a dialog over the step, for this step.
   await page.locator('[data-step-practice-link]').click();
-  await expect(page).toHaveURL(/\/practice\/\?step=m90-s01$/);
+  await expect(page).toHaveURL(/\/m\/m90\/s01\/#practice=m90-s01$/);
+  await expect(page.getByRole('dialog', { name: 'Practice' })).toBeVisible();
   const bank = await loadBank(page);
   await page.locator('[data-start-step]').click();
   await expect(page.locator('.q-square')).toHaveCount(3);
   await answer(page, bank, true);
   await expect(page.locator('[data-why]')).toHaveCount(4);
-  // A reload continues the same round.
+  // A reload reopens the dialog and continues the same round.
   await page.reload();
+  await expect(page.getByRole('dialog', { name: 'Practice' })).toBeVisible();
   await expect(page.getByText('3, 1 answered.', { exact: false })).toBeVisible();
   const s = await saved(page);
   expect(Object.keys(s.qs as object)).toHaveLength(1);
   expect((s.run as { kind: string }).kind).toBe('step');
+  // Close returns to the step underneath.
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByRole('dialog', { name: 'Practice' })).toBeHidden();
+  await expect(page).toHaveURL(/\/m\/m90\/s01\/$/);
 });

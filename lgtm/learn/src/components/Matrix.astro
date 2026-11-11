@@ -1,0 +1,42 @@
+---
+// The plate: a short code lit in an octagon dot matrix, 5 by 7 dots per character, with a mono line
+// under it. Every page header carries one (PageHead.astro). Characters without a glyph show unlit.
+interface Props {
+  /** One to four characters: digits, a few letters (E, P, Q, S, X), "-", "?" or "/". */
+  value: string;
+  /** What the plate says, for screen readers. */
+  label: string;
+  /** The mono line under the dots: left and right. */
+  foot: [string, string];
+}
+const { value, label, foot } = Astro.props;
+const FONT: Record<string, string> = {
+  '0': '01110100011001110101110011000101110',
+  '1': '00100011000010000100001000010001110',
+  '2': '01110100010000100010001000100011111',
+  '3': '11110000010000101110000010000111110',
+  '4': '00010001100101010010111110001000010',
+  '5': '11111100001111000001000011000101110',
+  '6': '00110010001000011110100011000101110',
+  '7': '11111000010001000100010000100001000',
+  '8': '01110100011000101110100011000101110',
+  '9': '01110100011000101111000010001001100',
+  E: '11111100001000011110100001000011111',
+  P: '11110100011000111110100001000010000',
+  Q: '01110100011000110001101011001001101',
+  S: '01111100001000001110000010000111110',
+  X: '10001100010101000100010101000110001',
+  '-': '00000000000000011111000000000000000',
+  '?': '01110100010000100010001000000000100',
+  '/': '00001000100001000100010000100010000',
+};
+const BLANK = '0'.repeat(35);
+const chars = value.toUpperCase().slice(0, 4).split('');
+---
+<div class="matrix" role="img" aria-label={label} data-len={chars.length}>
+  <div class="matrix-digits" aria-hidden="true">
+    {chars.map((c) => <div class="digit">{(FONT[c] ?? BLANK).split('').map((d) => <i class:list={{ on: d === '1' }} />)}</div>)}
+  </div>
+  <p class="matrix-foot mono" aria-hidden="true"><span>{foot[0]}</span><span>{foot[1]}</span></p>
+  <div class="dashline" aria-hidden="true"></div>
+</div>

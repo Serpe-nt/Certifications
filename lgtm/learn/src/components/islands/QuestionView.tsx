@@ -13,35 +13,59 @@ interface Props {
   name: string;
 }
 
+const KEYS = 'ABCDEF';
+
+/** Some pools still open an explanation with its own verdict; the row prints "Right." or "Wrong." itself. */
+const OWN_VERDICT = /^\s*(?:Correct|Right|Wrong|Incorrect)\.\s*/;
+export const whyText = (html: string) => html.replace(OWN_VERDICT, '');
+
+/** A check or a cross, drawn: the right and wrong marks never rely on colour alone. */
+export function Mark({ right }: { right: boolean }) {
+  return (
+    <svg className="qz-mark" viewBox="0 0 16 16" aria-hidden="true">
+      {right ? <path d="M2.5 8.5 6.5 12.5 13.5 3.5" pathLength={1} /> : <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" pathLength={1} />}
+    </svg>
+  );
+}
+
 /**
  * One question with its options in the shuffled order. Question and option HTML is build-time
  * HTML from the course's own question files (bank.json, only <b> and <code>), never from state.
+ * Each option is a full-width row: the lettered key on the left is the radio or checkbox itself.
  */
 export default function QuestionView({ q, order, picked, onPick, disabled, feedback, name }: Props) {
   const two = q.a.length > 1;
   return (
-    <div data-qid={q.id}>
-      <p className="mt-0 text-lg" dangerouslySetInnerHTML={{ __html: q.q }} />
-      <fieldset className="m-0 border-0 p-0">
-        <legend className="sr-only">{two ? 'Pick two answers' : 'Pick one answer'}</legend>
-        {order.map((i) => {
+    <div className="qv" data-qid={q.id}>
+      <p className="qv-text" dangerouslySetInnerHTML={{ __html: q.q }} />
+      <fieldset className="qv-opts">
+        <legend className="qv-legend mono">{two ? 'Pick two answers' : 'Pick one answer'}</legend>
+        {order.map((i, k) => {
           const o = q.o[i];
           if (!o) return null;
           const right = q.a.includes(i);
           const chosen = picked.includes(i);
-          const tone = !feedback ? (chosen ? 'border-accent' : '') : right ? 'border-good' : chosen ? 'border-bad' : '';
+          const state = !feedback ? (chosen ? 'picked' : 'open') : right ? 'right' : chosen ? 'wrong' : 'other';
           return (
-            <label key={i} className={`mb-2 block rounded-md border border-line bg-surface p-3 ${tone}`} data-opt={i} data-picked={chosen ? 'true' : undefined}>
-              <span className="flex items-start gap-2">
-                <input type={two ? 'checkbox' : 'radio'} name={name} className="mt-1" checked={chosen} disabled={disabled} onChange={() => onPick(i)} />
-                <span dangerouslySetInnerHTML={{ __html: o.t }} />
+            <label key={i} className="qopt" data-opt={i} data-picked={chosen ? 'true' : undefined} data-state={state}>
+              <input type={two ? 'checkbox' : 'radio'} name={name} className="qopt-input" checked={chosen} disabled={disabled} onChange={() => onPick(i)} />
+              <span className="qopt-key" aria-hidden="true">
+                {KEYS[k] ?? k + 1}
               </span>
-              {feedback && (
-                <span className="mt-2 block text-sm text-ink-2" data-why>
-                  <strong>{right ? 'Right. ' : chosen ? 'Not this one. ' : ''}</strong>
-                  <span dangerouslySetInnerHTML={{ __html: o.w }} />
-                </span>
-              )}
+              <span className="qopt-body">
+                <span className="qopt-text" dangerouslySetInnerHTML={{ __html: o.t }} />
+                {feedback && (right || chosen) && (
+                  <span className="qopt-tag mono">
+                    <Mark right={right} />
+                    {right ? (chosen ? 'Your pick, right' : 'The right answer') : 'Your pick, wrong'}
+                  </span>
+                )}
+                {feedback && (
+                  <span className="qopt-why" data-why>
+                    <strong>{right ? 'Right.' : 'Wrong.'}</strong> <span dangerouslySetInnerHTML={{ __html: whyText(o.w) }} />
+                  </span>
+                )}
+              </span>
             </label>
           );
         })}

@@ -96,6 +96,13 @@ export const stepSchema = z
     exam: z.array(examRefSchema).min(1),
     tags: z.array(z.string().regex(TAG, 'tags are lower-case words joined by hyphens')).min(1).max(3),
     flags: z.array(z.string().min(1)).default([]),
+    // Article form (lgtm/docs/adr/dz-article-format.md): what the learner can do after the step,
+    // and the terms it introduces, shown in the header and the sidebar. Both optional.
+    outcome: z.string().min(1).max(240).optional(),
+    terms: z
+      .array(z.strictObject({ term: z.string().min(1).max(40), def: z.string().min(1).max(160) }))
+      .max(8)
+      .default([]),
     check: checkSchema.optional(),
     sources: z
       .array(

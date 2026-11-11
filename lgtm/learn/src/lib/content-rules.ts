@@ -28,7 +28,10 @@ export interface BaseIds {
 /** Body components in the order the contract gives them. */
 export const BODY_ORDER = ['Why', 'Idea', 'Points', 'Do', 'Done', 'Trap', 'Question'] as const;
 const INLINE = ['Point', 'LabLink', 'Cmd', 'Query', 'Figure'];
-const KNOWN = new Set<string>([...BODY_ORDER, ...INLINE]);
+/** The article form (lgtm/docs/adr/dz-article-format.md): a step that opens with <Problem>. */
+export const ARTICLE_PARTS = ['Problem', 'Idea', 'InLab', 'Trap', 'Remember', 'Do', 'Done', 'Question'] as const;
+export const INFO_PARTS = { Flow: 'Stage', Compare: 'Col', Figures: 'Stat', Layers: 'Layer', Timeline: 'Event' } as const;
+const KNOWN = new Set<string>([...BODY_ORDER, ...INLINE, ...ARTICLE_PARTS, ...Object.keys(INFO_PARTS), ...Object.values(INFO_PARTS)]);
 const WHY_MIN = 80;
 const WHY_MAX = 420;
 const MAX_POINTS = 6;
@@ -113,8 +116,46 @@ export function checkContent(corpus: RawCorpus, opts: RuleOptions = {}): { issue
     for (const h of rawHtml) err(s.file, 'raw-html', `line ${h.line}: <${h.tag}> is raw HTML; use only the contract's components`);
     for (const t of tags) if (!KNOWN.has(t.name)) err(s.file, 'unknown-component', `line ${t.line}: <${t.name}> is not a contract component`);
 
-    const blocks = tags.filter((t) => t.depth === 0 && (BODY_ORDER as readonly string[]).includes(t.name));
-    const required = ['Why', 'Idea', 'Question', ...(kind === 'lab' || kind === 'drill' ? ['Do', 'Done'] : [])];
+    const article = tags.some((t) => t.depth === 0 && t.name === 'Problem');
+    if (article) {
+      // The article form: <Problem> opens the step; parts may repeat their kind only where the form allows.
+      const top = tags.filter((t) => t.depth === 0 && /^[A-Z]/.test(t.name) && !INLINE.includes(t.name));
+      const need = ['Problem', 'Idea', 'Question', ...(kind === 'lab' || kind === 'drill' ? ['Do', 'Done'] : [])];
+      for (const name of need) {
+        if (!top.some((b) => b.name === name)) err(s.file, `missing-${name.toLowerCase()}`, `a ${kind} step in the article form needs a <${name}>`);
+      }
+      if (top[0]?.name !== 'Problem') err(s.file, 'problem-first', '<Problem> opens a step in the article form');
+      // The owner made the outcome line required at the third design stop (2026-11-11); terms stay optional.
+      if (!s.data.outcome) err(s.file, 'missing-outcome', 'a step in the article form needs `outcome:` in its frontmatter ("You can ...")');
+      const infos = top.filter((b) => b.name in INFO_PARTS).length;
+      if (infos > 3) warn(s.file, 'info-count', `${infos} information parts; a step uses at most three`);
+      for (const b of top) {
+        if (b.name === 'Why' || b.name === 'Points') err(s.file, 'mixed-form', `line ${b.line}: <${b.name}> belongs to the old form; the article form uses <Problem> and running text`);
+      }
+      for (const name of ['Problem', 'Idea', 'Remember', 'Question', 'Do', 'Done']) {
+        if (top.filter((b) => b.name === name).length > 1) err(s.file, 'block-once', `<${name}> appears more than once`);
+      }
+      const problem = top.find((b) => b.name === 'Problem');
+      if (problem) {
+        const n = plainText(problem.inner).length;
+        if (n < WHY_MIN || n > WHY_MAX) err(s.file, 'problem-length', `<Problem> has ${n} characters; it must have ${WHY_MIN} to ${WHY_MAX}`);
+      }
+      for (const [box, item] of Object.entries(INFO_PARTS)) {
+        for (const t of tags.filter((x) => x.name === box)) {
+          const items = (t.inner.match(new RegExp(`<${item}\\b`, 'g')) ?? []).length;
+          if (items < 2) err(s.file, 'info-items', `line ${t.line}: <${box}> needs at least two <${item}> items`);
+        }
+        for (const t of tags.filter((x) => x.name === item && x.depth === 0)) err(s.file, 'info-item-outside', `line ${t.line}: <${item}> belongs inside <${box}>`);
+      }
+      for (const t of tags.filter((x) => x.name === 'Stat')) {
+        const amount = Number(t.attrs.amount);
+        const max = Number(t.attrs.max);
+        if (!t.attrs.label || !t.attrs.value) err(s.file, 'stat-fields', `line ${t.line}: <Stat> needs label and value`);
+        if (!(amount >= 0) || !(max > 0) || amount > max) err(s.file, 'stat-scale', `line ${t.line}: <Stat> needs amount={n} and max={n} with 0 <= amount <= max`);
+      }
+    }
+    const blocks = article ? [] : tags.filter((t) => t.depth === 0 && (BODY_ORDER as readonly string[]).includes(t.name));
+    const required = article ? [] : ['Why', 'Idea', 'Question', ...(kind === 'lab' || kind === 'drill' ? ['Do', 'Done'] : [])];
     for (const name of required) {
       if (!blocks.some((b) => b.name === name)) err(s.file, `missing-${name.toLowerCase()}`, `a ${kind} step needs a <${name}> block`);
     }

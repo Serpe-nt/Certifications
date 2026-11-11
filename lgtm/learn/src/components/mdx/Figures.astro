@@ -1,0 +1,12 @@
+---
+// <Figures caption="..." unit="..."> holds <Stat> rows: numbers with a bar to scale.
+interface Props {
+  caption?: string;
+  unit?: string;
+}
+const { caption = '', unit = '' } = Astro.props;
+---
+<figure class="info figures" data-info="figures">
+  <figcaption class="info-cap mono"><span>{caption}</span><span>{unit}</span></figcaption>
+  <slot />
+</figure>

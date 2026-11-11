@@ -18,8 +18,12 @@ test('the site works under BASE_PATH=/h2', async ({ page }) => {
   await put;
   await page.getByRole('link', { name: 'Next' }).click();
   await expect(page).toHaveURL(`${ORIGIN}/h2/m/m90/s02/`);
+  // Settings opens as a dialog over the page; its own page still works under the prefix.
   await page.getByRole('link', { name: 'Settings' }).click();
-  await expect(page).toHaveURL(`${ORIGIN}/h2/settings/`);
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+  await expect(page).toHaveURL(`${ORIGIN}/h2/m/m90/s02/#settings`);
+  await page.goto(`${ORIGIN}/h2/settings/`);
+  await expect(page.getByLabel('Lab domain')).toBeVisible();
   expect(api.length).toBeGreaterThan(0);
   expect(api.every((p) => p === '/h2/api/state')).toBe(true);
   // Styles and scripts load from under the prefix.

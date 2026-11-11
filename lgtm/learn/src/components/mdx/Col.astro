@@ -1,0 +1,12 @@
+---
+// <Col title="..." hot>Text or a short list.</Col> inside <Compare>; `hot` marks the one the step recommends.
+interface Props {
+  title: string;
+  hot?: boolean;
+}
+const { title, hot = false } = Astro.props;
+---
+<div class:list={['col', { 'col-hot': hot }]}>
+  <b class="col-title">{title}</b>
+  <slot />
+</div>
