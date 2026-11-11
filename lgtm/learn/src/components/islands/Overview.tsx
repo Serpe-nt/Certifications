@@ -176,6 +176,7 @@ export default function Overview({ modules, art, ...slots }: Props) {
         </div>
         <div className="ov-hero-art">
           {art}
+          <span className="ov-hero-scan" aria-hidden="true" />
           <p className="ov-readout mono" aria-hidden="true">
             <span>
               {next
@@ -237,6 +238,8 @@ export default function Overview({ modules, art, ...slots }: Props) {
                       Mod_{moduleNo(m.id)}
                     </span>
                     <span className="ov-mod-state mono">{status}</span>
+                    <span className="ov-mod-ring" aria-hidden="true" />
+                    <span className="ov-mod-brk" aria-hidden="true" />
                     {icon(m.id)}
                   </div>
                   <div className="ov-mod-body">

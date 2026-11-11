@@ -65,6 +65,7 @@ export function Meter({ value, hot = false }: { value: number; hot?: boolean }) 
     <svg className={`meter${hot ? ' meter-hot' : ''}`} viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <rect className="meter-track" width="100" height="10" />
       <rect className="meter-fill" width={w.toFixed(2)} height="10" />
+      {hot && w > 0 && <line className="meter-glint" x1="0" y1="5" x2={w.toFixed(2)} y2="5" pathLength={100} strokeDasharray="14 200" />}
     </svg>
   );
 }
@@ -134,7 +135,7 @@ export function BadgesPanel({ study }: { study: Study }) {
             <li key={b.id} className="ov-badge" data-badge={b.id} data-earned="true">
               <span className="ov-badge-mark" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3" />
+                  <path className="ov-badge-tick" d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3" />
                 </svg>
               </span>
               <span>

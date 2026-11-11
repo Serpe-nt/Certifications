@@ -90,6 +90,15 @@ export default function ModuleEnd({ module, homeHref, next, icon, nextIcon }: Pr
             </p>
             <p className="me-text">{next.goal}</p>
           </div>
+          <span className="me-next-go" aria-hidden="true">
+            <svg viewBox="0 0 54 24" focusable="false">
+              <g fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M2 4l8 8-8 8" />
+                <path d="M20 4l8 8-8 8" />
+                <path d="M38 4l8 8-8 8" />
+              </g>
+            </svg>
+          </span>
         </section>
       ) : (
         <p className="me-text me-last">This is the last module. The mock exams are on the overview.</p>

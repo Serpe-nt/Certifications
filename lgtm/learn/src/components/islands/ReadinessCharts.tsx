@@ -16,6 +16,7 @@ export function Gauge({ value }: { value: number | null }) {
   const ticks = Array.from({ length: 11 }, (_, i) => i / 10);
   return (
     <svg className="rc-gauge" viewBox="0 0 160 160" aria-hidden="true">
+      <circle className="rc-orbit" cx={c} cy={c} r={r - 14} strokeDasharray="2 6 18 6" />
       <circle className="rc-track" cx={c} cy={c} r={r} pathLength={100} strokeDasharray="75 100" transform={`rotate(135 ${c} ${c})`} />
       {value !== null && value > 0 && (
         <circle className="rc-arc" cx={c} cy={c} r={r} pathLength={100} strokeDasharray={`${r1(75 * value)} 100`} transform={`rotate(135 ${c} ${c})`} />
@@ -68,6 +69,7 @@ export function Radar({ domains }: { domains: DomainReadiness[] }) {
         const [x, y] = pt(i, 1);
         return <line key={d.domain} className="rc-spoke" x1={c} y1={c} x2={x} y2={y} />;
       })}
+      <line className="rc-beam" x1={c} y1={c} x2={c} y2={c - R} />
       <polygon className="rc-reach" points={poly(reach)} />
       <polygon className="rc-acc" points={poly(acc)} />
       {domains.map((d, i) => {
