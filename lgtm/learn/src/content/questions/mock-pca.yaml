@@ -10,7 +10,7 @@
   q: A function logs "cache miss, falling back to the database" now and then. The team wants to see how often this happens and since when. What do the Prometheus instrumentation guidelines suggest?
   options:
     - text: Increment a counter where the log line is written
-      why: Correct. The guidelines say that every line of logging code should have a counter, so you can see how often a message happens and for how long.
+      why: The guidelines say that every line of logging code should have a counter, so you can see how often a message happens and for how long.
     - text: Set a gauge to 1 while the message is being logged
       why: A gauge that goes to 1 and back is easy to miss between two scrapes. A counter keeps every occurrence.
     - text: Add the log text as a label value on a request counter
@@ -26,7 +26,7 @@
   q: Which of these values should be exposed as a gauge rather than a counter?
   options:
     - text: The number of jobs waiting in a queue right now
-      why: Correct. The queue length can go down as well as up, so it is a gauge.
+      why: The queue length can go down as well as up, so it is a gauge.
     - text: The number of requests served since the process started
       why: This only goes up, or resets to zero on restart. That is the definition of a counter.
     - text: The number of bytes sent since the process started
@@ -42,7 +42,7 @@
   q: A dashboard shows an average request latency of 120 ms, yet users complain that some pages take several seconds. What is the most likely reason the dashboard looks fine?
   options:
     - text: The average hides the slow tail of the distribution
-      why: Correct. The SRE book says most metrics are better thought of as distributions, because an average can hide the tail latencies. Look at high percentiles such as the 99th.
+      why: The SRE book says most metrics are better thought of as distributions, because an average can hide the tail latencies. Look at high percentiles such as the 99th.
     - text: The scrape interval is too long to catch slow pages
       why: A longer scrape interval changes how often a value is read. It does not make an average hide slow requests.
     - text: Latency cannot be measured with a metric at all
@@ -59,11 +59,11 @@
   q: A team moves its application logs to Grafana Loki. They ask which parts of each log entry Loki puts in its index. What is the answer?
   options:
     - text: Only the labels that name each log stream
-      why: Correct. Loki does not index the content of log lines. It indexes the labels of each stream and stores the lines in compressed chunks.
+      why: Loki does not index the content of log lines. It indexes the labels of each stream and stores the lines in compressed chunks.
     - text: Every word of every log line, like a search engine
       why: That is a full-text index. Loki avoids it on purpose to stay cheap and scalable.
     - text: The labels and every field of JSON log lines
-      why: JSON fields are not indexed. They can be parsed at query time, but the index holds only stream labels.
+      why: JSON fields are part of the log line content, which Loki does not index. The index holds only stream labels.
     - text: Only the timestamp of each line, nothing else
       why: The index is built from labels. Timestamps order the entries inside a stream.
   answer: [0]
@@ -75,7 +75,7 @@
   q: Which statement about logs and events matches the OpenTelemetry documentation?
   options:
     - text: Events are a special type of log
-      why: Correct. The docs say that all events are logs, but not all logs are events.
+      why: The docs say that all events are logs, but not all logs are events.
     - text: Logs are a special type of event
       why: This reverses the relationship. Events are the narrower group.
     - text: Logs and events have nothing in common
@@ -91,7 +91,7 @@
   q: An old application writes its errors only to log files, and its code cannot be changed. The team wants a graph of errors per minute. What does the Prometheus FAQ suggest?
   options:
     - text: Send the logs to Loki and use its metric queries
-      why: Correct. The FAQ says not to feed logs into Prometheus. Loki is designed to extract metrics from logs with its metric queries.
+      why: The FAQ says not to feed logs into Prometheus. Loki is designed to extract metrics from logs with its metric queries.
     - text: Push every log line to the Pushgateway as a new sample
       why: The Pushgateway is for the results of batch jobs. It is not a pipe for log lines, and Prometheus is not a log store.
     - text: Store each log line as a label value in Prometheus
@@ -108,7 +108,7 @@
   q: A span covers a page load of 3 seconds. The team wants to record the exact moment, inside that span, when the page became usable. What should they add to the span?
   options:
     - text: A span event with its own timestamp
-      why: Correct. A span event marks a meaningful single point in time during the span. Use one when the timestamp itself matters.
+      why: A span event marks a meaningful single point in time during the span. Use one when the timestamp itself matters.
     - text: A span attribute with the value "usable"
       why: An attribute describes the whole span and carries no time of its own. It cannot say when the page became usable.
     - text: A span link to the trace of the next request
@@ -124,7 +124,7 @@
   q: A worker takes 50 messages from a queue and processes them in one batch. Each message was sent from a different trace. How can the batch span show that it is related to those 50 traces?
   options:
     - text: Give the batch span a link to each message's span
-      why: Correct. Span links associate one span with one or more other spans and imply a causal relationship, even across traces.
+      why: Span links associate one span with one or more other spans and imply a causal relationship, even across traces.
     - text: Make all 50 message spans the parent of the batch span
       why: A span records a single parent ID. Fifty parents cannot be expressed that way, and links exist for this case.
     - text: Copy all 50 trace IDs into a single span attribute
@@ -140,11 +140,11 @@
   q: You read the spans of one trace as JSON. How do you recognise the root span?
   options:
     - text: Its <code>parent_id</code> is always empty
-      why: Correct. The root span marks the start and end of the whole operation, and it is the span without a parent.
+      why: The root span marks the start and end of the whole operation, and it is the span without a parent.
     - text: It has the most span events
       why: Any span can have many or no events. The number of events says nothing about its place in the tree.
     - text: Its span kind is always Server
-      why: A root span can have any kind, for example Internal for a scheduled job. Kind is not how you find the root.
+      why: Span kind is a hint about the role of a span, such as client or server. The missing parent, not the kind, marks the root.
     - text: Its status is always Error
       why: Status reports success or failure. It has nothing to do with whether a span is the root.
   answer: [0]
@@ -157,7 +157,7 @@
   q: Prometheus runs in a central data centre. A NAT gateway in a branch office stops it from reaching the targets there. What does the Prometheus documentation recommend first?
   options:
     - text: Run a Prometheus server inside the branch network
-      why: Correct. The docs recommend running Prometheus on the same network as the monitored instances, or using PushProx to cross the firewall or NAT.
+      why: The docs recommend running Prometheus on the same network as the monitored instances, or using PushProx to cross the firewall or NAT.
     - text: Make every branch target push to a Pushgateway
       why: The docs warn against using the Pushgateway in place of pulling. It becomes a single point of failure and you lose the <code>up</code> metric.
     - text: Raise the scrape timeout until the targets answer
@@ -173,7 +173,7 @@
   q: Every machine runs a nightly cron job that installs security updates. The team wants the job's result in Prometheus, per machine. What do the docs suggest?
   options:
     - text: Write the result for the node exporter's textfile collector
-      why: Correct. For batch jobs tied to a machine, the docs suggest the node exporter's textfile collector instead of the Pushgateway.
+      why: For batch jobs tied to a machine, the docs suggest the node exporter's textfile collector instead of the Pushgateway.
     - text: Push the result to one Pushgateway with an <code>instance</code> label
       why: The Pushgateway keeps such series forever, even after a machine is gone. The docs reserve it for service-level batch jobs.
     - text: Turn the cron job into a daemon that serves <code>/metrics</code>
@@ -189,15 +189,15 @@
   q: A team wants every service to push its metrics to one Pushgateway instead of being scraped. Which two problems do the Prometheus docs name for this design? (Choose two.)
   options:
     - text: The Pushgateway becomes a single point of failure and bottleneck
-      why: Correct. When many instances go through one Pushgateway, it is both a single point of failure and a possible bottleneck.
+      why: When many instances go through one Pushgateway, it is both a single point of failure and a possible bottleneck.
     - text: The <code>up</code> health metric is lost for them
-      why: Correct. <code>up</code> is generated on every scrape of a target. Pushed metrics do not produce it.
+      why: <code>up</code> is generated on every scrape of a target. Pushed metrics do not produce it.
     - text: Pushed metrics can no longer be queried with PromQL at all
       why: Prometheus scrapes the Pushgateway, so pushed metrics are stored and queried like any other series.
     - text: Pushed metrics lose all of their labels on the way
       why: The labels are kept. The trouble is rather that they stay even after an instance is gone.
     - text: The services must speak OTLP to reach the Pushgateway
-      why: The Pushgateway takes the Prometheus formats over HTTP. OTLP is not required.
+      why: OTLP is not among the pitfalls the docs list. The Pushgateway is an intermediary for pushed Prometheus metrics.
   answer: [0, 1]
   source: https://prometheus.io/docs/practices/pushing/
 
@@ -208,7 +208,7 @@
   q: Prometheus uses Kubernetes service discovery with the <code>pod</code> role. One container in a pod declares no ports. What does Prometheus create for that container?
   options:
     - text: A target with only the pod IP as its address, no port
-      why: Correct. With no declared port, the pod role creates one port-free target per container, and <code>__address__</code> holds the pod IP only.
+      why: With no declared port, the pod role creates one port-free target per container, and <code>__address__</code> holds the pod IP only.
     - text: No target at all, because a container without ports is skipped
       why: The pod role still creates a target. It leaves the port for you to add during relabeling.
     - text: A target on port 9090, because that is the default Prometheus port
@@ -224,7 +224,7 @@
   q: A company's inventory tool can write the list of its servers to a JSON file. Prometheus has no built-in discovery for this tool. Which way of finding targets fits best?
   options:
     - text: <code>file_sd_configs</code> that read the JSON file
-      why: Correct. File-based discovery reads target lists from YAML or JSON files and applies changes as soon as the files change. It is the interface for custom discovery.
+      why: File-based discovery reads target lists from YAML or JSON files and applies changes as soon as the files change. It is the interface for custom discovery.
     - text: <code>static_configs</code> that copy the list by hand
       why: A list copied by hand goes stale as soon as the inventory changes. File discovery picks up changes on its own.
     - text: <code>dns_sd_configs</code> pointed at the JSON file
@@ -240,7 +240,7 @@
   q: A target found by Kubernetes discovery has the label <code>__meta_kubernetes_pod_label_app="cart"</code>. After the scrape, its series carry no <code>app</code> label. Why?
   options:
     - text: Labels starting with <code>__</code> are dropped after relabeling
-      why: Correct. <code>__meta_</code> labels exist only during relabeling. A rule such as <code>replace</code> or <code>labelmap</code> must copy the value into a normal label.
+      why: <code>__meta_</code> labels exist only during relabeling. A rule such as <code>replace</code> or <code>labelmap</code> must copy the value into a normal label.
     - text: Kubernetes discovery cannot read the labels of a pod
       why: It does read them. They appear as <code>__meta_kubernetes_pod_label_<name></code> during relabeling.
     - text: The <code>app</code> label is dropped because it clashes with <code>job</code>
@@ -257,7 +257,7 @@
   q: A service has a 99.9% availability SLO over 30 days. Starting now, it fails 1% of its requests. If nothing changes, how long until the whole error budget is spent?
   options:
     - text: About 3 days
-      why: Correct. A 1% error rate is ten times the 0.1% budget rate, a burn rate of 10. The 30-day budget lasts 30 / 10 = 3 days.
+      why: A 1% error rate is ten times the 0.1% budget rate, a burn rate of 10. The 30-day budget lasts 30 / 10 = 3 days.
     - text: About 30 days
       why: 30 days is how long the budget lasts at a burn rate of 1, that is at an error rate of exactly 0.1%.
     - text: About 10 days
@@ -273,7 +273,7 @@
   q: Which of these statements is a service level objective (SLO)?
   options:
     - text: 99% of search requests answer in under 100 ms over 28 days
-      why: Correct. An SLO is a target value for an SLI over a period. Here the target is 99% of requests faster than 100 ms.
+      why: An SLO is a target value for an SLI over a period. Here the target is 99% of requests faster than 100 ms.
     - text: The share of search requests that answer in under 100 ms
       why: This is the measurement itself, the indicator (SLI). It has no target.
     - text: Customers get a 10% refund if availability drops below 99.5%
@@ -289,7 +289,7 @@
   q: For a 99.9% SLO over 30 days, an alert fires whenever the error rate over the last 10 minutes is 0.1% or higher. What does the SRE workbook say about this alert?
   options:
     - text: It has good recall but also fires on events that barely use the budget
-      why: Correct. Recall and detection time are good, but precision is low. A 0.1% error rate for 10 minutes fires the alert while using only 0.02% of the monthly budget.
+      why: Recall and detection time are good, but precision is low. A 0.1% error rate for 10 minutes fires the alert while using only 0.02% of the monthly budget.
     - text: It never fires during a total outage, because the window is too short
       why: A total outage crosses the threshold almost at once. The workbook gives a detection time of 0.6 seconds for this case.
     - text: It is the setup the workbook recommends for paging
@@ -306,7 +306,7 @@
   q: Which task does the Prometheus server do itself, without another component?
   options:
     - text: Evaluate recording and alerting rules on the data it stores
-      why: Correct. Prometheus stores scraped samples locally and runs rules over them to record new series or to generate alerts.
+      why: Prometheus stores scraped samples locally and runs rules over them to record new series or to generate alerts.
     - text: Group alerts and send one notification to the on-call phone
       why: Grouping, deduplication and notifications are the job of the Alertmanager.
     - text: Accept metrics pushed by short-lived batch jobs
@@ -322,9 +322,9 @@
   q: A small edge cluster runs Prometheus in agent mode and remote-writes everything to a central store. What can this agent not do? (Choose two.)
   options:
     - text: Answer PromQL queries on the data it scraped
-      why: Correct. Agent mode disables local queries; the data lives only in a write-ahead log until it is sent.
+      why: Agent mode disables local queries; the data lives only in a write-ahead log until it is sent.
     - text: Evaluate alerting and recording rules
-      why: Correct. Agent mode has no rule evaluation, so alerts and recording rules must run in the remote system.
+      why: Agent mode has no rule evaluation, so alerts and recording rules must run in the remote system.
     - text: Discover targets with Kubernetes service discovery
       why: The agent keeps the same discovery and scrape configuration as a normal server.
     - text: Scrape targets with the usual pull model
@@ -340,7 +340,7 @@
   q: According to the Prometheus FAQ, how do you make Prometheus highly available?
   options:
     - text: Run identical servers; the Alertmanager deduplicates alerts
-      why: Correct. Identical servers on separate machines scrape the same targets. The Alertmanager deduplicates identical alerts from them.
+      why: Identical servers on separate machines scrape the same targets. The Alertmanager deduplicates identical alerts from them.
     - text: Join the servers into a cluster that replicates their local storage
       why: Prometheus has no built-in storage clustering. Each server is standalone.
     - text: Put both servers on one shared NFS volume so they see the same data
@@ -356,7 +356,7 @@
   q: A company has one Prometheus server in each of 12 data centres. Managers want a global view by job, without copying every instance-level series to one place. Which setup do the docs describe for this?
   options:
     - text: Hierarchical federation of aggregated series to a global server
-      why: Correct. In hierarchical federation, global servers scrape only aggregated series from the per-data-centre servers.
+      why: In hierarchical federation, global servers scrape only aggregated series from the per-data-centre servers.
     - text: One central server that scrapes all targets in all data centres
       why: That gives up the local, autonomous servers and pulls every series across the network.
     - text: A Pushgateway in each data centre that the global server scrapes
@@ -373,7 +373,7 @@
   q: A <code>prometheus.yml</code> sets no <code>scrape_interval</code>, neither globally nor in the job. How often does Prometheus scrape the job's targets?
   options:
     - text: Every 1 minute
-      why: Correct. The global default <code>scrape_interval</code> is 1m, and jobs inherit it.
+      why: The global default <code>scrape_interval</code> is 1m, and jobs inherit it.
     - text: Every 15 seconds
       why: Many example files set 15s on purpose. It is not the built-in default.
     - text: Every 10 seconds
@@ -389,7 +389,7 @@
   q: Prometheus scrapes a Pushgateway. The pushed series show up with labels <code>exported_job</code> and <code>exported_instance</code>, and <code>job</code> holds the name of the scrape job. What changes this?
   options:
     - text: Set <code>honor_labels</code> to true in that scrape job
-      why: Correct. With <code>honor_labels</code> false, clashing labels from the target are renamed to <code>exported_*</code>. True keeps the target's values, which is what the docs suggest for the Pushgateway.
+      why: With <code>honor_labels</code> false, clashing labels from the target are renamed to <code>exported_*</code>. True keeps the target's values, which is what the docs suggest for the Pushgateway.
     - text: Set <code>honor_timestamps</code> to false in that scrape job
       why: That setting decides whether exposed timestamps are kept. It does not touch label clashes.
     - text: Add the labels again under <code>external_labels</code>
@@ -405,13 +405,13 @@
   q: You changed a scrape job in <code>prometheus.yml</code>. How can you apply the change without restarting Prometheus? (Choose two.)
   options:
     - text: Send <code>SIGHUP</code> to the Prometheus process
-      why: Correct. A SIGHUP makes Prometheus reload its configuration file.
+      why: A SIGHUP makes Prometheus reload its configuration file.
     - text: POST to <code>/-/reload</code> when the lifecycle flag is on
-      why: Correct. The reload endpoint applies the file, but only when the lifecycle flag is enabled.
+      why: The reload endpoint applies the file, but only when the lifecycle flag is enabled.
     - text: Wait for the next <code>evaluation_interval</code> to pass
       why: The evaluation interval is how often rules run. It does not reread the configuration file.
     - text: Run <code>promtool check config</code> against the file
-      why: promtool only checks the file. It does not tell the server to load it.
+      why: <code>promtool</code> only checks the file. It does not tell the server to load it.
     - text: Delete the <code>wal</code> directory of the server
       why: That throws away recent data and does nothing for the configuration.
   answer: [0, 1]
@@ -423,7 +423,7 @@
   q: A target exposes a metric family <code>app_debug_.*</code> with thousands of series that nobody uses. You want to keep scraping the target but never store those series. Where do you add a <code>drop</code> rule on <code>__name__</code>?
   options:
     - text: In <code>metric_relabel_configs</code> of that scrape job
-      why: Correct. Metric relabeling runs on the scraped samples as the last step before ingestion, so it can drop expensive series.
+      why: Metric relabeling runs on the scraped samples as the last step before ingestion, so it can drop expensive series.
     - text: In <code>relabel_configs</code> of that scrape job
       why: Target relabeling runs before the scrape and works on the target's labels. A drop there removes the whole target.
     - text: In <code>alert_relabel_configs</code> of the alerting section
@@ -439,7 +439,7 @@
   q: A scrape job has <code>sample_limit</code> set to 5000. After a deployment, a target exposes 8000 samples. What happens?
   options:
     - text: The whole scrape counts as failed, and <code>up</code> becomes 0
-      why: Correct. If more samples than the limit remain after metric relabeling, the entire scrape is treated as failed, and a failed scrape sets <code>up</code> to 0.
+      why: If more samples than the limit remain after metric relabeling, the entire scrape is treated as failed, and a failed scrape sets <code>up</code> to 0.
     - text: Prometheus stores the first 5000 samples and drops the rest
       why: The limit does not cut the scrape in half. It fails the scrape as a whole.
     - text: Prometheus stores all 8000 samples and logs a warning
@@ -456,13 +456,13 @@
   q: A team wants to keep two years of metrics that survive the loss of a disk or a node. What does the Prometheus storage documentation say?
   options:
     - text: Local storage is not replicated; use remote storage
-      why: Correct. Local storage is limited to one node's scalability and durability. Remote write lets a clustered system keep the data.
+      why: Local storage is limited to one node's scalability and durability. Remote write lets a clustered system keep the data.
     - text: Local storage replicates blocks to a second server on its own
       why: Prometheus has no built-in replication of its storage.
     - text: Local storage cannot hold data for more than 15 days
       why: 15 days is only the default retention. With proper planning, local storage can keep years of data.
     - text: Prometheus copies old blocks to object storage by default
-      why: Copying blocks to object storage is done by other systems. Prometheus does not do it by default.
+      why: The storage docs describe no such copy. Data leaves the server through the remote write and remote read interfaces.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/storage/
 
@@ -472,7 +472,7 @@
   q: To save local disk, a team plans to put the Prometheus data directory on an NFS share. What does the documentation say?
   options:
     - text: NFS is not supported and can cause unrecoverable corruption
-      why: Correct. File systems that are not POSIX compliant are not supported, and NFS, including AWS EFS, is named. A local file system is strongly recommended.
+      why: File systems that are not POSIX compliant are not supported, and NFS, including AWS EFS, is named. A local file system is strongly recommended.
     - text: NFS is fine as long as the write-ahead log is compressed
       why: WAL compression saves space. It does not make NFS a supported file system.
     - text: NFS is the recommended setup for two servers in a pair
@@ -488,7 +488,7 @@
   q: 10,000 nodes each expose tens of series for a filesystem metric. A team wants to add a per-user disk quota metric for 10,000 users on every node. What do the instrumentation guidelines say?
   options:
     - text: It would create tens of millions of series, too many
-      why: Correct. The guidelines use this very case. Per-user quota on 10,000 nodes quickly reaches a double-digit number of millions of series.
+      why: The guidelines use this very case. Per-user quota on 10,000 nodes quickly reaches a double-digit number of millions of series.
     - text: It would create about 10,000 series, which is fine
       why: Each of the 10,000 users gets a series on every one of the 10,000 nodes, so the counts multiply to tens of millions.
     - text: It is fine, if the scrape interval is raised to 5 minutes
@@ -505,7 +505,7 @@
   q: An exporter sends some series with the label <code>region=""</code> and others with no <code>region</code> label at all. How does Prometheus treat a label with an empty value?
   options:
     - text: As if the series had no such label at all
-      why: Correct. The data model says that labels with an empty value are equivalent to labels that do not exist.
+      why: The data model says that labels with an empty value are equivalent to labels that do not exist.
     - text: As a separate label value that queries must name
       why: An empty value is not stored as a value of its own. It is the same as no label.
     - text: As an invalid sample that fails the scrape
@@ -521,7 +521,7 @@
   q: A developer wants to add a label named <code>__team</code> to an application metric. What does the data model say about it?
   options:
     - text: Names that begin with two underscores are reserved for internal use
-      why: Correct. Label names starting with <code>__</code> must be reserved for internal Prometheus use.
+      why: Label names starting with <code>__</code> must be reserved for internal Prometheus use.
     - text: Names that begin with two underscores are hidden in queries
       why: Being reserved is the rule. They are not a feature for hiding labels.
     - text: Names that begin with two underscores must be quoted in PromQL
@@ -537,7 +537,7 @@
   q: What does each sample of a time series contain?
   options:
     - text: A float64 or native histogram value and a millisecond timestamp
-      why: Correct. A sample is a float64 or a native histogram value, with a timestamp of millisecond precision.
+      why: A sample is a float64 or a native histogram value, with a timestamp of millisecond precision.
     - text: A 32-bit integer value and a timestamp in whole seconds since 1970
       why: Values are 64-bit floats, and timestamps have millisecond precision.
     - text: A float64 value, the metric name and a nanosecond timestamp
@@ -553,7 +553,7 @@
   q: In Prometheus 3.x, an application sends a metric named <code>http.server.request.duration</code>, with dots. Without extra feature flags, how do you select it in PromQL?
   options:
     - text: '<code>{"http.server.request.duration"}</code>'
-      why: Correct. Since 3.0, names may use UTF-8. A name outside the usual character set goes in quotes inside the braces.
+      why: Since 3.0, names may use UTF-8. A name outside the usual character set goes in quotes inside the braces.
     - text: <code>http.server.request.duration</code>
       why: Unquoted dotted names need the separate <code>promql-unquoted-utf8-names</code> feature flag.
     - text: <code>http_server_request_duration{}</code>
@@ -569,7 +569,7 @@
   q: A series has the labels <code>{method="GET", handler="/api"}</code>. A new release adds the label <code>version="2"</code> to the same metric. What happens in storage?
   options:
     - text: A new time series starts; the old one stops getting samples
-      why: Correct. Any change of a label value, or adding or removing a label, creates a new time series.
+      why: Any change of a label value, or adding or removing a label, creates a new time series.
     - text: The old series gets the new label added to all past samples
       why: Stored samples are never relabeled. The new label set is a different series.
     - text: Prometheus rejects the scrape until the old series is deleted
@@ -586,7 +586,7 @@
   q: 'A classic histogram is exposed with these buckets: <code>le="0.1"</code> 20, <code>le="0.5"</code> 45, <code>le="+Inf"</code> 50. What must the value of its <code>_count</code> line be?'
   options:
     - text: '50'
-      why: Correct. The <code>+Inf</code> bucket must exist and must equal <code>_count</code>, because buckets are cumulative.
+      why: The <code>+Inf</code> bucket must exist and must equal <code>_count</code>, because buckets are cumulative.
     - text: '115'
       why: 115 adds the buckets together. Buckets are cumulative, so each one already includes the smaller ones.
     - text: '45'
@@ -602,7 +602,7 @@
   q: In the Prometheus text format, a metric has samples but no <code># TYPE</code> line. What type does it get?
   options:
     - text: untyped
-      why: Correct. If there is no TYPE line for a metric name, its type is set to untyped.
+      why: If there is no TYPE line for a metric name, its type is set to untyped.
     - text: gauge
       why: Gauge is never assumed. Without a TYPE line the type is untyped.
     - text: counter
@@ -618,7 +618,7 @@
   q: 'What is the last number in this exposition line: <code>http_requests_total{method="post",code="200"} 1027 1395066363000</code>?'
   options:
     - text: An optional timestamp in milliseconds since 1970
-      why: Correct. After the value, a line may carry a timestamp, an int64 count of milliseconds since the epoch.
+      why: After the value, a line may carry a timestamp, an int64 count of milliseconds since the epoch.
     - text: The number of requests in the last second
       why: The value is 1027, the counter itself. The second number is a time.
     - text: A unique ID of the sample in the target
@@ -634,9 +634,9 @@
   q: After an upgrade from Prometheus 2 to Prometheus 3, one old target shows as down. It serves valid metrics but sends no <code>Content-Type</code> header. What fixes it on the Prometheus side?
   options:
     - text: Set <code>fallback_scrape_protocol</code> in that scrape job
-      why: Correct. Prometheus 3 fails a scrape when the Content-Type is missing or unknown, where version 2 fell back to the text format. The fallback setting restores that.
+      why: Prometheus 3 fails a scrape when the Content-Type is missing or unknown, where version 2 fell back to the text format. The fallback setting restores that.
     - text: Set <code>honor_labels</code> to true in that scrape job
-      why: honor_labels decides how label clashes are resolved. It has nothing to do with content types.
+      why: <code>honor_labels</code> decides how label clashes are resolved. It has nothing to do with content types.
     - text: Add <code>--enable-feature=native-histograms</code> to Prometheus
       why: The native-histograms flag is a no-op since 3.9, and it never changed how content types are handled.
     - text: Change <code>metrics_path</code> to <code>/metrics.txt</code>
@@ -651,7 +651,7 @@
   q: Series have <code>env</code> values <code>prod</code>, <code>production</code> and <code>preprod</code>. Which series does <code>up{env=~"prod"}</code> select?
   options:
     - text: Only the series with <code>env="prod"</code>
-      why: Correct. Regex matchers are fully anchored, so <code>=~"prod"</code> means <code>^prod$</code>.
+      why: Regex matchers are fully anchored, so <code>=~"prod"</code> means <code>^prod$</code>.
     - text: The series with <code>prod</code> and <code>production</code>
       why: That would need <code>prod.*</code>. The anchoring stops a match on a longer value.
     - text: All three series, since each value contains <code>prod</code>
@@ -667,7 +667,7 @@
   q: Which of these selectors does Prometheus reject as invalid?
   options:
     - text: <code>{job=~".*"}</code>
-      why: Correct. A selector needs a metric name or at least one matcher that does not match the empty string. <code>.*</code> matches the empty string.
+      why: A selector needs a metric name or at least one matcher that does not match the empty string. <code>.*</code> matches the empty string.
     - text: <code>{job=~".+"}</code>
       why: <code>.+</code> cannot match an empty value, so this selector is valid.
     - text: <code>{job=~".*",method="get"}</code>
@@ -683,7 +683,7 @@
   q: Some series of <code>http_requests_total</code> have an <code>environment</code> label and some do not. What does <code>http_requests_total{environment=""}</code> return?
   options:
     - text: The series that have no <code>environment</code> label
-      why: Correct. A matcher that matches an empty value also selects every series that does not have the label.
+      why: A matcher that matches an empty value also selects every series that does not have the label.
     - text: No series, since no series stores an empty value
       why: An empty value equals a missing label, so the series without it match.
     - text: All series, because an empty matcher is ignored
@@ -699,7 +699,7 @@
   q: A target was removed from the configuration 30 seconds ago. The lookback period is 5 minutes. Why does an instant query no longer return the target's series?
   options:
     - text: Its series were marked stale soon after the target was removed
-      why: Correct. When a target goes away, its series get a staleness marker, and queries after the marker return no value for them.
+      why: When a target goes away, its series get a staleness marker, and queries after the marker return no value for them.
     - text: Instant queries only return samples from the last 15 seconds
       why: The lookback period is 5 minutes. Staleness, not a short window, ends the series.
     - text: Prometheus deleted the series from its storage at once
@@ -716,13 +716,13 @@
   q: Five pods each expose <code>http_requests_total</code>. Pods restart now and then. Which query gives the correct total requests per second for all pods?
   options:
     - text: <code>sum(rate(http_requests_total[5m]))</code>
-      why: Correct. Take the rate first, then aggregate. rate() then sees each pod's counter and can adjust for its resets.
+      why: Take the rate first, then aggregate. rate() then sees each pod's counter and can adjust for its resets.
     - text: <code>rate(sum(http_requests_total)[5m:1m])</code>
       why: Summing first hides each pod's reset inside the total, so rate() cannot detect it. The docs say to rate first.
     - text: <code>sum(http_requests_total) / 300</code>
       why: This divides the total since start by 300. It is not a rate over any window.
     - text: <code>sum(delta(http_requests_total[5m]))</code>
-      why: delta() is meant for gauges. Across a counter reset it gives a large negative value.
+      why: <code>delta()</code> is meant for gauges. Across a counter reset it gives a large negative value.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/querying/functions/#rate
 
@@ -732,13 +732,13 @@
   q: 'An alert uses <code>irate(errors_total[5m]) > 5</code> with <code>for: 10m</code>. The error rate stays high, but the alert never fires, because its for timer keeps starting again. What is the better choice?'
   options:
     - text: Use <code>rate()</code>, which the docs advise for alerts
-      why: Correct. irate() looks only at the last two samples, so brief dips can reset the for clause. rate() averages over the range.
+      why: <code>irate()</code> looks only at the last two samples, so brief dips can reset the for clause. rate() averages over the range.
     - text: Use <code>idelta()</code>, which is steadier for counters
-      why: idelta() is meant for gauges and is just as jumpy, since it also uses only the last two samples.
+      why: <code>idelta()</code> is meant for gauges and is just as jumpy, since it also uses only the last two samples.
     - text: Use a range of <code>[10m]</code> to match the for duration
-      why: irate() still uses only the last two samples, whatever the range. The range only limits how far back it looks.
+      why: <code>irate()</code> still uses only the last two samples, whatever the range. The range only limits how far back it looks.
     - text: Use <code>deriv()</code>, which handles counter resets
-      why: deriv() is for gauges and does not adjust for counter resets.
+      why: <code>deriv()</code> is for gauges and does not adjust for counter resets.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/querying/functions/#irate
 
@@ -748,7 +748,7 @@
   q: A counter only ever grows by whole numbers. Yet <code>increase(jobs_total[5m])</code> returns 4.8. Why?
   options:
     - text: increase() extrapolates to cover the whole range
-      why: Correct. The samples rarely sit exactly on the range edges, so increase() extrapolates, and the result can be a fraction.
+      why: The samples rarely sit exactly on the range edges, so increase() extrapolates, and the result can be a fraction.
     - text: increase() divides the change by the number of samples
       why: It does not average per sample. It is rate() multiplied by the seconds in the range.
     - text: The counter must have reset during the range
@@ -764,13 +764,13 @@
   q: <code>queue_length</code> is a gauge. A graph of <code>rate(queue_length[5m])</code> shows huge spikes each time the queue drains. Which function shows how fast the queue grows or shrinks per second?
   options:
     - text: <code>deriv(queue_length[5m])</code>
-      why: Correct. deriv() gives the per-second derivative of a gauge by linear regression. rate() treats every drop as a counter reset.
+      why: <code>deriv()</code> gives the per-second derivative of a gauge by linear regression. rate() treats every drop as a counter reset.
     - text: <code>irate(queue_length[5m])</code>
-      why: irate() is for counters too, so a drop still looks like a reset.
+      why: <code>irate()</code> is for counters too, so a drop still looks like a reset.
     - text: <code>increase(queue_length[5m])</code>
-      why: increase() is rate() times the range and has the same reset problem on a gauge.
+      why: <code>increase()</code> is rate() times the range and has the same reset problem on a gauge.
     - text: <code>resets(queue_length[5m])</code>
-      why: resets() counts drops in a counter. It does not give a speed of change.
+      why: <code>resets()</code> counts drops in a counter. It does not give a speed of change.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/querying/functions/#deriv
 
@@ -780,13 +780,13 @@
   q: You want to be warned when a filesystem will be full within 4 hours, based on the trend of the last 6 hours. Which expression fits?
   options:
     - text: <code>predict_linear(node_filesystem_avail_bytes[6h], 14400) < 0</code>
-      why: Correct. predict_linear() fits a line to the gauge over 6 hours and predicts the value 14,400 seconds (4 hours) ahead.
+      why: <code>predict_linear()</code> fits a line to the gauge over 6 hours and predicts the value 14,400 seconds (4 hours) ahead.
     - text: <code>rate(node_filesystem_avail_bytes[6h]) * 4 < 0</code>
-      why: rate() is for counters, and free space is a gauge that goes down as well as up.
+      why: <code>rate()</code> is for counters, and free space is a gauge that goes down as well as up.
     - text: <code>delta(node_filesystem_avail_bytes[4h]) < 0</code>
       why: This only says that free space dropped in the last 4 hours. It predicts nothing.
     - text: <code>min_over_time(node_filesystem_avail_bytes[6h] offset 4h) < 0</code>
-      why: offset looks further into the past, not ahead. Free space is never below zero, so this never fires.
+      why: <code>offset</code> looks further into the past, not ahead. Free space is never below zero, so this never fires.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/querying/functions/#predict_linear
 
@@ -797,13 +797,13 @@
   q: Memory use is scraped every 15 seconds. On a 7-day graph, short spikes vanish. You want each point to show the highest value of the hour before it. Which query does that?
   options:
     - text: <code>max_over_time(process_resident_memory_bytes[1h])</code>
-      why: Correct. max_over_time() returns the highest sample of each series within the range.
+      why: <code>max_over_time()</code> returns the highest sample of each series within the range.
     - text: <code>max(process_resident_memory_bytes) by (instance)</code>
-      why: max() aggregates across series at one instant, with or without by. It does not look back over an hour.
+      why: <code>max()</code> aggregates across series at one instant, with or without by. It does not look back over an hour.
     - text: <code>rate(process_resident_memory_bytes[1h])</code>
-      why: rate() is for counters. Memory is a gauge, and its peak is not a rate.
+      why: <code>rate()</code> is for counters. Memory is a gauge, and its peak is not a rate.
     - text: <code>topk(1, process_resident_memory_bytes)</code>
-      why: topk() picks the largest series at one instant. It does not keep the peak within the hour.
+      why: <code>topk()</code> picks the largest series at one instant. It does not keep the peak within the hour.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/querying/functions/#aggregation_over_time
 
@@ -813,7 +813,7 @@
   q: A target is scraped every 15 seconds and has no failed scrapes. About what does <code>count_over_time(up{job="api"}[1h])</code> return for it?
   options:
     - text: About 240
-      why: Correct. count_over_time() counts the samples in the range. One hour has 3,600 / 15 = 240 scrapes.
+      why: <code>count_over_time()</code> counts the samples in the range. One hour has 3,600 / 15 = 240 scrapes.
     - text: '1'
       why: 1 is the value of <code>up</code> when the target is healthy. The function counts samples, not values.
     - text: About 60
@@ -829,7 +829,7 @@
   q: What does <code>max_over_time(rate(http_requests_total[5m])[1h:1m])</code> return?
   options:
     - text: The highest 5-minute rate seen in the last hour
-      why: Correct. The subquery runs the 5-minute rate once per minute for an hour, and max_over_time() keeps the highest value.
+      why: The subquery runs the 5-minute rate once per minute for an hour, and max_over_time() keeps the highest value.
     - text: The request rate over one hour, averaged every minute
       why: The outer function takes the maximum, not an average. The inner range is 5 minutes, not 1 hour.
     - text: An error, because rate() cannot be used inside a range
@@ -845,9 +845,9 @@
   q: A backup service exposes <code>backup_last_success_timestamp_seconds</code> on its metrics endpoint. You want an alert if the series has had no samples at all for 2 hours. Which expression fits?
   options:
     - text: <code>absent_over_time(backup_last_success_timestamp_seconds[2h])</code>
-      why: Correct. It returns a series with value 1 when the range has no samples, which is what an alert needs.
+      why: It returns a series with value 1 when the range has no samples, which is what an alert needs.
     - text: <code>absent(backup_last_success_timestamp_seconds)</code>
-      why: absent() looks only at the present instant within the lookback. It does not cover a 2-hour gap.
+      why: <code>absent()</code> looks only at the present instant within the lookback. It does not cover a 2-hour gap.
     - text: <code>count_over_time(backup_last_success_timestamp_seconds[2h]) == 0</code>
       why: With no samples there is no series to count, so this returns nothing rather than 0.
     - text: <code>changes(backup_last_success_timestamp_seconds[2h]) == 0</code>
@@ -862,7 +862,7 @@
   q: <code>memory_consumption_bytes</code> has the labels <code>application</code>, <code>instance</code> and <code>group</code>. Which query gives the same result as <code>sum without (instance) (memory_consumption_bytes)</code>?
   options:
     - text: <code>sum by (application, group) (memory_consumption_bytes)</code>
-      why: Correct. Removing <code>instance</code> leaves <code>application</code> and <code>group</code>, which is what by keeps.
+      why: Removing <code>instance</code> leaves <code>application</code> and <code>group</code>, which is what by keeps.
     - text: <code>sum by (instance) (memory_consumption_bytes)</code>
       why: This keeps only <code>instance</code>, the label that the first query removes.
     - text: <code>sum(memory_consumption_bytes)</code>
@@ -878,7 +878,7 @@
   q: You want the 5 pods with the highest memory use, each shown with its own labels. Which query does that?
   options:
     - text: <code>topk(5, container_memory_working_set_bytes)</code>
-      why: Correct. topk() returns k of the input series with their original labels.
+      why: <code>topk()</code> returns k of the input series with their original labels.
     - text: <code>max by (pod) (container_memory_working_set_bytes)</code>
       why: This returns one series for every pod, not only the top 5.
     - text: <code>sort_desc(container_memory_working_set_bytes)</code>
@@ -894,13 +894,13 @@
   q: Every instance exposes <code>build_version</code>, whose value is a build number. You want to know how many instances run each build. Which query does that?
   options:
     - text: <code>count_values("version", build_version)</code>
-      why: Correct. count_values() returns one series per distinct value, with that value in the <code>version</code> label and the number of instances as the value.
+      why: <code>count_values()</code> returns one series per distinct value, with that value in the <code>version</code> label and the number of instances as the value.
     - text: <code>count by (version) (build_version)</code>
       why: There is no <code>version</code> label to group by. The build number is the sample value.
     - text: <code>count by (build_version) (build_version)</code>
-      why: by takes label names. The build number is a sample value, not a label, so this returns one total count.
+      why: <code>by</code> takes label names. The build number is a sample value, not a label, so this returns one total count.
     - text: <code>group(build_version)</code>
-      why: group() returns 1 for each group. It does not count instances per value.
+      why: <code>group()</code> returns 1 for each group. It does not count instances per value.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/querying/operators/#count_values
 
@@ -910,7 +910,7 @@
   q: A recording rule stores an error ratio per instance. A team averages it with <code>avg</code> to get the ratio for the whole job. Instances get very different traffic. What do the docs advise?
   options:
     - text: Sum errors and requests first, then divide
-      why: Correct. When aggregating ratios, aggregate the numerator and the denominator separately, then divide. An average of ratios is not statistically valid.
+      why: When aggregating ratios, aggregate the numerator and the denominator separately, then divide. An average of ratios is not statistically valid.
     - text: Keep <code>avg</code>; it is right when each value is a ratio
       why: An average gives a quiet instance the same weight as a busy one, so the job ratio comes out wrong.
     - text: Use <code>max</code> to stay on the safe side
@@ -927,13 +927,13 @@
   q: <code>errors:rate5m</code> has the labels <code>method</code> and <code>code</code>. <code>requests:rate5m</code> has only <code>method</code>. Why does <code>errors:rate5m{code="500"} / requests:rate5m</code> return nothing?
   options:
     - text: The label sets differ, so nothing matches; add <code>ignoring(code)</code>
-      why: Correct. By default both sides must have exactly the same labels. ignoring(code) leaves code out of the matching.
+      why: By default both sides must have exactly the same labels. ignoring(code) leaves code out of the matching.
     - text: Division between two vectors is not allowed in PromQL
       why: Arithmetic between instant vectors is allowed. The sides only need to match.
     - text: Names with colons cannot be used in binary operations
       why: Colons are normal in recording rule names. They do not affect matching.
     - text: The left side must be wrapped in <code>sum()</code> before dividing
-      why: sum() without by would remove method as well. Leaving code out of the match is enough.
+      why: <code>sum()</code> without by would remove method as well. Leaving code out of the match is enough.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/querying/operators/#one-to-one-vector-matches
 
@@ -943,11 +943,11 @@
   q: You divide <code>errors:rate5m</code> (labels <code>method</code>, <code>code</code>) by <code>requests:rate5m</code> (label <code>method</code>) with <code>ignoring(code)</code>, keeping every code. Several error series match each request series. What must you add?
   options:
     - text: <code>group_left</code>, since the left side has more series
-      why: Correct. Many-to-one matching must be asked for, and group_left says the left side has the higher cardinality.
+      why: Many-to-one matching must be asked for, and group_left says the left side has the higher cardinality.
     - text: <code>group_right</code>, because the right side is the divisor
-      why: group_right is for the case where the right side has more series per match. Here it is the left.
+      why: <code>group_right</code> is for the case where the right side has more series per match. Here it is the left.
     - text: <code>bool</code>, so that the result is 0 or 1
-      why: bool changes comparison operators. It has nothing to do with matching many to one.
+      why: <code>bool</code> changes comparison operators. It has nothing to do with matching many to one.
     - text: <code>on(code)</code>, so that the code label is used to match
       why: The right side has no code label, so matching on it finds nothing.
   answer: [0]
@@ -959,13 +959,13 @@
   q: What is the difference between <code>up > 0</code> and <code>up > bool 0</code>?
   options:
     - text: The first drops false series; the second returns 0 or 1
-      why: Correct. Comparisons filter by default. With bool, every matched series is kept with the value 0 or 1.
+      why: Comparisons filter by default. With bool, every matched series is kept with the value 0 or 1.
     - text: The first returns 0 or 1 for each series; the second drops series
       why: This is the other way round. bool is the one that returns 0 or 1.
     - text: Both return the same result; bool only makes the query faster
-      why: bool changes the result. Series where the test is false are kept as 0 instead of dropped.
+      why: <code>bool</code> changes the result. Series where the test is false are kept as 0 instead of dropped.
     - text: The first is invalid; comparisons need bool against a number
-      why: bool is required only between two scalars. A vector compared with a scalar filters without it.
+      why: <code>bool</code> is required only between two scalars. A vector compared with a scalar filters without it.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/querying/operators/#comparison-binary-operators
 
@@ -975,7 +975,7 @@
   q: What does <code>vector1 unless vector2</code> return?
   options:
     - text: The elements of vector1 that have no element with the same labels in vector2
-      why: Correct. unless keeps the left-hand elements that find no exact label match on the right.
+      why: <code>unless</code> keeps the left-hand elements that find no exact label match on the right.
     - text: The elements of vector2 that have no element with the same labels in vector1
       why: The result always comes from the left-hand side. This describes the reverse.
     - text: The elements found in both vectors, with values from vector2
@@ -991,7 +991,7 @@
   q: You run <code>node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes</code>. What metric name do the result series have?
   options:
     - text: None, since arithmetic between vectors drops the name
-      why: Correct. In any arithmetic binary operation involving vectors, the metric name is dropped.
+      why: In any arithmetic binary operation involving vectors, the metric name is dropped.
     - text: <code>node_memory_MemTotal_bytes</code>, from the left side
       why: The left name is kept for comparisons without bool, not for arithmetic.
     - text: <code>node_memory_MemAvailable_bytes</code>, from the right side
@@ -1008,13 +1008,13 @@
   q: <code>histogram_quantile(0.9, sum by (job) (rate(http_request_duration_seconds_bucket[10m])))</code> returns no data, although the classic histogram has data. What is wrong?
   options:
     - text: The <code>by</code> clause must also keep the <code>le</code> label
-      why: Correct. For classic histograms the le label is needed to find the buckets. Samples without it are silently ignored.
+      why: For classic histograms the le label is needed to find the buckets. Samples without it are silently ignored.
     - text: The quantile must be written as 90, not 0.9
       why: The quantile is a number from 0 to 1. 0.9 is the 90th percentile.
     - text: rate() must be applied after histogram_quantile()
       why: The docs put rate() inside, to set the time window for the calculation.
     - text: Classic histograms need histogram_avg() first
-      why: histogram_avg() works on native histograms and returns an average, not buckets.
+      why: <code>histogram_avg()</code> works on native histograms and returns an average, not buckets.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile
 
@@ -1024,7 +1024,7 @@
   q: On Prometheus 3.9, a Go service exposes native histograms, but Prometheus stores only the classic buckets. What is the likely cause?
   options:
     - text: <code>scrape_native_histograms</code> is not set to true
-      why: Correct. Native histograms are stable, but scraping them must be enabled with <code>scrape_native_histograms</code>, which defaults to false.
+      why: Native histograms are stable, but scraping them must be enabled with <code>scrape_native_histograms</code>, which defaults to false.
     - text: The <code>native-histograms</code> feature flag is missing
       why: From 3.9 that feature flag does nothing. The scrape setting decides.
     - text: Native histograms can only arrive by remote write
@@ -1040,13 +1040,13 @@
   q: Ten replicas each expose a summary with a 0.95 quantile. You need the 95th percentile latency for the whole service. What do the docs say?
   options:
     - text: Quantiles from summaries cannot be combined; use a histogram
-      why: Correct. Precomputed summary quantiles cannot be aggregated in a meaningful way. Histograms can be summed and then passed to histogram_quantile().
+      why: Precomputed summary quantiles cannot be aggregated in a meaningful way. Histograms can be summed and then passed to histogram_quantile().
     - text: <code>avg(http_request_duration_seconds{quantile="0.95"})</code> is fine
       why: The docs show this exact query as bad. An average of percentiles is not a percentile.
     - text: <code>max(http_request_duration_seconds{quantile="0.95"})</code> is exact
       why: The highest replica's percentile is not the service's percentile either.
     - text: <code>histogram_quantile(0.95, ...)</code> works on summaries too
-      why: histogram_quantile() needs buckets or native histograms. A summary has neither.
+      why: <code>histogram_quantile()</code> needs buckets or native histograms. A summary has neither.
   answer: [0]
   source: https://prometheus.io/docs/practices/histograms/
 
@@ -1056,7 +1056,7 @@
   q: A classic histogram has the buckets 0.1, 0.25, 0.5 and +Inf. The real 99th percentile is about 3 seconds. What does <code>histogram_quantile(0.99, ...)</code> return?
   options:
     - text: '0.5'
-      why: Correct. When a quantile falls in the highest bucket, the upper bound of the second-highest bucket is returned.
+      why: When a quantile falls in the highest bucket, the upper bound of the second-highest bucket is returned.
     - text: '3'
       why: The histogram has no bucket boundary near 3 seconds, so it cannot estimate that value.
     - text: +Inf
@@ -1072,9 +1072,9 @@
   q: <code>http_request_duration_seconds</code> is a classic histogram. Which query gives the average request duration over the last 5 minutes?
   options:
     - text: <code>rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])</code>
-      why: Correct. Divide the rate of the sum by the rate of the count. That gives the average duration per request.
+      why: Divide the rate of the sum by the rate of the count. That gives the average duration per request.
     - text: <code>sum(rate(http_request_duration_seconds_sum[5m])) / count(http_request_duration_seconds_count)</code>
-      why: count() counts series, not requests. The divisor must be the rate of the <code>_count</code> series.
+      why: <code>count()</code> counts series, not requests. The divisor must be the rate of the <code>_count</code> series.
     - text: <code>http_request_duration_seconds_sum / http_request_duration_seconds_count</code>
       why: This is the average since the process started, not over the last 5 minutes.
     - text: <code>histogram_quantile(0.5, rate(http_request_duration_seconds_bucket[5m]))</code>
@@ -1089,7 +1089,7 @@
   q: A nightly export exposes <code>export_last_success_timestamp_seconds</code>, a Unix time. Which expression gives the number of seconds since the last success?
   options:
     - text: <code>time() - export_last_success_timestamp_seconds</code>
-      why: Correct. The guidelines say to export the time of the event and compute the time since it with time().
+      why: The guidelines say to export the time of the event and compute the time since it with time().
     - text: <code>timestamp(export_last_success_timestamp_seconds)</code>
       why: This returns when the sample was scraped, not how long ago the export succeeded.
     - text: <code>rate(export_last_success_timestamp_seconds[1d])</code>
@@ -1105,9 +1105,9 @@
   q: You suspect that some targets are scraped late. Which expression shows, per series, how many seconds old its newest sample of <code>up</code> is?
   options:
     - text: <code>time() - timestamp(up)</code>
-      why: Correct. timestamp() returns the time of each sample, and time() the evaluation time. The difference is the sample's age.
+      why: <code>timestamp()</code> returns the time of each sample, and time() the evaluation time. The difference is the sample's age.
     - text: <code>time() - up</code>
-      why: up is 0 or 1. Subtracting it from the time gives nothing useful.
+      why: <code>up</code> is 0 or 1. Subtracting it from the time gives nothing useful.
     - text: <code>scrape_duration_seconds</code>
       why: This is how long the scrape took, not how long ago it happened.
     - text: <code>changes(up[5m])</code>
@@ -1121,11 +1121,11 @@
   q: Which query returns the total of GET requests as it was 5 minutes ago?
   options:
     - text: <code>sum(http_requests_total{method="GET"} offset 5m)</code>
-      why: Correct. offset must follow the selector directly. The sum is then taken over the old values.
+      why: <code>offset</code> must follow the selector directly. The sum is then taken over the old values.
     - text: <code>sum(http_requests_total{method="GET"}) offset 5m</code>
       why: The docs show this form as invalid. offset cannot follow an aggregation.
     - text: <code>sum(http_requests_total{method="GET"}[5m])</code>
-      why: sum() does not take a range vector, so this fails.
+      why: <code>sum()</code> does not take a range vector, so this fails.
     - text: <code>sum(http_requests_total{method="GET"} @ 5m)</code>
       why: The @ modifier takes a Unix timestamp. Here 5m would be read as 300 seconds after 1970, not as 5 minutes ago.
   answer: [0]
@@ -1137,7 +1137,7 @@
   q: In a range query over the last 6 hours, what does <code>time()</code> return at each step?
   options:
     - text: The time of that step, in seconds since 1970
-      why: Correct. time() returns the time at which the expression is evaluated, which is each step's own time in a range query.
+      why: <code>time()</code> returns the time at which the expression is evaluated, which is each step's own time in a range query.
     - text: The current wall-clock time, the same for every step
       why: The docs say that time() does not return the current time but the evaluation time.
     - text: The time of the newest sample, in milliseconds
@@ -1154,11 +1154,11 @@
   q: A counter <code>payment_errors_total</code> has a label <code>reason</code>. No series appears until the first error, so a dashboard shows "No data" instead of 0. What do the guidelines suggest?
   options:
     - text: Create a 0 series for each known reason at start-up
-      why: Correct. Series that appear only when something happens are hard to work with. Export a default of 0 for series you know may exist.
+      why: Series that appear only when something happens are hard to work with. Export a default of 0 for series you know may exist.
     - text: Change the counter into a gauge that is set to 0 every scrape
       why: Resetting a gauge loses the running count and breaks rate(). The problem is the missing series, not the type.
     - text: Remove the label so that the client library exports a 0
-      why: Libraries export 0 on their own only for metrics without labels. Losing the reason is a high price when you can create the labelled series yourself.
+      why: Most libraries export 0 on their own for metrics without labels, but losing the reason is a high price when you can create the labelled series yourself.
     - text: Set a shorter scrape interval so the first error is seen sooner
       why: The series still does not exist before the first error, however often you scrape.
   answer: [0]
@@ -1170,7 +1170,7 @@
   q: You write a custom collector with a client library. It reads a table from another system on every scrape. How should it produce its metrics?
   options:
     - text: Create new metrics on each scrape, in the collect step
-      why: Correct. Creating fresh metrics in the collect step, as the Go library does with <code>MustNewConstMetric</code>, avoids races between two scrapes and stops label values that disappeared from being exported.
+      why: Creating fresh metrics in the collect step, as the Go library does with <code>MustNewConstMetric</code>, avoids races between two scrapes and stops label values that disappeared from being exported.
     - text: Update normal global counters and gauges on each scrape
       why: Direct instrumentation uses shared variables. Two scrapes at once race, and old label values stay exported.
     - text: Push the values to a Pushgateway after each read
@@ -1186,7 +1186,7 @@
   q: A hot code path runs 500,000 times a second, and each call increments a counter with labels. Profiling shows the label lookup costs time. What do the guidelines suggest?
   options:
     - text: Do the label lookup once and reuse its result
-      why: Correct. For very hot loops, limit the metrics you update and cache the result of the label lookup, for example the return value of With() in Go.
+      why: For very hot loops, limit the metrics you update and cache the result of the label lookup, for example the return value of With() in Go.
     - text: Replace the counter with a log line on each call
       why: A log line on every call adds work and gives no count you can graph.
     - text: Remove all metrics from the code path
@@ -1202,7 +1202,7 @@
   q: A team's client library offers a summary that exposes only <code>_sum</code> and <code>_count</code>, with no quantiles. Is that a problem?
   options:
     - text: No; a summary without quantiles is valid and gives an average
-      why: Correct. Some libraries omit the quantile calculation, which is a legitimate use. The rate of _sum divided by the rate of _count gives the average.
+      why: Some libraries omit the quantile calculation, which is a legitimate use. The rate of _sum divided by the rate of _count gives the average.
     - text: Yes; Prometheus rejects a summary that has no quantiles
       why: Prometheus accepts it. Quantile lines are optional for a summary.
     - text: Yes; without quantiles the summary cannot be used in PromQL at all
@@ -1219,7 +1219,7 @@
   q: You instrument an online-serving HTTP API. According to the guidelines, which metrics matter most for it?
   options:
     - text: Requests performed, errors and latency
-      why: Correct. For online-serving systems the key metrics are the number of queries, errors and latency. Requests in progress can help too.
+      why: For online-serving systems the key metrics are the number of queries, errors and latency. Requests in progress can help too.
     - text: Last success time and run duration
       why: These are the key metrics of a batch job, not of a service that answers requests.
     - text: Items in, items out and items in progress
@@ -1235,7 +1235,7 @@
   q: A batch job runs once a night for 10 minutes and deletes old user accounts for the whole service. What should it report, and how?
   options:
     - text: Its last success time as a gauge, pushed to a Pushgateway
-      why: Correct. The key metric of a batch job is the last time it succeeded. Such gauges should be pushed to a Pushgateway.
+      why: The key metric of a batch job is the last time it succeeded. Such gauges should be pushed to a Pushgateway.
     - text: Its request latency as a histogram, scraped every 15 seconds
       why: The job is not online most of the day, so scraping it misses most runs. Latency is not its key metric.
     - text: Its last success time as a counter, scraped by Prometheus
@@ -1251,7 +1251,7 @@
   q: You count requests in an online service. When do the guidelines suggest you count each request?
   options:
     - text: When it ends, so it lines up with errors and latency
-      why: Correct. Be consistent, and count at the end. It lines up with errors and latency and is often easier to code.
+      why: Be consistent, and count at the end. It lines up with errors and latency and is often easier to code.
     - text: When it starts, so slow requests are counted sooner
       why: Counting at the start is allowed if you are consistent, but the guidelines suggest the end.
     - text: Both when it starts and when it ends, in one counter
@@ -1267,7 +1267,7 @@
   q: A service makes calls to a payment provider, and some calls fail. Which instrumentation makes the failure ratio easiest to compute?
   options:
     - text: A counter of all calls and a second counter of failed calls
-      why: Correct. With a counter for failures, also keep the total attempts. Then the failure ratio is one division.
+      why: With a counter for failures, also keep the total attempts. Then the failure ratio is one division.
     - text: One counter of calls with a label <code>result</code> set to success or failed
       why: The exporter guidelines say not to use one metric with a failed or success label. Two metrics make the ratio easy.
     - text: A gauge that holds the failure ratio of the last minute
@@ -1284,7 +1284,7 @@
   q: You run 5 HAProxy servers and want their metrics. How do the guidelines say the exporters should be deployed?
   options:
     - text: One <code>haproxy_exporter</code> beside each HAProxy, 5 in all
-      why: Correct. Each exporter should monitor exactly one instance, ideally on the same machine. Discovery then stays in Prometheus.
+      why: Each exporter should monitor exactly one instance, ideally on the same machine. Discovery then stays in Prometheus.
     - text: One <code>haproxy_exporter</code> that discovers all 5 servers itself
       why: The guidelines keep service discovery in Prometheus, not in exporters.
     - text: One <code>haproxy_exporter</code> behind a load balancer
@@ -1300,7 +1300,7 @@
   q: A blackbox exporter probes many URLs. The relabeling copies each URL from <code>__address__</code> to <code>__param_target</code>, then sets <code>__address__</code> to the exporter's address. Why?
   options:
     - text: So that the exporter is scraped and gets each URL as a parameter
-      why: Correct. <code>__param_target</code> becomes the URL parameter target, and <code>__address__</code> decides which host is scraped.
+      why: <code>__param_target</code> becomes the URL parameter target, and <code>__address__</code> decides which host is scraped.
     - text: So that each URL is scraped directly, with the exporter as a backup
       why: The URLs are not scraped directly. The exporter probes them and reports the result.
     - text: So that the <code>instance</code> label shows the exporter instead of the URL
@@ -1316,7 +1316,7 @@
   q: An exporter reads a value from another system that is called a counter there, but it can go down. Which Prometheus type should the exporter use?
   options:
     - text: Untyped
-      why: Correct. A value that can decrease is not a Prometheus counter. The guidelines suggest UNTYPED, since GAUGE could mislead when it is used as a counter.
+      why: A value that can decrease is not a Prometheus counter. The guidelines suggest UNTYPED, since GAUGE could mislead when it is used as a counter.
     - text: Counter
       why: Prometheus counters only go up or reset. rate() would read every drop as a reset.
     - text: Histogram
@@ -1332,7 +1332,7 @@
   q: You write an exporter and want to report how long reading the other system took on each scrape. What do the guidelines suggest?
   options:
     - text: A gauge such as <code>jmx_scrape_duration_seconds</code>
-      why: Correct. Metrics about the scrape itself are gauges, prefixed with the exporter name.
+      why: Metrics about the scrape itself are gauges, prefixed with the exporter name.
     - text: A histogram of scrape durations across all scrapes
       why: The guidelines name a histogram of scrape duration as a meta metric to avoid.
     - text: A counter of the number of scrapes so far
@@ -1348,7 +1348,7 @@
   q: A Java framework exposes 1-, 5- and 15-minute request rates and a mean since start. What should an exporter do with these values?
   options:
     - text: Expose the underlying counter and drop these values
-      why: Correct. Prometheus calculates rates itself, usually more accurately than these decaying averages, so the guidelines say to drop them.
+      why: Prometheus calculates rates itself, usually more accurately than these decaying averages, so the guidelines say to drop them.
     - text: Expose each one as a separate gauge
       why: The guidelines call these statistics clutter. Prometheus can compute any window from a counter.
     - text: Expose them as a summary with three quantiles
@@ -1365,11 +1365,11 @@
   q: Which metric name follows the Prometheus naming conventions?
   options:
     - text: <code>http_request_duration_seconds</code>
-      why: Correct. It has a prefix for the domain, a base unit and the unit as a plural suffix.
+      why: It has a prefix for the domain, a base unit and the unit as a plural suffix.
     - text: <code>http_request_duration_ms</code>
       why: Names should use base units. Time is measured in seconds, not milliseconds.
-    - text: <code>HttpRequestDurationSeconds</code>
-      why: Metric names are written in snake_case.
+    - text: <code>http_request_duration</code>
+      why: Names should end with their unit as a plural suffix. This name does not say whether it measures seconds or milliseconds.
     - text: <code>http:request_duration:seconds</code>
       why: Colons are reserved for recording rules. Exporters and direct instrumentation should not use them.
   answer: [0]
@@ -1381,9 +1381,9 @@
   q: Which two metric names follow the conventions for an accumulating count? (Choose two.)
   options:
     - text: <code>process_cpu_seconds_total</code>
-      why: Correct. An accumulating count with a unit has the unit and then <code>_total</code>.
+      why: An accumulating count with a unit has the unit and then <code>_total</code>.
     - text: <code>http_requests_total</code>
-      why: Correct. A count without a unit ends in <code>_total</code>.
+      why: A count without a unit ends in <code>_total</code>.
     - text: <code>http_requests_count</code>
       why: <code>_count</code> belongs to summaries and histograms. Counters use <code>_total</code>.
     - text: <code>process_cpu_total_seconds</code>
@@ -1399,7 +1399,7 @@
   q: A service exposes <code>http_responses_500_total</code>, <code>http_responses_404_total</code> and <code>http_responses_200_total</code>. How should this be restructured?
   options:
     - text: One metric <code>http_responses_total</code> with a <code>code</code> label
-      why: Correct. Metrics you want to add or average should be one metric with labels. No part of a name should be generated.
+      why: Metrics you want to add or average should be one metric with labels. No part of a name should be generated.
     - text: Keep the three names and add <code>http_responses_all_total</code>
       why: A hand-made total duplicates what sum() gives and keeps the generated names.
     - text: One gauge per code, reset to 0 every minute
@@ -1415,11 +1415,11 @@
   q: 'An exporter exposes <code>queue_items{queue="a"} 1</code>, <code>queue_items{queue="b"} 6</code> and <code>queue_items{queue="total"} 7</code>. What is wrong?'
   options:
     - text: <code>sum()</code> now counts every item twice
-      why: Correct. The guidelines say never to expose a total like this. Anyone who sums the metric counts every item twice.
+      why: The guidelines say never to expose a total like this. Anyone who sums the metric counts every item twice.
     - text: Nothing; a total series saves PromQL work
       why: Prometheus aggregation already gives the total. The extra series makes sums wrong.
     - text: The label name <code>queue</code> is reserved
-      why: queue is an ordinary label name. The problem is the total series.
+      why: <code>queue</code> is an ordinary label name. The problem is the total series.
     - text: Label values may not be the word <code>total</code>
       why: Any UTF-8 text is a valid label value. The meaning of this one is the problem.
   answer: [0]
@@ -1432,7 +1432,7 @@
   q: Prometheus scrapes every 60 seconds, but the Grafana data source still has its scrape interval at the default 15s. Panels using <code>rate(x[$__rate_interval])</code> show gaps or no data. Why?
   options:
     - text: $__rate_interval uses the wrong 15s, so the window is too small
-      why: Correct. $__rate_interval is at least four times the scrape interval set in the data source. At 15s instead of 60s, the window often holds too few samples for rate().
+      why: <code>$__rate_interval</code> is at least four times the scrape interval set in the data source. At 15s instead of 60s, the window often holds too few samples for rate().
     - text: $__rate_interval works only with the <code>irate()</code> function
       why: Grafana designed it for rate() and increase().
     - text: rate() needs a fixed window such as <code>[1m]</code> in Grafana
@@ -1448,7 +1448,7 @@
   q: A dashboard variable <code>$job</code> allows several values. The query uses <code>up{job="$job"}</code>. With two jobs selected, the panel is empty. What fixes it?
   options:
     - text: Use <code>=~</code>, because the values form a regex
-      why: Correct. Grafana joins several values with a pipe, which only works with a regex matcher.
+      why: Grafana joins several values with a pipe, which only works with a regex matcher.
     - text: Use <code>job!="$job"</code>, because the values are excluded
       why: A not-equal matcher selects everything else. The goal is to match the chosen jobs.
     - text: Turn on "Include All" so both jobs are found
@@ -1464,13 +1464,13 @@
   q: You want one panel that shows how request durations are spread across histogram buckets, and how that spread changes over the day. Which Grafana visualization fits?
   options:
     - text: Heatmap
-      why: Correct. A heatmap shows a histogram's distribution over time, so patterns in the buckets become visible.
+      why: A heatmap shows a histogram's distribution over time, so patterns in the buckets become visible.
     - text: Stat
       why: A stat panel shows a single value, with an optional sparkline. It cannot show a distribution.
     - text: Bar gauge
-      why: A bar gauge shows one value per series. The buckets over time would be lost.
+      why: A bar gauge reduces each series to a single value, so the buckets over time are lost.
     - text: Table
-      why: A table lists values but makes changes in a distribution over time hard to see.
+      why: A table shows data in rows and columns. It does not draw how a distribution changes over time.
   answer: [0]
   source: https://grafana.com/docs/grafana/latest/panels-visualizations/visualizations/heatmap/
 
@@ -1480,7 +1480,7 @@
   q: A Grafana panel has thresholds in absolute mode, with a Base of green and a red step at 80. What does the Base value mean?
   options:
     - text: It stands for every value below 80, down to minus infinity
-      why: Correct. Base stands for minus infinity, so values below 80 are green and values from 80 are red.
+      why: Base stands for minus infinity, so values below 80 are green and values from 80 are red.
     - text: It is 0, so negative values have no color
       why: Base is not 0. It starts at minus infinity, so negative values are green too.
     - text: It is the panel's average value, used as the middle color
@@ -1496,7 +1496,7 @@
   q: A team builds one dashboard for its microservices and one for the nodes they run on. Which method fits each, according to Grafana's best practices?
   options:
     - text: RED for the services and USE for the nodes
-      why: Correct. RED (rate, errors, duration) suits services, and USE (utilization, saturation, errors) suits hardware resources.
+      why: RED (rate, errors, duration) suits services, and USE (utilization, saturation, errors) suits hardware resources.
     - text: USE for the services and RED for the nodes
       why: This is the other way round. Saturation and utilization describe resources such as CPU and disks.
     - text: RED for both, since USE is only for databases
@@ -1512,7 +1512,7 @@
   q: A team has a copy of the same dashboard for each of its 40 nodes. Which practice does Grafana suggest to stop this sprawl?
   options:
     - text: One dashboard with a variable for the node
-      why: Correct. Grafana suggests template variables instead of a separate dashboard per node.
+      why: Grafana suggests template variables instead of a separate dashboard per node.
     - text: One dashboard with 40 panels, one per node
       why: A panel per node grows with every node and is hard to read.
     - text: A folder for each node, with its own copy inside
@@ -1529,7 +1529,7 @@
   q: 'An alerting rule has <code>for: 10m</code>. Its expression returns a result for 7 minutes, then returns nothing. What happened to the alert?'
   options:
     - text: It was pending for 7 minutes and never fired
-      why: Correct. With a for clause, an alert stays pending until the condition has held for the whole duration.
+      why: With a for clause, an alert stays pending until the condition has held for the whole duration.
     - text: It fired at once and resolved after 7 minutes
       why: Only a rule without a for clause becomes active on its first evaluation.
     - text: It fired after 7 minutes, rounded up to 10
@@ -1545,11 +1545,11 @@
   q: An alert keeps resolving and firing again because its metric has short gaps in the data. Which clause of a Prometheus alerting rule is meant for this?
   options:
     - text: <code>keep_firing_for</code>
-      why: Correct. It keeps the alert firing for a set time after the condition was last met, which prevents flapping and false resolutions.
+      why: It keeps the alert firing for a set time after the condition was last met, which prevents flapping and false resolutions.
     - text: <code>for</code>
-      why: for delays the start of firing. It does not keep an alert firing once the condition is gone.
+      why: <code>for</code> delays the start of firing. It does not keep an alert firing once the condition is gone.
     - text: <code>query_offset</code>
-      why: query_offset is a rule group setting that moves evaluation into the past. It does not keep an alert firing.
+      why: <code>query_offset</code> is a rule group setting that moves evaluation into the past. It does not keep an alert firing.
     - text: <code>annotations</code>
       why: Annotations hold descriptions and links. They do not change when an alert fires or resolves.
   answer: [0]
@@ -1561,7 +1561,7 @@
   q: 'Which annotation shows the affected instance and the current value in the alert text?'
   options:
     - text: '<code>summary: "{{ $labels.instance }} is at {{ $value }}"</code>'
-      why: Correct. $labels holds the alert's labels and $value the evaluated value of the expression.
+      why: $labels holds the alert's labels and $value the evaluated value of the expression.
     - text: '<code>summary: "$instance is at $value"</code>'
       why: Annotations use Go templates. Without the braces the text is printed as it is.
     - text: '<code>summary: "{{ instance }} is at {{ value }}"</code>'
@@ -1577,11 +1577,11 @@
   q: You want a Grafana panel that shows which Prometheus alerts are firing right now. Which series can it query?
   options:
     - text: <code>ALERTS{alertstate="firing"}</code>
-      why: Correct. For pending and firing alerts, Prometheus stores synthetic series named ALERTS, with an alertstate label.
+      why: For pending and firing alerts, Prometheus stores synthetic series named ALERTS, with an alertstate label.
     - text: <code>ALERTS{alertstate="pending"}</code>
       why: Pending alerts are active but have not fired yet, because their for duration has not passed.
     - text: <code>up{alertname!=""}</code>
-      why: up describes scrape health and has no alertname label.
+      why: <code>up</code> describes scrape health and has no alertname label.
     - text: <code>count(ALERTS)</code>
       why: This counts pending and firing alerts together, and it drops which alerts they are.
   answer: [0]
@@ -1593,9 +1593,9 @@
   q: Before you load a new rule file into Prometheus, you want to be sure it is valid. What can you run?
   options:
     - text: <code>promtool check rules</code> on the file
-      why: Correct. promtool checks a rule file without a running server. It exits with 0 when the file is valid and 1 on errors.
+      why: <code>promtool</code> checks a rule file without a running server. It exits with 0 when the file is valid and 1 on errors.
     - text: <code>amtool check-config</code> on the file
-      why: amtool checks Alertmanager configuration, not Prometheus rule files.
+      why: <code>amtool</code> checks Alertmanager configuration, not Prometheus rule files.
     - text: A POST to <code>/-/reload</code> with the file in the body
       why: The reload endpoint rereads the files already configured. It does not check a file you send.
     - text: Nothing; Prometheus loads only the valid rules of a broken file
@@ -1609,7 +1609,7 @@
   q: A Grafana-managed alert rule has a pending period of 5 minutes and a keep firing for period of 10 minutes. The threshold is no longer breached, but the alert has not resolved yet. Which state is it in?
   options:
     - text: Recovering
-      why: Correct. Recovering is the state of a firing alert whose threshold is no longer breached while the keep firing for period has not ended.
+      why: Recovering is the state of a firing alert whose threshold is no longer breached while the keep firing for period has not ended.
     - text: Pending
       why: Pending is before firing, while the pending period runs. This alert has already fired.
     - text: No Data
@@ -1626,13 +1626,13 @@
   q: A route uses the defaults for <code>group_wait</code>, <code>group_interval</code> and <code>repeat_interval</code>. A group has just sent its first notification. A new alert joins the group 1 minute later. When is it sent?
   options:
     - text: At the next group_interval, about 4 minutes later
-      why: Correct. After the first notification, new alerts in a group wait for the next group_interval, which is 5 minutes by default.
+      why: After the first notification, new alerts in a group wait for the next group_interval, which is 5 minutes by default.
     - text: At once, because each new alert is sent on its own
       why: Grouping exists so that new alerts join the group's next notification instead.
     - text: After the group_wait of 30 seconds
-      why: group_wait applies only before the first notification of a new group.
+      why: <code>group_wait</code> applies only before the first notification of a new group.
     - text: After the repeat_interval of 4 hours
-      why: repeat_interval is for repeating an unchanged notification. A new alert is a change.
+      why: <code>repeat_interval</code> is for repeating an unchanged notification. A new alert is a change.
   answer: [0]
   source: https://prometheus.io/docs/alerting/latest/configuration/#route
 
@@ -1642,13 +1642,13 @@
   q: When the alert <code>ClusterUnreachable</code> fires for a cluster, you want no notifications for other alerts from that same cluster. What do you configure?
   options:
     - text: An inhibit rule, with <code>equal</code> on the cluster label
-      why: Correct. An inhibit rule with ClusterUnreachable as its source mutes target alerts while the source fires, and equal requires the same cluster value on both.
+      why: An inhibit rule with ClusterUnreachable as its source mutes target alerts while the source fires, and equal requires the same cluster value on both.
     - text: A silence that matches all alerts of every cluster
       why: A silence mutes for a fixed time whether or not ClusterUnreachable fires, and here it would hit all clusters.
     - text: A route with <code>group_by</code> set to the cluster label
       why: Grouping puts the alerts into one notification. It does not mute them.
     - text: A route with <code>continue</code> set to false
-      why: continue only stops matching at the first route that fits. It mutes nothing.
+      why: <code>continue</code> only stops matching at the first route that fits. It mutes nothing.
   answer: [0]
   source: https://prometheus.io/docs/alerting/latest/configuration/#inhibit_rule
 
@@ -1658,7 +1658,7 @@
   q: An alert with <code>team="db"</code> and <code>severity="critical"</code> should reach both the database team and the on-call pager. Two sibling routes match it, but only the first receiver gets it. Why?
   options:
     - text: The first matching route does not set <code>continue</code>
-      why: Correct. continue defaults to false, so the alert stops at the first matching child. Set it to true to try the siblings too.
+      why: <code>continue</code> defaults to false, so the alert stops at the first matching child. Set it to true to try the siblings too.
     - text: An alert can only ever be sent to one receiver
       why: With continue set to true, one alert can match several routes and receivers.
     - text: The second route needs a longer <code>group_wait</code>
@@ -1674,7 +1674,7 @@
   q: You will upgrade a database tonight from 22:00 to 23:00 and expect alerts from it. What is the Alertmanager feature for muting them during that time?
   options:
     - text: A silence with matchers for that database
-      why: Correct. A silence mutes alerts that match its matchers for a given time. It is set in the Alertmanager web interface.
+      why: A silence mutes alerts that match its matchers for a given time. It is set in the Alertmanager web interface.
     - text: An inhibit rule for that database
       why: Inhibition mutes alerts while another alert fires. It is not tied to a time window you choose.
     - text: A route with a long <code>repeat_interval</code>
@@ -1690,7 +1690,7 @@
   q: You run three Alertmanagers as a cluster. How should each Prometheus server send its alerts to them?
   options:
     - text: To all three, each one listed in the Prometheus configuration
-      why: Correct. The docs say not to load balance this traffic, but to point Prometheus to the list of all Alertmanagers.
+      why: The docs say not to load balance this traffic, but to point Prometheus to the list of all Alertmanagers.
     - text: To one load balancer in front of the three Alertmanagers
       why: The docs say not to load balance traffic between Prometheus and its Alertmanagers.
     - text: To one Alertmanager only, which forwards to the others
@@ -1706,9 +1706,9 @@
   q: A network split makes 300 service instances lose their database at once, and each fires an alert. Two identical Prometheus servers send the alerts. How does the Alertmanager help the on-call person here? (Choose two.)
   options:
     - text: It groups the alerts into one notification
-      why: Correct. Grouping, for example by alertname and cluster, puts similar alerts into one notification that still lists the affected instances.
+      why: Grouping, for example by alertname and cluster, puts similar alerts into one notification that still lists the affected instances.
     - text: It sends duplicate alerts from the server pair once
-      why: Correct. The Alertmanager deduplicates identical alerts, such as the same alert from both servers of the pair.
+      why: The Alertmanager deduplicates identical alerts, such as the same alert from both servers of the pair.
     - text: It finds the root cause and closes the other alerts
       why: The Alertmanager does not analyse causes. It groups, deduplicates, routes and mutes.
     - text: It slows the scrapes of the failing instances
@@ -1725,7 +1725,7 @@
   q: A web shop has a frontend, an API and a database. Where do the Prometheus alerting guidelines suggest paging on high latency?
   options:
     - text: At one point, as high up in the stack as possible
-      why: Correct. Page on latency at one point in the stack, as close to users as possible. A slow lower part is no reason to page if users are fine.
+      why: Page on latency at one point in the stack, as close to users as possible. A slow lower part is no reason to page if users are fine.
     - text: At every layer, so the slow part is found at once
       why: The guidelines advise only one latency page per stack. Dashboards should help find the cause.
     - text: Only at the database, since it is usually the cause
@@ -1741,7 +1741,7 @@
   q: A batch job runs every 4 hours and takes 1 hour. After how long without a success do the guidelines suggest a page?
   options:
     - text: About 10 hours
-      why: Correct. Allow at least enough time for 2 full runs. The guidelines give 10 hours as a reasonable threshold for this job.
+      why: Allow at least enough time for 2 full runs. The guidelines give 10 hours as a reasonable threshold for this job.
     - text: About 4 hours
       why: That pages after a single missed run. One failure should not need a human.
     - text: About 1 hour
@@ -1757,7 +1757,7 @@
   q: Which alert follows the Prometheus guidance on metamonitoring best?
   options:
     - text: An end-to-end test that an alert reaches email
-      why: Correct. The guidelines prefer one blackbox test of the whole path, from Prometheus through the Alertmanager to email, over separate alerts on each part.
+      why: The guidelines prefer one blackbox test of the whole path, from Prometheus through the Alertmanager to email, over separate alerts on each part.
     - text: One alert for each Prometheus, Alertmanager and Pushgateway process
       why: Such alerts are allowed, but the guidelines say a test of the whole path is better.
     - text: No alert, since Prometheus monitors itself
@@ -1773,7 +1773,7 @@
   q: The on-call engineer is paged most nights for high CPU on one node. Users never notice, and the engineer has nothing to do. What do the alerting guidelines suggest?
   options:
     - text: Drop the page and alert on symptoms that users feel
-      why: Correct. Keep alerting simple, alert on symptoms, and avoid pages where there is nothing to do.
+      why: Keep alerting simple, alert on symptoms, and avoid pages where there is nothing to do.
     - text: Keep the page but lower the CPU threshold
       why: A lower threshold pages even more often for a cause users do not feel.
     - text: Send the page to two engineers so it is shared
