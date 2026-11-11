@@ -9,6 +9,7 @@
 // What the last call did is written to <html data-fx-last="..."> and <html data-fx-answer="...">,
 // which is how the browser tests see that a switch silenced what it should.
 import type { Rung } from './rewards.ts';
+import { toast } from './toast.ts';
 import type { Settings } from './state.ts';
 
 const TEXT: Record<Rung, string> = {
@@ -156,18 +157,20 @@ function burst(parts: number, ms: number): void {
   canvasTimer = window.setTimeout(() => canvas.remove(), ms + 500);
 }
 
-let bannerTimer: number | undefined;
+/** What each rung's notification says above its title. */
+const KICKER: Record<Rung, string> = {
+  step: 'Step // done',
+  check: 'Lab check // passed',
+  quiz: 'Module quiz // passed',
+  module: 'Module // done',
+  mock: 'Mock exam // passed',
+  all: 'Course // done',
+};
 
+/** The celebration's notification at the right-hand side; a newer one replaces the one before. */
 function banner(rung: Rung, text: string, ms: number): void {
-  document.querySelector('[data-celebration]')?.remove();
-  window.clearTimeout(bannerTimer);
-  const el = document.createElement('div');
-  el.className = `fx-banner fx-banner-${rung}`;
-  el.setAttribute('role', 'status');
-  el.dataset.celebration = rung;
-  el.textContent = text;
-  document.body.appendChild(el);
-  bannerTimer = window.setTimeout(() => el.remove(), Math.max(ms, 2500));
+  document.querySelector('[data-celebration]')?.closest('.toast')?.remove();
+  toast({ kind: 'done', kicker: KICKER[rung], title: text, celebration: rung, ms: Math.max(ms, 4500) });
 }
 
 // ---------- the ladder ----------
@@ -182,15 +185,16 @@ export function celebrate(rung: Rung, settings: Pick<Settings, 'effects' | 'soun
   if (sound) size.notes.forEach((f, i) => tone(f, i * 0.11, i === size.notes.length - 1 ? 0.6 : 0.25));
 }
 
-/** A short information line, such as a new level. Shown without effects. */
-export function notice(text: string): void {
-  const el = document.createElement('div');
-  el.className = 'fx-notice';
-  el.setAttribute('role', 'status');
-  el.dataset.fxNotice = '';
-  el.textContent = text;
-  document.body.appendChild(el);
-  window.setTimeout(() => el.remove(), 3000);
+/** A new level: a notification with the level's number, and a short rising sound. */
+export function levelUp(level: number, settings: Pick<Settings, 'effects' | 'sound'>): void {
+  toast({ kind: 'level', title: `Level ${level} reached`, text: 'Your XP passed the next mark.', figure: String(level).padStart(2, '0') });
+  if (switches(settings).sound) [659, 880, 1175].forEach((f, i) => tone(f, i * 0.08, 0.25));
+}
+
+/** A badge just earned: a notification with what earned it. */
+export function badgeEarned(title: string, how: string, settings: Pick<Settings, 'effects' | 'sound'>): void {
+  toast({ kind: 'badge', title, text: how });
+  if (switches(settings).sound) [784, 1047].forEach((f, i) => tone(f, i * 0.1, 0.3));
 }
 
 /**

@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type ChangeEvent } from 'react';
 import { parseSettings, parseState, type Settings as SettingsShape } from '../../lib/state.ts';
 import { getStore } from '../../lib/store.ts';
+import { toast } from '../../lib/toast.ts';
 import { updateState, useHydrated, useStoreState } from '../../lib/use-store.ts';
 
 const MAX_IMPORT = 1024 * 1024;
@@ -13,7 +14,13 @@ export default function Settings() {
   const ids = { domain: useId(), seed: useId(), file: useId() };
   const [domain, setDomain] = useState(state.settings.labDomain);
   const [seed, setSeed] = useState(state.settings.labSeed);
-  const [message, setMessage] = useState('');
+  const [message, setMessageText] = useState('');
+  // Each message shows as a notification at the right-hand side (owner, 2026-11-11: the line at the
+  // bottom was "almost not noticeable"); the line itself stays, hidden, for the browser tests.
+  const setMessage = (text: string, kind: 'ok' | 'error' = 'ok') => {
+    setMessageText(text);
+    toast({ kind, title: text });
+  };
 
   // Follow changes that arrive from another tab or device.
   useEffect(() => setDomain(state.settings.labDomain), [state.settings.labDomain]);
@@ -24,7 +31,7 @@ export default function Settings() {
   const saveDomain = () => {
     const next = parseSettings({ ...state.settings, labDomain: domain });
     if (next.labDomain !== domain.trim().toLowerCase().replace(/\.$/, '')) {
-      setMessage('That is not a valid domain name. The old one is kept.');
+      setMessage('That is not a valid domain name. The old one is kept.', 'error');
       setDomain(state.settings.labDomain);
       return;
     }
@@ -35,7 +42,7 @@ export default function Settings() {
   const saveSeed = () => {
     const v = seed.trim().toLowerCase();
     if (v && !/^[0-9a-f]{16}$/.test(v)) {
-      setMessage('The lab seed is 16 characters, 0 to 9 and a to f. The lab prints it at the end of its install.');
+      setMessage('The lab seed is 16 characters, 0 to 9 and a to f. The lab prints it at the end of its install.', 'error');
       return;
     }
     set({ labSeed: v });
@@ -57,18 +64,18 @@ export default function Settings() {
     e.target.value = '';
     if (!file) return;
     if (file.size > MAX_IMPORT) {
-      setMessage('That file is too large to be a progress file.');
+      setMessage('That file is too large to be a progress file.', 'error');
       return;
     }
     let raw: unknown;
     try {
       raw = JSON.parse(await file.text());
     } catch {
-      setMessage('That file is not a progress file (it is not JSON).');
+      setMessage('That file is not a progress file (it is not JSON).', 'error');
       return;
     }
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-      setMessage('That file is not a progress file.');
+      setMessage('That file is not a progress file.', 'error');
       return;
     }
     const parsed = parseState(raw);
@@ -130,7 +137,7 @@ export default function Settings() {
         </div>
         <p className="mb-0 text-sm text-ink-3">Importing replaces the progress on every device with the file's copy.</p>
       </section>
-      <p aria-live="polite" data-settings-message>
+      <p className="sr-only" data-settings-message>
         {message}
       </p>
     </div>
