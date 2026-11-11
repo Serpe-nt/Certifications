@@ -484,12 +484,13 @@
     background: var(--lg-ink);
     color: var(--lg-signal) !important;
   }
-  /* The dialog itself is the one thing that scrolls while it is open. */
+  /* The dialog itself is the one thing that scrolls while it is open. Its top edge stays at a fixed
+     height, so it does not jump when its content grows (questions loading, an answer explained). */
   .modal {
     width: min(64rem, calc(100vw - 2rem));
     max-width: none;
-    max-height: calc(100vh - 2rem);
-    margin: auto;
+    max-height: calc(100vh - 6vh - 1rem);
+    margin: 6vh auto auto;
     padding: 0;
     border: 0;
     background: transparent;
@@ -539,10 +540,5 @@
     font-family: var(--lg-font-display);
     font-weight: 400;
     font-size: var(--lg-text-h2);
-  }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .modal[open] {
-    animation: lg-rise var(--lg-dur) var(--lg-ease-out) both;
   }
 }

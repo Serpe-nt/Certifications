@@ -58,7 +58,12 @@ export function wireDialogs(): void {
       else history.replaceState(null, '', window.location.pathname + window.location.search);
     });
     d.addEventListener('click', (e) => {
-      if (e.target === d) d.close(); // a click on the backdrop
+      // A click on the backdrop: outside the dialog's box. Testing the position, not only the target,
+      // keeps a click on a part of the dialog that is still drawing itself from closing it.
+      if (e.target !== d) return;
+      const r = d.getBoundingClientRect();
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (!inside) d.close();
     });
     d.querySelector('[data-dialog-close]')?.addEventListener('click', () => d.close());
   }

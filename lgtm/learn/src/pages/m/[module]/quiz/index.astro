@@ -16,6 +16,7 @@ const num = module.id.replace(/\D/g, '').slice(-2) || 'Q';
 <Base title={`${module.title}: quiz`}>
   <PageHead
     slot="head"
+    side
     icon={module.id}
     tag="Quiz"
     crumbText={`${module.id.toUpperCase()} //`}

@@ -22,10 +22,13 @@ interface Props {
   plate: { value: string; label: string; foot: [string, string] };
   /** A module id: the module's own icon turns behind the header instead of the globe. */
   icon?: string;
+  /** Quiz, practice and mock exam: on a wide screen the header stands in a column beside the screen,
+      so the question starts at the top of the window (head.css, "the side layout"). */
+  side?: boolean;
 }
-const { tag, crumbText, crumb, title, size = 'page', lead, leadStyle = 'outcome', chips = [], plate, icon } = Astro.props;
+const { tag, crumbText, crumb, title, size = 'page', lead, leadStyle = 'outcome', chips = [], plate, icon, side = false } = Astro.props;
 ---
-<header class="pagehead">
+<header class:list={['pagehead', { 'pagehead-aside': side }]}>
   {
     icon ? (
       <div class="globe globe-module" aria-hidden="true">

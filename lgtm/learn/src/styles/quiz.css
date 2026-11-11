@@ -292,15 +292,15 @@
   color: var(--lg-bad);
 }
 
-/* The map: a tape of numbered cells above the card, one per question, 44px tall, about 3.5rem wide
+/* The map: a tape of numbered cells under the card (owner, 2026-11-11: so the question fits the screen), one per question, 44px tall, about 3.5rem wide
    (2.75rem on a phone). A quiz's 15 fill a row; the mock exam's 60 wrap into even rows. */
 .qz-map {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
   gap: 3px;
   margin-top: var(--lg-space-6);
-  padding: 0 0 8px;
-  border-bottom: 2px solid var(--lg-ink);
+  padding: 8px 0 0;
+  border-top: 2px solid var(--lg-ink);
 }
 .q-square {
   position: relative;
@@ -641,22 +641,6 @@
   justify-content: space-between;
 }
 
-/* On a phone the exam's 60 squares go under the question, so each question starts at the top. */
-@media (max-width: 640px) {
-  .qz-exam .qz-map,
-  .qz-exam .qz-legend {
-    order: 2;
-  }
-  .qz-exam .qz-card {
-    order: 1;
-  }
-  .qz-exam .qz-confirm {
-    order: 3;
-  }
-  .qz-exam .qz-map {
-    margin-top: var(--lg-space-8);
-  }
-}
 
 /* ---------------------------------------------------------------- one question (QuestionView) */
 .qv-text {
@@ -2155,4 +2139,59 @@ body:has([data-exam-running]) .sync::before {
 .qz-cardbody .qv-opts,
 .qz-cardbody .qv-text {
   max-width: none;
+}
+
+/* While a quiz, practice round or mock exam runs, it stands straight on the console: no screen box
+   around it (owner, 2026-11-11: "maybe remove the background box for the quiz"). Its own parts carry
+   their surfaces: the ink strip, the paper card, the paper tape. The intro and results keep the box. */
+main > .screen:has(.qz) {
+  padding: 0;
+  background: none;
+}
+main > .screen:has(.qz)::before {
+  display: none;
+}
+main > .screen:has(.qz) > .glass {
+  padding: 0;
+  background: none;
+}
+/* Small text that would now sit on the ash gets a paper backing. */
+main > .screen:has(.qz) .qz-legend {
+  padding: 8px 12px;
+  background: var(--lg-paper);
+}
+
+/* A short window (a laptop at 680 to 760 px of height): tighter spacing so the question, its answers
+   and Submit still fit without scrolling. Rows stay at least 44px tall. */
+@media (max-height: 760px) and (min-width: 561px) {
+  .qz-strip {
+    min-height: 2.5rem;
+    padding-block: 4px;
+  }
+  .qz-cardbody .qv-text {
+    margin: 0 0 var(--lg-space-3);
+    font-size: var(--lg-text-body);
+  }
+  .qopt {
+    min-height: 2.75rem;
+  }
+  .qv-opts {
+    gap: 6px;
+  }
+  .qz-foot {
+    margin-top: var(--lg-space-3);
+    padding-top: var(--lg-space-3);
+  }
+  .qz-cardbody {
+    padding-top: 16px;
+    padding-bottom: 12px;
+  }
+  .qz .qz-card {
+    margin-top: var(--lg-space-3);
+  }
+}
+@media (max-height: 760px) {
+  .topbar {
+    margin-block: var(--lg-space-3);
+  }
 }

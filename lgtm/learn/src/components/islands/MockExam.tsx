@@ -200,6 +200,36 @@ function ExamScreen({ exam, bank, now, ready }: { exam: ExamRun; bank: Bank; now
           </span>
         </div>
       </div>
+      <article className="qz-card">
+        <header className="qz-qhead sticker-head">
+          <p className="qz-qnum" aria-hidden="true">
+            <span className="qz-qnum-n">{String(i + 1).padStart(2, '0')}</span>
+            <span className="qz-qnum-of mono">of {exam.ids.length}</span>
+          </p>
+          <span className="sticker-rail" aria-hidden="true"></span>
+          <button type="button" className="qz-flag mono" aria-pressed={!!mark?.f} onClick={flag} disabled={!ready || over || !q} data-flag>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3.5 15V1.5M3.5 2.5h9l-2.5 3.5 2.5 3.5h-9" />
+            </svg>
+            {mark?.f ? 'Flagged for review' : 'Flag for review'}
+          </button>
+        </header>
+        <div className="qz-cardbody">
+        {q ? (
+          <QuestionView q={q} order={shownOrder(exam.ord[i], q.n)} picked={mark?.a ?? []} onPick={pick} disabled={!ready || over} feedback={false} name={`${exam.t0}-${id}`} />
+        ) : (
+          <p className="qz-missing">This question is no longer in the course. Skip it.</p>
+        )}
+        <nav className="qz-foot qz-examnav" aria-label="Exam">
+          <button type="button" className="btn" onClick={() => go(i - 1)} disabled={!ready || i === 0}>
+            Previous
+          </button>
+          <button type="button" className={last ? 'btn' : 'btn btn-primary'} onClick={() => go(i + 1)} disabled={!ready || last}>
+            Next
+          </button>
+        </nav>
+        </div>
+      </article>
       <div className="qz-map" role="group" aria-label="Questions">
         {exam.ids.map((qid, k) => {
           const m = Object.hasOwn(exam.marks, qid) ? exam.marks[qid] : undefined;
@@ -252,36 +282,6 @@ function ExamScreen({ exam, bank, now, ready }: { exam: ExamRun; bank: Bank; now
           </p>
         </div>
       )}
-      <article className="qz-card">
-        <header className="qz-qhead sticker-head">
-          <p className="qz-qnum" aria-hidden="true">
-            <span className="qz-qnum-n">{String(i + 1).padStart(2, '0')}</span>
-            <span className="qz-qnum-of mono">of {exam.ids.length}</span>
-          </p>
-          <span className="sticker-rail" aria-hidden="true"></span>
-          <button type="button" className="qz-flag mono" aria-pressed={!!mark?.f} onClick={flag} disabled={!ready || over || !q} data-flag>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M3.5 15V1.5M3.5 2.5h9l-2.5 3.5 2.5 3.5h-9" />
-            </svg>
-            {mark?.f ? 'Flagged for review' : 'Flag for review'}
-          </button>
-        </header>
-        <div className="qz-cardbody">
-        {q ? (
-          <QuestionView q={q} order={shownOrder(exam.ord[i], q.n)} picked={mark?.a ?? []} onPick={pick} disabled={!ready || over} feedback={false} name={`${exam.t0}-${id}`} />
-        ) : (
-          <p className="qz-missing">This question is no longer in the course. Skip it.</p>
-        )}
-        <nav className="qz-foot qz-examnav" aria-label="Exam">
-          <button type="button" className="btn" onClick={() => go(i - 1)} disabled={!ready || i === 0}>
-            Previous
-          </button>
-          <button type="button" className={last ? 'btn' : 'btn btn-primary'} onClick={() => go(i + 1)} disabled={!ready || last}>
-            Next
-          </button>
-        </nav>
-        </div>
-      </article>
     </section>
   );
 }

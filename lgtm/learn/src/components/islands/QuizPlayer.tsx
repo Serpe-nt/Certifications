@@ -135,27 +135,6 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
           <span className="qz-strip-kind">{KIND_TEXT[run.kind]}:</span> {title}. Question {i + 1} of {run.ids.length}, {answered} answered.
         </p>
       </div>
-      <div className="qz-map" role="group" aria-label="Questions">
-        {run.ids.map((qid, k) => {
-          const a = Object.hasOwn(run.ans, qid) ? run.ans[qid] : undefined;
-          const qq = qs[k];
-          const tone = !a || !qq ? 'open' : isRight(qq, a.a) ? 'right' : 'wrong';
-          return (
-            <button
-              key={qid}
-              type="button"
-              className="q-square"
-              data-tone={tone}
-              aria-current={k === i ? 'true' : undefined}
-              aria-label={`Question ${k + 1}: ${tone === 'open' ? 'not answered' : tone}`}
-              onClick={() => go(k)}
-              disabled={!ready}
-            >
-              {k + 1}
-            </button>
-          );
-        })}
-      </div>
       <article className="qz-card" key={id}>
         <header className="qz-qhead sticker-head">
           <p className="qz-qnum" aria-hidden="true">
@@ -228,6 +207,27 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
         </div>
         </div>
       </article>
+      <div className="qz-map" role="group" aria-label="Questions">
+        {run.ids.map((qid, k) => {
+          const a = Object.hasOwn(run.ans, qid) ? run.ans[qid] : undefined;
+          const qq = qs[k];
+          const tone = !a || !qq ? 'open' : isRight(qq, a.a) ? 'right' : 'wrong';
+          return (
+            <button
+              key={qid}
+              type="button"
+              className="q-square"
+              data-tone={tone}
+              aria-current={k === i ? 'true' : undefined}
+              aria-label={`Question ${k + 1}: ${tone === 'open' ? 'not answered' : tone}`}
+              onClick={() => go(k)}
+              disabled={!ready}
+            >
+              {k + 1}
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }

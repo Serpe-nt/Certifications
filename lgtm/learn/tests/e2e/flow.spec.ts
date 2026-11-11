@@ -170,3 +170,22 @@ test('the sidebar sits beside the article on a wide screen and under it on a pho
   // Nothing scrolls sideways on a phone.
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+test('clicks inside a dialog while it opens keep it open, in place and without scrollbars', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 700 });
+  await page.goto('/m/m90/quiz/');
+  await page.locator('[data-dialog="practice"]').click();
+  const dlg = page.locator('dialog[data-dialog-name="practice"]');
+  const tops = new Set<number>();
+  for (let k = 0; k < 6; k++) {
+    await page.mouse.click(300 + k * 90, 160);
+    const m = await dlg.evaluate((d) => ({ open: (d as HTMLDialogElement).open, top: Math.round(d.getBoundingClientRect().top), sx: d.scrollWidth - d.clientWidth }));
+    expect(m.open).toBe(true);
+    expect(m.sx).toBe(0);
+    tops.add(m.top);
+  }
+  expect(tops.size).toBe(1);
+  // A click on the backdrop, outside the dialog, still closes it.
+  await page.mouse.click(10, 690);
+  await expect(dlg).toBeHidden();
+});

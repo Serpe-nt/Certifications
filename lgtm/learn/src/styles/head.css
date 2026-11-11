@@ -702,3 +702,54 @@ body:has([data-exam-running]) .pagehead :is(*, *::before, *::after) {
     transform: scale(0.88) rotate(-10deg);
   }
 }
+
+/* ---------------------------------------------------------------- the side layout (quiz, practice, mock exam) */
+/* On a wide screen the header stands in a column to the left of the quiz, its parts stacked and the
+   plate under the title, so the question starts at the top of the window (owner, 2026-11-11: "move
+   header to the sides - this way the question itself will always (almost) fit"). On a narrower
+   screen it stays on top, shorter. */
+.pagehead-aside .pagetitle {
+  font-size: var(--lg-text-h2);
+}
+.pagehead-aside .tagrow {
+  margin-bottom: var(--lg-space-3);
+}
+.pagehead-aside .pagelead,
+.pagehead-aside .outcome {
+  margin-top: var(--lg-space-3);
+  padding: 8px 12px;
+  font-size: var(--lg-text-small);
+}
+@media (min-width: 1200px) {
+  main:has(> .pagehead-aside) {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: var(--lg-space-8);
+    align-items: start;
+  }
+  .pagehead-aside {
+    position: sticky;
+    top: var(--lg-space-6);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--lg-space-6);
+    margin: 0;
+  }
+  .pagehead-aside > .pagehead-side {
+    min-width: 0;
+    justify-self: start;
+  }
+  .pagehead-aside .globe {
+    left: -120px;
+    top: -40px;
+    width: 340px;
+    height: 340px;
+  }
+}
+@media (max-width: 1199px) {
+  .pagehead-aside {
+    margin-bottom: var(--lg-space-6);
+  }
+  .pagehead-aside .pagelead {
+    display: none;
+  }
+}

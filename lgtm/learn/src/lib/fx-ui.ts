@@ -46,20 +46,22 @@ export function wireReticle(): void {
   document.documentElement.addEventListener('pointerleave', () => r.removeAttribute('data-on'));
 }
 
-/** A yellow octagon pings out wherever the learner clicks (inside an open dialog too). */
+/** A yellow octagon pings out wherever the learner clicks, outside dialogs. Inside a dialog a fixed
+ *  element would be placed against the dialog while it animates and spill over its edges, giving it
+ *  scrollbars, so clicks there send no ping. */
 export function wirePings(): void {
   window.addEventListener(
     'pointerdown',
     (e) => {
       if (!motionOn() || e.button !== 0) return;
       const target = e.target instanceof Element ? e.target : null;
-      const host = target?.closest('dialog[open]') ?? document.body;
+      if (target?.closest('dialog') || document.querySelector('dialog[open]')) return;
       const p = document.createElement('span');
       p.className = 'ping';
       p.setAttribute('aria-hidden', 'true');
       p.style.left = `${e.clientX}px`;
       p.style.top = `${e.clientY}px`;
-      host.appendChild(p);
+      document.body.appendChild(p);
       const done = () => p.remove();
       p.addEventListener('animationend', done);
       window.setTimeout(done, 900);
