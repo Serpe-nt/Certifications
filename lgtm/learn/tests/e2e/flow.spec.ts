@@ -11,8 +11,8 @@ test('overview, one card at a time, Back, Mark complete, Next, module end', asyn
   // The card on screen lives in the URL.
   await expect(page).toHaveURL(/\/m\/m90\/s01\/$/);
   await expect(page.locator('[data-step]')).toHaveAttribute('data-step', 'm90-s01');
-  // No list of steps beside the card: no other step title on the page.
-  await expect(page.getByText('A lab step with an exact check')).toHaveCount(0);
+  // No list of steps beside the card: no other step title on screen (the module outline is a closed dialog).
+  await expect(page.getByText('A lab step with an exact check').filter({ visible: true })).toHaveCount(0);
   // Every part of the article form is there, and a concept step has no tabs.
   for (const block of ['problem', 'idea', 'inlab', 'trap', 'remember', 'question']) await expect(page.locator(`[data-block="${block}"]`)).toHaveCount(1);
   for (const info of ['flow', 'compare', 'figures', 'layers', 'timeline']) await expect(page.locator(`[data-info="${info}"]`)).toHaveCount(1);

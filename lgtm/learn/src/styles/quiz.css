@@ -1039,6 +1039,11 @@
     transform: translateX(14px);
   }
 }
+@keyframes qz-fade {
+  from {
+    opacity: 0;
+  }
+}
 @keyframes qz-grow {
   from {
     transform: scaleX(0);
@@ -1050,7 +1055,10 @@
   .qz:not(.qz-exam) .q-square[data-tone="wrong"] {
     animation: lg-lit 0.7s var(--lg-ease-out);
   }
-  .qz:not(.qz-exam) .qz-card,
+  /* The question fades in place, so its buttons do not move under the pointer; the verdict slides. */
+  .qz:not(.qz-exam) .qz-card {
+    animation: qz-fade var(--lg-dur) var(--lg-ease-out);
+  }
   .qz-verdict:not(:empty) {
     animation: qz-in var(--lg-dur) var(--lg-ease-out);
   }
