@@ -12,9 +12,11 @@ const NAME = { module: 'module quiz', review: 'review round', step: 'step practi
 export default function RunBusy({ run }: { run: QuizRun }) {
   const answered = Object.keys(run.ans).length;
   return (
-    <p className="text-sm text-ink-3" data-run-busy={run.kind}>
-      You have an unfinished {NAME[run.kind]} ({answered} of {run.ids.length} answered). <a href={runHref(run)}>Continue it</a>, or start here: that drops
-      it.
+    <p className="qz-notice" data-run-busy={run.kind}>
+      <span className="qz-notice-label mono">Unfinished</span>
+      <span>
+        You have an unfinished {NAME[run.kind]} ({answered} of {run.ids.length} answered). <a href={runHref(run)}>Continue it</a>, or start here: that drops it.
+      </span>
     </p>
   );
 }

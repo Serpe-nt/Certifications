@@ -65,6 +65,13 @@
     outline-offset: 2px;
     box-shadow: 0 0 0 5px var(--lg-bezel);
   }
+  /* Cut-corner controls would clip their own focus ring; the corner opens while one is focused. */
+  .btn:focus-visible,
+  .navbtn:focus-visible,
+  .tab:focus-visible,
+  .crumb a:focus-visible {
+    clip-path: none;
+  }
   a {
     color: var(--lg-ink);
     text-decoration-thickness: 1px;

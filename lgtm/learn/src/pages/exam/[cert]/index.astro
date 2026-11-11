@@ -1,15 +1,28 @@
 ---
 // The OTCA and PCA mock exams. The exam in progress lives in the progress document.
 import Base from '../../../layouts/Base.astro';
+import PageHead from '../../../components/PageHead.astro';
 import MockExam from '../../../components/islands/MockExam.tsx';
 import { EXAMS, type Cert } from '../../../lib/exams.ts';
+import { href } from '../../../lib/links.ts';
 
 export function getStaticPaths() {
   return (['otca', 'pca'] as Cert[]).map((cert) => ({ params: { cert }, props: { cert } }));
 }
 const { cert } = Astro.props;
+const exam = EXAMS[cert];
+const pass = Math.round(exam.pass * 100);
 ---
 <Base title={`${cert.toUpperCase()} mock exam`}>
-  <h1 class="mt-0">{EXAMS[cert].name}: mock exam</h1>
+  <PageHead
+    slot="head"
+    tag="Mock exam"
+    crumbText="LGTM //"
+    crumb={{ label: 'Course overview', href: href.home }}
+    title={`${exam.name}: mock exam`}
+    lead={`${exam.questions} questions in ${exam.minutes} minutes, drawn by the exam's domain weights. Pass with ${pass}%.`}
+    leadStyle="plain"
+    plate={{ value: String(exam.questions), label: `${exam.questions} questions, ${exam.minutes} minutes`, foot: [cert.toUpperCase(), `${exam.minutes} min`] }}
+  />
   <MockExam client:load cert={cert} />
 </Base>

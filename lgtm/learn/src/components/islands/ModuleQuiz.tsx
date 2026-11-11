@@ -3,6 +3,7 @@ import { href } from '../../lib/links.ts';
 import { QUIZ_PASS, QUIZ_SIZE, needed, pickModuleQuiz } from '../../lib/quiz.ts';
 import { startRun } from '../../lib/runs.ts';
 import { updateState, useHydrated, useStoreState } from '../../lib/use-store.ts';
+import { Mark } from './QuestionView.tsx';
 import QuizPlayer from './QuizPlayer.tsx';
 import RunBusy from './RunBusy.tsx';
 
@@ -18,7 +19,7 @@ export default function ModuleQuiz({ moduleId, title }: Props) {
   const { bank, failed } = useBank();
 
   if (failed) return <p data-bank-failed>The questions could not be loaded. Check the connection and reload the page.</p>;
-  if (!bank) return <p className="text-ink-3">Loading the questions.</p>;
+  if (!bank) return <p className="qz-loading mono">Loading the questions.</p>;
 
   const run = state.run;
   const start = () => updateState((s) => startRun(s, 'module', moduleId, pickModuleQuiz(bank.questions, moduleId, s.qs), Date.now()));
@@ -31,34 +32,70 @@ export default function ModuleQuiz({ moduleId, title }: Props) {
   const rec = Object.hasOwn(state.quizzes, moduleId) ? state.quizzes[moduleId] : undefined;
 
   return (
-    <section className="rounded-lg border border-line bg-surface p-6 shadow-card" data-quiz-intro={moduleId}>
+    <section className="qz-intro" data-quiz-intro={moduleId}>
       {pool === 0 ? (
-        <p className="m-0">This module has no quiz questions yet.</p>
+        <p className="qz-intro-text">This module has no quiz questions yet.</p>
       ) : (
         <>
-          <p className="mt-0">
+          <dl className="qz-facts">
+            <div>
+              <dt className="mono">Questions</dt>
+              <dd>{size}</dd>
+            </div>
+            <div>
+              <dt className="mono">To pass</dt>
+              <dd>
+                {needed(size)}
+                <span className="qz-facts-unit mono">{Math.round(QUIZ_PASS * 100)}%</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="mono">Best so far</dt>
+              <dd>
+                {rec && rec.tries.length > 0 ? (
+                  `${rec.best}%`
+                ) : (
+                  <>
+                    <span aria-hidden="true">--</span>
+                    <span className="sr-only">None yet</span>
+                  </>
+                )}
+              </dd>
+            </div>
+          </dl>
+          <p className="qz-intro-text">
             {size} questions from this module, drawn new each time. Pass with {needed(size)} right ({Math.round(QUIZ_PASS * 100)}%). Every option is explained after you
             answer; missed questions come back for review after 1, 2 and 4 days.
           </p>
           {rec && rec.tries.length > 0 && (
-            <p data-quiz-record>
+            <p className="qz-stamp mono" data-pass={String(rec.passed > 0)} data-quiz-record>
+              <Mark right={rec.passed > 0} />
               Best so far: {rec.best}%. {rec.passed ? 'Passed.' : 'Not passed yet.'}
             </p>
           )}
           {open.length > 0 && (
-            <p className="text-sm text-ink-3" data-open-steps>
+            <p className="qz-intro-note" data-open-steps>
               {open.length} {open.length === 1 ? 'step is' : 'steps are'} still open. The module counts as done when every step is complete and the quiz is passed.
             </p>
           )}
           {run && !run.done && <RunBusy run={run} />}
-          <button type="button" className="btn btn-primary" onClick={start} disabled={!ready} data-start-quiz>
-            {rec?.passed ? 'Take the quiz again' : 'Start the quiz'}
-          </button>
+          <p className="qz-intro-actions">
+            <button type="button" className="btn btn-primary" onClick={start} disabled={!ready} data-start-quiz>
+              {rec?.passed ? 'Take the quiz again' : 'Start the quiz'}
+            </button>
+            <a className="qz-link mono" href={href.end(moduleId)}>
+              Back to the end of the module
+            </a>
+          </p>
         </>
       )}
-      <p className="mb-0 mt-4">
-        <a href={href.end(moduleId)}>Back to the end of the module</a>
-      </p>
+      {pool === 0 && (
+        <p className="qz-intro-actions">
+          <a className="qz-link mono" href={href.end(moduleId)}>
+            Back to the end of the module
+          </a>
+        </p>
+      )}
     </section>
   );
 }

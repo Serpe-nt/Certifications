@@ -1,0 +1,1080 @@
+/*
+  The surfaces to operate: the module quiz, practice (page and dialog) and the mock exams
+  (QuizPlayer, QuestionView, ModuleQuiz, Practice, MockExam, RunBusy). One question at a time under
+  an ink status strip and a map of squares; options as full-width rows whose lettered key is the
+  radio or checkbox; one main action at a time. The mock exam stays quiet: no motion while it runs.
+  These rules are not in a layer, so they set their own focus rings.
+*/
+
+/* ---------------------------------------------------------------- shared pieces */
+.qz-loading {
+  color: var(--lg-ink-3);
+}
+.qz-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: var(--lg-space-8) 0 var(--lg-space-3);
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lg-ink);
+}
+.qz-label::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 20px;
+  background: var(--lg-signal);
+  box-shadow: 0 0 0 1px var(--lg-ink);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+.qz-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--lg-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+.qz-link:hover {
+  text-decoration-color: var(--lg-signal);
+}
+.qz-mark {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: square;
+}
+
+/* A bar from 0 to 100% (ScoreBar): the track, the fill and the pass mark. */
+.qz-bar {
+  display: block;
+  width: 100%;
+  height: 14px;
+  overflow: visible;
+}
+.qz-bar-track {
+  fill: var(--lg-screen-2);
+}
+.qz-bar-fill {
+  fill: var(--lg-ink);
+}
+.qz-bar-mark {
+  fill: var(--lg-signal);
+  stroke: var(--lg-ink);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A note about another round or exam: paper with an ink edge and an ink label. */
+.qz-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lg-space-2) 14px;
+  max-width: 60rem;
+  margin: 0 0 var(--lg-space-6);
+  padding: 12px 16px;
+  background: var(--lg-paper);
+  border-left: 6px solid var(--lg-ink);
+  font-size: var(--lg-text-small);
+  line-height: 1.6;
+  color: var(--lg-ink-2);
+}
+.qz-notice p {
+  margin: 0;
+}
+.qz-notice-label {
+  padding: 2px 8px;
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+
+/* ---------------------------------------------------------------- intro (module quiz, mock exam) */
+.qz-intro {
+  max-width: 60rem;
+}
+.qz-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 0 var(--lg-space-6);
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+}
+.qz-facts > div {
+  padding: 14px 18px 16px;
+}
+.qz-facts > div + div {
+  border-left: 2px solid var(--lg-ink);
+}
+.qz-facts dt {
+  color: var(--lg-ink-3);
+}
+.qz-facts dd {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 6px 0 0;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-stat);
+  line-height: 1;
+  color: var(--lg-ink);
+}
+.qz-facts-unit {
+  color: var(--lg-ink-3);
+}
+.qz-intro-text {
+  max-width: 70ch;
+  margin: 0 0 var(--lg-space-4);
+  font-size: var(--lg-text-body);
+  line-height: 1.7;
+  color: var(--lg-ink-2);
+}
+.qz-intro-note {
+  max-width: 70ch;
+  margin: 0 0 var(--lg-space-4);
+  font-size: var(--lg-text-small);
+  color: var(--lg-ink-3);
+}
+.qz-intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lg-space-3) var(--lg-space-6);
+  margin: var(--lg-space-6) 0 0;
+}
+.qz-intro-hint {
+  color: var(--lg-ink-3);
+}
+@media (max-width: 560px) {
+  .qz-facts > div {
+    padding: 10px 10px 12px;
+  }
+  .qz-facts dd {
+    font-size: var(--lg-text-h2);
+  }
+}
+
+/* The stamp: passed or not, with a drawn mark and the word. */
+.qz-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 0 0 var(--lg-space-4);
+  padding: 5px 12px;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+}
+.qz-stamp[data-pass="true"] {
+  border-color: var(--lg-good);
+  color: var(--lg-good);
+}
+.qz-stamp[data-pass="false"] {
+  border-color: var(--lg-bad);
+  color: var(--lg-bad);
+}
+
+/* ---------------------------------------------------------------- domains (exam intro and results) */
+.qz-domains {
+  max-width: 60rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 3px solid var(--lg-ink);
+}
+.qz-domain {
+  display: grid;
+  grid-template-columns: minmax(10rem, 20rem) minmax(0, 1fr) 7rem;
+  gap: 18px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--lg-rule);
+}
+.qz-domain-name {
+  font-size: var(--lg-text-ui);
+  line-height: 1.4;
+  color: var(--lg-ink-2);
+}
+.qz-domain-id {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 2px 6px;
+  background: var(--lg-ink);
+  color: var(--lg-paper);
+}
+.qz-domain-figs {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  color: var(--lg-ink-3);
+}
+.qz-domain-big {
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-h3);
+  line-height: 1;
+  color: var(--lg-ink);
+}
+@media (max-width: 640px) {
+  .qz-domain {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 14px;
+  }
+  .qz-domain .qz-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* ---------------------------------------------------------------- the player */
+.qz {
+  display: flex;
+  flex-direction: column;
+  max-width: 64rem;
+}
+
+/* The status strip: an ink readout across the top. */
+.qz-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lg-space-3) var(--lg-space-6);
+  min-height: 3.25rem;
+  padding: 8px 22px 8px 16px;
+  background: var(--lg-bezel);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.qz-status {
+  flex: 1 1 18rem;
+  margin: 0;
+  line-height: 1.7;
+  color: var(--lg-ink-on-dark);
+}
+.qz-strip-kind {
+  color: var(--lg-signal);
+}
+
+/* The mock exam's clock: calm, always in view, no blinking; under ten minutes it says so. */
+.qz-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 14px;
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+}
+.qz-clock-label {
+  color: var(--lg-ink-3);
+}
+.qz-clock-time {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-h3);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.qz-clock[data-low] {
+  box-shadow: inset 0 0 0 2px var(--lg-bad);
+}
+.qz-clock[data-low] .qz-clock-label,
+.qz-clock[data-low] .qz-clock-time {
+  color: var(--lg-bad);
+}
+
+/* The map: one square per question, 44px everywhere. */
+.qz-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--lg-space-4);
+  padding: 5px;
+}
+.q-square {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 2px solid var(--lg-ink);
+  border-radius: 0;
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-ui);
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.q-square:hover:not(:disabled):not([aria-current="true"]) {
+  background: var(--lg-screen-2);
+}
+.q-square:disabled {
+  cursor: default;
+}
+/* Right: a solid fill. Wrong: an outline with a cut corner. Answered (exam): an ink fill. */
+.q-square[data-tone="right"] {
+  border-color: var(--lg-good);
+  background: var(--lg-good);
+  color: var(--lg-paper);
+}
+.q-square[data-tone="right"]:hover:not(:disabled):not([aria-current="true"]) {
+  background: var(--lg-good);
+}
+.q-square[data-tone="wrong"] {
+  border-color: var(--lg-bad);
+  color: var(--lg-bad);
+}
+.q-square[data-tone="wrong"]::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 14px;
+  height: 14px;
+  background: var(--lg-bad);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.q-square[data-tone="answered"] {
+  background: var(--lg-ink);
+  color: var(--lg-paper);
+}
+.q-square[data-tone="answered"]:hover:not(:disabled):not([aria-current="true"]) {
+  background: var(--lg-ink-2);
+}
+/* Flagged: a corner flag, ink on an open square, yellow on an answered one. */
+.q-square[data-flagged="true"]::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 15px;
+  height: 15px;
+  background: var(--lg-ink);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+.q-square[data-flagged="true"][data-tone="answered"]::before {
+  background: var(--lg-signal);
+}
+/* The current question: an ink ring outside, a yellow ring inside, yellow when still open. */
+.q-square[aria-current="true"] {
+  outline: 3px solid var(--lg-ink);
+  outline-offset: 2px;
+  box-shadow: inset 0 0 0 3px var(--lg-signal);
+}
+.q-square[aria-current="true"][data-tone="open"] {
+  background: var(--lg-signal);
+  color: var(--lg-signal-ink);
+}
+.q-square[aria-current="true"][data-flagged="true"]::before {
+  background: var(--lg-ink);
+}
+.q-square:focus-visible {
+  outline: 3px solid var(--lg-signal);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--lg-bezel);
+}
+.q-square[aria-current="true"]:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--lg-signal), 0 0 0 5px var(--lg-bezel);
+}
+
+/* The key under the exam's map, and Submit beside it. */
+.qz-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lg-space-3) var(--lg-space-6);
+  margin-top: var(--lg-space-2);
+}
+.qz-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lg-space-2) 18px;
+  color: var(--lg-ink-3);
+}
+.qz-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.qz-key::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+}
+.qz-key[data-key="answered"]::before {
+  background: var(--lg-ink);
+}
+.qz-key[data-key="flagged"]::before {
+  background:
+    linear-gradient(to bottom left, var(--lg-ink) 50%, transparent 50%) right top / 9px 9px no-repeat,
+    var(--lg-paper);
+}
+
+/* Submit the exam? A paper panel with a hazard edge. */
+.qz-confirm {
+  position: relative;
+  margin-top: var(--lg-space-4);
+  padding: 18px 22px 20px 44px;
+  background: var(--lg-paper);
+  border: 2px solid var(--lg-ink);
+}
+.qz-confirm::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  background: repeating-linear-gradient(135deg, var(--lg-ink) 0 8px, var(--lg-signal) 8px 16px);
+}
+.qz-confirm-text {
+  max-width: 70ch;
+  margin: 0 0 14px;
+  font-size: var(--lg-text-body);
+  line-height: 1.6;
+  color: var(--lg-ink);
+}
+.qz-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+}
+
+/* The question: an ink rule across the top, the number in the display face. */
+.qz-card {
+  margin-top: var(--lg-space-6);
+  padding-top: var(--lg-space-4);
+  border-top: 3px solid var(--lg-ink);
+}
+.qz-qhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lg-space-3) var(--lg-space-4);
+  max-width: var(--lg-measure);
+}
+.qz-qnum {
+  display: grid;
+  grid-template-columns: auto 5px auto;
+  align-items: center;
+  justify-content: start;
+  gap: 14px;
+  margin: 0;
+}
+.qz-qnum::before {
+  content: "";
+  grid-column: 2;
+  grid-row: 1;
+  height: 34px;
+  background: var(--lg-signal);
+  box-shadow: 0 0 0 1px var(--lg-ink);
+}
+.qz-qnum-n {
+  grid-column: 1;
+  grid-row: 1;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-stat);
+  line-height: 1;
+  color: var(--lg-ink);
+}
+.qz-qnum-of {
+  grid-column: 3;
+  grid-row: 1;
+  color: var(--lg-ink-3);
+}
+.qz-missing {
+  margin: var(--lg-space-4) 0 0;
+  color: var(--lg-ink-2);
+}
+
+/* Previous and Next (quiz), the flag (exam): small mono buttons with an ink frame. */
+.qz-stepper {
+  display: flex;
+  gap: 8px;
+}
+.qz-stepbtn,
+.qz-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 2.75rem;
+  padding: 0 14px;
+  border: 2px solid var(--lg-ink);
+  border-radius: 0;
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+  cursor: pointer;
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.qz-stepbtn svg,
+.qz-flag svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.qz-stepbtn:hover:not(:disabled),
+.qz-flag:hover:not(:disabled) {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.qz-stepbtn:disabled,
+.qz-flag:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.qz-flag[aria-pressed="true"] {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.qz-flag[aria-pressed="true"] svg {
+  fill: var(--lg-signal);
+}
+.qz-stepbtn:focus-visible,
+.qz-flag:focus-visible {
+  outline: 3px solid var(--lg-signal);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--lg-bezel);
+}
+
+/* Under the question: the verdict on the left, the one main action on the right. */
+.qz-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lg-space-4);
+  max-width: var(--lg-measure);
+  margin-top: var(--lg-space-6);
+}
+.qz-verdict {
+  flex: 1 1 18rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 14px;
+}
+.qz-verdict:not(:empty) {
+  padding: 12px 18px 14px 14px;
+  background: var(--lg-paper);
+  border-left: 6px solid var(--lg-ink);
+}
+.qz-verdict[data-verdict="right"] {
+  border-left-color: var(--lg-good);
+}
+.qz-verdict[data-verdict="wrong"] {
+  border-left-color: var(--lg-bad);
+}
+.qz-verdict .qz-mark {
+  grid-row: span 2;
+  width: 2rem;
+  height: 2rem;
+}
+.qz-verdict[data-verdict="right"] .qz-mark,
+.qz-verdict[data-verdict="right"] .qz-verdict-word {
+  color: var(--lg-good);
+}
+.qz-verdict[data-verdict="wrong"] .qz-mark,
+.qz-verdict[data-verdict="wrong"] .qz-verdict-word {
+  color: var(--lg-bad);
+}
+.qz-verdict-word {
+  margin: 0;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-h3);
+  line-height: 1.1;
+}
+.qz-verdict-text {
+  margin: 0;
+  font-size: var(--lg-text-small);
+  line-height: 1.5;
+  color: var(--lg-ink-2);
+}
+.qz-action {
+  margin-left: auto;
+}
+.qz-examnav {
+  justify-content: space-between;
+}
+
+/* On a wide screen the squares sit in a sidebar beside the question, as the step page's sidebar does. */
+@media (min-width: 1100px) {
+  .qz {
+    display: grid;
+    grid-template-columns: minmax(0, var(--lg-measure)) minmax(0, 300px);
+    grid-template-rows: auto auto auto auto 1fr;
+    column-gap: 64px;
+    max-width: none;
+  }
+  .qz-strip {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .qz-card {
+    grid-column: 1;
+    grid-row: 2 / -1;
+  }
+  .qz-map {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    margin-top: var(--lg-space-6);
+    padding: 12px 5px 5px;
+    border-top: 3px solid var(--lg-ink);
+  }
+  .qz-legend {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .qz-confirm {
+    grid-column: 2;
+    grid-row: 4;
+    align-self: start;
+    padding-left: 36px;
+  }
+}
+
+/* On a phone the exam's 60 squares go under the question, so each question starts at the top. */
+@media (max-width: 640px) {
+  .qz-exam .qz-map,
+  .qz-exam .qz-legend {
+    order: 2;
+  }
+  .qz-exam .qz-card {
+    order: 1;
+  }
+  .qz-exam .qz-confirm {
+    order: 3;
+  }
+  .qz-exam .qz-map {
+    margin-top: var(--lg-space-8);
+  }
+}
+
+/* ---------------------------------------------------------------- one question (QuestionView) */
+.qv-text {
+  max-width: 60ch;
+  margin: var(--lg-space-4) 0 var(--lg-space-6);
+  font-size: var(--lg-text-lead);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--lg-ink);
+}
+.qv-text code,
+.qopt code {
+  font-family: var(--lg-font-mono);
+  font-size: 0.86em;
+  padding: 1px 6px;
+  background: var(--lg-screen-2);
+  overflow-wrap: anywhere;
+}
+.qv-opts {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  max-width: var(--lg-measure);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.qv-legend {
+  margin-bottom: 10px;
+  padding: 0;
+  color: var(--lg-ink-3);
+}
+
+/* An option row. The lettered key is the radio or checkbox; the whole row is the label. */
+.qopt {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  min-height: 3.5rem;
+  border: 2px solid var(--lg-rule);
+  background: var(--lg-paper);
+  cursor: pointer;
+  transition: border-color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.qopt:has(.qopt-input:enabled):hover {
+  border-color: var(--lg-ink);
+}
+.qopt:has(.qopt-input:disabled) {
+  cursor: default;
+}
+.qopt-input {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  width: 3rem;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+.qopt-input:disabled {
+  cursor: default;
+}
+.qopt-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.qopt:has(.qopt-input:focus-visible) {
+  outline: 3px solid var(--lg-signal);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--lg-bezel);
+}
+.qopt-key {
+  display: grid;
+  place-items: center;
+  border-right: 2px solid var(--lg-rule);
+  background: var(--lg-screen);
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-ui);
+  color: var(--lg-ink);
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.qopt-body {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 8px;
+  padding: 12px 16px;
+}
+.qopt-text {
+  max-width: 70ch;
+  font-size: var(--lg-text-ui);
+  line-height: 1.5;
+  color: var(--lg-ink);
+}
+/* Chosen, before the check: an ink frame and an ink key with a yellow letter. */
+.qopt[data-state="picked"] {
+  border-color: var(--lg-ink);
+  box-shadow: inset 0 0 0 1px var(--lg-ink);
+}
+.qopt[data-state="picked"] .qopt-key {
+  border-right-color: var(--lg-ink);
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+/* After the check: the right answer in green, a wrong pick in red, each with a mark and words. */
+.qopt[data-state="right"] {
+  border-color: var(--lg-good);
+}
+.qopt[data-state="right"] .qopt-key {
+  border-right-color: var(--lg-good);
+  background: var(--lg-good);
+  color: var(--lg-paper);
+}
+.qopt[data-state="wrong"] {
+  border-color: var(--lg-bad);
+}
+.qopt[data-state="wrong"] .qopt-key {
+  border-right-color: var(--lg-bad);
+  background: var(--lg-bad);
+  color: var(--lg-paper);
+}
+.qopt[data-state="other"] .qopt-text {
+  color: var(--lg-ink-2);
+}
+.qopt-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--lg-ink);
+  color: var(--lg-paper);
+}
+.qopt[data-state="right"] .qopt-tag {
+  background: var(--lg-good);
+}
+.qopt[data-state="wrong"] .qopt-tag {
+  background: var(--lg-bad);
+}
+.qopt-why {
+  display: block;
+  max-width: 70ch;
+  padding-top: 8px;
+  border-top: 1px dashed var(--lg-rule);
+  font-size: var(--lg-text-small);
+  line-height: 1.6;
+  color: var(--lg-ink-2);
+}
+.qopt-why strong {
+  font-weight: 700;
+  color: var(--lg-bad);
+}
+.qopt[data-state="right"] .qopt-why strong {
+  color: var(--lg-good);
+}
+
+/* ---------------------------------------------------------------- results */
+.qz-results {
+  max-width: 64rem;
+}
+.qz-board {
+  display: grid;
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+}
+.qz-board-score {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: var(--lg-space-6);
+  background: var(--lg-bezel);
+}
+.qz-board-label {
+  color: var(--lg-ink-on-dark);
+}
+.qz-board-big {
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-display);
+  line-height: 1;
+  color: var(--lg-signal);
+}
+.qz-board-main {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--lg-space-3);
+  padding: var(--lg-space-6) 28px 28px;
+}
+.qz-board-main > * {
+  margin: 0;
+}
+.qz-board .qz-board-title {
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: var(--lg-text-h3);
+  line-height: 1.15;
+  color: var(--lg-ink);
+}
+.qz-board .qz-bar {
+  max-width: 32rem;
+}
+.qz-board-scale {
+  color: var(--lg-ink-3);
+}
+.qz-board-text {
+  max-width: 70ch;
+  font-size: var(--lg-text-ui);
+  line-height: 1.6;
+  color: var(--lg-ink-2);
+}
+.qz-board-note {
+  font-size: var(--lg-text-small);
+  color: var(--lg-ink-3);
+}
+.qz-board-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-top: var(--lg-space-2);
+}
+@media (max-width: 640px) {
+  .qz-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .qz-board-score {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: var(--lg-space-4);
+  }
+  .qz-board-main {
+    padding: var(--lg-space-4);
+  }
+}
+.qz-missed {
+  margin-top: var(--lg-space-6);
+  padding: 4px 22px 16px;
+  background: var(--lg-paper);
+  border-left: 6px solid var(--lg-ink);
+}
+.qz-missed .qz-label {
+  margin-top: var(--lg-space-4);
+}
+.qz-missed ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.qz-missed li {
+  padding: 4px 0;
+  font-size: var(--lg-text-ui);
+}
+.qz-review {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qz-review-item {
+  padding: var(--lg-space-6) 0;
+  border-top: 1px solid var(--lg-rule);
+}
+.qz-review-item:first-child {
+  border-top: 3px solid var(--lg-ink);
+}
+
+/* ---------------------------------------------------------------- practice (page and dialog) */
+.pr {
+  display: grid;
+  gap: var(--lg-space-6);
+}
+.pr > .qz-notice {
+  margin: 0;
+}
+.pr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--lg-space-6);
+  align-items: start;
+}
+.pr-bay {
+  padding: 20px 24px 26px;
+  background: var(--lg-paper);
+  border-top: 4px solid var(--lg-ink);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%);
+}
+.pr-bay-step {
+  border-top-color: var(--lg-signal);
+  box-shadow: inset 0 1px 0 var(--lg-ink);
+}
+.pr-kicker {
+  margin: 0 0 6px;
+  color: var(--lg-ink-3);
+}
+.pr .pr-title {
+  margin: 0 0 var(--lg-space-3);
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: var(--lg-text-h3);
+  line-height: 1.15;
+  color: var(--lg-ink);
+}
+.pr-count {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 0 var(--lg-space-2);
+  color: var(--lg-ink-3);
+}
+.pr-count-n {
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-stat);
+  line-height: 1;
+  color: var(--lg-ink);
+}
+.pr-text {
+  max-width: 70ch;
+  margin: 0;
+  font-size: var(--lg-text-ui);
+  line-height: 1.6;
+  color: var(--lg-ink-2);
+}
+.pr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lg-space-3) 20px;
+  margin: var(--lg-space-4) 0 0;
+}
+.pr-weak {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 2px solid var(--lg-ink);
+}
+.pr-weak-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--lg-rule);
+}
+.pr-weak-name {
+  font-size: var(--lg-text-ui);
+  line-height: 1.4;
+  color: var(--lg-ink-2);
+}
+.pr-weak-row .qz-bar {
+  grid-column: 1;
+  grid-row: 2;
+  height: 8px;
+}
+.pr-weak-row .qz-stepbtn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+/* ---------------------------------------------------------------- motion */
+@keyframes qz-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+@keyframes qz-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Quizzes and practice welcome an answer: the square lights up, the verdict slides in. */
+  .qz:not(.qz-exam) .q-square[data-tone="right"],
+  .qz:not(.qz-exam) .q-square[data-tone="wrong"] {
+    animation: lg-lit 0.7s var(--lg-ease-out);
+  }
+  .qz:not(.qz-exam) .qz-card,
+  .qz-verdict:not(:empty) {
+    animation: qz-in var(--lg-dur) var(--lg-ease-out);
+  }
+  [data-results] .qz-bar-fill {
+    transform-box: fill-box;
+    transform-origin: left;
+    animation: qz-grow var(--lg-dur-slow) var(--lg-ease-out) both;
+  }
+  .qz-intro,
+  .pr-bay,
+  [data-results] .qz-board {
+    animation: lg-rise 0.6s var(--lg-ease-out) both;
+  }
+}
+/* While a mock exam runs the header around it holds still too. */
+body:has([data-exam-running]) :is(.dashline, .globe .spin, .globe .n),
+body:has([data-exam-running]) .sync::before {
+  animation: none;
+}
+
+/* Links inside running text on these screens: underlined, so they read as links. */
+:is(.qz-missed, .qz-notice, .pr-weak-name, .qz-intro-note) a {
+  font-weight: 600;
+  color: var(--lg-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

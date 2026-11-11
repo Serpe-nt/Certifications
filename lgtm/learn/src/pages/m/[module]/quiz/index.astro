@@ -1,6 +1,7 @@
 ---
 // The module quiz. Questions come from bank.json; the run lives in the progress document.
 import Base from '../../../../layouts/Base.astro';
+import PageHead from '../../../../components/PageHead.astro';
 import ModuleQuiz from '../../../../components/islands/ModuleQuiz.tsx';
 import { loadCourse } from '../../../../lib/course.ts';
 
@@ -9,8 +10,20 @@ export async function getStaticPaths() {
   return modules.filter((m) => m.quiz).map((m) => ({ params: { module: m.id }, props: { module: m } }));
 }
 const { module } = Astro.props;
+// The plate shows the module's number (m02 shows 02); a module id without digits shows Q.
+const num = module.id.replace(/\D/g, '').slice(-2) || 'Q';
 ---
 <Base title={`${module.title}: quiz`}>
-  <h1 class="mt-0">{module.title}: quiz</h1>
+  <PageHead
+    slot="head"
+    icon={module.id}
+    tag="Quiz"
+    crumbText={`${module.id.toUpperCase()} //`}
+    crumb={{ label: module.title, href: module.href }}
+    title={`${module.title}: quiz`}
+    lead="One question at a time. After each check, every option is explained."
+    leadStyle="plain"
+    plate={{ value: num, label: `Quiz for module ${num}`, foot: ['Quiz', module.id.toUpperCase()] }}
+  />
   <ModuleQuiz client:load moduleId={module.id} title={module.title} />
 </Base>
