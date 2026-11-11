@@ -66,6 +66,8 @@
   --lg-bezel-2: #3b3f42; /* unlit dots and dark insets on the bezel */
   --lg-screen: #d4d8da;
   --lg-screen-2: #c5cacc; /* insets and tracks on the screen */
+  --lg-screen-idea: #ccd1d3; /* the key idea panel, between screen and screen-2 */
+  --lg-scrim: rgb(20 21 22 / 0.72); /* behind an open dialog */
   --lg-rule: #b3b8bb; /* rules on the screen */
   --lg-paper: #f4f5f2; /* labels and light panels */
 

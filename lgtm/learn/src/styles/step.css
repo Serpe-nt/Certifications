@@ -189,7 +189,7 @@
     linear-gradient(var(--lg-ink), var(--lg-ink)) left bottom / 3px 16px no-repeat,
     linear-gradient(var(--lg-ink), var(--lg-ink)) right bottom / 16px 3px no-repeat,
     linear-gradient(var(--lg-ink), var(--lg-ink)) right bottom / 3px 16px no-repeat,
-    #ccd1d3;
+    var(--lg-screen-idea);
 }
 .part-idea p {
   font-size: var(--lg-text-lead);
@@ -799,9 +799,14 @@
     margin: var(--lg-space-4) 0;
   }
   .topnav {
-    gap: var(--lg-space-3);
+    gap: var(--lg-space-2);
     font-size: var(--lg-text-label);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
+  }
+  /* 44px targets on a touch screen, and room for both buttons inside the gutter. */
+  .navbtn {
+    min-height: 44px;
+    padding: 0 10px;
   }
   .sync {
     font-size: 0;

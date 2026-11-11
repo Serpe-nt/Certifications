@@ -148,7 +148,7 @@
     padding-right: var(--lg-space-8);
   }
   .btn-primary:hover:not(:disabled):not([aria-disabled="true"]) {
-    background: #2a2d2f;
+    background: var(--lg-bezel-2);
   }
   .box {
     position: relative;
@@ -432,36 +432,6 @@
     background: var(--lg-ink);
     color: var(--lg-signal);
   }
-  /* Quiz squares: one per question; the tone says right, wrong, answered or flagged. */
-  .q-square {
-    min-width: 2.25rem;
-    min-height: 2.25rem;
-    border-radius: 0;
-    border: 2px solid var(--lg-ink);
-    background: var(--lg-paper);
-    color: var(--lg-ink);
-    font: inherit;
-    font-family: var(--lg-font-display);
-    cursor: pointer;
-  }
-  .q-square[aria-current="true"] {
-    outline: 3px solid var(--lg-signal);
-  }
-  .q-square[data-tone="right"] {
-    border-color: var(--lg-good);
-    color: var(--lg-good);
-  }
-  .q-square[data-tone="wrong"] {
-    border-color: var(--lg-bad);
-    color: var(--lg-bad);
-  }
-  .q-square[data-tone="answered"] {
-    background: var(--lg-screen-2);
-  }
-  .q-square[data-flagged="true"] {
-    border-style: dashed;
-    border-color: var(--lg-warn);
-  }
 }
 @media (prefers-reduced-motion: no-preference) {
   .fx-banner {
@@ -515,7 +485,7 @@
     overflow: auto;
   }
   .modal::backdrop {
-    background: rgb(20 21 22 / 0.72);
+    background: var(--lg-scrim);
   }
   .modal-screen {
     border-radius: var(--lg-radius-screen);
