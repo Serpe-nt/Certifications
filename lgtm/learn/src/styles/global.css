@@ -513,14 +513,18 @@
     background: transparent;
     color: var(--lg-ink);
     cursor: pointer;
-    transition: color var(--lg-dur-fast) var(--lg-ease-out), transform var(--lg-dur-fast) var(--lg-ease-out);
+    transition: background-color var(--lg-dur-fast) var(--lg-ease-out);
   }
+  /* Only the drawing turns: the button's hit area stays still, so the edge of the X does not flicker. */
   .closebtn svg {
     width: 2rem;
     height: 2rem;
+    transition: transform var(--lg-dur) var(--lg-ease-out);
   }
   .closebtn:hover {
     background: var(--lg-signal);
+  }
+  .closebtn:hover svg {
     transform: rotate(90deg);
   }
   .modal-title {
