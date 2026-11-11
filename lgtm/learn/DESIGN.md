@@ -211,6 +211,8 @@ Paper fill, 2px ink frame, square corners, mono text; checkboxes and radios take
 - **Plate:** one to four characters in a 5 by 7 octagon dot matrix on a bezel plate, with a mono line and a running dashed line (`Matrix.astro`): the step number, the module number, `P`, `60`, `404`. When a step is complete its dots are yellow.
 - **Globe:** a wireframe sphere that turns once every 80 seconds behind the left of the header on pages without a module; its nodes blink.
 - **Module icons:** one line-drawn, slowly animated icon per module (`ModuleIcon.astro`, `src/assets/deco/modules/`; m01 Helm a steering wheel, m02 the globe), on the overview's module cards and, large and faint, behind the module's page headers. One yellow detail, kept grey behind a title.
+- **Readiness charts** (`ReadinessCharts.tsx`): each exam opens with a dark scope holding a 270-degree gauge of the weighted share right (marks at 70% and 80%), a radar of its domains (share right filled yellow, questions met out of 10 dashed) and the exam's weight per domain as a segmented bar. The table cells carry thin bars, and each verdict has a shape: a yellow octagon when ready, half yellow when close, a red cross when not yet, dashed before a verdict. All SVG with attributes only.
+- **How the course works:** five dark tiles on a dashed track joined by yellow arrows, each with a large outlined number; the last tile (the mock exam) is yellow.
 - **Overview hero:** the four LGTM layers drawn as slabs pulled apart, with one yellow request falling through them (`src/assets/deco/hero-stack.svg`).
 - **Side rails:** two tall SVG compositions (`src/assets/deco/rail-left.svg`, `rail-right.svg`) of hairline spines and labelled micrographics, one of each drawing, repeating every 3400px.
 

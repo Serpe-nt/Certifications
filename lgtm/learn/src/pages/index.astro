@@ -57,7 +57,10 @@ const method = [
       {
         method.map((p, i) => (
           <li class="ov-method-item">
-            <ModuleIcon id={p.icon} size="sm" />
+            <span class="ov-method-tile">
+              <ModuleIcon id={p.icon} size="sm" />
+            </span>
+            <span class="ov-method-n" aria-hidden="true">{two(i + 1)}</span>
             <p class="ov-method-title mono">
               <span>{two(i + 1)} // {p.title[0]}</span>
               <span>{p.title[1]}</span>

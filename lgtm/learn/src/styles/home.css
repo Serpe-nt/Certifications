@@ -683,37 +683,75 @@
 }
 
 /* ================================================================ overview: how the course works */
+/* A circuit: five dark tiles on one track, joined by arrows, each with a large outlined number. */
 .ov-method-list {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: var(--lg-space-8) 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--lg-space-6);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.ov-method-list::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 31px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--lg-ink) 0 10px, transparent 10px 14px) 0 0 / 14px 100% repeat-x;
 }
 .ov-method-item {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--lg-space-3);
-  padding: var(--lg-space-6) var(--lg-space-6) 0 var(--lg-space-4);
-  border-top: 1px solid var(--lg-ink);
-  border-left: 1px solid var(--lg-rule);
+  min-width: 0;
 }
-.ov-method-item::before {
-  content: "+";
+.ov-method-tile {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  background: var(--lg-bezel);
+  color: var(--lg-paper);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+.ov-method-tile .micon {
+  width: 40px;
+  height: 40px;
+}
+/* The arrow into each tile after the first, on the track. */
+.ov-method-item + .ov-method-item::before {
+  content: "";
   position: absolute;
-  left: -0.42em;
-  top: -0.72em;
-  font-family: var(--lg-font-mono);
-  font-weight: 600;
-  font-size: var(--lg-text-ui);
+  z-index: 2;
+  left: -14px;
+  top: 25px;
+  width: 10px;
+  height: 14px;
+  background: var(--lg-signal);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.ov-method-n {
+  position: absolute;
+  right: 0;
+  top: -6px;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-stat);
   line-height: 1;
-  color: var(--lg-ink);
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--lg-ink-3);
+  pointer-events: none;
 }
 .ov-method-title {
   display: grid;
-  margin: 0;
+  margin: var(--lg-space-2) 0 0;
+  padding-top: var(--lg-space-3);
+  border-top: 3px solid var(--lg-ink);
 }
 .ov-method-title span:last-child {
   color: var(--lg-ink-3);
@@ -724,6 +762,297 @@
   font-size: var(--lg-text-small);
   line-height: 1.5;
   color: var(--lg-ink-2);
+}
+/* The last tile, the mock exam, is where the course leads: yellow. */
+.ov-method-item:last-child .ov-method-tile {
+  background: var(--lg-signal);
+  color: var(--lg-ink);
+}
+.ov-method-item:last-child .ov-method-title {
+  border-top-color: var(--lg-signal);
+}
+@media (max-width: 1100px) {
+  .ov-method-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ov-method-list::before {
+    left: 31px;
+    right: auto;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    height: auto;
+    background: linear-gradient(180deg, var(--lg-ink) 0 10px, transparent 10px 14px) 0 0 / 100% 14px repeat-y;
+  }
+  .ov-method-item {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    gap: 4px var(--lg-space-4);
+  }
+  .ov-method-tile {
+    grid-row: 1 / span 2;
+  }
+  .ov-method-item + .ov-method-item::before {
+    left: 25px;
+    top: -14px;
+    width: 14px;
+    height: 10px;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+  .ov-method-title {
+    margin: 0;
+  }
+}
+
+/* ================================================================ overview: readiness charts */
+/* Each exam opens with a dark scope: the gauge, the domain radar and the exam's own weights. */
+.ov-scope {
+  margin: 0 0 var(--lg-space-6);
+  padding: var(--lg-space-6) var(--lg-space-6) var(--lg-space-4);
+  background: var(--lg-bezel);
+  color: var(--lg-ink-on-dark);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+}
+.page-glass .ov-scope .ov-exam-head {
+  color: var(--lg-paper);
+}
+.ov-scope .ov-exam-name {
+  color: var(--lg-ink-on-dark);
+}
+.ov-scope .ov-exam-value {
+  color: var(--lg-signal);
+}
+.ov-scope .ov-exam-band {
+  border-color: var(--lg-paper);
+  background: transparent;
+  color: var(--lg-paper);
+}
+.ov-exam[data-band="ready"] .ov-scope .ov-exam-band {
+  border-color: var(--lg-signal);
+  background: var(--lg-signal);
+  color: var(--lg-ink);
+}
+.ov-scope-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--lg-space-4);
+  align-items: center;
+  padding: var(--lg-space-4) 0;
+  border-top: 1px dashed var(--lg-bezel-2);
+  border-bottom: 1px dashed var(--lg-bezel-2);
+}
+.ov-chart {
+  margin: 0;
+  text-align: center;
+}
+.ov-chart svg {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+}
+.ov-chart figcaption {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: var(--lg-space-2);
+  color: var(--lg-ink-on-dark);
+}
+.ov-key {
+  display: inline-block;
+  width: 14px;
+  height: 8px;
+}
+.ov-key-acc {
+  background: var(--lg-signal);
+}
+.ov-key-reach {
+  border: 1.5px dashed var(--lg-paper);
+}
+.ov-blueprint {
+  padding-top: var(--lg-space-3);
+}
+.ov-blueprint p {
+  margin: 0 0 6px;
+  color: var(--lg-ink-on-dark);
+}
+.rc-blueprint {
+  display: block;
+  width: 100%;
+}
+.rc-seg {
+  fill: var(--lg-paper);
+}
+.rc-seg-alt {
+  fill: var(--lg-screen-2);
+}
+.rc-seg-text {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: 10px;
+  fill: var(--lg-ink);
+}
+@media (max-width: 560px) {
+  .ov-scope {
+    padding: var(--lg-space-4);
+  }
+  .ov-scope-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The gauge */
+.rc-track {
+  fill: none;
+  stroke: var(--lg-bezel-2);
+  stroke-width: 12;
+}
+.rc-arc {
+  fill: none;
+  stroke: var(--lg-signal);
+  stroke-width: 12;
+}
+.rc-tick {
+  stroke: var(--lg-ash-mark);
+  stroke-width: 1.5;
+}
+.rc-mark {
+  stroke: var(--lg-paper);
+  stroke-width: 2.5;
+}
+.rc-gauge-value {
+  font-family: var(--lg-font-display);
+  font-size: 40px;
+  fill: var(--lg-paper);
+}
+.rc-gauge-unit {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  fill: var(--lg-ink-on-dark);
+}
+
+/* The radar */
+.rc-ring {
+  fill: none;
+  stroke: var(--lg-bezel-2);
+  stroke-width: 1;
+}
+.rc-ring-mark {
+  stroke: var(--lg-ash-mark);
+  stroke-dasharray: 3 3;
+}
+.rc-spoke {
+  stroke: var(--lg-bezel-2);
+  stroke-width: 1;
+}
+.rc-reach {
+  fill: none;
+  stroke: var(--lg-paper);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+.rc-acc {
+  fill: var(--lg-signal);
+  fill-opacity: 0.3;
+  stroke: var(--lg-signal);
+  stroke-width: 2;
+}
+.rc-dot {
+  fill: var(--lg-signal);
+  stroke: var(--lg-bezel);
+  stroke-width: 1.5;
+}
+.rc-axis {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  fill: var(--lg-paper);
+}
+
+/* Bars in the table cells and the verdict marks */
+.ov-table td[data-seen],
+.ov-table td[data-correct] {
+  min-width: 5.5rem;
+}
+.rc-bar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  margin-top: 4px;
+}
+.rc-bar-track {
+  fill: var(--lg-screen-2);
+}
+.rc-bar-fill {
+  fill: var(--lg-ink);
+}
+.rc-bar-mark {
+  stroke: var(--lg-ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.ov-table tr[data-band="ready"] .rc-bar-fill {
+  fill: var(--lg-good);
+}
+.rc-verdict {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: -3px;
+}
+.rc-verdict-shape {
+  fill: none;
+  stroke: var(--lg-ink);
+  stroke-width: 1.5;
+}
+.rc-verdict[data-band="unmeasured"] .rc-verdict-shape {
+  stroke: var(--lg-ink-3);
+  stroke-dasharray: 2 2;
+}
+.rc-verdict[data-band="ready"] .rc-verdict-shape {
+  fill: var(--lg-signal);
+}
+.rc-verdict-half {
+  fill: var(--lg-signal);
+  stroke: var(--lg-ink);
+  stroke-width: 1.5;
+}
+.rc-verdict-x {
+  stroke: var(--lg-bad);
+  stroke-width: 2;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rc-arc {
+    animation: rc-sweep 1.2s var(--lg-ease-out) both;
+  }
+  .rc-acc,
+  .rc-reach {
+    transform-box: view-box;
+    transform-origin: 50% 50%;
+    animation: rc-bloom 1s var(--lg-ease-out) both;
+  }
+  .rc-bar-fill {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: lg-grow 0.9s var(--lg-ease-out) both;
+  }
+}
+@keyframes rc-sweep {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+@keyframes rc-bloom {
+  from {
+    transform: scale(0);
+  }
 }
 
 /* ================================================================ module start */

@@ -5,6 +5,7 @@ import { href } from '../../lib/links.ts';
 import { READY_MIN, dueIds, localDay, readiness, readinessItems, type Band, type ExamReadiness, type ReadinessItem } from '../../lib/quiz.ts';
 import { ROW_BADGES, badges, levelOf, xpTotal, type Badge, type Level, type Outline } from '../../lib/rewards.ts';
 import type { State } from '../../lib/state.ts';
+import { Blueprint, CellBar, Gauge, Radar, VerdictMark } from './ReadinessCharts.tsx';
 
 const BAND_TEXT: Record<Band, string> = { ready: 'Ready', close: 'Close', 'not-yet': 'Not yet', unmeasured: `Needs ${READY_MIN} answers` };
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -175,12 +176,35 @@ export function ReadinessPanel({ study }: { study: Study }) {
         <div className="ov-ready-grid">
           {study.exams.map((r) => (
             <div key={r.cert} data-readiness-exam={r.cert} className="ov-exam" data-band={r.band}>
-              <h3 className="ov-exam-head">
-                <span className="ov-exam-code">{r.cert.toUpperCase()}</span>
-                <span className="ov-exam-name">{EXAMS[r.cert].name}</span>
-                <span className="ov-exam-value">{r.overall === null ? '--' : pct(r.overall)}</span>
-                <span className="ov-exam-band mono">{r.overall === null ? 'Not measured yet' : BAND_TEXT[r.band]}</span>
-              </h3>
+              <div className="ov-scope">
+                <h3 className="ov-exam-head">
+                  <span className="ov-exam-code">{r.cert.toUpperCase()}</span>
+                  <span className="ov-exam-name">{EXAMS[r.cert].name}</span>
+                  <span className="ov-exam-value">{r.overall === null ? '--' : pct(r.overall)}</span>
+                  <span className="ov-exam-band mono">{r.overall === null ? 'Not measured yet' : BAND_TEXT[r.band]}</span>
+                </h3>
+                <div className="ov-scope-charts">
+                  <figure className="ov-chart">
+                    <Gauge value={r.overall} />
+                    <figcaption className="mono">Overall, weighted like the exam</figcaption>
+                  </figure>
+                  <figure className="ov-chart">
+                    <Radar domains={r.domains} />
+                    <figcaption className="mono">
+                      <span className="ov-key ov-key-acc" aria-hidden="true"></span>Right <span className="ov-key ov-key-reach" aria-hidden="true"></span>Met, of {READY_MIN}
+                    </figcaption>
+                  </figure>
+                </div>
+                <div className="ov-blueprint">
+                  <p className="mono">Exam weight per domain</p>
+                  <Blueprint weights={EXAMS[r.cert].weights} />
+                  <p className="sr-only">
+                    {Object.entries(EXAMS[r.cert].weights)
+                      .map(([d, w]) => `${d} ${w}%`)
+                      .join(', ')}
+                  </p>
+                </div>
+              </div>
               <table className="ov-table">
                 <thead>
                   <tr>
@@ -199,14 +223,17 @@ export function ReadinessPanel({ study }: { study: Study }) {
                       </th>
                       <td data-label="Seen" data-seen>
                         {d.met} of {d.total}
+                        <CellBar value={d.met / READY_MIN} />
                       </td>
                       <td data-label="Correct" data-correct>
                         {d.met ? pct(d.acc) : '-'}
+                        <CellBar value={d.met ? d.acc : 0} marks />
                       </td>
                       <td data-label="Due" data-due>
                         {d.due}
                       </td>
                       <td data-label="Verdict" className="ov-verdict">
+                        <VerdictMark band={d.band} />
                         {BAND_TEXT[d.band]}
                       </td>
                     </tr>
