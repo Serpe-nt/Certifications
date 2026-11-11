@@ -11,6 +11,9 @@ interface Props {
   answer: number;
 }
 
+/** An explanation that opens with its own "Right." or "Wrong." (after an optional <p>) loses it: the row prints one. */
+const ownVerdictOff = (html: string) => html.replace(/^(\s*<p>)?\s*(?:Correct|Right|Wrong|Incorrect)\.\s*/, '$1');
+
 /** The one knowledge-check question on a step. Options are shuffled after hydration; a pick is graded only on Submit. */
 export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
   const state = useStoreState();
@@ -68,8 +71,7 @@ export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
                 )}
                 {answered && (
                   <span className="qopt-why">
-                    <strong>{right ? 'Right. ' : i === picked ? 'Wrong. ' : ''}</strong>
-                    <span dangerouslySetInnerHTML={{ __html: o.whyHtml }} />
+                    <strong>{right ? 'Right.' : 'Wrong.'}</strong> <span dangerouslySetInnerHTML={{ __html: ownVerdictOff(o.whyHtml) }} />
                   </span>
                 )}
               </span>

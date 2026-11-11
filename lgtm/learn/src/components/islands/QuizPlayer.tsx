@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { byId, stepsTeaching, type Bank } from '../../lib/bank.ts';
 import { answerFx } from '../../lib/fx.ts';
 import { href } from '../../lib/links.ts';
@@ -94,6 +94,17 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
     );
   }
 
+  // Moving to another question puts the keyboard on its card, not back at the top of the page.
+  // (Hooks sit above the early return for the results.)
+  const firstCard = useRef(true);
+  useEffect(() => {
+    if (firstCard.current) {
+      firstCard.current = false;
+      return;
+    }
+    document.querySelector<HTMLElement>('.qz-card')?.focus({ preventScroll: true });
+  }, [run.i]);
+
   if (run.done) return <Results run={run} bank={bank} title={title} onRetake={onRetake} />;
 
   const i = Math.min(run.i, run.ids.length - 1);
@@ -123,6 +134,12 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
     if (r) {
       const s = getStore().get();
       answerFx(r.right, s.run?.row ?? 0, s.settings);
+      // The explanations make the card taller: keep the row with Next in view, and put the keyboard on
+      // Next (or See results), since Submit has turned into the stamp.
+      requestAnimationFrame(() => {
+        document.querySelector('.qz-foot3')?.scrollIntoView({ block: 'nearest' });
+        document.querySelector<HTMLButtonElement>('[data-next-open], [data-see-results]')?.focus({ preventScroll: true });
+      });
     }
   };
 
@@ -135,7 +152,7 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
           <span className="qz-strip-kind">{KIND_TEXT[run.kind]}:</span> {title}. Question {i + 1} of {run.ids.length}, {answered} answered.
         </p>
       </div>
-      <article className="qz-card" key={id}>
+      <article className="qz-card" key={id} tabIndex={-1} aria-label={`Question ${i + 1} of ${run.ids.length}`}>
         <header className="qz-qhead sticker-head">
           <p className="qz-qnum" aria-hidden="true">
             <span className="qz-qnum-n">{two(i + 1)}</span>
@@ -207,7 +224,7 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
         </div>
         </div>
       </article>
-      <div className="qz-map" role="group" aria-label="Questions">
+      <div className="qz-map" role="group" aria-label="Questions" data-n={run.ids.length}>
         {run.ids.map((qid, k) => {
           const a = Object.hasOwn(run.ans, qid) ? run.ans[qid] : undefined;
           const qq = qs[k];

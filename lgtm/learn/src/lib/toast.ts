@@ -97,6 +97,9 @@ export function toast(o: ToastOptions): HTMLElement {
   const kind = o.kind ?? 'info';
   const ms = o.ms ?? (kind === 'error' ? 7000 : kind === 'ok' || kind === 'info' ? 3800 : 6000);
   const box = stack();
+  for (const old of box.querySelectorAll<HTMLElement>('.toast:not([data-leaving])')) {
+    if (old.dataset.toast === kind && old.querySelector('.toast-title')?.textContent === o.title) old.remove();
+  }
 
   const el = document.createElement('div');
   el.className = `toast toast-${kind}`;
@@ -142,11 +145,27 @@ export function toast(o: ToastOptions): HTMLElement {
   el.appendChild(timer);
 
   box.appendChild(el);
-  while (box.children.length > MAX) leave(box.firstElementChild as HTMLElement);
+  // At most MAX on screen: the oldest leave. Toasts already leaving do not count.
+  const live = [...box.children].filter((c) => !c.hasAttribute('data-leaving')) as HTMLElement[];
+  for (let k = 0; k < live.length - MAX; k++) leave(live[k]);
 
   // The countdown is the timer bar's animation, so hovering (which pauses it) holds the toast.
   // Without motion the bar does not run; a plain timeout ends it.
-  if (motionOn()) timer.addEventListener('animationend', () => leave(el), { once: true });
-  else window.setTimeout(() => leave(el), ms);
+  if (motionOn()) {
+    timer.addEventListener('animationend', () => leave(el), { once: true });
+  } else {
+    // Without motion: a timeout, held while the pointer is on the toast.
+    let left = ms;
+    let since = Date.now();
+    let t = window.setTimeout(() => leave(el), left);
+    el.addEventListener('pointerenter', () => {
+      window.clearTimeout(t);
+      left -= Date.now() - since;
+    });
+    el.addEventListener('pointerleave', () => {
+      since = Date.now();
+      t = window.setTimeout(() => leave(el), Math.max(800, left));
+    });
+  }
   return el;
 }

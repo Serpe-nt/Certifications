@@ -11,8 +11,10 @@
 /* ================================================================ buttons */
 /* A light band sweeps across on hover, the cut corner lights up yellow, and a press sinks the
    button. Nothing changes its box, so a click never waits for a button to hold still. */
-.btn {
+.btn:not(.absolute) {
   position: relative;
+}
+.btn {
   isolation: isolate;
   transition:
     background-color var(--lg-dur-fast) var(--lg-ease-out),
@@ -692,4 +694,21 @@ body:has([data-exam-running]) .reticle {
 /* While a label decodes, its scrambled glyphs are dimmer than the settled ones. */
 [data-decoding] {
   font-variant-numeric: tabular-nums;
+}
+
+/* A tall dialog shows that it scrolls. */
+.modal {
+  scrollbar-width: thin;
+  scrollbar-color: var(--lg-ink) transparent;
+}
+
+.reticle[data-flip] .reticle-xy {
+  left: auto;
+  right: 14px;
+}
+
+/* The rails slide in from beyond the window's edges; the page never scrolls sideways for it.
+   clip, not hidden: it makes no scroll container, so sticky parts keep working. */
+body {
+  overflow-x: clip;
 }

@@ -27,6 +27,10 @@ export default function Settings() {
   useEffect(() => setSeed(state.settings.labSeed), [state.settings.labSeed]);
 
   const set = (patch: Partial<SettingsShape>) => updateState((s) => void (s.settings = parseSettings({ ...s.settings, ...patch })));
+  const toggle = (patch: Partial<SettingsShape>, text: string) => {
+    set(patch);
+    setMessage(text);
+  };
 
   const saveDomain = () => {
     const next = parseSettings({ ...state.settings, labDomain: domain });
@@ -113,12 +117,12 @@ export default function Settings() {
         <h2>Look and feel</h2>
         {/* The site has one theme since the design card (DZ); the theme field stays in the state, unused. */}
         <label className="toggle-row">
-          <input type="checkbox" className="toggle" checked={state.settings.effects} disabled={!ready} onChange={(e) => set({ effects: e.target.checked })} />
+          <input type="checkbox" className="toggle" checked={state.settings.effects} disabled={!ready} onChange={(e) => toggle({ effects: e.target.checked }, e.target.checked ? 'Effects and motion on.' : 'Effects and motion off.')} />
           Effects and motion
         </label>
         <p className="mt-0 text-sm text-ink-3">Celebrations when you finish something, and the moving parts of the page. Reduced motion on the device always calms them.</p>
         <label className="toggle-row mt-1">
-          <input type="checkbox" className="toggle" checked={state.settings.sound} disabled={!ready} onChange={(e) => set({ sound: e.target.checked })} />
+          <input type="checkbox" className="toggle" checked={state.settings.sound} disabled={!ready} onChange={(e) => toggle({ sound: e.target.checked }, e.target.checked ? 'Sound on.' : 'Sound off.')} />
           Sound
         </label>
       </section>

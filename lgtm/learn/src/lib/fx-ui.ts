@@ -11,7 +11,7 @@ function motionOn(): boolean {
 }
 
 /** Things the crosshair locks on to. */
-const HOT = 'a[href], button:not(:disabled), label, select, summary, [role="tab"], input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled), [data-dialog-close]';
+const HOT = 'a[href], button:not(:disabled), label:not(:has(input:disabled)), select, summary, [role="tab"], input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled), [data-dialog-close]';
 /** Text fields keep the system's text cursor; the crosshair steps aside there. */
 const TEXT = 'input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="file"], [type="range"]), textarea, [contenteditable="true"]';
 
@@ -53,8 +53,11 @@ export function wireReticle(): void {
       const target = e.target instanceof Element ? e.target : null;
       r.toggleAttribute('data-text', !!target?.closest(TEXT));
       r.toggleAttribute('data-hot', !!target?.closest(HOT));
-      const ash = !target?.closest('.screen, dialog, .topbar, .pagehead');
+      const hot = !!target?.closest(HOT);
+      const ash = !hot && !target?.closest('.screen, dialog, .topbar, .pagehead, .stepend, .qz, .toasts');
       r.toggleAttribute('data-ash', ash);
+      // Near the right edge the coordinates show on the left of the crosshair.
+      r.toggleAttribute('data-flip', e.clientX > window.innerWidth - 200);
       x = e.clientX;
       y = e.clientY;
       if (ash && xy) xy.textContent = `X_${String(Math.round(e.pageX)).padStart(4, '0')} Y_${String(Math.round(e.pageY)).padStart(4, '0')}`;
@@ -66,10 +69,12 @@ export function wireReticle(): void {
   window.addEventListener('pointerup', () => r.removeAttribute('data-down'), { passive: true });
   root.addEventListener('pointerleave', () => r.removeAttribute('data-on'));
   window.addEventListener('blur', () => r.removeAttribute('data-on'));
-  // When a dialog closes, the crosshair goes back to the page before the dialog leaves the top layer.
-  document.addEventListener('close', () => {
-    if (r.parentElement !== document.body) document.body.appendChild(r);
-  }, true);
+  // A dialog that opens or closes takes the crosshair with it at once, before the mouse moves again.
+  const follow = () => {
+    const host = document.querySelector('dialog[open]') ?? document.body;
+    if (r.parentElement !== host) host.appendChild(r);
+  };
+  new MutationObserver(follow).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
 }
 
 /** A yellow octagon pings out wherever the learner clicks, outside dialogs. Inside a dialog a fixed
@@ -120,7 +125,8 @@ function decode(el: HTMLElement, ms = 520): void {
  *  Only server-rendered labels take part: text inside React islands is React's to change. */
 export function wireDecode(): void {
   const usable = (el: HTMLElement) => !el.closest('astro-island') && el.children.length === 0;
-  const onLoad = document.querySelectorAll<HTMLElement>('.tag, .crumb > span, .matrix-foot span');
+  // Mono labels only: the display face's glyphs differ in width, so a decoding tag would jitter.
+  const onLoad = document.querySelectorAll<HTMLElement>('.crumb > span, .matrix-foot span');
   const onView = document.querySelectorAll<HTMLElement>('.side-box h2 > span, .info-cap > span, .ov-sh-n, .ov-sh-c');
   const hover = document.querySelectorAll<HTMLElement>('.navbtn');
   // Links keep their accessible name while their text is scrambled.

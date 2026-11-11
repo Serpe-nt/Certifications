@@ -101,8 +101,11 @@ export function Blueprint({ weights }: { weights: Readonly<Record<string, number
         const seg = (
           <g key={d}>
             <rect className={i % 2 ? 'rc-seg rc-seg-alt' : 'rc-seg'} x={r1(x + 1)} y={2} width={r1(width - 2)} height={26} />
-            <text className="rc-seg-text" x={r1(x + width / 2)} y={19.5} textAnchor="middle">
-              {width >= 56 ? `${d} ${Math.round((100 * w) / sum)}%` : d}
+            <text className="rc-seg-text" x={r1(x + width / 2)} y={14} textAnchor="middle">
+              {d}
+            </text>
+            <text className="rc-seg-text" x={r1(x + width / 2)} y={26} textAnchor="middle">
+              {Math.round((100 * w) / sum)}%
             </text>
           </g>
         );
