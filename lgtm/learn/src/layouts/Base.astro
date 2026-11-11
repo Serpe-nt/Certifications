@@ -3,8 +3,10 @@ import '../styles/global.css';
 
 interface Props {
   title: string;
+  /** The page lays out its own header and screen (the step page). Other pages get one screen around their content. */
+  bare?: boolean;
 }
-const { title } = Astro.props;
+const { title, bare = false } = Astro.props;
 const base = import.meta.env.BASE_URL;
 ---
 <!doctype html>
@@ -13,31 +15,45 @@ const base = import.meta.env.BASE_URL;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#5e6367" />
     <title>{title}</title>
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
-    <!-- Applies a forced theme before the first paint. Its hash is allowed by the server's CSP. -->
+    <!-- Calms the page before the first paint when Effects is off in Settings. Its hash is allowed by the server's CSP. -->
     <script is:inline>
       try {
         var s = JSON.parse(localStorage.getItem('lgtm-learn-v1') || 'null');
-        var t = s && s.settings && s.settings.theme;
-        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        if (s && s.settings && s.settings.effects === false) document.documentElement.setAttribute('data-motion', 'off');
       } catch (e) {}
     </script>
   </head>
-  <body class="min-h-screen bg-page text-ink">
-    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:m-2 focus:p-2 focus:bg-surface">Skip to the content</a>
-    <header class="border-b border-line bg-surface">
-      <nav class="mx-auto flex max-w-measure items-center justify-between gap-4 px-4 py-3" aria-label="Site">
-        <a href={base} class="font-semibold text-ink no-underline">LGTM course</a>
-        <span class="flex items-center gap-4">
-          <span id="sync-status" class="text-sm text-ink-3" aria-live="polite"></span>
-          <a href={`${base}settings/`} class="text-ink-2">Settings</a>
-        </span>
-      </nav>
-    </header>
-    <main id="main" class="mx-auto max-w-measure px-4 py-6">
-      <slot />
-    </main>
+  <body>
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-10 focus:m-2 focus:bg-paper focus:p-2">Skip to the content</a>
+    <div class="rail rail-l" aria-hidden="true"></div>
+    <div class="rail rail-r" aria-hidden="true"></div>
+    <div class="console">
+      <div class="notch" aria-hidden="true"></div>
+      <header class="topbar">
+        <a href={base} class="brand">LGTM // LAB</a>
+        <nav class="topnav mono" aria-label="Site">
+          <span id="sync-status" class="sync" aria-live="polite"></span>
+          <a href={`${base}practice/`}>Practice</a>
+          <a href={`${base}settings/`}>Settings</a>
+        </nav>
+      </header>
+      <main id="main">
+        {
+          bare ? (
+            <slot />
+          ) : (
+            <div class="screen">
+              <div class="glass page-glass">
+                <slot />
+              </div>
+            </div>
+          )
+        }
+      </main>
+    </div>
     <script>
       import { boot } from '../lib/page.ts';
       boot();

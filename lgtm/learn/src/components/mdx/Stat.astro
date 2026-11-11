@@ -1,0 +1,23 @@
+---
+// <Stat label="..." value="1,000" amount={1000} max={1000} hot note="...">: one row of <Figures>.
+// `amount` and `max` set the bar (the same `max` for every row of one figure); `value` is what is printed.
+interface Props {
+  label: string;
+  value: string;
+  amount: number;
+  max: number;
+  hot?: boolean;
+  note?: string;
+}
+const { label, value, amount, max, hot = false, note } = Astro.props;
+const w = Math.max(0.6, Math.min(100, (amount / max) * 100));
+---
+<div class="stat" data-stat>
+  <span class="stat-label mono">{label}</span>
+  <svg class="stat-bar" viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true">
+    <rect class="stat-track" x="0" y="0" width="100" height="14" />
+    <rect class:list={['stat-fill', { 'stat-hot': hot }]} x="0" y="0" width={w.toFixed(2)} height="14" vector-effect="non-scaling-stroke" />
+  </svg>
+  <span class="stat-value">{value}</span>
+  {note && <p class="stat-note">{note}</p>}
+</div>

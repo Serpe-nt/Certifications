@@ -1,11 +1,11 @@
 import { useEffect, useId, useState, type ChangeEvent } from 'react';
-import { parseSettings, parseState, type Settings as SettingsShape, type Theme } from '../../lib/state.ts';
+import { parseSettings, parseState, type Settings as SettingsShape } from '../../lib/state.ts';
 import { getStore } from '../../lib/store.ts';
 import { updateState, useStoreState } from '../../lib/use-store.ts';
 
 const MAX_IMPORT = 1024 * 1024;
 
-/** Lab domain, lab seed, theme, effects and sound; export and import of progress. */
+/** Lab domain, lab seed, effects and sound; export and import of progress. */
 export default function Settings() {
   const state = useStoreState();
   const ids = { domain: useId(), seed: useId(), file: useId() };
@@ -74,12 +74,6 @@ export default function Settings() {
     setMessage(`Progress imported: ${Object.keys(parsed.done).length} completed steps.`);
   };
 
-  const themes: [Theme, string][] = [
-    ['system', 'Same as the device'],
-    ['light', 'Light'],
-    ['dark', 'Dark'],
-  ];
-
   return (
     <div data-settings>
       <section className="box">
@@ -108,19 +102,12 @@ export default function Settings() {
 
       <section className="box">
         <h2>Look and feel</h2>
-        <fieldset className="m-0 border-0 p-0">
-          <legend className="mb-1">Theme</legend>
-          {themes.map(([value, label]) => (
-            <label key={value} className="mr-4 inline-flex items-center gap-2">
-              <input type="radio" name="theme" value={value} checked={state.settings.theme === value} onChange={() => set({ theme: value })} />
-              {label}
-            </label>
-          ))}
-        </fieldset>
-        <label className="mt-3 flex items-center gap-2">
+        {/* The site has one theme since the design card (DZ); the theme field stays in the state, unused. */}
+        <label className="flex items-center gap-2">
           <input type="checkbox" checked={state.settings.effects} onChange={(e) => set({ effects: e.target.checked })} />
-          Effects when you finish something
+          Effects and motion
         </label>
+        <p className="mt-0 text-sm text-ink-3">Celebrations when you finish something, and the moving parts of the page. Reduced motion on the device always calms them.</p>
         <label className="mt-1 flex items-center gap-2">
           <input type="checkbox" checked={state.settings.sound} onChange={(e) => set({ sound: e.target.checked })} />
           Sound

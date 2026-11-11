@@ -1,0 +1,12 @@
+---
+// <Layer title="..." hot>One line.</Layer> inside <Layers>.
+interface Props {
+  title: string;
+  hot?: boolean;
+}
+const { title, hot = false } = Astro.props;
+---
+<div class:list={['layer', { 'layer-hot': hot }]}>
+  <b class="layer-title">{title}</b>
+  <div><slot /></div>
+</div>

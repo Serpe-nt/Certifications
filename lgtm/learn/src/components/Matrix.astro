@@ -1,0 +1,28 @@
+---
+// The step number lit in an octagon dot matrix, 5 by 7 dots per digit.
+interface Props {
+  value: number;
+  total: number;
+}
+const { value, total } = Astro.props;
+const FONT: Record<string, string> = {
+  '0': '01110100011001110101110011000101110',
+  '1': '00100011000010000100001000010001110',
+  '2': '01110100010000100010001000100011111',
+  '3': '11110000010000101110000010000111110',
+  '4': '00010001100101010010111110001000010',
+  '5': '11111100001111000001000011000101110',
+  '6': '00110010001000011110100011000101110',
+  '7': '11111000010001000100010000100001000',
+  '8': '01110100011000101110100011000101110',
+  '9': '01110100011000101111000010001001100',
+};
+const digits = String(value).padStart(2, '0').split('');
+---
+<div class="matrix" role="img" aria-label={`Step ${value} of ${total}`}>
+  <div class="matrix-digits">
+    {digits.map((d) => <div class="digit">{FONT[d].split('').map((c) => <i class:list={{ on: c === '1' }} />)}</div>)}
+  </div>
+  <p class="matrix-foot mono"><span>Step</span><span>{value} / {total}</span></p>
+  <div class="dashline"></div>
+</div>

@@ -1,7 +1,8 @@
 @import "tailwindcss";
 @import "./tokens.css";
+@import "./step.css";
 
-/* The Tailwind theme points at the tokens, so utilities such as bg-surface or text-ink follow the theme. */
+/* The Tailwind theme points at the tokens, so utilities such as bg-surface or text-ink follow them. */
 @theme inline {
   --color-page: var(--lg-page);
   --color-surface: var(--lg-surface);
@@ -15,8 +16,12 @@
   --color-good: var(--lg-good);
   --color-bad: var(--lg-bad);
   --color-warn: var(--lg-warn);
+  --color-signal: var(--lg-signal);
+  --color-paper: var(--lg-paper);
+  --color-bezel: var(--lg-bezel);
   --font-sans: var(--lg-font-sans);
   --font-mono: var(--lg-font-mono);
+  --font-display: var(--lg-font-display);
   --radius-sm: var(--lg-radius-sm);
   --radius-md: var(--lg-radius-md);
   --radius-lg: var(--lg-radius-lg);
@@ -24,24 +29,42 @@
   --spacing-measure: var(--lg-measure);
 }
 
+/* ---------------------------------------------------------------- base */
 @layer base {
   html {
-    background: var(--lg-page);
+    background-color: var(--lg-ash);
     color: var(--lg-ink);
     font-family: var(--lg-font-sans);
     /* Only the page scrolls: no part of the page gets a scroll bar of its own. */
     overflow-y: auto;
+    scrollbar-color: var(--lg-bezel) var(--lg-ash-deep);
   }
   body {
+    position: relative;
     margin: 0;
     line-height: 1.6;
+    min-height: 100vh;
+    /* The console grid: hairlines every 48px with a plus mark on each crossing. */
+    background-color: var(--lg-ash);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M0 -5V5M-5 0H5M48 -5V5M43 0H53M0 43V53M-5 48H5M48 43V53M43 48H53' stroke='%23898e93' stroke-width='1.3'/%3E%3C/svg%3E"),
+      linear-gradient(var(--lg-ash-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--lg-ash-line) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  ::selection {
+    background: var(--lg-signal);
+    color: var(--lg-signal-ink);
   }
   :focus-visible {
-    outline: 3px solid var(--lg-focus);
+    outline: 3px solid var(--lg-signal);
     outline-offset: 2px;
+    box-shadow: 0 0 0 5px var(--lg-bezel);
   }
   a {
-    color: var(--lg-accent);
+    color: var(--lg-ink);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
   }
   code,
   pre {
@@ -51,8 +74,14 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
 }
 
+/* Motion is calm when the device asks for it, and when Effects is off in Settings (data-motion="off"). */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -63,44 +92,74 @@
     scroll-behavior: auto !important;
   }
 }
+:root[data-motion="off"] *,
+:root[data-motion="off"] *::before,
+:root[data-motion="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
 
+/* ---------------------------------------------------------------- shared controls (used by the islands) */
 @layer components {
+  .mono {
+    font-family: var(--lg-font-mono);
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--lg-space-2);
     min-height: 2.75rem;
-    padding: var(--lg-space-2) var(--lg-space-4);
-    border-radius: var(--lg-radius-md);
-    border: 1px solid var(--lg-line);
-    background: var(--lg-surface);
+    padding: var(--lg-space-2) var(--lg-space-6);
+    border: 2px solid var(--lg-ink);
+    border-radius: 0;
+    background: transparent;
     color: var(--lg-ink);
-    font: inherit;
-    font-weight: 600;
+    font-family: var(--lg-font-display);
+    font-size: 1.0625rem;
+    letter-spacing: 0.03em;
     text-decoration: none;
     cursor: pointer;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+    transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .btn:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--lg-screen-2);
   }
   .btn:disabled,
   .btn[aria-disabled="true"] {
-    opacity: 0.55;
+    opacity: 0.5;
     cursor: not-allowed;
   }
   .btn-primary {
-    background: var(--lg-accent);
-    border-color: var(--lg-accent);
-    color: var(--lg-accent-ink);
+    background: var(--lg-ink);
+    color: var(--lg-signal);
+    padding-right: var(--lg-space-8);
+  }
+  .btn-primary:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: #2a2d2f;
   }
   .box {
-    border: 1px solid var(--lg-line);
-    border-radius: var(--lg-radius-md);
-    background: var(--lg-surface-2);
-    padding: var(--lg-space-4);
-    margin-block: var(--lg-space-4);
+    position: relative;
+    border: 0;
+    border-radius: 0;
+    background: var(--lg-screen-2);
+    padding: var(--lg-space-6);
+    margin-block: var(--lg-space-6);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--lg-cut)), calc(100% - var(--lg-cut)) 100%, 0 100%);
   }
   .box > h2 {
-    margin: 0 0 var(--lg-space-2);
-    font-size: 1rem;
+    margin: 0 0 var(--lg-space-3);
+    font-family: var(--lg-font-mono);
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
   .box > :last-child {
     margin-bottom: 0;
@@ -110,11 +169,12 @@
     width: 100%;
     min-height: 2.75rem;
     padding: var(--lg-space-2) var(--lg-space-3);
-    border: 1px solid var(--lg-line);
-    border-radius: var(--lg-radius-sm);
-    background: var(--lg-surface);
+    border: 2px solid var(--lg-ink);
+    border-radius: 0;
+    background: var(--lg-paper);
     color: var(--lg-ink);
     font: inherit;
+    font-family: var(--lg-font-mono);
   }
   .sr-only {
     position: absolute;
@@ -129,7 +189,184 @@
   }
 }
 
-/* Celebrations (src/lib/fx.ts). Plain on purpose: the design card (DZ) styles them. */
+/* ---------------------------------------------------------------- the console around the screen */
+@layer components {
+  .rail {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 110px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .rail-l {
+    left: 0;
+    background: url("../assets/deco/rail-left.svg") 0 0 / 110px 3400px repeat-y;
+  }
+  .rail-r {
+    right: 0;
+    background: url("../assets/deco/rail-right.svg") 0 0 / 110px 3400px repeat-y;
+  }
+  @media (max-width: 1100px) {
+    .rail {
+      display: none;
+    }
+  }
+
+  .console {
+    position: relative;
+    z-index: 1;
+    max-width: var(--lg-page-max);
+    margin: 0 auto;
+    padding: var(--lg-space-6) 116px var(--lg-space-12);
+    overflow: hidden;
+  }
+  @media (max-width: 1100px) {
+    .console {
+      padding-inline: var(--lg-space-6);
+    }
+  }
+  @media (max-width: 640px) {
+    .console {
+      padding-inline: var(--lg-space-4);
+    }
+  }
+  .console > .notch {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 300px;
+    height: 22px;
+    transform: translateX(-50%);
+    background: var(--lg-bezel);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 22px) 100%, 22px 100%);
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--lg-space-4);
+    margin: var(--lg-space-6) 0;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--lg-font-display);
+    font-size: 1.125rem;
+    letter-spacing: 0.06em;
+    color: var(--lg-ink);
+    text-decoration: none;
+  }
+  .brand::before,
+  .brand::after {
+    content: "";
+    width: 8px;
+    height: 22px;
+    border: 2px solid var(--lg-ink);
+  }
+  .brand::before {
+    border-right: 0;
+  }
+  .brand::after {
+    border-left: 0;
+  }
+  .topnav {
+    display: flex;
+    align-items: center;
+    gap: var(--lg-space-6);
+  }
+  .topnav a {
+    color: var(--lg-ink);
+    text-decoration: none;
+  }
+  .topnav a:hover {
+    text-decoration: underline;
+  }
+  .sync {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sync::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    background: var(--lg-signal);
+    box-shadow: 0 0 0 2px var(--lg-ink);
+  }
+
+  /* The screen: a near-black bezel around the light reading surface */
+  .screen {
+    position: relative;
+    z-index: 1;
+    background: var(--lg-bezel);
+    border-radius: var(--lg-radius-screen);
+    padding: 9px;
+  }
+  .screen::before {
+    content: "";
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    width: 140px;
+    height: 14px;
+    transform: translateX(-50%);
+    background: var(--lg-bezel);
+    clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 100%, 0 100%);
+  }
+  .glass {
+    position: relative;
+    overflow: hidden;
+    background: var(--lg-screen);
+    border-radius: calc(var(--lg-radius-screen) - 8px);
+    padding: var(--lg-space-8) 44px 44px;
+  }
+  @media (max-width: 640px) {
+    .glass {
+      padding: var(--lg-space-6) var(--lg-space-4) var(--lg-space-8);
+    }
+  }
+}
+
+/* ---------------------------------------------------------------- motion keyframes */
+@keyframes lg-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes lg-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+@keyframes lg-run {
+  to {
+    background-position: 16px 0;
+  }
+}
+@keyframes lg-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes lg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes lg-lit {
+  from {
+    background: #3b3f42;
+  }
+}
+
+/* ---------------------------------------------------------------- celebrations (src/lib/fx.ts) */
 @layer components {
   .fx-canvas {
     position: fixed;
@@ -147,41 +384,42 @@
     z-index: 51;
     max-width: calc(100vw - 2rem);
     padding: var(--lg-space-3) var(--lg-space-6);
-    border-radius: var(--lg-radius-lg);
-    border: 1px solid var(--lg-line);
-    background: var(--lg-surface);
-    color: var(--lg-ink);
+    border: 2px solid var(--lg-ink);
+    background: var(--lg-signal);
+    color: var(--lg-signal-ink);
     box-shadow: var(--lg-shadow);
-    font-weight: 700;
+    font-family: var(--lg-font-display);
     pointer-events: none;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
   }
   .fx-banner {
     top: var(--lg-space-6);
-    font-size: 1.125rem;
+    font-size: 1.25rem;
   }
   .fx-banner-module,
   .fx-banner-mock,
   .fx-banner-all {
-    font-size: 1.5rem;
-    border-color: var(--lg-accent);
+    font-size: 1.75rem;
   }
   .fx-notice {
     bottom: var(--lg-space-6);
-    font-weight: 600;
+    background: var(--lg-ink);
+    color: var(--lg-signal);
   }
   /* Quiz squares: one per question; the tone says right, wrong, answered or flagged. */
   .q-square {
     min-width: 2.25rem;
     min-height: 2.25rem;
-    border-radius: var(--lg-radius-sm);
-    border: 1px solid var(--lg-line);
-    background: var(--lg-surface);
+    border-radius: 0;
+    border: 2px solid var(--lg-ink);
+    background: var(--lg-paper);
     color: var(--lg-ink);
     font: inherit;
+    font-family: var(--lg-font-display);
     cursor: pointer;
   }
   .q-square[aria-current="true"] {
-    outline: 2px solid var(--lg-accent);
+    outline: 3px solid var(--lg-signal);
   }
   .q-square[data-tone="right"] {
     border-color: var(--lg-good);
@@ -192,15 +430,13 @@
     color: var(--lg-bad);
   }
   .q-square[data-tone="answered"] {
-    background: var(--lg-surface-2);
-    border-color: var(--lg-ink-3);
+    background: var(--lg-screen-2);
   }
   .q-square[data-flagged="true"] {
     border-style: dashed;
     border-color: var(--lg-warn);
   }
 }
-
 @media (prefers-reduced-motion: no-preference) {
   .fx-banner {
     animation: fx-drop 420ms ease-out;
@@ -211,7 +447,6 @@
     animation: fx-drop 520ms cubic-bezier(0.2, 1.4, 0.4, 1);
   }
 }
-
 @keyframes fx-drop {
   from {
     opacity: 0;
@@ -222,3 +457,4 @@
     transform: translate(-50%, 0) scale(1);
   }
 }
+

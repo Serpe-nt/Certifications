@@ -1,4 +1,4 @@
-// Runs on every page: starts the sync, applies the theme, fills in lab links, wires copy buttons.
+// Runs on every page: starts the sync, applies the motion setting, fills in lab links, wires copy buttons.
 import { fetchBank } from './bank.ts';
 import { getStore, type SyncStatus } from './store.ts';
 import type { State } from './state.ts';
@@ -11,10 +11,10 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
   error: 'Not synced',
 };
 
-function applyTheme(s: State): void {
-  const t = s.settings.theme;
-  if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
-  else document.documentElement.removeAttribute('data-theme');
+/** The site has one theme; Effects off in Settings calms the page's motion as well as the celebrations. */
+function applyMotion(s: State): void {
+  if (s.settings.effects === false) document.documentElement.setAttribute('data-motion', 'off');
+  else document.documentElement.removeAttribute('data-motion');
 }
 
 /** <LabLink> renders an anchor with data-lab; its address comes from the lab domain setting. */
@@ -46,7 +46,7 @@ export function boot(): void {
   const store = getStore();
   const statusEl = document.getElementById('sync-status');
   const render = (s: State) => {
-    applyTheme(s);
+    applyMotion(s);
     applyLabLinks(s);
     if (statusEl) statusEl.textContent = STATUS_TEXT[store.status];
   };

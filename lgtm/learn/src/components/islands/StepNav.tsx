@@ -34,7 +34,7 @@ export default function StepNav({ stepId, backHref, backLabel, nextHref, nextLab
       <a className="btn" href={nextHref} rel="next">
         {nextLabel}
       </a>
-      {blocked && <p className="m-0 w-full text-sm text-ink-3">Pass the lab check above to mark this step complete.</p>}
+      {blocked && <p className="m-0 w-full text-sm text-ink-3">Pass the lab check on the Practice tab to mark this step complete.</p>}
     </nav>
   );
 }

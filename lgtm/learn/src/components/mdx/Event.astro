@@ -1,0 +1,13 @@
+---
+// <Event at="..." title="...">One line.</Event> inside <Timeline>. `at` is a time or a position.
+interface Props {
+  at: string;
+  title: string;
+}
+const { at, title } = Astro.props;
+---
+<li class="event">
+  <span class="event-at mono">{at}</span>
+  <b class="event-title">{title}</b>
+  <slot />
+</li>

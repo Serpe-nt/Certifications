@@ -1,8 +1,12 @@
 ---
-// One step card, with Back, Mark complete and Next under it. No list of steps beside it.
+// One step as an article: a header on the console, then the screen with Learn and (on lab and drill
+// steps) Practice, the reading column and a sidebar to look things up in. Back, Mark complete and Next
+// close the article. No list of steps to tick beside it. The form: lgtm/docs/adr/dz-article-format.md.
 import Base from '../../../../layouts/Base.astro';
 import CheckWidget from '../../../../components/islands/CheckWidget.tsx';
 import StepNav from '../../../../components/islands/StepNav.tsx';
+import Globe from '../../../../components/Globe.astro';
+import Matrix from '../../../../components/Matrix.astro';
 import { mdxComponents } from '../../../../components/mdx/index.ts';
 import { href, loadCourse } from '../../../../lib/course.ts';
 import { getCollection, render } from 'astro:content';
@@ -25,50 +29,168 @@ export async function getStaticPaths() {
 
 const { module, entry, position, prev, next } = Astro.props;
 const step = entry.data;
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
+const sections = headings.filter((h) => h.depth === 2);
 // Step practice is offered when the question pools have questions on this step's topics.
 const practice = (await getCollection('questions')).some((q) => q.data.tags.some((t) => step.tags.includes(t)));
 const kindLabel = { concept: 'Concept', lab: 'Lab', drill: 'Drill', recap: 'Recap' }[step.kind];
+const hasPractice = !!step.check;
+const total = module.steps.length;
+const section = `SEC_${String(position).padStart(2, '0')}`;
+const exams = step.exam.filter((e) => e.cert !== 'none').map((e) => `${e.cert.toUpperCase()} ${e.domain} ${e.competency}`);
+// The scale under the screen: one tick per step, the pointer on this one.
+const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
 ---
-<Base title={step.title}>
-  <article class="rounded-lg border border-line bg-surface p-6 shadow-card" data-step={step.id} data-kind={step.kind}>
-    <p class="m-0 text-sm text-ink-3">
-      <a href={module.href}>{module.title}</a>, step {position} of {module.steps.length}. {kindLabel}, about {step.minutes} minutes.
-    </p>
-    <h1 class="mb-2 mt-1 text-2xl">{step.title}</h1>
-    <Content components={mdxComponents} />
-    {step.check && <CheckWidget client:load stepId={step.id} check={step.check} settingsHref={href.settings} />}
-    {
-      step.sources.length > 0 && (
-        <section class="mt-6 text-sm" data-sources>
-          <h2 class="text-base">Look it up</h2>
-          <ul>
-            {step.sources.map((s) => (
-              <li>
-                <a href={s.url} rel="noopener noreferrer" target="_blank">{s.title}</a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )
-    }
-  </article>
-  <StepNav
-    client:load
-    stepId={step.id}
-    backHref={prev ? prev.href : module.href}
-    backLabel="Back"
-    nextHref={next ? next.href : module.endHref}
-    nextLabel={next ? 'Next' : 'Finish the module'}
-    needsCheck={!!step.check}
-  />
-  {
-    practice && (
-      <p class="mt-4 text-sm">
-        <a href={href.stepPractice(step.id)} data-step-practice-link>
-          Practice three questions on this step
-        </a>
+<Base title={step.title} bare>
+  <header class="stephead">
+    <div>
+      <div class="tagrow">
+        <span class="tag">{kindLabel}</span>
+        <span class="tag-tail" aria-hidden="true"></span>
+        <span class="counter" aria-label={`Step ${position} of ${total}`}><span>{String(position).padStart(2, '0')}</span><span>{String(total).padStart(2, '0')}</span></span>
+      </div>
+      <p class="crumb mono"><span>{section} //</span><a href={module.href}>{module.title}</a></p>
+      <h1 class="steptitle">{step.title}</h1>
+      {step.outcome && <p class="outcome">{step.outcome}</p>}
+      <p class="chips mono">
+        <span class="chip">{step.minutes} min</span>
+        {exams.map((e) => <span class="chip chip-dark">{e}</span>)}
       </p>
+    </div>
+    <div class="stepmeta-side">
+      <Globe />
+      <Matrix value={position} total={total} />
+    </div>
+  </header>
+
+  <section class="screen" aria-label="Step">
+    <div class="glass" data-tab="learn" data-has-practice={hasPractice ? '' : undefined} data-step={step.id} data-kind={step.kind}>
+      {
+        hasPractice && (
+          <div class="tabs mono" role="tablist" aria-label="Learn or practice">
+            <a class="tab" role="tab" href="?tab=learn" data-tab-link="learn" aria-selected="true">Learn</a>
+            <a class="tab" role="tab" href="?tab=practice" data-tab-link="practice" aria-selected="false">Practice</a>
+          </div>
+        )
+      }
+      <div class="stepcols">
+        <article class="prose" aria-label={step.title}>
+          <Content components={mdxComponents} />
+          {
+            step.check && (
+              <div class="part" data-practice>
+                <CheckWidget client:load stepId={step.id} check={step.check} settingsHref={href.settings} />
+              </div>
+            )
+          }
+          <div class="stepnav-wrap">
+            <StepNav
+              client:load
+              stepId={step.id}
+              backHref={prev ? prev.href : module.href}
+              backLabel="Back"
+              nextHref={next ? next.href : module.endHref}
+              nextLabel={next ? 'Next' : 'Finish the module'}
+              needsCheck={!!step.check}
+            />
+          </div>
+        </article>
+
+        <aside class="sidebar" aria-label="Look things up">
+          {
+            sections.length > 0 && (
+              <nav class="side-box toc" aria-label="In this article">
+                <h2 class="mono"><span>In this article</span><span>{String(sections.length).padStart(2, '0')}</span></h2>
+                <ol>
+                  {sections.map((h) => (
+                    <li><a href={`#${h.slug}`}>{h.text}</a></li>
+                  ))}
+                </ol>
+              </nav>
+            )
+          }
+          {
+            step.terms.length > 0 && (
+              <section class="side-box">
+                <h2 class="mono"><span>Terms</span><span>{String(step.terms.length).padStart(2, '0')}</span></h2>
+                <dl>
+                  {step.terms.map((t) => (
+                    <div class="term"><dt>{t.term}</dt><dd>{t.def}</dd></div>
+                  ))}
+                </dl>
+              </section>
+            )
+          }
+          {
+            exams.length > 0 && (
+              <section class="side-box">
+                <h2 class="mono"><span>On the exam</span></h2>
+                <p class="chips mono">{exams.map((e) => <span class="chip">{e}</span>)}</p>
+              </section>
+            )
+          }
+          {
+            step.sources.length > 0 && (
+              <section class="side-box sources" data-sources>
+                <h2 class="mono"><span>Look it up</span><span>{String(step.sources.length).padStart(2, '0')}</span></h2>
+                {step.sources.map((s) => <a href={s.url} rel="noopener noreferrer" target="_blank">{s.title}</a>)}
+              </section>
+            )
+          }
+          {
+            practice && (
+              <p class="side-box">
+                <a class="btn" href={href.stepPractice(step.id)} data-step-practice-link>Practice three questions</a>
+              </p>
+            )
+          }
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <div class="scale mono" aria-hidden="true">
+    <svg viewBox="0 0 520 54">
+      {Array.from({ length: total }, (_, i) => <path d={`M${tickX(i + 1).toFixed(1)} 30 v8`} stroke="currentColor" stroke-width="1.5" />)}
+      <path d="M10 38 H510" stroke="currentColor" stroke-width="1" />
+      <path d={`M${(tickX(position) - 7).toFixed(1)} 52 l7 -12 l7 12 z`} fill="var(--lg-signal)" stroke="currentColor" stroke-width="1.2" />
+      <text x={tickX(position).toFixed(1)} y="22" text-anchor="middle" fill="currentColor" font-size="11">{position}/{total}</text>
+    </svg>
+  </div>
+
+  {
+    hasPractice && (
+      <script is:inline>
+        (function () {
+          var glass = document.querySelector('.glass[data-tab]');
+          if (!glass) return;
+          function show(tab) {
+            glass.setAttribute('data-tab', tab);
+            document.querySelectorAll('[data-tab-link]').forEach(function (a) {
+              a.setAttribute('aria-selected', String(a.getAttribute('data-tab-link') === tab));
+            });
+          }
+          function fromUrl() {
+            return new URLSearchParams(location.search).get('tab') === 'practice' ? 'practice' : 'learn';
+          }
+          show(fromUrl());
+          document.querySelectorAll('[data-tab-link]').forEach(function (a) {
+            a.addEventListener('click', function (e) {
+              e.preventDefault();
+              var tab = a.getAttribute('data-tab-link');
+              if (tab === fromUrl()) return;
+              var url = new URL(location.href);
+              if (tab === 'practice') url.searchParams.set('tab', 'practice');
+              else url.searchParams.delete('tab');
+              history.pushState(null, '', url);
+              show(tab);
+            });
+          });
+          window.addEventListener('popstate', function () {
+            show(fromUrl());
+          });
+        })();
+      </script>
     )
   }
 </Base>

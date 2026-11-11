@@ -13,8 +13,10 @@ test('overview, one card at a time, Back, Mark complete, Next, module end', asyn
   await expect(page.locator('[data-step]')).toHaveAttribute('data-step', 'm90-s01');
   // No list of steps beside the card: no other step title on the page.
   await expect(page.getByText('A lab step with an exact check')).toHaveCount(0);
-  // Every reading component is there.
-  for (const block of ['why', 'idea', 'points', 'trap', 'question']) await expect(page.locator(`[data-block="${block}"]`)).toHaveCount(1);
+  // Every part of the article form is there, and a concept step has no tabs.
+  for (const block of ['problem', 'idea', 'inlab', 'trap', 'remember', 'question']) await expect(page.locator(`[data-block="${block}"]`)).toHaveCount(1);
+  for (const info of ['flow', 'compare', 'figures', 'layers', 'timeline']) await expect(page.locator(`[data-info="${info}"]`)).toHaveCount(1);
+  await expect(page.getByRole('tab')).toHaveCount(0);
   await expect(page.locator('[data-query="promql"] code')).toContainText('http_requests_total{job="shop"}');
 
   await page.locator('[data-mark-complete]').click();
@@ -63,14 +65,14 @@ test('lab links follow the lab domain setting', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Explore in Grafana' })).toHaveAttribute('href', 'http://grafana.lab.example.test/explore');
 });
 
-test('the theme setting applies before paint and across pages', async ({ page }) => {
+test('Effects off calms the page before paint and across pages', async ({ page }) => {
   await page.goto('/settings/');
-  await page.getByLabel('Dark').check();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.goto('/');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  const bg = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--lg-page').trim());
-  expect(bg).toBe('#0f1218');
+  await page.getByLabel('Effects and motion').uncheck();
+  await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
+  await page.goto('/m/m90/s01/');
+  await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
+  const duration = await page.locator('.steptitle').evaluate((el) => getComputedStyle(el).animationDuration);
+  expect(parseFloat(duration)).toBeLessThan(0.001);
 });
 
 test('keyboard: the step buttons can be reached and used', async ({ page }) => {
@@ -90,4 +92,47 @@ test('unknown pages answer 404 with a way back', async ({ page, consoleErrors })
   // The browser logs the 404 of the page itself; that one is expected.
   expect(consoleErrors).toEqual(['Failed to load resource: the server responded with a status of 404 (Not Found)']);
   consoleErrors.length = 0;
+});
+
+test('a lab step has Learn and Practice; the tab is in the address and survives reload and Back', async ({ page }) => {
+  await page.goto('/m/m90/s02/');
+  await expect(page.getByRole('tab', { name: 'Learn' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('[data-block="why"]')).toBeVisible();
+  await expect(page.locator('[data-block="do"]')).toBeHidden();
+  await expect(page.locator('[data-block="check"]')).toBeHidden();
+  await page.getByRole('tab', { name: 'Practice' }).click();
+  await expect(page).toHaveURL(/\/m\/m90\/s02\/\?tab=practice$/);
+  await expect(page.locator('[data-block="do"]')).toBeVisible();
+  await expect(page.locator('[data-block="check"]')).toBeVisible();
+  await expect(page.locator('[data-block="why"]')).toBeHidden();
+  // On a lab step the card question sits on Practice.
+  await expect(page.locator('[data-block="question"]')).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('tab', { name: 'Practice' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('[data-block="do"]')).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/m\/m90\/s02\/$/);
+  await expect(page.locator('[data-block="why"]')).toBeVisible();
+  // Mark complete still waits for the check, on either tab.
+  await expect(page.locator('[data-mark-complete]')).toBeDisabled();
+});
+
+test('an old-form step still renders its blocks', async ({ page }) => {
+  await page.goto('/m/m90/s07/');
+  for (const block of ['why', 'idea', 'question']) await expect(page.locator(`[data-block="${block}"]`)).toBeVisible();
+});
+
+test('the sidebar sits beside the article on a wide screen and under it on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/m/m90/s01/');
+  const art = await page.locator('article.prose').boundingBox();
+  let side = await page.locator('aside.sidebar').boundingBox();
+  expect(side!.x).toBeGreaterThan(art!.x + art!.width - 1);
+  await expect(page.locator('.toc a')).toHaveCount(2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  side = await page.locator('aside.sidebar').boundingBox();
+  const art2 = await page.locator('article.prose').boundingBox();
+  expect(side!.y).toBeGreaterThan(art2!.y + art2!.height - 1);
+  // Nothing scrolls sideways on a phone.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

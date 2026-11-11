@@ -12,7 +12,7 @@ async function answer(page: import('@playwright/test').Page, text: string) {
 }
 
 test('exact: wrong, then right; Mark complete waits for the check', async ({ page }) => {
-  await page.goto('/m/m90/s02/');
+  await page.goto('/m/m90/s02/?tab=practice');
   await expect(page.locator('[data-mark-complete]')).toBeDisabled();
   await answer(page, 'nope');
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'wrong');
@@ -22,7 +22,7 @@ test('exact: wrong, then right; Mark complete waits for the check', async ({ pag
 });
 
 test('regex', async ({ page }) => {
-  await page.goto('/m/m90/s03/');
+  await page.goto('/m/m90/s03/?tab=practice');
   await answer(page, 'abc');
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'wrong');
   await answer(page, '4bf92f3577b34da6a3ce929d0e0e4736');
@@ -30,7 +30,7 @@ test('regex', async ({ page }) => {
 });
 
 test('range', async ({ page }) => {
-  await page.goto('/m/m90/s04/');
+  await page.goto('/m/m90/s04/?tab=practice');
   await answer(page, 'fast');
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'not-a-number');
   await answer(page, '0.9');
@@ -40,7 +40,7 @@ test('range', async ({ page }) => {
 });
 
 test('choice', async ({ page }) => {
-  await page.goto('/m/m90/s05/');
+  await page.goto('/m/m90/s05/?tab=practice');
   await page.getByLabel('Latency').check();
   await page.getByRole('button', { name: 'Check' }).click();
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'wrong');
@@ -50,7 +50,7 @@ test('choice', async ({ page }) => {
 });
 
 test('token: needs the seed, then accepts the token computed from it', async ({ page }) => {
-  await page.goto('/m/m90/s06/');
+  await page.goto('/m/m90/s06/?tab=practice');
   await answer(page, token('log-m90-1'));
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'no-seed');
   await page.getByRole('link', { name: 'Open the settings' }).click();
@@ -60,7 +60,7 @@ test('token: needs the seed, then accepts the token computed from it', async ({ 
   await page.getByLabel('Lab seed').fill(SEED.toUpperCase());
   await page.locator('[data-save-seed]').click();
   await expect(page.locator('[data-settings-message]')).toHaveText('Lab seed saved.');
-  await page.goto('/m/m90/s06/');
+  await page.goto('/m/m90/s06/?tab=practice');
   await answer(page, 'deadbeef');
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'wrong');
   await answer(page, token('log-m90-1'));

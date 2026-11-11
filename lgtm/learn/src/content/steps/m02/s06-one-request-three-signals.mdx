@@ -16,6 +16,12 @@ check:
   kind: regex
   prompt: Paste the trace ID you followed from the latency panel to the logs (32 hexadecimal characters).
   pattern: "(?!0{32})[0-9a-fA-F]{32}"
+outcome: You can follow one slow request from a latency graph to its trace and to the log lines it wrote, and back.
+terms:
+  - term: Exemplar
+    def: One real trace kept next to a metric value, with its trace ID.
+  - term: Trace ID
+    def: The value that ties a request's spans and log lines together.
 sources:
   - title: Introduction to exemplars (Grafana)
     url: https://grafana.com/docs/grafana/latest/fundamentals/exemplars/
@@ -34,22 +40,43 @@ sources:
     checked: 2026-11-10
 ---
 
-<Why>
+<Problem>
 You now know three signals, but only as ideas. In a real incident you jump between them fast: a graph shows a slow minute, you need one slow request from that minute, then the log lines it wrote. If you have never made those jumps, the first time should not be at 3 a.m.
-</Why>
+</Problem>
 
 <Idea>
 The lab links the three signals by one value: the trace ID. A latency graph carries example trace IDs, called exemplars. A trace links to the logs that carry its trace ID, and each of those log lines links back to the trace.
 </Idea>
 
-<Points>
-  <Point label="Metric to trace: exemplars">An exemplar is one real trace kept next to a metric value. In this lab, Grafana draws exemplars as small green diamonds on the latency graph. Hover over one to see its trace ID.</Point>
-  <Point label="The trace view">The trace view shows the root span's name and the trace ID at the top. Below it, each row is a span with its service, its operation and a bar for its duration. A search box in the header highlights the spans that match a word.</Point>
-  <Point label="Trace to logs">The span details offer a **Related logs** link. It searches Loki for lines of the same service that carry the trace's ID, a few minutes either side of the span.</Point>
-  <Point label="Log back to trace">Each shop log line in Loki carries the trace ID as a field. In the log details, a Links section shows `trace_id` with an **Open trace** link back to Tempo.</Point>
-</Points>
+<Flow caption="One ID, three screens">
+  <Stage title="Latency graph" kicker="Metric">An exemplar on the graph holds one trace ID.</Stage>
+  <Stage title="Trace view" kicker="Trace">The trace shows the same ID in its header.</Stage>
+  <Stage title="Log lines" kicker="Logs">Each line carries the ID and links back to the trace.</Stage>
+</Flow>
+
+## From a metric to a trace
+
+An exemplar is one real trace kept next to a metric value. You start from the graph, find the slow minute and pick one of its exemplars. Its tooltip shows a trace ID and a link that opens the trace.
+
+## Reading the trace
+
+The trace view shows the root span's name and the trace ID at the top. Below it, each row is a span with its service, its operation and a bar for its duration. A search box in the header highlights the spans that match a word.
+
+## From the trace to its logs, and back
+
+The span details offer a **Related logs** link. It searches Loki for lines of the same service that carry the trace's ID, a few minutes either side of the span. Each shop log line in Loki carries the trace ID as a field. In the log details, a Links section shows `trace_id` with an **Open trace** link back to Tempo.
+
+<Compare caption="Where the trace ID shows on each screen">
+  <Col title="Exemplar">In the tooltip of a diamond on the latency graph.</Col>
+  <Col title="Trace view">In the header, above the spans.</Col>
+  <Col title="Log line" hot>As the `trace_id` field, under Links in the log details.</Col>
+</Compare>
 
 <Figure id="m02-s06-three-hops" alt="Three Grafana screens in a row: a latency graph with green diamonds on it, a trace waterfall, and a list of log lines. Arrows go from a diamond to the trace and from the trace to the logs, and the same trace ID is highlighted on all three." brief="A cursor walks through three fake Grafana screens. It hovers over a green diamond on a latency graph, and a tooltip shows a trace ID with a 'Query with Tempo' link. A click opens a trace waterfall with the same ID in its header. A click on a checkout span and then on 'Related logs' opens log lines; one is expanded, and its Links section shows trace_id with 'Open trace'. The learner should notice that one ID ties the three screens together." />
+
+<InLab>
+Grafana draws the exemplars as small green diamonds on the latency graph of the dashboard Shop / checkout (RED). Services show in traces as `opentelemetry-demo/<name>`.
+</InLab>
 
 <Do>
 1. Open the dashboard <LabLink to="grafana" path="/d/shop-red-checkout">Shop / checkout (RED)</LabLink> in Grafana and set the time range to the last 15 minutes. The load generator places orders all the time, so the panels have data.
@@ -66,9 +93,13 @@ The lab links the three signals by one value: the trace ID. A latency graph carr
 You opened one trace from a diamond on the Duration panel. The log lines Loki showed all carry the same trace ID as the trace header.
 </Done>
 
-<Trap>
+<Trap practice>
 Copy the trace ID from the trace header. An ID read from an exemplar tooltip or a search result can lose a leading zero and have only 31 characters, which the check refuses. If **Related logs** shows no lines, the service may have written none in this request: try a span of payment.
 </Trap>
+
+<Remember>
+One value ties the three signals together. An exemplar carries the trace ID, the trace shows it in its header, and every log line of that request carries it as a field.
+</Remember>
 
 <Question id="q-m02-s06" answer="a">
 A latency graph has a spike at 14:02. What does an exemplar on that spike give you?

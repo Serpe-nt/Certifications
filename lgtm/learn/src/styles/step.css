@@ -1,0 +1,1020 @@
+/*
+  The step page: the header on the console, the screen with Learn and Practice, the reading column,
+  the sidebar, the article parts (Problem, Idea, InLab, Trap, Remember) and the information parts
+  (Flow, Compare, Figures, Layers, Timeline). The form of a step is in ../../../docs/adr/dz-article-format.md.
+*/
+
+/* ---------------------------------------------------------------- header on the console */
+.stephead {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--lg-space-8) 40px;
+  align-items: end;
+  margin: 0 4px var(--lg-space-8);
+}
+@media (max-width: 900px) {
+  .stephead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.tagrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: var(--lg-space-6);
+}
+.tag {
+  background: var(--lg-signal);
+  color: var(--lg-signal-ink);
+  padding: 4px 16px;
+  font-family: var(--lg-font-display);
+  font-size: 0.9375rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.tag-tail {
+  width: 120px;
+  height: 28px;
+  background: repeating-linear-gradient(135deg, var(--lg-ash-ink) 0 2px, transparent 2px 7px);
+}
+.counter {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  margin-left: 18px;
+  border: 2px solid var(--lg-ink);
+  background: #3e4245;
+  font-family: var(--lg-font-display);
+  font-size: 1rem;
+}
+.counter > span {
+  padding: 0 10px;
+  color: #c0c5c8;
+}
+.counter > span + span {
+  color: var(--lg-signal);
+  border-left: 1px solid #9aa0a4;
+}
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--lg-space-3);
+  color: var(--lg-ink);
+}
+.crumb::before {
+  content: "\00BB";
+  color: var(--lg-signal);
+  font-size: 1rem;
+  text-shadow: 1px 1px 0 var(--lg-ink);
+}
+.crumb a {
+  color: inherit;
+  text-decoration: none;
+}
+.crumb a:hover {
+  text-decoration: underline;
+}
+.steptitle {
+  margin: 0;
+  max-width: 58rem;
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: clamp(2.5rem, 4.6vw, 4.875rem);
+  line-height: 1.04;
+  letter-spacing: 0.01em;
+  color: var(--lg-ink);
+}
+.outcome {
+  max-width: 41rem;
+  margin: var(--lg-space-6) 0 0;
+  padding: 12px 18px 12px 16px;
+  background: var(--lg-paper);
+  border-left: 6px solid var(--lg-signal);
+  font-size: 1.1875rem;
+  line-height: 1.5;
+  color: var(--lg-ink);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: var(--lg-space-4);
+}
+.chip {
+  border: 2px solid var(--lg-ink);
+  padding: 4px 10px;
+  color: var(--lg-ink);
+}
+.chip-dark {
+  background: var(--lg-ink);
+  color: var(--lg-paper);
+}
+
+/* The step number in an octagon dot matrix, with the globe behind it */
+.matrix {
+  position: relative;
+  z-index: 1;
+  background: var(--lg-bezel);
+  padding: 18px 18px 14px;
+  clip-path: polygon(0 12px, 12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+.matrix::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  width: 28px;
+  height: 6px;
+  background: repeating-linear-gradient(90deg, var(--lg-signal) 0 4px, transparent 4px 7px);
+}
+.matrix-digits {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+}
+.digit {
+  display: grid;
+  grid-template-columns: repeat(5, 18px);
+  gap: 4px;
+}
+.digit i {
+  width: 18px;
+  height: 18px;
+  background: #3b3f42;
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+.digit i.on {
+  background: var(--lg-paper);
+}
+.matrix-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  color: var(--lg-signal);
+}
+.dashline {
+  height: 3px;
+  margin-top: 8px;
+  background: repeating-linear-gradient(90deg, var(--lg-signal) 0 12px, transparent 12px 16px);
+}
+.globe {
+  position: absolute;
+  right: -110px;
+  bottom: -150px;
+  width: 520px;
+  height: 520px;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+@media (max-width: 900px) {
+  .stepmeta-side {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- tabs, columns */
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: var(--lg-space-6);
+}
+.tab {
+  border: 2px solid var(--lg-ink);
+  border-radius: 999px;
+  padding: 8px 26px;
+  color: var(--lg-ink);
+  text-decoration: none;
+}
+.tab[aria-selected="true"] {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.tab:hover:not([aria-selected="true"]) {
+  background: var(--lg-screen-2);
+}
+.stepcols {
+  display: grid;
+  grid-template-columns: minmax(0, var(--lg-measure)) 300px;
+  gap: 64px;
+  border-top: 1px solid var(--lg-rule);
+  padding-top: var(--lg-space-8);
+}
+@media (max-width: 1100px) {
+  .stepcols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--lg-space-8);
+  }
+}
+
+/* Learn shows the article; Practice shows only what is marked as practice. */
+[data-tab="learn"] [data-practice],
+[data-tab="learn"][data-has-practice] .prose [data-block="question"] {
+  display: none;
+}
+[data-tab="practice"] .prose > :not([data-practice]):not([data-block="question"]) {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- the reading column */
+.prose {
+  counter-reset: part;
+}
+.prose p,
+.prose li {
+  font-size: 1.1875rem;
+  line-height: 1.7;
+  color: var(--lg-ink-2);
+}
+.prose > p {
+  margin: 0 0 1.375rem;
+  max-width: 70ch;
+}
+.prose code {
+  font-size: 0.86em;
+  background: var(--lg-screen-2);
+  padding: 1px 6px;
+  border-radius: var(--lg-radius-sm);
+}
+.prose a {
+  font-weight: 600;
+}
+.prose > h2 {
+  counter-increment: part;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 14px;
+  margin: 3rem 0 1.125rem;
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1.1;
+}
+.prose > h2::before {
+  content: counter(part, decimal-leading-zero);
+  font-size: 2.75rem;
+}
+.prose > h2::after {
+  content: "";
+  order: -1;
+  grid-column: 2;
+  grid-row: 1;
+  width: 5px;
+  height: 34px;
+  background: var(--lg-signal);
+  box-shadow: 0 0 0 1px var(--lg-ink);
+}
+.prose > h2 {
+  grid-template-areas: "n bar t";
+}
+.prose > h2::before {
+  grid-area: n;
+}
+.prose > h2::after {
+  grid-area: bar;
+}
+.prose h3 {
+  margin: 2rem 0 0.75rem;
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: 1.375rem;
+}
+.prose ul,
+.prose ol {
+  padding-left: 1.4em;
+  margin: 0 0 1.375rem;
+}
+
+/* Every article part counts into the same numbering as the section headings. */
+.part {
+  counter-increment: part;
+  position: relative;
+  margin: 1.75rem 0;
+}
+.part-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.part-label::before {
+  content: counter(part, decimal-leading-zero);
+  background: var(--lg-signal);
+  color: var(--lg-signal-ink);
+  font-family: var(--lg-font-display);
+  font-size: 0.8125rem;
+  padding: 3px 14px 3px 8px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+.part-label svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.part > :last-child,
+.part .part-body > :last-child {
+  margin-bottom: 0;
+}
+.part p {
+  margin: 0 0 0.75rem;
+}
+
+.part-problem {
+  background: var(--lg-ink);
+  padding: 26px 30px 24px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+}
+.part-problem p,
+.part-problem li {
+  color: var(--lg-ink-on-dark);
+}
+.part-problem .part-label {
+  color: var(--lg-signal);
+}
+.part-problem code {
+  background: #2a2d2f;
+  color: var(--lg-signal);
+}
+.part-problem::after {
+  content: "";
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  width: 30px;
+  height: 6px;
+  background: radial-gradient(circle, var(--lg-paper) 2.5px, transparent 3px) 0 0 / 12px 6px repeat-x;
+}
+
+.part-idea {
+  padding: 22px 28px;
+  background:
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left top / 16px 3px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left top / 3px 16px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right top / 16px 3px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right top / 3px 16px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left bottom / 16px 3px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left bottom / 3px 16px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right bottom / 16px 3px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right bottom / 3px 16px no-repeat,
+    #ccd1d3;
+}
+.part-idea p {
+  font-size: 1.3125rem;
+  line-height: 1.6;
+  color: var(--lg-ink);
+  font-weight: 500;
+}
+
+.part-lab {
+  padding: 18px 24px;
+  background: var(--lg-paper);
+  border-left: 6px solid var(--lg-ink);
+}
+
+.part-trap {
+  padding: 22px 28px 22px 92px;
+  background: var(--lg-screen-2);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+}
+.part-trap::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 66px;
+  background: repeating-linear-gradient(135deg, var(--lg-ink) 0 10px, var(--lg-signal) 10px 20px);
+}
+
+.part-remember {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  background: var(--lg-paper);
+  border: 2px solid var(--lg-ink);
+}
+.part-remember > .part-body {
+  padding: 20px 26px;
+}
+.part-remember::before,
+.part-remember::after {
+  content: "";
+  position: absolute;
+  right: 139px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--lg-screen);
+  border: 2px solid var(--lg-ink);
+}
+.part-remember::before {
+  top: -11px;
+}
+.part-remember::after {
+  bottom: -11px;
+}
+.stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-left: 2px dashed var(--lg-ink);
+}
+.barcode {
+  width: 96px;
+  height: 44px;
+  background: linear-gradient(90deg, var(--lg-ink) 0 2px, transparent 2px 4px, var(--lg-ink) 4px 8px, transparent 8px 9px, var(--lg-ink) 9px 10px, transparent 10px 13px, var(--lg-ink) 13px 16px, transparent 16px 17px, var(--lg-ink) 17px 18px, transparent 18px 22px) 0 0 / 22px 100%;
+}
+@media (max-width: 560px) {
+  .part-remember {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stub,
+  .part-remember::before,
+  .part-remember::after {
+    display: none;
+  }
+}
+
+/* Old-form parts (Why, Points, Do, Done) keep working until the rewrite card has run. */
+.part-points ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.part-points li {
+  padding: 12px 0;
+  border-top: 1px solid var(--lg-rule);
+}
+.part-points li strong {
+  display: block;
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: 1.1875rem;
+  color: var(--lg-ink);
+}
+.part-do ol {
+  list-style: none;
+  counter-reset: act;
+  padding: 0;
+  margin: 0;
+}
+.part-do ol > li {
+  counter-increment: act;
+  position: relative;
+  padding: 16px 0 16px 68px;
+  border-top: 1px solid var(--lg-rule);
+}
+.part-do ol > li::before {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  content: counter(act, decimal-leading-zero);
+  font-family: var(--lg-font-display);
+  font-size: 1.75rem;
+  line-height: 1.1;
+  color: var(--lg-ink);
+}
+.part-done {
+  padding: 18px 24px;
+  background: var(--lg-ink);
+}
+.part-done p {
+  color: var(--lg-ink-on-dark);
+}
+.part-done .part-label {
+  color: var(--lg-signal);
+}
+
+/* ---------------------------------------------------------------- information parts */
+.info {
+  margin: 2rem 0;
+}
+.info-cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--lg-ink-3);
+  margin-bottom: 14px;
+}
+
+/* Figures: one row per value, a bar to scale and the number */
+.figures {
+  border-top: 3px solid var(--lg-ink);
+  border-bottom: 1px solid var(--lg-rule);
+  padding: 18px 0 20px;
+}
+.stat {
+  display: grid;
+  grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) 7rem;
+  gap: 18px;
+  align-items: center;
+  margin: 12px 0;
+}
+.stat-label {
+  color: var(--lg-ink-2);
+}
+.stat-bar {
+  display: block;
+  width: 100%;
+  height: 14px;
+}
+.stat-track {
+  fill: var(--lg-screen-2);
+}
+.stat-fill {
+  fill: var(--lg-ink);
+}
+.stat-hot {
+  fill: var(--lg-signal);
+  stroke: var(--lg-ink);
+  stroke-width: 2px;
+}
+.stat-value {
+  font-family: var(--lg-font-display);
+  font-size: 1.75rem;
+  text-align: right;
+}
+.stat-note {
+  grid-column: 2 / -1;
+  margin: -6px 0 0;
+  font-size: 0.9375rem !important;
+  color: var(--lg-ink-3) !important;
+}
+@media (max-width: 560px) {
+  .stat {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .stat-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* Flow: stages joined by arrows, left to right (top to bottom on a phone) */
+.flow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 36px;
+  counter-reset: stage;
+}
+.stage {
+  counter-increment: stage;
+  position: relative;
+  padding: 16px 18px 18px;
+  background: var(--lg-paper);
+  border: 2px solid var(--lg-ink);
+}
+/* The cut corner is drawn over the box, so the arrow outside it is not clipped. */
+.stage::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(225deg, var(--lg-screen) 50%, var(--lg-ink) 50%, var(--lg-ink) calc(50% + 2px), transparent calc(50% + 2px));
+}
+.stage:last-child {
+  background: var(--lg-ink);
+}
+.stage:last-child .stage-title,
+.stage:last-child p {
+  color: var(--lg-paper);
+}
+.stage:last-child .stage-k {
+  color: var(--lg-signal);
+}
+.stage-k::before {
+  content: counter(stage, decimal-leading-zero) " // ";
+}
+.stage-k {
+  color: var(--lg-ink-3);
+  font-size: 0.6875rem;
+}
+.stage-title {
+  display: block;
+  margin: 6px 0 4px;
+  font-family: var(--lg-font-display);
+  font-size: 1.25rem;
+  color: var(--lg-ink);
+}
+.stage p {
+  margin: 0;
+  font-size: 0.9375rem !important;
+  line-height: 1.45 !important;
+}
+.flow-arrow {
+  position: absolute;
+  top: 50%;
+  right: -36px;
+  width: 36px;
+  height: 12px;
+  margin-top: -6px;
+}
+.stage:last-child .flow-arrow {
+  display: none;
+}
+@media (max-width: 760px) {
+  .flow {
+    grid-auto-flow: row;
+    gap: 28px;
+  }
+  .flow-arrow {
+    top: auto;
+    bottom: -28px;
+    right: 50%;
+    width: 12px;
+    height: 28px;
+    margin: 0 -6px 0 0;
+  }
+}
+
+/* Compare: two or three things side by side */
+.compare {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  border: 2px solid var(--lg-ink);
+}
+.col {
+  padding: 18px 20px;
+}
+.col + .col {
+  border-left: 1px solid var(--lg-ink);
+}
+.col-title {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--lg-font-display);
+  font-size: 1.25rem;
+}
+.col p,
+.col li {
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
+}
+.col ul {
+  padding-left: 1.1em;
+  margin: 0;
+}
+.col-hot {
+  background: var(--lg-ink);
+}
+.col-hot .col-title,
+.col-hot p,
+.col-hot li {
+  color: var(--lg-paper) !important;
+}
+@media (max-width: 760px) {
+  .compare {
+    grid-auto-flow: row;
+  }
+  .col + .col {
+    border-left: 0;
+    border-top: 1px solid var(--lg-ink);
+  }
+}
+
+/* Layers: a stack, top to bottom */
+.layers {
+  display: grid;
+  gap: 6px;
+}
+.layer {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 12px 18px;
+  background: var(--lg-paper);
+  border: 2px solid var(--lg-ink);
+}
+.layer:nth-child(2) {
+  margin-inline: 14px;
+}
+.layer:nth-child(3) {
+  margin-inline: 28px;
+}
+.layer:nth-child(4) {
+  margin-inline: 42px;
+}
+.layer-hot {
+  background: var(--lg-ink);
+}
+.layer-hot .layer-title,
+.layer-hot p {
+  color: var(--lg-paper) !important;
+}
+.layer-title {
+  font-family: var(--lg-font-display);
+  font-size: 1.125rem;
+}
+.layer p {
+  margin: 0;
+  font-size: 1rem !important;
+  line-height: 1.45 !important;
+}
+@media (max-width: 640px) {
+  .layer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    margin-inline: 0 !important;
+  }
+}
+
+/* Timeline: ordered moments on a rail */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 28px;
+  border-left: 2px solid var(--lg-ink);
+}
+.event {
+  position: relative;
+  padding: 0 0 20px 18px;
+}
+.event::before {
+  content: "";
+  position: absolute;
+  left: -36px;
+  top: 6px;
+  width: 14px;
+  height: 14px;
+  background: var(--lg-screen);
+  border: 2px solid var(--lg-ink);
+  transform: rotate(45deg);
+}
+.event:last-child::before {
+  background: var(--lg-signal);
+}
+.event-at {
+  display: block;
+  color: var(--lg-ink-3);
+}
+.event-title {
+  display: block;
+  font-family: var(--lg-font-display);
+  font-size: 1.25rem;
+  margin: 2px 0 4px;
+}
+.event p {
+  margin: 0;
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+.sidebar {
+  font-size: 0.9375rem;
+}
+.side-box {
+  margin-bottom: var(--lg-space-8);
+}
+.side-box h2 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 12px;
+  color: var(--lg-ink-3);
+}
+.toc {
+  position: sticky;
+  top: 20px;
+}
+.toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid var(--lg-rule);
+}
+.toc li a {
+  display: flex;
+  gap: 12px;
+  padding: 7px 0 7px 14px;
+  margin-left: -2px;
+  border-left: 2px solid transparent;
+  color: var(--lg-ink-2);
+  text-decoration: none;
+}
+.toc li a:hover {
+  color: var(--lg-ink);
+  border-left-color: var(--lg-ink-3);
+}
+.toc li a b {
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  color: var(--lg-ink-3);
+}
+.toc li a[aria-current="true"] {
+  border-left-color: var(--lg-ink);
+  color: var(--lg-ink);
+  font-weight: 600;
+}
+.toc li a[aria-current="true"] b {
+  background: var(--lg-signal);
+  color: var(--lg-ink);
+  padding: 0 4px;
+}
+.term {
+  border-top: 1px solid var(--lg-rule);
+  padding: 10px 0;
+}
+.term dt {
+  font-family: var(--lg-font-display);
+  font-size: 1.0625rem;
+}
+.term dd {
+  margin: 0;
+  color: var(--lg-ink-2);
+  line-height: 1.45;
+}
+.sources a {
+  display: block;
+  padding: 8px 0;
+  border-top: 1px solid var(--lg-rule);
+  color: var(--lg-ink);
+  text-decoration: none;
+  line-height: 1.4;
+}
+.sources a:hover {
+  text-decoration: underline;
+}
+.sources a::after {
+  content: " \2197";
+  font-family: var(--lg-font-mono);
+}
+@media (max-width: 1100px) {
+  .toc {
+    position: static;
+  }
+}
+
+/* ---------------------------------------------------------------- nav and the scale under the screen */
+.stepnav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 44px;
+  padding-top: 24px;
+  border-top: 1px solid var(--lg-rule);
+}
+.scale {
+  display: flex;
+  justify-content: center;
+  margin-top: 34px;
+  color: var(--lg-ink);
+}
+.scale svg {
+  width: min(520px, 100%);
+  height: 54px;
+}
+
+/* ---------------------------------------------------------------- motion on the step page */
+@media (prefers-reduced-motion: no-preference) {
+  .steptitle {
+    animation: lg-wipe var(--lg-dur-slow) var(--lg-ease-out) both;
+  }
+  .digit i.on {
+    animation: lg-lit 0.5s var(--lg-ease-out) both;
+  }
+  .digit:nth-child(2) i.on {
+    animation-delay: 0.35s;
+  }
+  .dashline {
+    animation: lg-run 1.2s linear infinite;
+  }
+  .sync::before {
+    animation: lg-blink 1.4s steps(2) infinite;
+  }
+  .globe .spin {
+    transform-origin: 270px 270px;
+    animation: lg-spin 80s linear infinite;
+  }
+  .globe .n {
+    animation: lg-blink 3s ease-in-out infinite;
+  }
+  .globe .n:nth-of-type(3n) {
+    animation-delay: 1s;
+  }
+  .part,
+  .info {
+    animation: lg-rise 0.7s var(--lg-ease-out) both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 40%;
+  }
+}
+
+/* The globe takes its colour from the console ink; its one lit node is the signal colour. */
+.globe {
+  color: var(--lg-ash-ink);
+}
+.globe svg {
+  width: 100%;
+  height: 100%;
+}
+.globe .hot {
+  fill: var(--lg-signal);
+  stroke: var(--lg-ink);
+  stroke-width: 1.5px;
+}
+.matrix-foot {
+  margin-bottom: 0;
+}
+.stepmeta-side {
+  position: relative;
+}
+
+/* Text written straight inside a dark part (no paragraph) takes the light ink too. */
+.col,
+.layer,
+.stage,
+.event {
+  color: var(--lg-ink-2);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.col-hot,
+.layer-hot,
+.stage:last-child {
+  color: var(--lg-paper);
+}
+.col-hot code,
+.layer-hot code,
+.stage:last-child code {
+  background: #2a2d2f;
+  color: var(--lg-signal);
+}
+
+/* The contents list points into the article, so Practice does not show it. */
+[data-tab="practice"] .toc {
+  display: none;
+}
+
+/* The top bar on a phone: the brand stays on one line, the sync state shows as its lamp only. */
+.brand {
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .topbar {
+    margin: var(--lg-space-4) 0;
+  }
+  .topnav {
+    gap: var(--lg-space-3);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+  }
+  .sync {
+    font-size: 0;
+    gap: 0;
+  }
+  .console > .notch {
+    width: 180px;
+  }
+}
+
+/* Remember: label and text in the ticket, the stub beside both. */
+.part-remember {
+  grid-template-rows: auto 1fr;
+}
+.part-remember > .part-label {
+  grid-column: 1;
+  margin: 0;
+  padding: 20px 26px 0;
+}
+.part-remember > .part-body {
+  grid-column: 1;
+  padding: 10px 26px 20px;
+}
+.part-remember > .stub {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+@media (max-width: 640px) {
+  .part-trap {
+    padding: 18px 18px 18px 46px;
+  }
+  .part-trap::before {
+    width: 26px;
+  }
+  .part-do ol > li {
+    padding-left: 48px;
+  }
+  .part-problem,
+  .part-idea {
+    padding: 20px 18px;
+  }
+  .prose > h2 {
+    font-size: 1.5rem;
+  }
+  .prose > h2::before {
+    font-size: 2rem;
+  }
+}

@@ -12,6 +12,14 @@ exam:
     domain: O1
     competency: Telemetry Data
 tags: [cardinality]
+outcome: You can work out how many series a metric can make, and keep unique values such as user IDs out of labels.
+terms:
+  - term: Series
+    def: One combination of a metric's name and its label values.
+  - term: Cardinality
+    def: The number of different label combinations a metric has.
+  - term: Structured metadata
+    def: Fields Loki keeps with a log line without indexing them.
 sources:
   - title: Metric and label naming, labels (Prometheus best practices)
     url: https://prometheus.io/docs/practices/naming/
@@ -33,28 +41,66 @@ sources:
     checked: 2026-11-10
 ---
 
-<Why>
-A developer adds a `user_id` label to the request counter, to see requests per user. The next day the metrics store uses ten times more memory, queries time out, and the cloud bill jumps. Nothing else changed. One label with too many values did all that.
-</Why>
+<Problem>
+A developer adds a `user_id` label to the request counter, to see requests per user. The next day the metrics store uses ten times more memory, queries time out, and the cloud bill jumps. Nothing else changed.
+</Problem>
+
+One label with too many values did all that. To see why, you need a word that every metrics system uses.
 
 <Idea>
 Cardinality is the number of different label combinations a metric has. Every combination is its own series, and every series costs memory, CPU, disk and network. Keep labels to small, fixed sets of values, and put unique values such as user IDs somewhere else.
 </Idea>
 
-<Points>
-  <Point label="Series multiply">A counter with `method` (4 values) and `status_code` (5 values) can have 4 times 5, so 20 series. Add a `pod` label with 50 values and it can reach 1,000. Each new label multiplies.</Point>
-  <Point label="Never use unbounded values">Prometheus warns against labels with many or endless values: user IDs, email addresses, request IDs. A good label has a small set of values that does not grow with traffic.</Point>
-  <Point label="A rule of thumb">Prometheus suggests keeping most metrics below about 10 series, and having only a handful of metrics above that. A metric that could grow past 100 series needs a different design.</Point>
-  <Point label="OpenTelemetry protects itself">The OpenTelemetry metrics SDK tracks at most 2,000 attribute combinations per metric stream by default. After that it folds new combinations into one series marked `otel.metric.overflow=true`. Totals stay right, but filters by attribute undercount.</Point>
-  <Point label="Logs have labels too">Loki indexes only labels, and each label combination is a stream. Many small streams make a big index and slow queries. Loki's advice: keep label values bounded, and never put a trace ID or an order ID in a label.</Point>
-  <Point label="Where unique values belong">Put per-request values in spans and log lines. In Loki, use structured metadata for high-cardinality fields: they are kept with the line but not indexed. In this lab the shop's `trace_id` is stored that way.</Point>
-</Points>
+## Labels multiply series
+
+A new label does not add a few series to a metric. It multiplies them. A counter with `method` (4 values) and `status_code` (5 values) can have 4 times 5, so 20 series. Add a `pod` label with 50 values and the same counter can reach 1,000.
+
+<Figures caption="One request counter, more labels" unit="Series at most">
+  <Stat label="method" value="4" amount={4} max={1000} />
+  <Stat label="+ status_code" value="20" amount={20} max={1000} />
+  <Stat label="+ pod, 50 values" value="1,000" amount={1000} max={1000} hot />
+</Figures>
 
 <Figure id="m02-s10-series-multiply" alt="A grid of small boxes, one per time series. Adding a label with three values turns one row of boxes into three rows, and adding a user ID label makes the grid explode beyond the frame." brief="A fake metric panel counts series. It starts with one counter and one series box. A 'method' label is added and the boxes split into four. A 'status_code' label is added and the four become twenty. Then a 'user_id' label is added and the boxes multiply until they fill the frame, while a memory gauge beside them turns red. The learner should notice that each label multiplies the series count, and that an unbounded label has no ceiling." />
 
+## Keep label values bounded
+
+Prometheus warns against labels with many or endless values: user IDs, email addresses, request IDs. A good label has a small set of values that does not grow with traffic. Its rule of thumb is to keep most metrics below about 10 series and to have only a handful of metrics above that. A metric that could grow past 100 series needs a different design.
+
+OpenTelemetry protects itself. Its metrics SDK tracks at most 2,000 attribute combinations per metric stream by default. After that it folds new combinations into one series marked `otel.metric.overflow=true`. Totals stay right, but filters by attribute undercount.
+
+## Logs have labels too
+
+Loki indexes only labels, and each label combination is a stream. Many small streams make a big index and slow queries. Loki's advice is the same as Prometheus's: keep label values bounded, and never put a trace ID or an order ID in a label.
+
+<Compare caption="What one more label value costs">
+  <Col title="Prometheus label">A new series, with its own share of memory, CPU, disk and network.</Col>
+  <Col title="Loki label">A new stream in the index, which grows the index and slows queries.</Col>
+  <Col title="Span or log line" hot>Nothing extra in any index: the value travels with the data.</Col>
+</Compare>
+
+## Where unique values belong
+
+Put per-request values in spans and log lines. In Loki, high-cardinality fields go into structured metadata: Loki keeps them with the line but does not index them.
+
+<Layers caption="Where a value goes, from indexed to only stored">
+  <Layer title="Metric label">Every new value makes new series.</Layer>
+  <Layer title="Loki label">Every new value makes a new stream in the index.</Layer>
+  <Layer title="Structured metadata">Kept with each log line, not indexed.</Layer>
+  <Layer title="Span attribute" hot>Kept with the span of one request.</Layer>
+</Layers>
+
+<InLab>
+The shop's `trace_id` is stored in Loki as structured metadata, so it never becomes a stream label.
+</InLab>
+
 <Trap>
-High cardinality is not always the user's fault. A client library, an exporter or a collector can add labels such as a full URL path with IDs in it. When series counts jump, look at what the newest labels are, not only at the code you wrote.
+High cardinality is not always your own code. A client library, an exporter or a collector can add a label such as a full URL path with IDs in it. When series counts jump, look at what the newest labels are.
 </Trap>
+
+<Remember>
+Labels come from small, fixed sets of values. Unique values such as user IDs go in spans, in log lines or in structured metadata.
+</Remember>
 
 <Question id="q-m02-s10" answer="c">
 Which label is the worst choice for a Prometheus request counter?
