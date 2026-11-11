@@ -1,6 +1,8 @@
 # LGTM study helper: plan overview
 
 Status on 2026-11-10: waves 1 and 2 are merged (pull requests 22 to 28): the site with its study features, the VM script and cluster playbooks, the platform add-ons, the LGTM releases, the trimmed demo with its chart and images. The owner bootstrapped the real cluster with `lgtm/lab/docs/bootstrap-windows11.md` (pull requests 29 to 32 hold the guide and the defects that run exposed): seven nodes Ready on Kubernetes 1.35.10, reachable from WSL through `~/.kube/lgtm-lab.config`. Nothing beyond Calico is installed on it yet: the platform and the LGTM releases have run on kind only. Wave 3 is next.
+
+Status on 2026-11-11: wave 3 is merged (pull requests 34 to 38). The lab is accepted on the real cluster, with masters at 4 GB and workers at 6 GB; the beacon's tokens are proven in Loki, Mimir and Tempo; the pilot module m02 is on main and its lab step was walked on the lab. The owner then read the pilot in the site and rejected its form, not its facts (section 13). No further lesson content is written until the lesson page is redesigned as an article and the content contract follows it.
 The research behind the plan is in `../research/`; decisions taken by workers are in `../adr/`.
 
 ## 1. What we are building
@@ -162,13 +164,14 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | 3 | D2 beacon and workshop | `lgtm/lab/tools/**`, `lgtm/lab/workshop/**`, the beacon template of `lab-glue` | Check-token emitter, the service to instrument by hand |
 | 3 | L4 lab acceptance | the rest of `lgtm/lab/**` | `make platform` and `make lab` on the real cluster, defects fixed, budget measured, reference page of addresses, runbook |
 | 3 | C0 content pilot | module m02 (observability fundamentals) | One finished concept module that sets the pattern; the owner reads it before the rest is written |
-| 4 | DZ design | `lgtm/learn/src/styles/**`, component styling | The site's design with `web-design-engineer`; the owner answers its checkpoints (direction, first draft, key choices) in that session |
+| 4 | DZ lesson page as an article | `lgtm/learn/src/**` (pages, layouts, components, styles, schemas), two specimen steps of m02 | The site's design with `web-design-engineer` and the new article form of a step (section 13); the owner answers its checkpoints in that session |
+| 5 | C0b pilot rewrite | module m02 | The other eleven steps of m02 rewritten to the article form, after the planner has folded that form into the content contract |
 | 6 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
-| 4 | C1 setup and Helm | modules m00 and m01 | Written against the accepted lab, every action run on it |
-| 4 | C2 | module m03 | Prometheus fundamentals |
-| 5 to 9 | C3 to C16 content | one module each | Modules m04 to m17, three sessions at a time, in order |
-| 10 | C17 capstone and mocks | module m18, mock exam pools | Game days, interview bank, OTCA and PCA mock exams |
-| 10 | QA sweep | none (planner) | Full walk-through on the live lab, link check, release |
+| 6 | C1 setup and Helm | modules m00 and m01 | Written against the accepted lab, every action run on it |
+| 6 | C2 | module m03 | Prometheus fundamentals |
+| 7 to 11 | C3 to C16 content | one module each | Modules m04 to m17, three sessions at a time, in order |
+| 12 | C17 capstone and mocks | module m18, mock exam pools | Game days, interview bank, OTCA and PCA mock exams |
+| 12 | QA sweep | none (planner) | Full walk-through on the live lab, link check, release |
 
 That is about 30 worker sessions: 10 to build the site and the lab, 18 for content, 2 for figures.
 
@@ -217,3 +220,25 @@ Wave 1 cards are written in full. Wave 2 cards are written in full but are re-ch
 | Usage limit shared by all sessions | Never more than 3 workers; cards forbid sub-agents and repeated verification |
 | Content volume (about 245 steps, 700 questions) | Pilot first; one module per session; verification logs make review a sample, not a rewrite |
 | Trimmed demo drifts from upstream | Record the upstream tag and every removed service in `lgtm/lab/demo/TRIMMING.md`; no plan to track upstream after 3.1.0 |
+
+## 13. The owner's verdict on the pilot, and the redesign (2026-11-11)
+
+The owner read module m02 in the site and rejected the form of a step. The facts and the lab step stay; the page and the way the text is built change.
+
+What the owner said about the page as S1 and the pilot left it:
+- It is hard to follow. Each block stacked on the one before reads as a new topic, not as the next part of one explanation.
+- Everything sits in one narrow column and the screen is wasted.
+- "Why this matters" and "The idea" do not stand apart from each other; they should be distinct parts, with icons.
+- A step should be an article, read from top to bottom. Where an article would carry a picture, a step carries a diagram or an information part: why the thing exists, the problem it solves, and the like.
+- A step has two tabs, Learn and Practice. Practice appears only where the step has something to do; otherwise there is only Learn.
+- The text itself must be rewritten as an article, not as a list of labelled boxes.
+
+What the owner gave as references: four screenshots of article and landing pages. They are references for structure only: how the page is divided, what sits beside what, how sections follow each other. They are not the look. The owner brings the aesthetics and its images to the design worker in that session.
+
+What follows from it:
+1. Card DZ is now "the lesson page as an article": the structure of the page, the new parts a step is built from, and the site's design, built in `lgtm/learn`, with the owner in the session. It rewrites two steps of m02 as specimens, one concept step and the lab step, so the form is proven on real text.
+2. DZ proposes the new form of a step in an ADR. The planner then folds it into `03-content-contract.md` as version 2. Until then nobody writes new steps.
+3. Card C0b rewrites the other eleven steps of m02 to that form. The owner reads the module again before the other 17 modules are written.
+4. The rule "one step per screen, no list of steps to tick beside it" stays: it came from the owner. An article with a sidebar for looking things up is what the owner already described for saa-plan.
+
+Skills every worker loads from 2026-11-11 on, by the owner's instruction: `caveman` (chat voice), `humanizer` (every text a person will read is passed through it before it is saved: lesson text, docs, pull request text) and `ponytail` (the smallest change that fully solves the task, and a reply that reads in one pass). They are skills of the owner's claude.ai account. The design card also uses `web-design-engineer`, and the figures card `stageshow`.

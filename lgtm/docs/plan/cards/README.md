@@ -5,13 +5,23 @@ One card is one worker session: one branch, one pull request. The planner starts
 ## The prompt every worker session starts with
 
 ```
-/caveman You are worker <ID> on the LGTM study project. Read lgtm/CLAUDE.md, then
-lgtm/docs/plan/00-overview.md, then your card lgtm/docs/plan/cards/<file>.md and the
-files it tells you to read. Do the card and nothing else. Open one pull request to main
-when its "Done when" list is met, and end with the report the card asks for.
+/caveman You are worker <ID> on the LGTM study project. Before anything else, load the
+skills humanizer and ponytail with the Skill tool (and caveman, if the prefix did not
+load it). Read lgtm/CLAUDE.md, then lgtm/docs/plan/00-overview.md, then your card
+lgtm/docs/plan/cards/<file>.md and the files it tells you to read. Do the card and
+nothing else. Open one pull request to main when its "Done when" list is met, and end
+with the report the card asks for.
 ```
 
-If the `/caveman` prefix did not load the skill, load it with the Skill tool before anything else. Caveman voice is for chat. Everything that is saved (lesson text, code, comments, commits, pull requests, docs) is plain, complete English.
+## The three skills every worker loads
+
+By the owner's instruction (2026-11-11). They are skills of the owner's claude.ai account and appear in the session's skills list under these names.
+
+- `caveman`: the voice of chat only. Everything that is saved (lesson text, code, comments, commits, pull requests, docs) is plain, complete English.
+- `humanizer`: rewrites text that sounds machine-made so it reads like a person wrote it, without changing what it says. Pass every text a person will read through it before you save it: lesson text first of all, then docs and pull request text. It must not change a fact, a number, a name, a command or a query; check those after it.
+- `ponytail`: for coding work, the smallest change that fully solves the task, and a reply a busy reader takes in at one pass. It does not shrink the card: every item of "Done when" still has to be met.
+
+When two of them pull apart, the card decides, then accuracy, then brevity.
 
 ## Rules for every card
 
@@ -62,6 +72,7 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 3 | `w3-l4-lab-acceptance.md` | L4 lab acceptance on the real cluster |
 | 3 | `w3-d2-beacon-workshop.md` | D2 beacon and workshop service |
 | 3 | `w3-c0-content-pilot.md` | C0 content pilot, module m02 |
-| 4 and later | `content-module-template.md` | one copy per module, filled in by the planner |
+| 4 | `w4-dz-article-redesign.md` | DZ the lesson page as an article (with the owner in the session) |
+| 5 and later | `content-module-template.md` | one copy per module, filled in by the planner once the content contract is at version 2 |
 
-Cards for wave 4 and later (DZ, C1 and the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `web-design-engineer` skill and FG the `stageshow` skill; no other card uses them.
+Cards for wave 5 and later (C0b, C1 and the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `web-design-engineer` skill and FG the `stageshow` skill; no other card uses them.
