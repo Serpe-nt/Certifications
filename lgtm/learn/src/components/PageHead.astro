@@ -1,0 +1,47 @@
+---
+// The header every page opens with, on the console above the screen: a yellow tag, a crumb, the title,
+// a lead (or the step's outcome), chips, and the dot-matrix plate with the globe turning behind.
+// Styles: src/styles/head.css. Put it in Base's "head" slot, or before the screen on a bare page.
+import Globe from './Globe.astro';
+import Matrix from './Matrix.astro';
+
+interface Props {
+  tag: string;
+  /** Text before the crumb link, for example "SEC_03 //". */
+  crumbText?: string;
+  crumb?: { label: string; href?: string };
+  title: string;
+  /** "display" for the step title, "page" (smaller) for the other pages. */
+  size?: 'display' | 'page';
+  /** A short line under the title. `outcome` draws it as the step's outcome line. */
+  lead?: string;
+  leadStyle?: 'outcome' | 'plain';
+  chips?: { text: string; dark?: boolean }[];
+  plate: { value: string; label: string; foot: [string, string] };
+}
+const { tag, crumbText, crumb, title, size = 'page', lead, leadStyle = 'outcome', chips = [], plate } = Astro.props;
+---
+<header class="pagehead">
+  <Globe />
+  <div class="pagehead-main">
+    <div class="tagrow">
+      <span class="tag">{tag}</span>
+      <span class="tag-tail" aria-hidden="true"></span>
+    </div>
+    {
+      (crumbText || crumb) && (
+        <p class="crumb mono">
+          {crumbText && <span>{crumbText}</span>}
+          {crumb && (crumb.href ? <a href={crumb.href}>{crumb.label}</a> : <span>{crumb.label}</span>)}
+        </p>
+      )
+    }
+    <h1 class:list={['pagetitle', { 'pagetitle-display': size === 'display' }]}>{title}</h1>
+    {lead && <p class:list={[leadStyle === 'outcome' ? 'outcome' : 'pagelead']}>{lead}</p>}
+    {chips.length > 0 && <p class="chips mono">{chips.map((c) => <span class:list={['chip', { 'chip-dark': c.dark }]}>{c.text}</span>)}</p>}
+    <slot />
+  </div>
+  <div class="pagehead-side">
+    <Matrix value={plate.value} label={plate.label} foot={plate.foot} />
+  </div>
+</header>

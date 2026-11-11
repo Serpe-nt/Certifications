@@ -5,7 +5,8 @@ import Practice from '../components/islands/Practice.tsx';
 
 interface Props {
   title: string;
-  /** The page lays out its own header and screen (the step page). Other pages get one screen around their content. */
+  /** The page lays out its own header and screen (the step page). Other pages get their PageHead in the
+      "head" slot, then one screen around their content. */
   bare?: boolean;
   /** Settings and Practice open as dialogs over the page; their own pages turn this off. */
   dialogs?: boolean;
@@ -49,11 +50,14 @@ const base = import.meta.env.BASE_URL;
           bare ? (
             <slot />
           ) : (
+            <>
+            <slot name="head" />
             <div class="screen">
               <div class="glass page-glass">
                 <slot />
               </div>
             </div>
+            </>
           )
         }
       </main>

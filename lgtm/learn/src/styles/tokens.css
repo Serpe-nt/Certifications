@@ -38,6 +38,18 @@
   --lg-radius-screen: 1.375rem;
   --lg-cut: 0.875rem; /* the chamfer on cut-corner panels and buttons */
 
+  /* The type ramp. Every font-size in the stylesheets is one of these. */
+  --lg-text-label: 0.75rem; /* mono labels, uppercase */
+  --lg-text-small: 0.9375rem; /* notes, captions, sidebar text */
+  --lg-text-ui: 1.0625rem; /* controls, lists in panels */
+  --lg-text-body: 1.1875rem; /* reading text */
+  --lg-text-lead: 1.375rem; /* the outcome line, part titles, leads */
+  --lg-text-h3: 1.75rem;
+  --lg-text-h2: 2rem;
+  --lg-text-stat: 2.75rem; /* big figures */
+  --lg-text-page: clamp(2rem, 3.6vw, 3.25rem); /* titles of the other pages */
+  --lg-text-display: clamp(2.5rem, 4.6vw, 4.875rem); /* the step title */
+
   --lg-measure: 47.5rem; /* the reading column on the step page */
   --lg-page-max: 90rem;
 
@@ -51,6 +63,7 @@
 
   /* The bezel and the screen */
   --lg-bezel: #141516;
+  --lg-bezel-2: #3b3f42; /* unlit dots and dark insets on the bezel */
   --lg-screen: #d4d8da;
   --lg-screen-2: #c5cacc; /* insets and tracks on the screen */
   --lg-rule: #b3b8bb; /* rules on the screen */

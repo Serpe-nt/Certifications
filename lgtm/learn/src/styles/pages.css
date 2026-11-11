@@ -8,7 +8,7 @@
   margin: 0 0 var(--lg-space-6);
   font-family: var(--lg-font-display);
   font-weight: 400;
-  font-size: clamp(2rem, 3.6vw, 3.25rem);
+  font-size: var(--lg-text-page);
   line-height: 1.05;
   color: var(--lg-ink);
 }
@@ -57,7 +57,7 @@
   border-bottom: 2px solid var(--lg-ink);
   font-family: var(--lg-font-mono);
   font-weight: 600;
-  font-size: 0.6875rem;
+  font-size: var(--lg-text-label);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--lg-ink-3);

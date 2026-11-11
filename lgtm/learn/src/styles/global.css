@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./tokens.css";
 @import "./step.css";
+@import "./head.css";
 @import "./pages.css";
 
 /* The Tailwind theme points at the tokens, so utilities such as bg-surface or text-ink follow them. */
@@ -106,7 +107,7 @@
   .mono {
     font-family: var(--lg-font-mono);
     font-weight: 600;
-    font-size: 0.75rem;
+    font-size: var(--lg-text-label);
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
@@ -122,7 +123,7 @@
     background: transparent;
     color: var(--lg-ink);
     font-family: var(--lg-font-display);
-    font-size: 1.0625rem;
+    font-size: var(--lg-text-ui);
     letter-spacing: 0.03em;
     text-decoration: none;
     cursor: pointer;
@@ -158,7 +159,7 @@
     margin: 0 0 var(--lg-space-3);
     font-family: var(--lg-font-mono);
     font-weight: 600;
-    font-size: 0.75rem;
+    font-size: var(--lg-text-label);
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
@@ -220,7 +221,7 @@
     max-width: var(--lg-page-max);
     margin: 0 auto;
     padding: var(--lg-space-6) 116px var(--lg-space-12);
-    overflow: hidden;
+    overflow: clip;
   }
   @media (max-width: 1100px) {
     .console {
@@ -255,7 +256,7 @@
     align-items: center;
     gap: 10px;
     font-family: var(--lg-font-display);
-    font-size: 1.125rem;
+    font-size: var(--lg-text-ui);
     letter-spacing: 0.06em;
     color: var(--lg-ink);
     text-decoration: none;
@@ -319,7 +320,7 @@
   }
   .glass {
     position: relative;
-    overflow: hidden;
+    overflow: clip;
     background: var(--lg-screen);
     border-radius: calc(var(--lg-radius-screen) - 3px);
     padding: var(--lg-space-8) 44px 44px;
@@ -395,12 +396,12 @@
   }
   .fx-banner {
     top: var(--lg-space-6);
-    font-size: 1.25rem;
+    font-size: var(--lg-text-lead);
   }
   .fx-banner-module,
   .fx-banner-mock,
   .fx-banner-all {
-    font-size: 1.75rem;
+    font-size: var(--lg-text-h3);
   }
   .fx-notice {
     bottom: var(--lg-space-6);
@@ -532,7 +533,7 @@
     margin: 0;
     font-family: var(--lg-font-display);
     font-weight: 400;
-    font-size: 2rem;
+    font-size: var(--lg-text-h2);
   }
 }
 @media (prefers-reduced-motion: no-preference) {

@@ -74,7 +74,7 @@ test('Effects off calms the page before paint and across pages', async ({ page }
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
   await page.goto('/m/m90/s01/');
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
-  const duration = await page.locator('.steptitle').evaluate((el) => getComputedStyle(el).animationDuration);
+  const duration = await page.locator('.pagetitle').evaluate((el) => getComputedStyle(el).animationDuration);
   expect(parseFloat(duration)).toBeLessThan(0.001);
 });
 

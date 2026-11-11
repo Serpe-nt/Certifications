@@ -5,8 +5,7 @@
 import Base from '../../../../layouts/Base.astro';
 import CheckWidget from '../../../../components/islands/CheckWidget.tsx';
 import StepNav from '../../../../components/islands/StepNav.tsx';
-import Globe from '../../../../components/Globe.astro';
-import Matrix from '../../../../components/Matrix.astro';
+import PageHead from '../../../../components/PageHead.astro';
 import { mdxComponents } from '../../../../components/mdx/index.ts';
 import { href, loadCourse } from '../../../../lib/course.ts';
 import { getCollection, render } from 'astro:content';
@@ -42,26 +41,16 @@ const exams = step.exam.filter((e) => e.cert !== 'none').map((e) => `${e.cert.to
 const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
 ---
 <Base title={step.title} bare>
-  <header class="stephead">
-    <Globe />
-    <div class="stephead-main">
-      <div class="tagrow">
-        <span class="tag">{kindLabel}</span>
-        <span class="tag-tail" aria-hidden="true"></span>
-        <span class="counter" aria-label={`Step ${position} of ${total}`}><span>{String(position).padStart(2, '0')}</span><span>{String(total).padStart(2, '0')}</span></span>
-      </div>
-      <p class="crumb mono"><span>{section} //</span><a href={module.href}>{module.title}</a></p>
-      <h1 class="steptitle">{step.title}</h1>
-      {step.outcome && <p class="outcome">{step.outcome}</p>}
-      <p class="chips mono">
-        <span class="chip">{step.minutes} min</span>
-        {exams.map((e) => <span class="chip chip-dark">{e}</span>)}
-      </p>
-    </div>
-    <div class="stepmeta-side">
-      <Matrix value={position} total={total} />
-    </div>
-  </header>
+  <PageHead
+    tag={kindLabel}
+    crumbText={`${section} //`}
+    crumb={{ label: module.title, href: module.href }}
+    title={step.title}
+    size="display"
+    lead={step.outcome}
+    chips={[{ text: `${step.minutes} min` }, ...exams.map((e) => ({ text: e, dark: true }))]}
+    plate={{ value: String(position).padStart(2, '0'), label: `Step ${position} of ${total}`, foot: ['Step', `${position} / ${total}`] }}
+  />
 
   <section class="screen" aria-label="Step">
     <div class="glass" data-tab="learn" data-has-practice={hasPractice ? '' : undefined} data-step={step.id} data-kind={step.kind}>
