@@ -1,19 +1,17 @@
 # Curriculum
 
-19 modules, about 245 steps. One step is one card. The learner knows Kubernetes but not Helm, Prometheus, PromQL or Grafana, so the course opens with Helm: the whole lab is installed with it. The step lists below are outlines: the content worker for a module checks each topic against the current official docs and may split, merge, rename or drop a step when the product has changed, and says so in the pull request. Module ids and their order are fixed.
+19 modules, about 245 steps. One step is one short article. The learner knows Kubernetes but not Helm, Prometheus, PromQL or Grafana, so the course opens with Helm: the whole lab is installed with it. The step lists below are outlines: the content worker for a module checks each topic against the current official docs and may split, merge, rename or drop a step when the product has changed, and says so in the pull request. Module ids and their order are fixed.
 
 ## How a step teaches
 
-Every card follows the same order, taken from the saa-plan cards the owner already likes:
+A step is an article, read from top to bottom (the owner's decision of 2026-11-11; the exact format is in `03-content-contract.md`, version 2):
 
-1. **Why**: the problem this thing was made to solve, told as a short scene.
-2. **Idea**: the answer in two or three plain sentences.
-3. **Points**: up to six labelled points, in story order.
-4. **Do** (lab steps): numbered actions in the lab, with the exact command or click.
-5. **Done**: how you know it worked.
-6. **Check**: paste something only the finished lab can give (a value, a name, a token).
-7. **Trap**: the usual mistake, when there is one.
-8. **Question**: one knowledge-check question on the card.
+1. **The problem**: what this thing was made to solve, told as a short scene.
+2. **The idea**: the answer in two or three plain sentences.
+3. **Two to five sections** of running text, each under a heading that says what the section says. Where an article would carry a picture, a section carries an information part: a flow, a comparison, figures to scale, layers or a timeline.
+4. **In the lab**, **the trap** and **what to remember**, where the step has them.
+5. **Practice** (lab and drill steps, on a tab of its own): numbered actions with the exact command or click, how you know it worked, and a check that asks for something only the finished lab can give (a value, a name, a token).
+6. **The question**: one knowledge-check question.
 
 A module ends with a quiz: 15 questions drawn from a pool of at least 30, pass at 80%. Missed questions come back after 1, 2 and 4 days. Readiness is shown per exam domain.
 
@@ -183,6 +181,7 @@ Goal: add metrics and correlated logs to a service and configure the SDK without
 11. Agents: Java, .NET, Python, Node, and injection by the Operator
 12. How three shop services are instrumented: read the code
 13. Debugging an SDK: console exporter and self-diagnostics
+14. When telemetry fails: the error handling rules of the API and SDK, and OTLP retries (added 2026-11-11: the OTCA mock pool has three questions on it, tag `otel-error-handling`, and no step covered it)
 
 ### m09 OpenTelemetry Collector (O3, O4)
 Goal: read, change and debug a Collector pipeline in production shape.

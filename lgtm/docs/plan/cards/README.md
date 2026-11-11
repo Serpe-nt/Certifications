@@ -51,6 +51,14 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - Host ports in wave 3, all on 127.0.0.1: C0 uses 8095 and 8096 (the site), D2 uses 8097, L4 uses 8098 if it needs one.
 - In WSL the name `cluster-endpoint.k8s.local` resolves; the `lab.k8s.local` names do not. Use `http://10.10.0.5` with a `Host:` header.
 
+## Wave 5: content, on top of the design branch
+
+- Wave 5 starts while the design session's pull request 44 is still open. Its worktrees are cut from `claude/lgtm-wave5-base`: `main` plus the design branch. A wave 5 pull request targets `main`, so until 44 is merged its diff also shows the design work. That is expected; the planner merges 44 first. All the more reason to change nothing outside "Owns".
+- One test of the design branch fails in CI: `tests/e2e/quiz.spec.ts`, line 7, a click that times out. It belongs to the design worker. Do not fix it and do not count it against your work; every other check must pass.
+- Content sessions share the live lab with each other and with the owner. The rules are in `content-module-template.md`, section "The lab": read anything, create only in your own namespace, never touch a lab release.
+- Host ports in wave 5, all on 127.0.0.1: the design session keeps 8095 and 8096; C0b uses 8097, C1 8098, C2 8099 for the site (`npx astro dev --port <port>`). Port-forwards: C1 18100 to 18109, C2 18110 to 18119.
+- No kind clusters in wave 5: the VMs leave Docker Desktop too little memory.
+
 ## Pull request text
 
 - Title: `[lgtm <card id>] <what it delivers>`
@@ -75,6 +83,9 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 3 | `w3-c0-content-pilot.md` | C0 content pilot, module m02 |
 | 4 | `w4-dz-article-redesign.md` | DZ the lesson page as an article (with the owner in the session) |
 | 4 | `w4-x-mock-exam-pool.md` | X1 the OTCA mock pool and X2 the PCA mock pool (questions keep their form, so they do not wait for the redesign) |
-| 5 and later | `content-module-template.md` | one copy per module, filled in by the planner once the content contract is at version 2 |
+| 5 | `content-module-template.md` | the part every content card shares; each content card below is short and points to it |
+| 5 | `w5-c0b-m02-rewrite.md` | C0b module m02 in the article form |
+| 5 | `w5-c1-setup-helm.md` | C1 modules m00 Start here and m01 Helm |
+| 5 | `w5-c2-prometheus.md` | C2 module m03 Prometheus fundamentals |
 
-Cards for wave 5 and later (C0b, C1 and the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
+Cards for wave 6 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
