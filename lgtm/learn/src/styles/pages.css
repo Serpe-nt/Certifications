@@ -1,0 +1,121 @@
+/*
+  The pages other than the step (overview, module start and end, quiz, practice, mock exam, settings, 404)
+  sit on one screen (Base.astro, .page-glass). These rules bring their islands into the design without
+  changing the islands' markup or behaviour.
+*/
+
+.page-glass h1 {
+  margin: 0 0 var(--lg-space-6);
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: clamp(2rem, 3.6vw, 3.25rem);
+  line-height: 1.05;
+  color: var(--lg-ink);
+}
+.page-glass h2 {
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  line-height: 1.15;
+  color: var(--lg-ink);
+}
+.page-glass h3 {
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  color: var(--lg-ink);
+}
+.page-glass p,
+.page-glass li {
+  line-height: 1.6;
+}
+
+/* Soft rounded cards become cut-corner panels with an ink frame. */
+.page-glass .rounded-lg,
+.page-glass .rounded-md {
+  border-radius: 0;
+}
+.page-glass .shadow-card {
+  box-shadow: none;
+}
+.page-glass .rounded-lg.border {
+  position: relative;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+}
+.page-glass .rounded-md.border {
+  border-color: var(--lg-rule);
+  background: var(--lg-paper);
+}
+
+/* Tables: mono headers, hairline rows, aligned figures. */
+.page-glass table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.page-glass th {
+  padding: 8px 10px 8px 0;
+  border-bottom: 2px solid var(--lg-ink);
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lg-ink-3);
+}
+.page-glass td {
+  padding: 7px 10px 7px 0;
+  border-bottom: 1px solid var(--lg-rule);
+}
+
+/* Progress bars in the palette. */
+.page-glass progress {
+  appearance: none;
+  height: 12px;
+  border: 0;
+  background: var(--lg-screen-2);
+}
+.page-glass progress::-webkit-progress-bar {
+  background: var(--lg-screen-2);
+}
+.page-glass progress::-webkit-progress-value {
+  background: var(--lg-ink);
+}
+.page-glass progress::-moz-progress-bar {
+  background: var(--lg-ink);
+}
+
+/* Form controls take the ink and the signal colour. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--lg-ink);
+}
+
+/* Option rows in quizzes and the step question. */
+.page-glass label.border,
+.prose label.border,
+.modal label.border {
+  border-radius: 0;
+  border: 1px solid var(--lg-rule);
+  background: var(--lg-paper);
+}
+.page-glass label.border.border-good,
+.prose label.border.border-good,
+.modal label.border.border-good {
+  border: 2px solid var(--lg-good);
+}
+.page-glass label.border.border-bad,
+.prose label.border.border-bad,
+.modal label.border.border-bad {
+  border: 2px solid var(--lg-bad);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-glass h1 {
+    animation: lg-wipe var(--lg-dur-slow) var(--lg-ease-out) both;
+  }
+  .page-glass > .box,
+  .page-glass > div > .box,
+  .page-glass .rounded-lg.border {
+    animation: lg-rise 0.6s var(--lg-ease-out) both;
+  }
+}

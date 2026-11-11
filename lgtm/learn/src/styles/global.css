@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./tokens.css";
 @import "./step.css";
+@import "./pages.css";
 
 /* The Tailwind theme points at the tokens, so utilities such as bg-surface or text-ink follow them. */
 @theme inline {
