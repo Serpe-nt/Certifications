@@ -1,0 +1,21 @@
+---
+// A module's own line-drawn icon (src/assets/deco/modules/<id>.svg), looked up by module id, with a
+// fallback shape for a module that has none yet. Ids starting with "p-" are the study method's icons
+// on the overview. Decoration only: hidden from assistive tech, drawn in currentColor with one
+// signal-yellow detail. Sizes and motion: "module icons" in src/styles/home.css. It carries no page
+// layout, so it can sit in a card, a list row or the page header.
+const files = import.meta.glob<string>('../assets/deco/modules/*.svg', { query: '?raw', import: 'default', eager: true });
+const ICONS: Record<string, string> = Object.create(null);
+for (const [path, svg] of Object.entries(files)) ICONS[path.slice(path.lastIndexOf('/') + 1, -4)] = svg;
+
+interface Props {
+  /** Module id (m00 to m18) or a study-method icon (p-read, p-lab, p-check, p-review, p-exam). */
+  id: string;
+  /** sm 2.5rem, md 4rem (default), lg 6rem, xl 9rem. */
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  class?: string;
+}
+const { id, size = 'md', class: extra } = Astro.props;
+const key = Object.hasOwn(ICONS, id) ? id : 'fallback';
+---
+<span class:list={['micon', `micon-${size}`, extra]} data-icon={key} aria-hidden="true"><Fragment set:html={ICONS[key]} /></span>

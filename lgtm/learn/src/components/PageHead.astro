@@ -4,6 +4,7 @@
 // Styles: src/styles/head.css. Put it in Base's "head" slot, or before the screen on a bare page.
 import Globe from './Globe.astro';
 import Matrix from './Matrix.astro';
+import ModuleIcon from './ModuleIcon.astro';
 
 interface Props {
   tag: string;
@@ -19,11 +20,21 @@ interface Props {
   leadStyle?: 'outcome' | 'plain';
   chips?: { text: string; dark?: boolean }[];
   plate: { value: string; label: string; foot: [string, string] };
+  /** A module id: the module's own icon turns behind the header instead of the globe. */
+  icon?: string;
 }
-const { tag, crumbText, crumb, title, size = 'page', lead, leadStyle = 'outcome', chips = [], plate } = Astro.props;
+const { tag, crumbText, crumb, title, size = 'page', lead, leadStyle = 'outcome', chips = [], plate, icon } = Astro.props;
 ---
 <header class="pagehead">
-  <Globe />
+  {
+    icon ? (
+      <div class="globe globe-module" aria-hidden="true">
+        <ModuleIcon id={icon} />
+      </div>
+    ) : (
+      <Globe />
+    )
+  }
   <div class="pagehead-main">
     <div class="tagrow">
       <span class="tag">{tag}</span>

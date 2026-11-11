@@ -1,11 +1,71 @@
 ---
+// The overview: the course header, then on the screen the next step as the hero (with the stack
+// drawing), the modules with their icons, the study status, readiness, and how the course works.
 import Base from '../layouts/Base.astro';
+import ModuleIcon from '../components/ModuleIcon.astro';
+import PageHead from '../components/PageHead.astro';
 import Overview from '../components/islands/Overview.tsx';
+import hero from '../assets/deco/hero-stack.svg?raw';
 import { loadCourse } from '../lib/course.ts';
 
 const { modules } = await loadCourse();
+const steps = modules.reduce((n, m) => n + m.steps.length, 0);
+const minutes = modules.reduce((n, m) => n + m.steps.reduce((k, s) => k + s.minutes, 0), 0);
+const hours = Math.max(1, Math.round(minutes / 60));
+const two = (n: number) => String(n).padStart(2, '0');
+
+// How a step teaches, in the order a learner meets it. The numbers come from the study rules (CLAUDE.md, Constants).
+const method = [
+  { icon: 'p-read', title: ['Read', 'the step'], text: 'Each step is one short article. It opens with the problem and ends with what to remember.' },
+  { icon: 'p-lab', title: ['Do', 'the lab'], text: 'Lab steps send you to your own cluster. Reading a step never needs the lab.' },
+  { icon: 'p-check', title: ['Paste', 'the result'], text: 'The site checks a value only the finished lab can give: a trace ID, a token or a number.' },
+  { icon: 'p-review', title: ['Review', 'on time'], text: 'A question you miss comes back for review after 1 day, then 2, then 4.' },
+  { icon: 'p-exam', title: ['Sit', 'a mock exam'], text: 'Each mock has 60 questions and 90 minutes, split by the exam domains. You pass at 75%.' },
+];
 ---
 <Base title="LGTM course">
-  <h1 class="sr-only">Overview</h1>
-  <Overview client:load modules={modules} />
+  <PageHead
+    slot="head"
+    tag="Overview"
+    crumbText="IDX_00 //"
+    crumb={{ label: 'LGTM course' }}
+    title="Observability with the LGTM stack"
+    lead="Loki, Grafana, Tempo, Mimir, Prometheus and OpenTelemetry, taught on a lab that runs on your own cluster. The course also prepares you for the OTCA and PCA exams."
+    leadStyle="plain"
+    chips={[
+      { text: `${modules.length} ${modules.length === 1 ? 'module' : 'modules'}` },
+      { text: `${steps} steps` },
+      { text: `About ${hours} h` },
+      { text: 'OTCA', dark: true },
+      { text: 'PCA', dark: true },
+    ]}
+    plate={{ value: two(steps), label: `${steps} steps in ${modules.length} ${modules.length === 1 ? 'module' : 'modules'}`, foot: ['Steps', `${two(modules.length)} mod`] }}
+  />
+
+  <Overview client:load modules={modules}>
+    <div slot="art" class="hero-art"><Fragment set:html={hero} /></div>
+    {modules.map((m) => <ModuleIcon slot={`i${m.id}`} id={m.id} size="lg" />)}
+  </Overview>
+
+  <section class="ov-sec ov-method" aria-labelledby="ov-method">
+    <div class="ov-sh">
+      <span class="ov-sh-n mono" aria-hidden="true">/05</span>
+      <h2 class="ov-sh-t" id="ov-method">How the course works</h2>
+      <span class="ov-sh-c mono">5 parts</span>
+    </div>
+    <ol class="ov-method-list">
+      {
+        method.map((p, i) => (
+          <li class="ov-method-item">
+            <ModuleIcon id={p.icon} size="sm" />
+            <p class="ov-method-title mono">
+              <span>{two(i + 1)} // {p.title[0]}</span>
+              <span>{p.title[1]}</span>
+            </p>
+            <p class="ov-method-text">{p.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
 </Base>

@@ -51,6 +51,7 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
     crumb={{ label: module.title, href: module.href, dialog: 'module' }}
     title={step.title}
     size="display"
+    icon={module.id}
     lead={step.outcome}
     chips={[{ text: `${step.minutes} min` }, ...exams.map((e) => ({ text: e, dark: true }))]}
     plate={{ value: String(position).padStart(2, '0'), label: `Step ${position} of ${total}`, foot: ['Step', `${position} / ${total}`] }}

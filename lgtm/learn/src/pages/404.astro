@@ -1,9 +1,25 @@
 ---
 import Base from '../layouts/Base.astro';
+import ModuleIcon from '../components/ModuleIcon.astro';
+import PageHead from '../components/PageHead.astro';
 import { href } from '../lib/course.ts';
 ---
 <Base title="Not found">
-  <h1 class="mt-0">This page does not exist</h1>
-  <p>The address may be old or mistyped.</p>
-  <p><a class="btn btn-primary" href={href.home}>Go to the overview</a></p>
+  <PageHead
+    slot="head"
+    tag="Error 404"
+    crumbText="ERR_404 //"
+    crumb={{ label: 'Overview', href: href.home }}
+    title="This page does not exist"
+    lead="The address may be old or mistyped."
+    leadStyle="plain"
+    plate={{ value: '404', label: 'Error 404: page not found', foot: ['Error', 'Not found'] }}
+  />
+  <section class="nf" aria-label="Where to go">
+    <ModuleIcon id="m14" size="lg" />
+    <div class="nf-body">
+      <p class="nf-text">Nothing is at this address. The overview lists every module and your next step.</p>
+      <p class="nf-actions"><a class="btn btn-primary" href={href.home}>Go to the overview</a></p>
+    </div>
+  </section>
 </Base>

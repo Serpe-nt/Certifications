@@ -230,12 +230,12 @@
     padding: 9px 10px 8px;
   }
   .digit {
-    --dot: 7px;
+    --dot: 9px;
     gap: 2px;
   }
   .matrix[data-len="3"] .digit,
   .matrix[data-len="4"] .digit {
-    --dot: 6px;
+    --dot: 7px;
   }
   .matrix-digits {
     justify-content: flex-start;
@@ -266,6 +266,23 @@
   fill: var(--lg-signal);
   stroke: var(--lg-ink);
   stroke-width: 1.5px;
+}
+/* A module's own icon in the globe's place: drawn large and faint, in the ash ink. */
+.globe-module {
+  left: -110px;
+  top: -40px;
+  width: 400px;
+  height: 400px;
+  opacity: 0.4;
+}
+.globe-module .micon {
+  width: 100%;
+  height: 100%;
+}
+/* Behind the title the icon stays all ash ink: its yellow detail would sit under the words. */
+.globe-module .micon .hot {
+  fill: none;
+  stroke: currentColor;
 }
 @media (max-width: 900px) {
   .globe {

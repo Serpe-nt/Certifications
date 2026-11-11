@@ -1,16 +1,38 @@
 ---
-// Module end: what was done, and the quiz entry point (card S2 builds the quiz).
+// Module end: what was done, the quiz entry point, and the next module.
 import Base from '../../../../layouts/Base.astro';
+import ModuleIcon from '../../../../components/ModuleIcon.astro';
+import PageHead from '../../../../components/PageHead.astro';
 import ModuleEnd from '../../../../components/islands/ModuleEnd.tsx';
 import { href, loadCourse } from '../../../../lib/course.ts';
+import { QUIZ_PASS, QUIZ_SIZE } from '../../../../lib/quiz.ts';
 
 export async function getStaticPaths() {
   const { modules } = await loadCourse();
-  return modules.map((m) => ({ params: { module: m.id }, props: { module: m } }));
+  return modules.map((m, i) => {
+    const n = modules[i + 1];
+    return { params: { module: m.id }, props: { module: m, next: n ? { id: n.id, title: n.title, goal: n.goal, href: n.href } : null } };
+  });
 }
-const { module } = Astro.props;
+const { module, next } = Astro.props;
+const no = module.id.replace(/\D/g, '').padStart(2, '0') || '00';
+const total = module.steps.length;
 ---
 <Base title={`${module.title}: end of module`}>
-  <h1 class="mt-0">End of {module.title}</h1>
-  <ModuleEnd client:load module={module} homeHref={href.home} />
+  <PageHead
+    icon={module.id}
+    slot="head"
+    tag="Module end"
+    crumbText={`MOD_${no} //`}
+    crumb={{ label: module.title, href: module.href }}
+    title={`End of ${module.title}`}
+    lead={module.quiz ? 'See what you finished in this module, then take its quiz.' : 'See what you finished in this module, then go on to the next one.'}
+    leadStyle="plain"
+    chips={[{ text: `${total} ${total === 1 ? 'step' : 'steps'}` }, ...(module.quiz ? [{ text: `Quiz: ${QUIZ_SIZE} questions` }, { text: `Pass at ${Math.round(QUIZ_PASS * 100)}%` }] : [])]}
+    plate={{ value: no, label: `End of module ${no}`, foot: ['End', `Mod ${no}`] }}
+  />
+  <ModuleEnd client:load module={module} homeHref={href.home} next={next}>
+    <ModuleIcon slot="icon" id={module.id} size="lg" />
+    {next && <ModuleIcon slot="nextIcon" id={next.id} size="md" />}
+  </ModuleEnd>
 </Base>
