@@ -1,0 +1,1744 @@
+# Mock exam pool for the OpenTelemetry Certified Associate (OTCA). A mock exam draws 60
+# questions from it by domain weight (11/28/15/6). Every fact is checked against the source
+# given on the question; the log is lgtm/docs/verification/mock-otca.md.
+
+# O1 Telemetry Data
+- id: q-mock-otca-001
+  tags: [traces, otel-spans]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: An order service puts a job on a queue. A worker runs the job two hours later, in a trace of its own. The team wants to see which request created the job. What should the worker's first span carry?
+  options:
+    - text: A span link to the span that queued the job
+      why: A link ties one span to a span in another trace when the later work cannot be predicted, such as queued jobs.
+    - text: A span event that names the queued job
+      why: An event marks a point in time inside one span. It does not point to a span in another trace.
+    - text: A baggage entry with the job's ID
+      why: Baggage carries values across services, but it does not connect two spans to each other.
+    - text: The same resource attributes as the order service
+      why: Resource attributes describe the entity that produced the telemetry, not a cause between two operations.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/signals/traces/
+- id: q-mock-otca-002
+  tags: [traces, otel-spans]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: A checkout span covers a whole payment. Analysts later need the exact moment the card was approved inside that payment. How should the approval be recorded?
+  options:
+    - text: As a span attribute named for the approval
+      why: An attribute has no time of its own. Use one when the moment does not matter.
+    - text: As a span event on the checkout span
+      why: An event marks a meaningful single point in time during a span, so its timestamp is kept.
+    - text: As a new resource attribute of the service
+      why: Resource attributes describe the service or host, not one moment in one request.
+    - text: As a metric with the card number as an attribute
+      why: A metric aggregates numbers. A card number would also create one series per card.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/signals/traces/
+- id: q-mock-otca-003
+  tags: [metrics]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: In OpenTelemetry, what is a metric event?
+  options:
+    - text: A log record written when a metric crosses a threshold
+      why: That describes an alert or a log. A metric event happens every time a measurement is captured.
+    - text: A span event that carries a number as an attribute
+      why: Span events belong to traces. Metrics have their own model.
+    - text: Capturing one measurement, with its time and metadata
+      why: The moment a measurement is captured is a metric event, and it includes the value, the time and associated metadata.
+    - text: One bucket of a histogram after it is exported
+      why: A bucket is part of an aggregated data point, which is built from many metric events.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/signals/metrics/
+- id: q-mock-otca-004
+  tags: [logs, correlation]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: A service already writes logs with its usual logging library. The team activates the OpenTelemetry SDK with a log bridge. What does OpenTelemetry add to a log record written while a request is being handled?
+  options:
+    - text: A copy of every attribute of the active span
+      why: The span's attributes stay on the span. The log record gets the IDs that let you find the span.
+    - text: A new child span for each log line
+      why: Logging does not create spans. Logs and spans are separate signals that are correlated by IDs.
+    - text: The full body of the HTTP request being served
+      why: The docs describe adding the trace and span IDs, not the request. Copying bodies would also risk leaking personal data.
+    - text: The trace ID and span ID of the active span
+      why: The SDK correlates existing logs with the active trace and span by adding their IDs.
+  answer: [3]
+  source: https://opentelemetry.io/docs/concepts/signals/logs/
+- id: q-mock-otca-005
+  tags: [logs]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: A Collector reads a log file today that an application wrote yesterday. Which field of the log record holds the moment the Collector read the line?
+  options:
+    - text: ObservedTimestamp
+      why: ObservedTimestamp is the time when the event was observed by the collection system.
+    - text: Timestamp
+      why: Timestamp is the time when the event happened, here yesterday.
+    - text: SeverityNumber
+      why: SeverityNumber is the level of the log, such as INFO or ERROR, not a time.
+    - text: InstrumentationScope
+      why: The scope names the library or module that emitted the log. It holds no time.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/logs/data-model/
+
+# O1 Semantic Conventions
+- id: q-mock-otca-006
+  tags: [semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: A developer at a company with the domain acme.com needs a new attribute for a customer's loyalty tier. No semantic convention exists for it, and the name may later be used outside the company. Which name follows the naming guidance?
+  options:
+    - text: <code>http.loyalty_tier</code>
+      why: Using an existing OpenTelemetry namespace for your own attribute may clash with a future convention.
+    - text: <code>otel.loyalty_tier</code>
+      why: Names that start with <code>otel.</code> are reserved for the OpenTelemetry specification.
+    - text: <code>com.acme.loyalty_tier</code>
+      why: The guidance is to prefix a company name with the reverse domain, in lower case, with snake_case for multi-word parts.
+    - text: <code>LoyaltyTier</code>
+      why: Names should be lower case and use dot namespaces. This one has neither.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/semconv/general/naming/
+- id: q-mock-otca-007
+  tags: [semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: A semantic convention says an instrumentation must set <code>error.type</code> only when the request ended with an error. Which requirement level describes such an attribute?
+  options:
+    - text: Required
+      why: A Required attribute must be set by all instrumentations every time, with no condition.
+    - text: Recommended
+      why: A Recommended attribute should be added by default when it is readily available. It is not tied to a condition.
+    - text: Opt-In
+      why: An Opt-In attribute is set only when the user configures the instrumentation to set it.
+    - text: Conditionally Required
+      why: A Conditionally Required attribute must be set when its stated condition is true.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/
+- id: q-mock-otca-008
+  tags: [semantic-conventions, otel-spans]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: An HTTP server answers a request for a missing page with status 404. Following the HTTP semantic conventions, what status should the server's span have?
+  options:
+    - text: Error, because every 4xx code is an error
+      why: That rule applies to client spans. On a server span a 4xx code means the client made the mistake.
+    - text: It stays unset
+      why: For 4xx codes the span status must be left unset on a server span.
+    - text: Ok, because the server handled the request
+      why: Ok is a final status set on purpose by a developer. The conventions say to leave the status unset here.
+    - text: Error, with the description "Not Found"
+      why: The status stays unset, and a description is not set when the status code already explains the reason.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+- id: q-mock-otca-009
+  tags: [semantic-conventions, metrics]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: A team adds an UpDownCounter for the number of open connections in its application, called myapp. Which metric name follows the semantic convention naming rules?
+  options:
+    - text: <code>myapp.connections</code>
+      why: UpDownCounter names should not be pluralized. A count is named with <code>.count</code> instead.
+    - text: <code>myapp.connection.count</code>
+      why: It is lower case, not pluralized and has no <code>total</code> suffix, as the rules ask.
+    - text: <code>myapp.connections_total</code>
+      why: UpDownCounters should not use <code>total</code>, because they would look like monotonic sums.
+    - text: <code>MyApp.Connection.Count</code>
+      why: Names should be lower case.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/semconv/general/naming/
+
+# O1 Instrumentation
+- id: q-mock-otca-010
+  tags: [instrumentation]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: You maintain a thin wrapper library over a public, documented REST API. OpenTelemetry already instruments the HTTP client under it, and no semantic conventions apply to your library. What does the guidance say?
+  options:
+    - text: Add a span for every HTTP call the wrapper makes
+      why: The HTTP client instrumentation already creates those spans, so you would duplicate them.
+    - text: Depend on the SDK so the wrapper exports its own data
+      why: Libraries should depend only on the API. The application owner installs the SDK.
+    - text: Do not instrument the wrapper at all
+      why: When a library is a thin proxy, the network calls are already traced and no conventions apply, the guidance is not to instrument.
+    - text: Write a log line for every request and response body
+      why: That adds cost and can leak data. The guidance is to instrument only at your library's own level.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/instrumentation/libraries/
+- id: q-mock-otca-011
+  tags: [instrumentation, otel-api-sdk]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: An application uses a third-party library that is instrumented with the OpenTelemetry API. The application never installs an OpenTelemetry SDK. What happens to the library's instrumentation?
+  options:
+    - text: Its spans wait in memory until an SDK is installed
+      why: Without an SDK the instrumentation does nothing, so there is nothing to keep for later.
+    - text: It sends spans to localhost:4317 by default
+      why: Exporting is part of the SDK. The API alone exports nothing.
+    - text: The library fails to start because the SDK is missing
+      why: The API is designed to work without an SDK, so the library runs normally.
+    - text: The calls do nothing and cost almost no time
+      why: Without the SDK the API is non-operational, so the instrumentation does nothing and does not affect performance.
+  answer: [3]
+  source: https://opentelemetry.io/docs/concepts/instrumentation/libraries/
+- id: q-mock-otca-012
+  tags: [instrumentation, otel-zero-code]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: An operations team must add tracing to a Java service this week. They cannot change its source code. Which approach fits?
+  options:
+    - text: Code-based instrumentation with the API and SDK
+      why: Code-based instrumentation needs changes to the source, which the team cannot make.
+    - text: Zero-code instrumentation with the Java agent
+      why: Zero-code instrumentation adds the API and SDK without editing the source; a service name is enough to start.
+    - text: Native instrumentation inside each library
+      why: Native instrumentation is written by library authors. The team cannot add it to the libraries this week.
+    - text: A Collector that reads the service's log files
+      why: Reading logs does not create spans, so the team would still have no traces.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/instrumentation/zero-code/
+- id: q-mock-otca-013
+  tags: [instrumentation, otel-sampling]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: Your library adds a sanitized database statement to its spans, and sanitizing is expensive. Most spans are sampled out in production. How should the library add this attribute?
+  options:
+    - text: Add it only when the span reports that it is recording
+      why: Sampled-out spans are cheap. Checking whether a span is recording avoids expensive work for spans that will not be kept.
+    - text: Add it at span creation so the sampler always sees it
+      why: Attributes needed for sampling belong at creation, but an expensive one should be added only if the span is recording.
+    - text: Put it in baggage so the next service computes it
+      why: Baggage is sent to other services and does not reduce the cost. It also spreads the statement in headers.
+    - text: Record it as a resource attribute once at startup
+      why: Each statement belongs to one operation. A resource describes the whole process.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/instrumentation/libraries/
+- id: q-mock-otca-014
+  tags: [instrumentation, otel-spans]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: Your library looks up a cache hundreds of times in one request and wants to record details of each lookup. What does the library guidance suggest?
+  options:
+    - text: One span per lookup, made a child of the active span
+      why: A span per lookup would be very verbose. The guidance suggests events or logs for verbose data.
+    - text: Events on the span that your library itself created
+      why: Use events or logs for verbose data, and attach events to your own span, not to whatever span is active.
+    - text: Events on whatever span is active at that moment
+      why: You do not control what the active span refers to, so the guidance says to avoid it.
+    - text: A metric with the cache key as an attribute
+      why: Every cache key would become its own metric series, and there would be very many of them.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/instrumentation/libraries/
+- id: q-mock-otca-015
+  tags: [instrumentation]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: What is OpenTelemetry's stated long-term goal for popular libraries and frameworks?
+  options:
+    - text: That agents instrument them all at runtime
+      why: Agents are one way to add instrumentation, but they are not the stated goal.
+    - text: That each vendor ships its own SDK for them
+      why: OpenTelemetry exists to replace vendor-specific SDKs, not to multiply them.
+    - text: That they ship observable by default
+      why: The aim is for popular libraries to be built observable by default, so separate dependencies are not needed.
+    - text: That only the Collector observes them, from outside
+      why: The Collector receives and processes telemetry. It cannot see inside a library's code.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/components/
+
+# O1 Analysis and Outcomes
+- id: q-mock-otca-016
+  tags: [analysis, slo]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: A shop's site is up all the time. Sometimes, when a user adds black shoes to the cart, the cart gets a different item. How does the OpenTelemetry primer judge this system?
+  options:
+    - text: Reliable, because it is up and answering all the time
+      why: Uptime alone does not make a system reliable in the primer's sense.
+    - text: Unreliable, because it does not do what users expect
+      why: Reliability asks whether the service does what users expect. Wrong items in the cart make it unreliable.
+    - text: Observable, because it still sends telemetry
+      why: Observability is about asking questions of the system. It says nothing about whether the cart is right.
+    - text: Within its SLO, as long as CPU use stays low
+      why: A good SLI measures the service from the users' view. CPU use does not show wrong items in a cart.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/observability-primer/
+- id: q-mock-otca-017
+  tags: [analysis, traces]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: A bug appears at random in production across five services, and nobody can reproduce it on a laptop. According to the primer, which kind of telemetry is essential here?
+  options:
+    - text: More CPU and memory metrics per host
+      why: Host metrics show load. They do not follow one request through the services.
+    - text: More log lines in each service
+      why: Logs alone often lack context, such as where they were called from. They become useful when correlated with traces.
+    - text: Distributed traces of the requests
+      why: Tracing is essential for distributed systems with problems that are not deterministic or are too complex to reproduce locally.
+    - text: Uptime checks from outside the cluster
+      why: An uptime check shows that a service answers. It cannot show what happened inside a failing request.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/observability-primer/
+- id: q-mock-otca-018
+  tags: [analysis, correlation]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: The average time of <code>GET /product</code> looks fine, but users say the checkout page is slow. Checkout also calls <code>GET /product</code>. What lets you compare <code>GET /product</code> latency per calling endpoint?
+  options:
+    - text: Metrics aggregated using the propagated context
+      why: Context propagation lets measurements be aggregated by the calling path, such as checkout calling product.
+    - text: A higher sampling rate for product traces
+      why: More traces may help find examples, but the question is about aggregated latency per caller.
+    - text: More buckets in the latency histogram
+      why: Finer buckets show the latency spread more precisely, but not which caller the requests came from.
+    - text: A second Collector in front of the product service
+      why: Another Collector moves data. It does not know which endpoint called the product service.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/context-propagation/
+- id: q-mock-otca-019
+  tags: [analysis, otel-sampling]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: When do the OpenTelemetry docs suggest that you consider sampling traces? (Choose two.)
+  options:
+    - text: You generate 1000 or more traces per second
+      why: High volume is one of the listed reasons to consider sampling.
+    - text: Most traces show healthy traffic with little variation
+      why: When most data looks alike, a sample represents it well.
+    - text: You generate tens of small traces per second or fewer
+      why: The docs list very little data as a reason not to sample.
+    - text: Rules forbid dropping data and you have no cheap storage
+      why: The docs list regulation that forbids dropping data as a reason to avoid sampling.
+    - text: You only use the data in aggregate
+      why: If you only need aggregates, the docs suggest pre-aggregating instead of sampling.
+  answer: [0, 1]
+  source: https://opentelemetry.io/docs/concepts/sampling/
+
+# O2 Data Model
+- id: q-mock-otca-020
+  tags: [otel-resources]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: A team creates its TracerProvider with a resource at startup. Halfway through the run, they want to change one resource attribute for all new spans. What do the docs say?
+  options:
+    - text: Set the new value on each span as it starts
+      why: Span attributes describe one operation. They do not change the resource of the provider.
+    - text: The SDK reads the resource again before each export
+      why: The resource is fixed when the provider is created, not re-read on export.
+    - text: The resource is fixed once the provider is created
+      why: The resource is attached when the provider is created, and this association cannot be changed later.
+    - text: Put the new value in baggage to override the resource
+      why: Baggage is a separate store for context. It does not change resource attributes.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/resources/
+- id: q-mock-otca-021
+  tags: [otel-instrumentation-scope]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: What identifies an instrumentation scope?
+  options:
+    - text: The service name and the service version of the app
+      why: Those are resource attributes of the service, not the scope.
+    - text: A name plus optional version, schema URL, attributes
+      why: A scope is a tuple of name, version, schema URL and attributes, where only the name is required.
+    - text: The trace ID and the span ID of the current span
+      why: These identify one span in one trace, not the code that created it.
+    - text: The host name and the process ID of the running code
+      why: These describe where the code runs, which is the resource.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/instrumentation-scope/
+- id: q-mock-otca-022
+  tags: [otel-instrumentation-scope]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: Latency rose after the team upgraded a cache library from 2.3 to 2.4. The library has OpenTelemetry instrumentation. Which part of the data lets the team compare the library's spans before and after the upgrade?
+  options:
+    - text: The instrumentation scope, with the library's name and version
+      why: Telemetry is tagged with the scope's name and version, so you can compare behavior across versions of a component.
+    - text: The resource, which lists every library loaded in the process
+      why: A resource describes the entity, such as the service, host or pod. It does not list library versions.
+    - text: The span kind, which is set from the library version
+      why: Span kind says whether a span is a client, server, producer, consumer or internal operation.
+    - text: The trace flags, which carry the library version downstream
+      why: Trace flags carry bits such as the sampled flag, not version numbers.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/instrumentation-scope/
+- id: q-mock-otca-023
+  tags: [otel-spans]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: Application code sets a span's status to Ok. Later, an instrumentation library tries to set the same span's status to Error. What should happen, according to the Trace API?
+  options:
+    - text: The span ends up with status Error
+      why: Ok is treated as final, so the later change does not replace it.
+    - text: The status is reset to Unset
+      why: An attempt to set Unset is ignored, and here nothing asks for Unset.
+    - text: The span keeps both values as a list
+      why: A span has exactly one status.
+    - text: The span keeps the status Ok
+      why: Once the status is set to Ok it is considered final, and later attempts to change it are ignored.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/trace/api/
+- id: q-mock-otca-024
+  tags: [otel-spans, cardinality]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: A function loads the account of a user, here user 42. Which span name follows the Trace API guidance?
+  options:
+    - text: <code>get</code>
+      why: This name is too general to tell this operation from others.
+    - text: <code>get_account/42</code>
+      why: The user ID makes one name per user. Span names should be low in cardinality.
+    - text: <code>get_account</code>
+      why: It names the class of operation. The ID belongs in an attribute.
+    - text: <code>get_account for user 42 at 10.01</code>
+      why: IDs and times in the name create a new name for every call.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/trace/api/
+- id: q-mock-otca-025
+  tags: [metrics, otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: A counter is exported with cumulative temporality. Its process started at time T0. Which time ranges do its next data points cover?
+  options:
+    - text: (T0, T1], then (T1, T2], then (T2, T3]
+      why: Moving the start time forward each time is delta temporality.
+    - text: (T0, T1], then (T0, T2], then (T0, T3]
+      why: With cumulative temporality each point repeats the start time and covers everything since it.
+    - text: Only single end times, because sums carry no start time
+      why: Sums carry a start time. It is strongly recommended because it helps detect restarts.
+    - text: (T0, T1] each time, because the counter resets after export
+      why: A reset after each report describes delta behavior, and the ranges would still move forward.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/data-model/
+- id: q-mock-otca-026
+  tags: [logs]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: A log record arrives with SeverityNumber 17. Which severity range does that number belong to?
+  options:
+    - text: WARN
+      why: WARN covers the numbers 13 to 16.
+    - text: FATAL
+      why: FATAL covers the numbers 21 to 24.
+    - text: ERROR
+      why: ERROR covers the numbers 17 to 20.
+    - text: INFO
+      why: INFO covers the numbers 9 to 12.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/logs/data-model/
+- id: q-mock-otca-027
+  tags: [metrics, otel-resources]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: Three replicas of a service report the same cumulative counter. A bug leaves out <code>service.instance.id</code>, so all three send identical resource attributes. What does the backend show, and what is the fix?
+  options:
+    - text: Correct totals, because the backend adds the three streams
+      why: The three streams look like one. Points from different replicas interleave, so the sum seems to jump and reset.
+    - text: Duplicates that the SDK merges before export, so nothing
+      why: Each replica's SDK only sees its own data. It cannot merge streams from other processes.
+    - text: The Collector deduplicates them, so nothing needs to change
+      why: The fix is to give each writer its own identity, not to hope something downstream repairs it.
+    - text: Sums that seem to reset; give each replica its own resource
+      why: This breaks the single-writer rule. Cumulative sums look like resets, and a distinct resource per writer fixes it.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/data-model/
+
+# O2 Composability and Extension
+- id: q-mock-otca-028
+  tags: [otel-api-sdk]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: Which part of an OpenTelemetry client contains the constructors that application owners use and the interfaces that plugin authors implement?
+  options:
+    - text: The API
+      why: The API holds the cross-cutting interfaces used for instrumentation. Constructors and plugin interfaces are not part of it.
+    - text: The semantic conventions
+      why: Semantic conventions define names and values for telemetry, not code interfaces.
+    - text: The Contrib packages
+      why: Contrib packages are optional plugins and instrumentation. The interfaces they plug into live in the SDK.
+    - text: The SDK
+      why: The SDK includes constructors for application owners and plugin interfaces for plugin authors.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/overview/
+- id: q-mock-otca-029
+  tags: [otel-context-propagation, otel-sdk-pipeline]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: The edge service puts <code>client.id</code> in baggage. The team wants that value as an attribute on every span in every service. Which component, offered in several languages, does this?
+  options:
+    - text: A baggage span processor
+      why: Baggage span processors read baggage and add it as span attributes when spans are created.
+    - text: The W3C baggage propagator alone
+      why: The propagator carries baggage between services. Baggage does not become span attributes by itself.
+    - text: A resource detector
+      why: A resource detector runs once for the process. The client ID changes with each request.
+    - text: A metrics View
+      why: A View shapes metric streams. It does not touch spans.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/signals/baggage/
+- id: q-mock-otca-030
+  tags: [otel-sdk-pipeline]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: While debugging, a developer wants spans to go to the OTLP exporter and also to the console. How is the tracing SDK built for this?
+  options:
+    - text: Create a second TracerProvider for the console
+      why: One provider can feed several pipelines, so a second provider is not needed for a second destination.
+    - text: Two span processors, each with its own exporter
+      why: Each processor registered on the provider starts its own pipeline, which can end with its own exporter.
+    - text: Chain the console exporter behind the OTLP exporter
+      why: The spec builds each pipeline from a span processor and its own exporter, so a second destination needs a second pipeline.
+    - text: It cannot; sending to two places needs a Collector
+      why: A Collector is a good idea in production, but the SDK can do this by itself.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+- id: q-mock-otca-031
+  tags: [otel-resources]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: A service runs in containers on Kubernetes. The team wants host, operating system and container details on its telemetry without writing them by hand. Which SDK component provides them?
+  options:
+    - text: Instrumentation libraries
+      why: Instrumentation libraries create telemetry for frameworks such as HTTP servers. They do not describe the host.
+    - text: Span processors
+      why: Span processors handle spans as they start and end. Host details belong to the resource.
+    - text: Resource detectors
+      why: Resource detectors find information such as host, OS, process, container and Kubernetes attributes in the environment.
+    - text: Propagators
+      why: Propagators move context between services. They do not look at the environment.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/resources/
+- id: q-mock-otca-032
+  tags: [otel-api-sdk]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: In the OpenTelemetry specification, what are Contrib packages?
+  options:
+    - text: Any third-party plugin or instrumentation, wherever hosted
+      why: The term refers only to the plugins and instrumentation maintained by the OpenTelemetry project.
+    - text: Optional plugins and instrumentation outside the SDK
+      why: Contrib packages are optional and separate from the SDK; API Contrib depends only on the API, SDK Contrib also on the SDK.
+    - text: Collector distributions built by vendors
+      why: Vendor distributions are third-party products, not Contrib packages.
+    - text: The parts of the SDK that are not yet stable
+      why: Contrib is about packaging, not about stability.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/overview/
+- id: q-mock-otca-033
+  tags: [otel-sampling, otel-spans]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: A team writes a custom sampler that keeps every span whose <code>tenant.tier</code> is gold. Their code starts the span first and then sets <code>tenant.tier</code> on it. The sampler never keeps these spans. Why?
+  options:
+    - text: Samplers only read resource attributes
+      why: A sampler can use the attributes given at span creation, not only the resource.
+    - text: Samplers decide when the span is exported
+      why: The sampling decision is made at span creation, not at export.
+    - text: Attribute names with dots are not allowed for sampling
+      why: Dots are normal in attribute names and follow the naming conventions.
+    - text: The sampler decides before the attribute is added
+      why: Attributes added at creation are available to the sampler. Ones added afterwards come too late.
+  answer: [3]
+  source: https://opentelemetry.io/docs/concepts/signals/traces/
+
+# O2 Configuration
+- id: q-mock-otca-034
+  tags: [otel-env-config, otel-resources]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: A pod sets <code>OTEL_RESOURCE_ATTRIBUTES=service.name=cart,deployment.environment.name=prod</code> and <code>OTEL_SERVICE_NAME=checkout</code>. What is the value of <code>service.name</code>?
+  options:
+    - text: cart
+      why: When both are set, OTEL_SERVICE_NAME takes precedence over the value in OTEL_RESOURCE_ATTRIBUTES.
+    - text: checkout
+      why: OTEL_SERVICE_NAME takes precedence over service.name in OTEL_RESOURCE_ATTRIBUTES.
+    - text: unknown_service
+      why: That default is used only when no service name is set at all.
+    - text: Both values, as a list
+      why: An attribute has one value here. One of the two settings wins.
+  answer: [1]
+  source: https://opentelemetry.io/docs/languages/sdk-configuration/general/
+- id: q-mock-otca-035
+  tags: [otel-env-config, otel-sampling]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: A Helm chart sets <code>OTEL_TRACES_SAMPLER</code> to an empty string by mistake. Which sampler does a conforming SDK use?
+  options:
+    - text: <code>always_off</code>, because no sampler was named
+      why: An empty value is treated as unset, so the default applies, and the default is not always_off.
+    - text: None; the SDK refuses to start
+      why: Empty values are not an error. They are read the same way as unset ones.
+    - text: <code>parentbased_always_on</code>, the default
+      why: An empty value means the same as an unset variable, and the default sampler is parentbased_always_on.
+    - text: <code>traceidratio</code> with a ratio of 0
+      why: Nothing chooses a ratio sampler here. The empty value falls back to the default.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+- id: q-mock-otca-036
+  tags: [otel-otlp, otel-env-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: An SDK uses <code>OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf</code> and <code>OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318</code>. To which URL does it send traces?
+  options:
+    - text: <code>http://collector:4318/v1/traces</code>
+      why: With OTLP/HTTP and the base endpoint variable, the SDK adds the signal path, here /v1/traces.
+    - text: <code>http://collector:4318</code>
+      why: With the base endpoint variable, the SDK adds a path for each signal to the URL.
+    - text: <code>http://collector:4317/v1/traces</code>
+      why: The port comes from the variable. 4317 is the default for gRPC, not for this setting.
+    - text: <code>http://collector:4318/traces</code>
+      why: The path the SDK adds is /v1/traces.
+  answer: [0]
+  source: https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
+- id: q-mock-otca-037
+  tags: [otel-otlp, otel-env-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: A service uses <code>OTEL_EXPORTER_OTLP_PROTOCOL=grpc</code> and <code>OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://collector:4317/v1/traces</code>. Traces do not arrive. Which change follows the documentation?
+  options:
+    - text: Keep the path and change the port to 4318
+      why: Port 4318 is for OTLP/HTTP. The exporter is still using gRPC.
+    - text: Add the same path to OTEL_EXPORTER_OTLP_ENDPOINT
+      why: The base endpoint does not fix a wrong signal endpoint, and gRPC endpoints take no paths at all.
+    - text: Set the endpoint to <code>http://collector:4317</code>
+      why: A gRPC endpoint is a gRPC target. Do not add OTLP/HTTP paths such as /v1/traces to it.
+    - text: Change the protocol to <code>http/json</code> and keep port 4317
+      why: Port 4317 is the default port for OTLP/gRPC, not for OTLP/HTTP.
+  answer: [2]
+  source: https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
+- id: q-mock-otca-038
+  tags: [otel-declarative-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: A service sets <code>OTEL_CONFIG_FILE</code> to a declarative configuration file and also sets <code>OTEL_TRACES_SAMPLER=always_off</code>. The file does not mention that variable. Which sampler setting applies?
+  options:
+    - text: always_off, because environment variables win
+      why: When OTEL_CONFIG_FILE is set, the other SDK environment variables are ignored.
+    - text: A merge of both, with the file winning on conflicts
+      why: The flat variables and the file are not merged. The variables are ignored.
+    - text: The file's sampler, because the variable is ignored
+      why: When OTEL_CONFIG_FILE is set, other variables are ignored unless the file references them for substitution.
+    - text: None; the SDK refuses to start because of the conflict
+      why: There is no conflict to report, because the variable is ignored.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+- id: q-mock-otca-039
+  tags: [otel-declarative-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: A declarative configuration file has the endpoint <code>${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}/v1/traces</code>. The variable is not set. What endpoint does the SDK use?
+  options:
+    - text: None; the file fails to parse because the variable is missing
+      why: The <code>:-</code> part gives a default for exactly this case.
+    - text: <code>http://localhost:4318/v1/traces</code>
+      why: The substitution uses the default after <code>:-</code> when the variable is not set.
+    - text: <code>/v1/traces</code>, because the variable is empty
+      why: The default value fills the gap, so the host and port stay.
+    - text: The default OTLP endpoint for gRPC
+      why: The file names the endpoint itself, including its default value.
+  answer: [1]
+  source: https://opentelemetry.io/docs/languages/sdk-configuration/declarative-configuration/
+- id: q-mock-otca-040
+  tags: [otel-env-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: During an incident the team must switch off OpenTelemetry for all signals in one service, without changing code. Which setting does this?
+  options:
+    - text: <code>OTEL_TRACES_EXPORTER=none</code>
+      why: This removes the trace exporter only. Metrics and logs continue.
+    - text: <code>OTEL_PROPAGATORS=none</code>
+      why: This stops context propagation. The SDK still records and exports telemetry.
+    - text: <code>OTEL_LOG_LEVEL=error</code>
+      why: This changes the SDK's own internal logging, not what telemetry it sends.
+    - text: <code>OTEL_SDK_DISABLED=true</code>
+      why: OTEL_SDK_DISABLED disables the SDK for all signals.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+
+# O2 Signals (Tracing, Metric, Log)
+- id: q-mock-otca-041
+  tags: [otel-metric-instruments]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: Code adds 1 to an instrument when a job enters a queue and adds -1 when a job leaves it. Which instrument fits?
+  options:
+    - text: Counter
+      why: A Counter only takes non-negative increments, so it cannot record a job leaving.
+    - text: UpDownCounter
+      why: An UpDownCounter records changes that can be positive, negative or zero, such as a queue length.
+    - text: Histogram
+      why: A Histogram is for statistics about values such as latencies, not for a running total.
+    - text: Asynchronous Gauge
+      why: An Asynchronous Gauge reports an absolute value read in a callback. Here the code records changes.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/supplementary-guidelines/
+- id: q-mock-otca-042
+  tags: [otel-metric-instruments]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: A service reports the temperature of each server room. The sensor should be read only when metrics are collected. Adding temperatures from different rooms makes no sense. Which instrument fits?
+  options:
+    - text: Asynchronous Gauge
+      why: An Asynchronous Gauge reports a non-additive value from a callback that runs only when metrics are collected.
+    - text: Asynchronous UpDownCounter
+      why: An Asynchronous UpDownCounter is for additive values. Temperatures of different rooms do not add up.
+    - text: Counter
+      why: A Counter records increments that only go up. A temperature goes up and down.
+    - text: Histogram
+      why: A Histogram records many values for statistics. It does not read a sensor on collection.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/supplementary-guidelines/
+- id: q-mock-otca-043
+  tags: [otel-metric-instruments]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: A library reports the heap size of each process from a callback. Users should be able to add the values of all processes to get a total heap size. Which instrument makes that meaning explicit?
+  options:
+    - text: Asynchronous Gauge
+      why: A gauge says the values are not meant to be added. Heap sizes of processes do add up.
+    - text: Counter
+      why: A Counter is synchronous and only goes up. Heap size goes up and down.
+    - text: Asynchronous UpDownCounter
+      why: It tells consumers that values are additive across processes, so a total heap size makes sense.
+    - text: Histogram
+      why: A Histogram gives statistics about recorded values, not a current amount per process.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/supplementary-guidelines/
+- id: q-mock-otca-044
+  tags: [otel-metric-instruments, otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: With no View configured, which two instruments get the Sum aggregation by default? (Choose two.)
+  options:
+    - text: Counter
+      why: A Counter uses the Sum aggregation by default.
+    - text: UpDownCounter
+      why: An UpDownCounter also uses the Sum aggregation by default.
+    - text: Gauge
+      why: A Gauge uses the Last Value aggregation by default.
+    - text: Histogram
+      why: A Histogram uses the Explicit Bucket Histogram aggregation by default.
+    - text: Asynchronous Gauge
+      why: An Asynchronous Gauge uses the Last Value aggregation by default.
+  answer: [0, 1]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+- id: q-mock-otca-045
+  tags: [otel-logs-api, logs]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: A Java team already logs with SLF4J and wants those logs in OpenTelemetry. What do the docs advise?
+  options:
+    - text: Replace each log call with calls to the Logs Bridge API
+      why: The Logs Bridge API is meant for authors of logging libraries, not to be called by application developers.
+    - text: Keep SLF4J and configure a log appender or bridge
+      why: You keep your logging library and configure an appender or bridge that emits logs into OpenTelemetry.
+    - text: Turn every log line into a span event
+      why: Span events exist only inside spans. Logs written outside a request would be lost.
+    - text: Ship the log files and drop the SDK for logs
+      why: Reading files works for logs you cannot change, but the question is about an app you control.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/signals/logs/
+- id: q-mock-otca-046
+  tags: [otel-spans]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: An exception is not handled inside an operation, and it causes the span's status to be set to Error. How should the exception be recorded on the span?
+  options:
+    - text: As a child span named after the exception class
+      why: An exception is not an operation with its own duration. It is recorded as an event.
+    - text: As a resource attribute with the stack trace
+      why: The resource describes the whole process, not one failed operation.
+    - text: As an event named exception on that span
+      why: The exception is recorded as an event named "exception" on the span during which it happened.
+    - text: Only in a log record, never on the span
+      why: The trace specification says to record it as an event on the span.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/trace/exceptions/
+- id: q-mock-otca-047
+  tags: [traces, otel-spans]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: A service writes a job into a queue. Another service picks the job up later. Which span kind fits the span that writes the job?
+  options:
+    - text: Client
+      why: A client span is a synchronous outgoing call, such as an HTTP request. A queued job is not synchronous.
+    - text: Producer
+      why: A producer span represents creating a job that may be processed later.
+    - text: Internal
+      why: Internal spans do not cross a process boundary. This job goes to another service.
+    - text: Server
+      why: A server span represents a synchronous incoming call, not sending work out.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/signals/traces/
+- id: q-mock-otca-048
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: Service A puts <code>customer.tier</code> in baggage before calling service B. Service B's spans do not show <code>customer.tier</code>. What is the most likely reason?
+  options:
+    - text: Baggage is lost at every process boundary
+      why: Baggage is propagated across processes, usually by instrumentation.
+    - text: Baggage only travels with the B3 propagator
+      why: The W3C baggage propagator is part of the default set.
+    - text: Baggage entries are added to spans only on errors
+      why: Baggage is never added to spans by itself, error or not.
+    - text: Baggage does not become span attributes by itself
+      why: Baggage is a separate store. Service B must read it and add it, for example with a baggage span processor.
+  answer: [3]
+  source: https://opentelemetry.io/docs/concepts/signals/baggage/
+- id: q-mock-otca-049
+  tags: [cardinality, otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: A request counter records <code>url.path</code> and <code>success</code>. It reaches its cardinality limit. The total count stays right, but an alert that counts <code>success=false</code> stops firing. Why?
+  options:
+    - text: Overflow drops the whole attribute set, success too
+      why: Measurements beyond the limit go into one point marked otel.metric.overflow=true, which no longer carries success.
+    - text: The SDK drops measurements once the limit is reached
+      why: No measurements are lost, which is why the total stays right.
+    - text: The SDK removes only the url.path attribute
+      why: Overflow replaces the entire attribute combination, not only its high-cardinality part.
+    - text: The exporter rejects points with boolean attributes
+      why: Boolean attribute values are allowed. The cause is the overflow point.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/signals/metrics/
+
+# O2 SDK Pipelines
+- id: q-mock-otca-050
+  tags: [otel-sdk-pipeline]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: During a traffic spike, an application drops spans inside the SDK before they are exported. Which batch span processor setting limits how many spans can wait in the SDK?
+  options:
+    - text: <code>OTEL_BSP_MAX_EXPORT_BATCH_SIZE</code>
+      why: This sets how many spans go into one export, not how many may wait.
+    - text: <code>OTEL_BSP_SCHEDULE_DELAY</code>
+      why: This sets the time between exports. It does not cap the waiting spans.
+    - text: <code>OTEL_BSP_MAX_QUEUE_SIZE</code>
+      why: Its default is 2048. When the queue is full, new spans are dropped.
+    - text: <code>OTEL_EXPORTER_OTLP_TIMEOUT</code>
+      why: This limits how long one export may take, not how many spans can wait.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+- id: q-mock-otca-051
+  tags: [otel-sdk-pipeline]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: A short batch job uses the batch span processor. It exits after two seconds, and its last spans never reach the backend. What should the job do before it exits?
+  options:
+    - text: Raise <code>OTEL_BSP_SCHEDULE_DELAY</code> to give the exporter more time
+      why: A longer delay makes the processor wait even longer before exporting.
+    - text: Call Shutdown or ForceFlush on the TracerProvider
+      why: ForceFlush exports spans that are not yet exported, and Shutdown also shuts down the processors.
+    - text: Switch the sampler to <code>always_on</code> so every span is kept
+      why: The spans are already sampled. They are waiting in the processor's queue.
+    - text: Raise <code>OTEL_BSP_MAX_QUEUE_SIZE</code> so more spans fit in the queue
+      why: A bigger queue holds more spans, but it does not send them before the process ends.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+- id: q-mock-otca-052
+  tags: [otel-sampling]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: A service sets <code>OTEL_TRACES_SAMPLER=parentbased_traceidratio</code> and <code>OTEL_TRACES_SAMPLER_ARG=0.1</code>. A request arrives with a parent span context from another service, and its sampled flag is set. What happens to the new span?
+  options:
+    - text: It is sampled with a 10% chance
+      why: The ratio applies to root spans. A span with a sampled remote parent follows the parent.
+    - text: It is dropped, because only root spans are sampled
+      why: Spans with parents are not dropped by default. A sampled parent leads to a sampled child.
+    - text: It is sampled, because its parent was sampled
+      why: ParentBased uses the root sampler only for root spans. For a sampled remote parent the default is AlwaysOn.
+    - text: It is recorded but not exported
+      why: That is RECORD_ONLY. The default for a sampled remote parent samples the span.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+- id: q-mock-otca-053
+  tags: [otel-sampling, otel-sdk-pipeline]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: A sampler returns RECORD_ONLY for a span. What happens to that span in the SDK?
+  options:
+    - text: Span processors see it, but exporters do not
+      why: The span is recording but its sampled flag is not set, so processors get it and exporters do not.
+    - text: Nothing records it, as with DROP
+      why: DROP makes the span non-recording. RECORD_ONLY keeps it recording.
+    - text: Exporters get it without its sampled flag
+      why: Exporters only receive spans that are sampled.
+    - text: It is exported, and its children are dropped
+      why: RECORD_ONLY does not export the span, and it says nothing about children.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+- id: q-mock-otca-054
+  tags: [otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: A MetricReader is set up with an exporter that does not state an output temporality. Which temporality does the reader use?
+  options:
+    - text: Delta for every instrument
+      why: Delta is used only when the exporter or the user asks for it.
+    - text: Delta for counters, cumulative for histograms
+      why: There is no such split by default. The default is the same for every instrument.
+    - text: Cumulative
+      why: If no temporality is configured, the reader uses cumulative temporality.
+    - text: None; the reader refuses to start without it
+      why: Temporality is optional when building a reader, and a default applies.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+- id: q-mock-otca-055
+  tags: [otel-metrics-sdk, cardinality]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: An HTTP server library records request durations with the attributes for the HTTP method and the status code. The team only wants a count of requests per status code. What do they configure in the SDK?
+  options:
+    - text: A sampler that drops requests without a status code
+      why: Samplers work on traces, not on metric streams.
+    - text: <code>OTEL_ATTRIBUTE_COUNT_LIMIT=1</code>
+      why: This limits attribute counts in general, and it does not choose which attribute stays.
+    - text: A fork of the library without the method attribute
+      why: Changing the library is not needed. The SDK can reshape its output.
+    - text: A View that keeps only the status code attribute
+      why: A View can choose which attributes a metric reports and can change its aggregation.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+- id: q-mock-otca-056
+  tags: [otel-metrics-sdk, otel-env-config]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: A service pushes metrics with OTLP. New values appear in the backend only once a minute, and the team wants them every 15 seconds. Which variable should they change?
+  options:
+    - text: <code>OTEL_METRIC_EXPORT_TIMEOUT</code>
+      why: This limits how long one export may run, not how often exports start.
+    - text: <code>OTEL_METRIC_EXPORT_INTERVAL</code>
+      why: It sets the time between two exports of the periodic reader, by default 60000 ms.
+    - text: <code>OTEL_BSP_SCHEDULE_DELAY</code>
+      why: This is for the batch span processor, so it affects spans, not metrics.
+    - text: <code>OTEL_EXPORTER_OTLP_TIMEOUT</code>
+      why: This limits each OTLP export attempt. It does not change how often metrics are read.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+
+# O2 Context Propagation
+- id: q-mock-otca-057
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: A request carries the header <code>traceparent</code> with the value <code>00-a0892f3577b34da6a3ce929d0e0e4736-f03067aa0ba902b7-01</code>. Which part is the ID of the calling span?
+  options:
+    - text: <code>a0892f3577b34da6a3ce929d0e0e4736</code>
+      why: This 32-character part is the trace ID, shared by all spans of the trace.
+    - text: <code>00</code>
+      why: The first part is the version of the format.
+    - text: <code>01</code>
+      why: The last part holds the trace flags, such as sampled.
+    - text: <code>f03067aa0ba902b7</code>
+      why: The third part is the parent ID, the span ID of the caller.
+  answer: [3]
+  source: https://opentelemetry.io/docs/concepts/context-propagation/
+- id: q-mock-otca-058
+  tags: [otel-context-propagation, otel-env-config]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: A service receives requests from an old proxy that sends B3 headers and from new services that send W3C Trace Context. It must continue traces from both. What should <code>OTEL_PROPAGATORS</code> be?
+  options:
+    - text: <code>b3</code>
+      why: With only B3, the service would no longer read the W3C headers or baggage from the new services.
+    - text: <code>tracecontext,baggage,b3</code>
+      why: A list of propagators works as a composite that reads and writes each format.
+    - text: <code>tracecontext,baggage</code>
+      why: This is the default. It does not read B3 headers from the proxy.
+    - text: <code>none</code>
+      why: None turns off automatic propagation, so every request would start a new trace.
+  answer: [1]
+  source: https://opentelemetry.io/docs/languages/sdk-configuration/general/
+- id: q-mock-otca-059
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: A request arrives with a <code>traceparent</code> header that cannot be parsed. What must a conforming propagator do when it extracts context?
+  options:
+    - text: Throw an error so the server answers with 400
+      why: Extract must not throw. Telemetry problems should not break the request.
+    - text: Store a context with an all-zero trace ID
+      why: Extract must not store a new value when it cannot parse one.
+    - text: Leave the context as it was, without an exception
+      why: Extract must not throw and must not store a new value, so any previous valid value stays.
+    - text: Copy the broken value to the outgoing headers
+      why: Passing on bad data does not follow the rule. Extract leaves the context unchanged.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/context/api-propagators/
+- id: q-mock-otca-060
+  tags: [otel-context-propagation, otel-api-sdk]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: A Go service builds its SDK in code and sets a TracerProvider, but no propagator. Its calls to other services always start new traces there. What is the cause?
+  options:
+    - text: The exporter must be OTLP for propagation to work
+      why: Exporters send data to a backend. They play no part in moving context between services.
+    - text: The API uses no-op propagators unless one is configured
+      why: Without a configured propagator nothing is injected. Set a global one, usually W3C Trace Context with baggage.
+    - text: The sampler must be always_on for propagation to work
+      why: The sampler decides which spans are kept. Changing it does not add a propagator.
+    - text: The resource lacks service.name, so headers are skipped
+      why: The resource names the service in the backend. It does not control headers.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/context/api-propagators/
+- id: q-mock-otca-061
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: A developer wants to put a user's email address in baggage, so every service can log it. What risk do the docs point out?
+  options:
+    - text: Baggage is sent in headers and can reach third-party APIs
+      why: Instrumentation adds baggage to most outgoing network requests, so anyone who sees the traffic can read it.
+    - text: Baggage is encrypted, so services cannot read it
+      why: Baggage travels in HTTP headers that anyone inspecting the traffic can read.
+    - text: Baggage stays in the process and never reaches other services
+      why: Baggage is made to cross service boundaries.
+    - text: Baggage values are hashed, so the email cannot be logged
+      why: The docs describe no hashing of baggage. It is sent in headers that others can read.
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/signals/baggage/
+- id: q-mock-otca-062
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: Code writes a new value into the current Context. What does the Context API return?
+  options:
+    - text: The same Context object, changed in place
+      why: A Context must be immutable, so it cannot change in place.
+    - text: Nothing; the value is stored in a global map
+      why: Values live in Context objects, not in a separate global map.
+    - text: An error, because a Context is always read-only
+      why: Writes are allowed. They produce a new Context instead of failing.
+    - text: A new Context with the old values and the new one
+      why: Write operations create a new Context that contains the original values and the update.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/context/
+
+# O2 Agents
+- id: q-mock-otca-063
+  tags: [otel-zero-code]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: A team ran <code>pip install opentelemetry-distro opentelemetry-exporter-otlp</code> and starts its Flask app with <code>opentelemetry-instrument</code>. The app runs, but Flask requests create no spans. Which step is most likely missing?
+  options:
+    - text: Running <code>opentelemetry-bootstrap -a install</code>
+      why: It installs instrumentation libraries for the installed packages, such as the one for Flask.
+    - text: Adding <code>@WithSpan</code> to each Flask route
+      why: That annotation belongs to the Java agent, not to Python.
+    - text: Setting <code>OTEL_SDK_DISABLED=false</code>
+      why: false is already the default, so the SDK is not disabled.
+    - text: Installing a Collector on the same host
+      why: A Collector receives spans. It cannot make the app create them.
+  answer: [0]
+  source: https://opentelemetry.io/docs/zero-code/python/
+- id: q-mock-otca-064
+  tags: [otel-zero-code]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: A Java service runs with the agent. The command line has <code>-Dotel.service.name=billing</code>, and the environment has <code>OTEL_SERVICE_NAME=payments</code>. Which name does the agent use?
+  options:
+    - text: payments, because environment variables come first
+      why: For the Java agent, system properties have a higher priority than environment variables.
+    - text: billing, because system properties come first
+      why: The agent reads system properties first, then environment variables, then the configuration file.
+    - text: unknown_service, because the two values conflict
+      why: There is no conflict to resolve. The source with the higher priority wins.
+    - text: The value in the agent's configuration file
+      why: The configuration file has a lower priority than both other sources.
+  answer: [1]
+  source: https://opentelemetry.io/docs/zero-code/java/agent/configuration/
+- id: q-mock-otca-065
+  tags: [otel-zero-code]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: A Java service runs with the agent. The team wants JDBC instrumentation only, and nothing else from the agent. Which settings do this?
+  options:
+    - text: <code>OTEL_JAVAAGENT_ENABLED=false</code> and <code>OTEL_INSTRUMENTATION_JDBC_ENABLED=true</code>
+      why: Disabling the agent turns it off entirely, so no instrumentation runs at all.
+    - text: <code>OTEL_INSTRUMENTATION_JDBC_ENABLED=true</code>, with every other setting left at its default
+      why: Default instrumentation stays on unless it is turned off, so all the others would keep running too.
+    - text: <code>OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED=false</code> and <code>OTEL_INSTRUMENTATION_JDBC_ENABLED=true</code>
+      why: The first turns off all default instrumentation; the second turns JDBC back on.
+    - text: <code>OTEL_TRACES_SAMPLER=always_off</code> and <code>OTEL_INSTRUMENTATION_JDBC_ENABLED=true</code>
+      why: always_off drops every span, the JDBC ones included.
+  answer: [2]
+  source: https://opentelemetry.io/docs/zero-code/java/agent/disable/
+- id: q-mock-otca-066
+  tags: [otel-operator]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: A team annotates a Deployment with <code>instrumentation.opentelemetry.io/inject-python</code> set to true. They create the Instrumentation resource a few minutes after the pods started. The pods send no telemetry. What explains it?
+  options:
+    - text: Python injection supports only gRPC, so the endpoint is wrong
+      why: Python injection uses http/protobuf, and gRPC is not supported for it.
+    - text: The annotation must be on the Collector, not the Deployment
+      why: The annotation goes on the workload's pod template or on its namespace.
+    - text: Injection needs the Collector to run as a sidecar
+      why: The docs mark creating a Collector as optional. Injection needs an endpoint that accepts OTLP, not a sidecar.
+    - text: The pods started before the Instrumentation resource existed
+      why: The init container is added when a pod starts. Pods created before the resource are not instrumented.
+  answer: [3]
+  source: https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/
+- id: q-mock-otca-067
+  tags: [otel-operator]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: Which values of the annotation <code>instrumentation.opentelemetry.io/inject-java</code> make the Operator inject the agent? (Choose two.)
+  options:
+    - text: <code>"true"</code>
+      why: It uses the Instrumentation resource with the default name in the pod's namespace.
+    - text: <code>"otel/java-instr"</code>
+      why: It uses the Instrumentation resource java-instr from the namespace otel.
+    - text: <code>"false"</code>
+      why: false tells the Operator not to inject.
+    - text: <code>"java"</code> to name the language
+      why: The language is already in the annotation's name. A value names an Instrumentation resource, and none is called java here.
+    - text: <code>"latest"</code> to pick the newest agent image
+      why: The value does not choose an image version. It names the Instrumentation resource to use.
+  answer: [0, 1]
+  source: https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/
+- id: q-mock-otca-068
+  tags: [otel-zero-code]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: A Java service already runs with the agent. A developer wants a span for one of the service's own methods, with as little code as possible. What should they use?
+  options:
+    - text: A new TracerProvider built in the method
+      why: The agent already provides the SDK. A second provider is not needed.
+    - text: The <code>@WithSpan</code> annotation on the method
+      why: With the opentelemetry-instrumentation-annotations dependency, @WithSpan creates a span for the method.
+    - text: <code>OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED=true</code>
+      why: This is about the agent's library instrumentation. It does not reach the service's own methods.
+    - text: A Collector processor that splits the server span
+      why: A processor cannot see inside the service, so it cannot measure one method.
+  answer: [1]
+  source: https://opentelemetry.io/docs/zero-code/java/agent/annotations/
+
+# O3 Configuration
+- id: q-mock-otca-069
+  tags: [collector-config, collector-pipelines]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: A Collector configuration defines a <code>filter</code> processor under <code>processors</code>, but spans that match its conditions still reach the backend. The Collector starts without errors. What is the most likely cause?
+  options:
+    - text: The filter processor only works on metrics
+      why: The filter processor handles traces, metrics and logs.
+    - text: The processor is not listed in the traces pipeline
+      why: Configuring a processor does not enable it. It must be added to a pipeline in the service section.
+    - text: Processors run only after the exporters
+      why: Processors run between the receivers and the exporters.
+    - text: Filter conditions need a restart of every client
+      why: Clients do not see the Collector's processors, so nothing on their side needs to change.
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/configuration/
+- id: q-mock-otca-070
+  tags: [collector-config]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: A Collector must send traces over OTLP/gRPC to two different backends, each with its own endpoint and TLS settings. How do you define the two exporters?
+  options:
+    - text: Write the <code>otlp_grpc</code> key twice in the exporters section
+      why: Each component identifier must be unique, so the same key cannot appear twice.
+    - text: List both endpoints under one <code>otlp_grpc</code> exporter
+      why: One OTLP exporter has one endpoint. Two backends need two exporter instances.
+    - text: Use <code>otlp_grpc/a</code> and <code>otlp_grpc/b</code>
+      why: Identifiers follow the type[/name] format, so one type can be defined more than once with unique names.
+    - text: Run a second Collector, since a type can be used only once
+      why: A type can be used many times in one Collector, as long as each identifier is unique.
+  answer: [2]
+  source: https://opentelemetry.io/docs/collector/configuration/
+- id: q-mock-otca-071
+  tags: [collector-config]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: 'An exporter in a Collector configuration has the setting <code>namespace: $$DataVisualization</code>. What value does the Collector use?'
+  options:
+    - text: The value of an environment variable named DataVisualization
+      why: Variables are read with the <code>${env:NAME}</code> syntax. The double dollar sign does something else.
+    - text: The literal text <code>$DataVisualization</code>
+      why: In Collector configuration, <code>$$</code> stands for one literal dollar sign.
+    - text: An empty string, because the variable is not set
+      why: No variable is read here, so an unset variable does not matter.
+    - text: None; the configuration is rejected at startup
+      why: <code>$$</code> is the documented way to write a literal dollar sign.
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/configuration/
+- id: q-mock-otca-072
+  tags: [collector-config]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: Before a rollout, a team wants to check that a new Collector configuration file is valid, without starting any pipelines. Which command does that?
+  options:
+    - text: <code>otelcol components --config=new.yaml</code>
+      why: The components command lists the components in the distribution. It does not check a file.
+    - text: <code>otelcol --config=new.yaml --dry-run</code>
+      why: The docs do not describe a dry-run flag. They name a separate command.
+    - text: <code>otelcol validate --config=new.yaml</code>
+      why: The validate command checks a configuration file.
+    - text: <code>otelcol --config=yaml:validate</code>
+      why: The yaml scheme passes configuration values. It does not run a check.
+  answer: [2]
+  source: https://opentelemetry.io/docs/collector/configuration/
+- id: q-mock-otca-073
+  tags: [collector-config, collector-deployment]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: A Collector runs in its own pod. Its OTLP receiver lists the grpc and http protocols with no endpoints. Applications in other pods cannot connect to it. Why?
+  options:
+    - text: The OTLP receiver needs an extension before it accepts data
+      why: Extensions such as authenticators are optional. The receiver works without them.
+    - text: Without endpoints, the receiver uses random ports
+      why: The default ports are fixed at 4317 for gRPC and 4318 for HTTP.
+    - text: Without endpoints, the protocols are switched off
+      why: Listing a protocol enables it. Only its address is the default.
+    - text: The default endpoints listen on localhost only
+      why: The defaults are localhost:4317 and localhost:4318. Set an address that other pods can reach, such as the pod IP.
+  answer: [3]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/main/receiver/otlpreceiver/README.md
+- id: q-mock-otca-074
+  tags: [collector-config]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: A team defines an <code>oidc</code> extension and references it under the OTLP receiver's <code>auth</code> setting. Authentication does not work. The service section lists only the pipelines. What is missing?
+  options:
+    - text: The <code>oidc</code> extension in <code>service.extensions</code>
+      why: An authenticator must be configured, listed in the service extensions so it is loaded, and referenced by the receiver.
+    - text: A processor named <code>oidc</code> in each pipeline
+      why: Authentication is an extension. It is not a processor in a pipeline.
+    - text: An <code>oidc</code> exporter in the traces pipeline
+      why: The receiver checks incoming requests. Exporters handle outgoing data.
+    - text: A connector between the receiver and the extension
+      why: Connectors join pipelines. They do not load extensions.
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/configuration/
+
+# O3 Deployment
+- id: q-mock-otca-075
+  tags: [collector-deployment]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: A team sends telemetry from its SDKs straight to a vendor backend, with no Collector. Now it must add redaction and may change vendors next year. Which drawbacks of this pattern do the docs name?
+  options:
+    - text: Code changes for new processing, and code tied to the backend
+      why: Without a Collector, changes to processing need code changes, and the code is tied to the backend.
+    - text: More moving parts to deploy, and a harder start for new teams
+      why: The docs list the opposite. Having no Collector means fewer parts and an easy start.
+    - text: Data is always sampled at 10%, and logs are not supported
+      why: Skipping the Collector does not force sampling or remove signals.
+    - text: The SDK can only export to a Collector
+      why: SDKs can export to backends directly; this pattern does exactly that.
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/deploy/other/no-collector/
+- id: q-mock-otca-076
+  tags: [collector-kubernetes]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: A team wants a Collector to read the container logs of every pod in a cluster with the Filelog receiver. How should the Collector run?
+  options:
+    - text: As one Deployment replica, which can read every node's files
+      why: A Deployment pod only reads the logs of the node it runs on.
+    - text: As a sidecar in the Collector's own pod only
+      why: A single sidecar sees only its own pod and node, not the rest of the cluster.
+    - text: As a DaemonSet, so each node has a Collector
+      why: The DaemonSet is the preferred pattern for the Filelog receiver, because logs are files on each node.
+    - text: As a StatefulSet, which mounts every node's disk
+      why: A StatefulSet pod still runs on one node and sees only that node's files.
+  answer: [2]
+  source: https://opentelemetry.io/docs/platforms/kubernetes/collector/components/
+- id: q-mock-otca-077
+  tags: [collector-kubernetes]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: A Collector DaemonSet on a 10-node cluster runs the Kubernetes Cluster receiver. Every cluster metric, such as pod phase counts, appears 10 times. What is the fix?
+  options:
+    - text: Raise the receiver's collection interval
+      why: A longer interval sends fewer points, but each of the 10 copies still sends them.
+    - text: Run it in a Deployment with exactly one replica
+      why: The receiver gathers data for the whole cluster, so one instance is enough; more replicas duplicate the data.
+    - text: Add the k8sattributes processor to the pipeline
+      why: That processor adds pod metadata. It does not remove copies.
+    - text: Run it as a sidecar in every application pod
+      why: The sidecar pattern is not usable for this receiver.
+  answer: [1]
+  source: https://opentelemetry.io/docs/platforms/kubernetes/collector/components/
+- id: q-mock-otca-078
+  tags: [collector-kubernetes, collector-pipelines]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: A team installs the opentelemetry-collector Helm chart. In values.yaml it sets the traces pipeline's exporters to its own exporter only. After the upgrade, the <code>memory_limiter</code> processor is missing from the traces pipeline. Why?
+  options:
+    - text: The chart drops memory_limiter when a custom exporter is used
+      why: The chart docs cover this case. A changed pipeline contains only the components you list.
+    - text: The new exporter replaced memory_limiter in the processor list
+      why: Exporters and processors are separate lists in a pipeline.
+    - text: Helm 4 does not merge lists inside values files
+      why: The chart's own guidance covers this case, whatever the Helm version.
+    - text: A changed pipeline must list every component, defaults too
+      why: The chart docs say that when you change a pipeline, you must list every component in it, including the default ones.
+  answer: [3]
+  source: https://opentelemetry.io/docs/platforms/kubernetes/helm/collector/
+- id: q-mock-otca-079
+  tags: [collector-deployment]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: A security team wants the smallest possible Collector binary, with only the receivers, processors and exporters the company uses, plus one in-house processor. What should the platform team do?
+  options:
+    - text: Run the contrib distribution and leave unused parts unconfigured
+      why: Unused components stay in the binary even when they are not configured.
+    - text: Build a custom distribution with the Collector Builder (ocb)
+      why: ocb builds a distribution with exactly the components you list, custom ones included.
+    - text: Use the core distribution and add the processor as a plugin file
+      why: The docs describe ocb as the way to build a Collector with custom components.
+    - text: Use the Kubernetes distribution, which removes unused components at startup
+      why: Each distribution has a fixed list of components in its manifest. The docs point to ocb for a smaller binary.
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/distributions/
+- id: q-mock-otca-080
+  tags: [collector-deployment]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: A team runs one Collector beside each application, as a sidecar or on the same host, and nothing else. Which pair of trade-offs do the docs give for this agent pattern?
+  options:
+    - text: Easy to start, but hard to scale and inflexible as needs grow
+      why: The docs list a simple start and a clear one-to-one mapping as pros, and limited scalability and flexibility as cons.
+    - text: Hard to start, but the best choice for large organizations
+      why: The docs say the opposite. The pattern is simple to start and limited at scale.
+    - text: No extra parts to run, but every change needs code changes
+      why: These describe sending without any Collector, not the agent pattern.
+    - text: Needed for tail sampling, but unable to receive OTLP
+      why: Agents receive OTLP from SDKs. Tail sampling needs all spans of a trace in one place.
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/deploy/agent/
+
+# O3 Scaling
+- id: q-mock-otca-081
+  tags: [collector-scaling]
+  exam: {cert: otca, domain: O3, competency: Scaling}
+  q: A team scales its gateway Collectors from two to six replicas behind a layer 4 load balancer. Clients send OTLP over gRPC. Most traffic still goes to the first two replicas. Why?
+  options:
+    - text: OTLP over gRPC always uses a single Collector
+      why: gRPC traffic can be spread across replicas with the right load balancer.
+    - text: An L4 balancer keeps long-lived gRPC connections on one replica
+      why: A layer 4 balancer may keep a client on one Collector. Use a gRPC-aware layer 7 balancer.
+    - text: New replicas accept data only after the old ones fill their queues
+      why: Nothing in the docs makes replicas wait for each other. A balancer that keeps gRPC connections open is the documented cause.
+    - text: The memory_limiter sends traffic back to old replicas
+      why: The memory limiter refuses data when memory is high. It does not route traffic.
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/scaling/
+- id: q-mock-otca-082
+  tags: [collector-scaling]
+  exam: {cert: otca, domain: O3, competency: Scaling}
+  q: A Collector scrapes thousands of Prometheus targets and cannot keep up. The team adds two replicas with the same configuration. What happens, and what should they do instead?
+  options:
+    - text: Load is split evenly between replicas, so no other change is needed
+      why: Each replica with the same configuration scrapes the same targets. Nothing splits them.
+    - text: The replicas elect a leader, so only one scrapes and the others wait
+      why: The docs describe no leader election. They say each replica with the same configuration scrapes the same endpoints.
+    - text: All replicas scrape all targets; shard them with the Target Allocator
+      why: Identical replicas scrape the same endpoints and cause problems such as out-of-order samples. Shard the targets instead.
+    - text: The replicas share one queue, so duplicate samples are removed before export
+      why: The docs say the duplicate scrapes cause problems such as out-of-order samples. Nothing removes the copies.
+  answer: [2]
+  source: https://opentelemetry.io/docs/collector/scaling/
+- id: q-mock-otca-083
+  tags: [collector-scaling, collector-reliability]
+  exam: {cert: otca, domain: O3, competency: Scaling}
+  q: "Gateway Collectors show <code>otelcol_exporter_queue_size</code> close to <code>otelcol_exporter_queue_capacity</code>, and <code>otelcol_exporter_send_failed_spans</code> keeps rising. The backend database is overloaded. What do the docs suggest?"
+  options:
+    - text: Add more Collector replicas
+      why: More Collectors put more pressure on a backend that is already overloaded.
+    - text: Add more consumers to each exporter's queue
+      why: More workers would also push harder on the struggling backend.
+    - text: Remove the sending queue so data is sent at once
+      why: A queue gives the backend room to recover. Removing it does not make the backend any faster.
+    - text: Look outside the Collector and scale the backend
+      why: When the backend cannot keep up, adding Collectors does not help and can make things worse.
+  answer: [3]
+  source: https://opentelemetry.io/docs/collector/scaling/
+- id: q-mock-otca-084
+  tags: [collector-tail-sampling, collector-scaling]
+  exam: {cert: otca, domain: O3, competency: Scaling}
+  q: A gateway with the tail sampling processor is scaled from one replica to four behind a round-robin balancer. Kept traces now often miss spans. What is the documented fix?
+  options:
+    - text: Raise decision_wait so each replica waits longer for missing spans
+      why: Waiting longer does not help when the other spans of the trace went to another replica.
+    - text: Add a front layer with the load-balancing exporter, routed by trace ID
+      why: The load-balancing exporter sends all spans of a trace to the same Collector, where the tail sampler decides.
+    - text: Add the batch processor before tail sampling to group the spans
+      why: Batching groups data inside one Collector. It does not bring spans from other replicas.
+    - text: Switch the round-robin balancer to least-connections mode
+      why: Any balancer that ignores the trace ID still splits a trace's spans across replicas.
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/scaling/
+- id: q-mock-otca-085
+  tags: [collector-scaling, collector-debugging]
+  exam: {cert: otca, domain: O3, competency: Scaling}
+  q: A team wants a rule for when to add gateway Collector replicas. What is the general guidance in the scaling docs?
+  options:
+    - text: Scale up when CPU passes 30%, and allow scaling down to one replica
+      why: The docs base the rule on the exporter queue, and they suggest keeping a minimum such as three replicas.
+    - text: Scale up when the queue is 60 to 70% full; keep three or more replicas
+      why: Watch queue size against capacity, scale up at 60 to 70%, and keep a minimum number of replicas for resilience.
+    - text: Scale up whenever <code>otelcol_exporter_send_failed_spans</code> rises
+      why: Rising send failures often point to the backend. Then more Collectors can make it worse.
+    - text: Never scale; raise the queue size instead
+      why: A bigger queue gives room for short problems, but sustained load needs more replicas.
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/scaling/
+
+# O3 Pipelines
+- id: q-mock-otca-086
+  tags: [collector-pipelines, collector-reliability]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: "A traces pipeline has <code>processors: [batch, memory_limiter]</code>. What should change, according to the memory limiter documentation?"
+  options:
+    - text: Nothing, because the order of processors does not matter
+      why: The order of processors is the order in which data is processed, so it matters.
+    - text: Remove memory_limiter, because batching already limits memory
+      why: Batching does not watch memory. The docs recommend the memory limiter on every Collector.
+    - text: Put memory_limiter first in the list
+      why: As the first processor it can push back to the receivers when memory is high, so less data is dropped.
+    - text: Move memory_limiter to the exporters list
+      why: The memory limiter is a processor and only works in the processors list.
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md
+- id: q-mock-otca-087
+  tags: [collector-pipelines]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: A traces pipeline lists two exporters, one for Tempo and one for a vendor. How is the data split between them?
+  options:
+    - text: Each exporter gets a copy of every span
+      why: The last processor fans the data out, and each exporter gets a copy of each data element.
+    - text: The spans are split evenly between the two
+      why: Each exporter gets a copy of every item, so nothing is split between them.
+    - text: Only the exporter listed first gets data
+      why: All the exporters in the list receive the data.
+    - text: The second exporter gets data only when the first one fails
+      why: Each exporter gets a copy of every item, so the second one is not a fallback for the first.
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/architecture/
+- id: q-mock-otca-088
+  tags: [collector-pipelines]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: One OTLP receiver feeds two pipelines, <code>traces</code> and <code>traces/2</code>. A slow processor in <code>traces/2</code> blocks. What happens to <code>traces</code>?
+  options:
+    - text: Nothing, because each pipeline has its own copy of the receiver
+      why: A receiver used in many pipelines runs as one instance at runtime.
+    - text: The receiver drops the data for traces/2 and goes on
+      why: The fan-out uses synchronous calls. It does not skip a blocked pipeline.
+    - text: It can be blocked too, because the fan-out call is synchronous
+      why: Data goes from the single receiver through a fan-out by synchronous calls, so one blocked pipeline holds up the others.
+    - text: It speeds up, because traces/2 takes less data
+      why: Both pipelines get the same data from the shared receiver.
+  answer: [2]
+  source: https://opentelemetry.io/docs/collector/architecture/
+- id: q-mock-otca-089
+  tags: [collector-connectors]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: "A configuration has a traces pipeline with <code>receivers: [otlp]</code> and <code>exporters: [count]</code>, and a metrics pipeline with <code>receivers: [count]</code> and <code>exporters: [otlp_http]</code>. What reaches the tracing backend?"
+  options:
+    - text: The traces, because the count connector passes them on
+      why: The connector turns traces into counts. It does not send the traces anywhere else.
+    - text: No traces, since the traces pipeline has no trace exporter
+      why: The count connector feeds the metrics pipeline. To keep the traces, add a trace exporter to the traces pipeline.
+    - text: Both traces and counts, through otlp_http
+      why: otlp_http is in the metrics pipeline, which only gets the counts.
+    - text: None; the Collector fails, since count is not an exporter
+      why: A connector acts as an exporter in one pipeline and as a receiver in another.
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/configuration/
+- id: q-mock-otca-090
+  tags: [collector-connectors]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: A routing connector sends logs where <code>resource.attributes["env"] == "prod"</code> to <code>logs/prod</code>. A later route should also see these logs. With no action set, what happens?
+  options:
+    - text: The logs are moved, so later routes do not see them
+      why: The default action is move. Matched data goes to the target and is removed from later route evaluation.
+    - text: The logs are copied, so every later route sees them
+      why: Copying happens only when the route's action is set to copy.
+    - text: The logs go to the default pipelines as well
+      why: Default pipelines receive only records that match no route.
+    - text: The logs are dropped, because a route must name an action
+      why: The action is optional and has a default.
+  answer: [0]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/connector/routingconnector/README.md
+- id: q-mock-otca-091
+  tags: [collector-pipelines]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: The same <code>batch</code> processor is listed in the traces pipeline and in the metrics pipeline. How does the Collector run it?
+  options:
+    - text: As one shared instance that mixes traces and metrics
+      why: Pipelines do not share processor instances.
+    - text: Only in the pipeline that is listed first
+      why: A processor listed in a pipeline is enabled there, in every pipeline that lists it.
+    - text: As a separate instance in each pipeline
+      why: When a processor is referenced in several pipelines, each pipeline gets its own instance.
+    - text: None; the Collector rejects a processor used in two pipelines
+      why: Using the same processor in more than one pipeline is allowed.
+  answer: [2]
+  source: https://opentelemetry.io/docs/collector/configuration/
+
+# O3 Transforming Data
+- id: q-mock-otca-092
+  tags: [collector-ottl, collector-processors]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: The filter processor should keep spans from the services app1 and app2 and drop all others. Which condition does that?
+  options:
+    - text: '<code>resource.attributes["service.name"] == "app1" or resource.attributes["service.name"] == "app2"</code>'
+      why: The filter drops what matches. This would drop app1 and app2 and keep everything else.
+    - text: '<code>resource.attributes["service.name"] != "app1" or resource.attributes["service.name"] != "app2"</code>'
+      why: Every span differs from at least one of the two names, so this matches everything and drops all spans.
+    - text: '<code>resource.attributes["service.name"] != "app1" and resource.attributes["service.name"] != "app2"</code>'
+      why: The filter drops matching spans, and only spans from other services match this condition.
+    - text: '<code>span.name != "app1" and span.name != "app2"</code>'
+      why: The service name is a resource attribute, not the span name.
+  answer: [2]
+  source: https://opentelemetry.io/docs/collector/transforming-telemetry/
+- id: q-mock-otca-093
+  tags: [collector-ottl, collector-processors]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: A transform processor has <code>error_mode</code> set to propagate. One of its statements fails on some spans. What happens to those payloads?
+  options:
+    - text: The error is logged and the next statement runs
+      why: That describes the ignore mode, which is the recommended one.
+    - text: The error is hidden and the next statement runs
+      why: That describes the silent mode.
+    - text: The statement is retried until it succeeds
+      why: None of the error modes retries a statement. Propagate returns the error and drops the payload.
+    - text: The error goes up and the payload is dropped
+      why: In propagate mode the error is returned up the pipeline, and the payload is dropped from the Collector.
+  answer: [3]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/transformprocessor/README.md
+- id: q-mock-otca-094
+  tags: [collector-processors]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: A gateway Collector should add <code>k8s.cluster.name</code> to all incoming data. This attribute describes the infrastructure, not single operations. Which processor fits?
+  options:
+    - text: The attributes processor
+      why: The attributes processor changes the attributes of spans, logs or data points, not resource attributes.
+    - text: The resource processor
+      why: The resource processor has the same style of actions but applies only to resource attributes.
+    - text: The batch processor
+      why: The batch processor groups data. It does not change attributes.
+    - text: The probabilistic sampler processor
+      why: A sampler decides what to keep. It does not add attributes.
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/transforming-telemetry/
+- id: q-mock-otca-095
+  tags: [collector-processors]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: A team uses the attributes processor to rename spans, but the span names never change. The troubleshooting guide names the reason. What is it?
+  options:
+    - text: It changes only attributes; names need the span processor
+      why: The guide says the attributes processor works only on the tags of spans, and the span processor handles the span name.
+    - text: Span names cannot be changed after the SDK exports them
+      why: Collector processors can change span data, including names, with the right processor.
+    - text: The attributes processor runs only on metrics, not on spans
+      why: The attributes processor works on traces too. Span names are outside its scope.
+    - text: Span names can change only when tail sampling is enabled
+      why: Sampling decides which traces to keep. It does not rename spans.
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/troubleshooting/
+- id: q-mock-otca-096
+  tags: [collector-ottl]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: A transform processor has a <code>log_statements</code> entry that sets a value from <code>span.attributes["http.route"]</code>. Why does this not work?
+  options:
+    - text: OTTL cannot read attributes with dots in their names
+      why: OTTL reads such attributes with the bracket syntax used here.
+    - text: The transform processor does not support logs
+      why: The transform processor supports logs, with its own set of paths.
+    - text: Log statements can only use resource, scope and log paths
+      why: Each signal has its own path prefixes. A span path cannot be used in log statements.
+    - text: The statement needs a where clause to run
+      why: A where clause is optional. The problem is the span path.
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/transformprocessor/README.md
+- id: q-mock-otca-097
+  tags: [collector-processors, collector-kubernetes]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: A gateway Collector gets data from agent Collectors and runs the k8sattributes processor with no <code>pod_association</code> rules. Pod metadata is wrong or missing. What should the team configure?
+  options:
+    - text: A larger informer cache so the processor finds more pods
+      why: The cache is not the problem. The processor is matching the wrong IP address.
+    - text: A pod_association rule on the k8s.pod.ip resource attribute
+      why: By default the processor matches the connection IP, which is the agent's. A rule on a resource attribute fixes this.
+    - text: The batch processor placed before k8sattributes in the list
+      why: Batching removes the connection information, so it makes the matching worse.
+    - text: A ClusterRole that lets the gateway read Kubernetes secrets
+      why: The processor needs to read pods and other workload objects, not secrets.
+  answer: [1]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/k8sattributesprocessor/README.md
+
+# O4 Context Propagation
+- id: q-mock-otca-098
+  tags: [collector-tail-sampling, collector-processors]
+  exam: {cert: otca, domain: O4, competency: Context Propagation}
+  q: "A gateway's traces pipeline has <code>processors: [tail_sampling, k8sattributes]</code>. The kept traces have no pod names. The k8sattributes processor matches pods by the connection IP. What is wrong?"
+  options:
+    - text: k8sattributes cannot run in a gateway Collector
+      why: It can run in a gateway, but it needs the right association rules and position.
+    - text: Tail sampling removes all resource attributes from spans
+      why: The README warns that tail sampling loses the context, not the attributes. The pod names were never added.
+    - text: Tail sampling regroups spans and loses their context
+      why: The tail sampling processor reassembles spans and loses their context, so processors that need it must come first.
+    - text: Pod names are only added to metrics, never to spans
+      why: The processor adds metadata to spans, metrics and logs.
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/tailsamplingprocessor/README.md
+- id: q-mock-otca-099
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O4, competency: Context Propagation}
+  q: Service A uses the default propagators. Service B, owned by another team, sets <code>OTEL_PROPAGATORS=b3</code>. Calls from A to B show up as two separate traces. What is the cause?
+  options:
+    - text: B's sampler drops the spans that A starts
+      why: Sampling does not split a trace in two. B never reads A's context.
+    - text: A sends W3C headers, but B reads only B3 headers
+      why: A injects W3C Trace Context and baggage, while B extracts only B3, so B starts a new trace.
+    - text: B3 cannot carry a trace ID across services
+      why: B3 carries trace context. The problem is that the two services use different formats.
+    - text: Both services need the same service.name
+      why: Services are expected to have different names, and the name does not affect propagation.
+  answer: [1]
+  source: https://opentelemetry.io/docs/languages/sdk-configuration/general/
+- id: q-mock-otca-100
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O4, competency: Context Propagation}
+  q: A team uses an in-house message queue client that has no OpenTelemetry instrumentation. Consumer spans always start new traces. What should the team add to the client?
+  options:
+    - text: A span link from each consumer span back to itself
+      why: A link needs the producer's span context, which the consumer never receives.
+    - text: Baggage entries that the consumer sets for each message
+      why: Baggage set by the consumer cannot carry the producer's context backwards.
+    - text: A shared trace ID read from an environment variable
+      why: One fixed ID for everything would merge unrelated messages into one trace.
+    - text: Inject context into message headers; extract it on receipt
+      why: Propagators inject context into an outgoing carrier, such as a message, and extract it from the incoming one.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/context/api-propagators/
+
+# O4 Debugging Pipelines
+- id: q-mock-otca-101
+  tags: [collector-debugging]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: A Collector's debug exporter prints one summary line per batch, with only the number of spans. The team wants to see every span with its attributes. What should they set?
+  options:
+    - text: The debug exporter's verbosity to detailed
+      why: With detailed verbosity the debug exporter prints the full content of the data.
+    - text: The internal metrics level to detailed
+      why: That changes the Collector's own metrics, not what the debug exporter prints.
+    - text: The debug exporter's sampling_initial to 1
+      why: Sampling settings control how many messages are logged, not how much each shows.
+    - text: The zPages extension on port 55679
+      why: zPages show live data about components. They do not change the exporter's output.
+  answer: [0]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/debugexporter/README.md
+- id: q-mock-otca-102
+  tags: [collector-debugging]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: The zPages extension is enabled on a running Collector. An engineer wants to see which receivers, processors and exporters each running pipeline uses. Which page shows that?
+  options:
+    - text: <code>/debug/tracez</code>
+      why: TraceZ groups spans by latency and shows errors. It does not list pipeline components.
+    - text: <code>/debug/featurez</code>
+      why: FeatureZ lists feature gates and their status.
+    - text: <code>/debug/pipelinez</code>
+      why: PipelineZ shows the running pipelines with their receivers, processors and exporters.
+    - text: <code>/debug/extensionz</code>
+      why: ExtensionZ lists the active extensions, not the pipelines.
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/main/extension/zpagesextension/README.md
+- id: q-mock-otca-103
+  tags: [collector-debugging, collector-reliability]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: On a Collector, <code>otelcol_receiver_accepted_spans</code> grows steadily, <code>otelcol_exporter_sent_spans</code> stays flat, and <code>otelcol_exporter_send_failed_spans</code> grows. Where is the problem most likely?
+  options:
+    - text: Between the clients and the receiver
+      why: The receiver accepts the spans, so data is getting in.
+    - text: In the memory limiter, which refuses spans
+      why: The memory limiter returns errors to the component before it. Spans that a receiver cannot push into the pipeline are counted as refused, and here accepted spans keep rising.
+    - text: In the SDKs, which send malformed spans
+      why: The receiver accepts the spans and the failures happen at export, which points away from the senders.
+    - text: Between the exporter and the backend
+      why: Data comes in but cannot be sent. Rising send failures point to the network or the backend.
+  answer: [3]
+  source: https://opentelemetry.io/docs/collector/internal-telemetry/
+- id: q-mock-otca-104
+  tags: [collector-config, collector-debugging]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: A Collector starts with two <code>--config</code> files. The second file has an empty <code>processors</code> key with no value. After startup, the processors defined in the first file are gone. How do you fix it?
+  options:
+    - text: 'Set <code>processors: null</code> in the first file as well'
+      why: A null value removes the map just like the empty key does, so the processors stay gone.
+    - text: 'Write <code>processors: {}</code>, or remove the empty key'
+      why: A null value from a later file replaces the earlier map. Use {} for an empty map, or leave the key out.
+    - text: Add the processors to the service section of both files
+      why: The service section lists pipelines. The empty key still wipes the definitions.
+    - text: Run <code>otelcol components</code> before each start
+      why: That lists the available components. It does not change how files merge.
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/troubleshooting/
+
+# O4 Error Handling
+- id: q-mock-otca-105
+  tags: [otel-error-handling]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: The Collector that an application exports to is down for ten minutes. How should a conforming OpenTelemetry SDK in the application behave?
+  options:
+    - text: Throw an exception into the application code
+      why: The SDK must not throw unhandled exceptions for errors in its own work, such as an unreachable endpoint.
+    - text: Stop the application to avoid losing telemetry
+      why: The spec assumes users prefer to lose telemetry rather than have it change how the application behaves.
+    - text: Keep the app running and handle the error itself
+      why: The exporter must not throw when it cannot reach its endpoint; the SDK should log the suppressed error.
+    - text: Block every request until the Collector is back
+      why: Blocking the application would change its behavior, which the error handling principles avoid.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/error-handling/
+- id: q-mock-otca-106
+  tags: [otel-otlp, otel-error-handling]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: An OTLP/HTTP exporter sends a batch, and the server answers <code>400 Bad Request</code>. What must the client do with that batch?
+  options:
+    - text: Retry it with exponential backoff
+      why: Backoff applies to retryable responses. A 400 must not be retried.
+    - text: Drop it and do not send it again
+      why: The client must not retry a request that got 400 Bad Request, and it drops the data.
+    - text: Retry it after the time in Retry-After
+      why: Retry-After goes with throttling answers such as 429 or 503, not with 400.
+    - text: Split it in half and send both parts
+      why: The OTLP specification does not ask clients to split a rejected request.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otlp/
+- id: q-mock-otca-107
+  tags: [otel-otlp, otel-error-handling]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: An OTLP server accepts a request but reports <code>partial_success</code> with <code>rejected_spans</code> set to 12. What must the client do?
+  options:
+    - text: Send the whole request again
+      why: The accepted spans would then arrive twice.
+    - text: Send only the 12 rejected spans again
+      why: The client is not allowed to retry after a partial success.
+    - text: Treat it as a full failure and drop the request
+      why: Most of the data was accepted. Only the rejected part is lost.
+    - text: Not retry the request
+      why: The client must not retry a request that got a partial success response.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otlp/
+- id: q-mock-otca-108
+  tags: [collector-reliability]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: A Collector's memory limiter goes over its soft limit and starts refusing data. When is that data lost for good?
+  options:
+    - text: Always, because a refusal deletes the data
+      why: The refusal is a non-permanent error, so the sender can try again.
+    - text: When the component before the memory limiter does not retry
+      why: Receivers are expected to retry refused data. If the preceding component does not, the data is lost.
+    - text: Never, because the memory limiter writes refused data to disk
+      why: The README describes refusing data and returning errors to the preceding component, not storing the data.
+    - text: Only when the hard limit is reached
+      why: Data is refused once the soft limit is crossed. The hard limit also forces garbage collection.
+  answer: [1]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md
+- id: q-mock-otca-109
+  tags: [collector-reliability, collector-debugging]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: A Collector logs <code>Dropping data because sending_queue is full</code>, and <code>otelcol_exporter_enqueue_failed_spans</code> rises. What do the docs suggest?
+  options:
+    - text: Lower the sending rate or scale the Collectors out
+      why: These failures come from a full queue, so lower the rate or add Collectors.
+    - text: Switch off retry_on_failure to empty the queue
+      why: Without retries, data that fails once is not tried again, so more of it is lost.
+    - text: Raise OTEL_BSP_MAX_QUEUE_SIZE in the applications
+      why: That variable sizes the SDK's span queue, not the Collector exporter's queue.
+    - text: Move the memory limiter after the exporter
+      why: The memory limiter is a processor. It cannot be placed after an exporter.
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/internal-telemetry/
+- id: q-mock-otca-110
+  tags: [collector-reliability]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: A gateway Collector must not lose queued data when its pod restarts. What should be configured on its exporters?
+  options:
+    - text: A bigger <code>queue_size</code> for the in-memory sending queue
+      why: A bigger in-memory queue still loses its content when the process stops.
+    - text: A longer <code>max_elapsed_time</code> for retry_on_failure
+      why: Longer retries help with backend outages, not with a Collector restart.
+    - text: A file_storage extension behind the <code>sending_queue</code>
+      why: With file_storage the queue is written to disk and read again after a restart.
+    - text: The batch processor with a larger timeout value
+      why: The batch processor has no storage setting, so its batches are in memory and lost on restart.
+  answer: [2]
+  source: https://opentelemetry.io/docs/collector/resiliency/
+
+# O4 Schema Management
+- id: q-mock-otca-111
+  tags: [otel-schemas]
+  exam: {cert: otca, domain: O4, competency: Schema Management}
+  q: A span arrives with the schema URL <code>https://opentelemetry.io/schemas/1.25.0</code>. What does that URL tell a consumer?
+  options:
+    - text: Which version of the OpenTelemetry SDK made the span
+      why: The SDK version is a resource attribute. The schema URL names a telemetry schema version.
+    - text: Which telemetry schema version the data follows
+      why: Schema URLs identify a schema version, so a consumer can transform data between versions if needed.
+    - text: Where the backend should send its answer
+      why: A schema URL is not an address for replies.
+    - text: Which OTLP protocol version the exporter used
+      why: The schema is about the shape of telemetry, such as attribute names, not the protocol.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/schemas/
+- id: q-mock-otca-112
+  tags: [otel-schemas]
+  exam: {cert: otca, domain: O4, competency: Schema Management}
+  q: What problem are telemetry schemas meant to solve?
+  options:
+    - text: To list every valid value and type of every attribute
+      why: The specification puts the full shape of telemetry out of scope for schemas.
+    - text: To compress telemetry before it is exported to a backend
+      why: Schemas describe changes to conventions, not compression.
+    - text: To store dashboards next to the telemetry they query
+      why: Dashboards may expect a schema version, but schemas do not store them.
+    - text: To let conventions evolve without breaking consumers
+      why: Schemas define transformations between versions, so conventions, sources and consumers can change independently.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/schemas/
+- id: q-mock-otca-113
+  tags: [otel-schemas, collector-processors]
+  exam: {cert: otca, domain: O4, competency: Schema Management}
+  q: A team uses the alpha schema processor to move its telemetry to a newer semantic convention version. Some attributes are renamed. Dashboards still query the old names, and the team needs a few weeks to update them. What should they configure?
+  options:
+    - text: A migration entry, so old and new names are both written
+      why: With a migration entry the processor writes both names, which gives time to update queries, dashboards and alerts.
+    - text: Two targets for the same schema family
+      why: The processor takes one target per schema family.
+    - text: A prefetch list with the old schema only
+      why: Prefetch only downloads and caches schema files at startup.
+    - text: Nothing, because the processor keeps old names by default
+      why: By default the processor does hard renames and removes the old names.
+  answer: [0]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/schemaprocessor/README.md
