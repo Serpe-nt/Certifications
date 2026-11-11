@@ -1,5 +1,7 @@
 # Content contract
 
+> On hold since 2026-11-11. The owner rejected the form of a step that this version describes (a stack of labelled boxes in one column) and asked for an article with Learn and Practice tabs: `00-overview.md`, section 13. Card DZ designs the new form; the planner then rewrites the sections "Step file" and "Writing rules" here as version 2. Until then write no new step. The files, the module file, the check kinds, the question file, the verification log and the rule that every fact comes from a fetched official page all stay.
+
 The format of modules, steps and questions. The site engine (`lgtm/learn`) implements it as build-time schemas, so a file that breaks it fails the build. Content workers write to it. Version 1 (2026-11-09: the decisions in `lgtm/docs/adr/s1-content-format.md` are folded in), owned by the planner; ask for changes in the pull request.
 
 ## Files

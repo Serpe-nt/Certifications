@@ -11,7 +11,7 @@ Read before changing anything:
 ## Rules
 
 - One card, one branch, one pull request. Stay inside the paths your card owns. Do not edit `docs/plan/`.
-- Chat may be terse (`/caveman`). Everything saved to the repository is plain, complete English: lesson text, code, comments, commit messages, pull requests, docs.
+- Every worker loads three skills before anything else: `caveman` (chat may be terse), `humanizer` (every text a person will read is passed through it before it is saved, without changing a fact, a number, a name, a command or a query) and `ponytail` (the smallest change that fully solves the task). Everything saved to the repository is plain, complete English: lesson text, code, comments, commit messages, pull requests, docs.
 - Facts and versions come from an official page fetched in the session, never from memory. This stack changed a great deal in 2025 and 2026: charts moved to `grafana-community`, Promtail and Grafana Agent are gone, Loki's simple scalable mode is being removed, Tempo 3 and Mimir 3 ingest through Kafka, MinIO community images are no longer published. `docs/research/` has the details and their sources.
 - Step ids and question ids key the learner's saved progress. Never rename or reuse one.
 - Never touch what the owner runs: the saa-plan app (ports 8080, 8091 and 8181), their VMs, `~/.kube/config`, Windows and WSL settings and packages. Test servers use the ports `docs/plan/cards/README.md` gives your card; test clusters are kind clusters named `lgtm-<card id>` that you delete afterwards; tools go into git-ignored folders inside the worktree.
