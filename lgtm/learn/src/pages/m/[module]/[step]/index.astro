@@ -43,7 +43,8 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
 ---
 <Base title={step.title} bare>
   <header class="stephead">
-    <div>
+    <Globe />
+    <div class="stephead-main">
       <div class="tagrow">
         <span class="tag">{kindLabel}</span>
         <span class="tag-tail" aria-hidden="true"></span>
@@ -58,7 +59,6 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
       </p>
     </div>
     <div class="stepmeta-side">
-      <Globe />
       <Matrix value={position} total={total} />
     </div>
   </header>

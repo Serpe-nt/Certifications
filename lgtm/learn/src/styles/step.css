@@ -163,8 +163,8 @@
 }
 .globe {
   position: absolute;
-  right: -110px;
-  bottom: -150px;
+  left: -170px;
+  top: -90px;
   width: 520px;
   height: 520px;
   opacity: 0.5;
@@ -1016,5 +1016,21 @@
   }
   .prose > h2::before {
     font-size: 2rem;
+  }
+}
+
+/* The globe turns behind the left side of the header; the header text sits above it. */
+.stephead-main,
+.stepmeta-side {
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 900px) {
+  .globe {
+    left: auto;
+    right: -260px;
+    top: -120px;
+    width: 420px;
+    height: 420px;
   }
 }
