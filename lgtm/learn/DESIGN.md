@@ -150,6 +150,7 @@ The owner chose this look at the first design stop on 2026-11-11, after about tw
 - The console: content max 90rem, side padding 116px on wide screens (24px under 1100px, 16px under 640px). The rails live in the outer 110px of the window and hide under 1100px.
 - Every page opens with the same header on the ash (`PageHead.astro`, `head.css`): a yellow tag, a crumb, the title, a lead or the step's outcome, chips, and the dot-matrix plate on the right (the owner chose the plate "on every page", 2026-11-11). Behind it turns the globe, or on module, quiz and step pages the module's own icon.
 - The step page: under that header, under it the screen with a reading column of 47.5rem and a 300px sidebar, 64px apart. Under 1100px the sidebar drops below the article; the header becomes one column under 900px.
+- The end of a step stands under the article on the console: the card question centred, then Back at the start, Mark complete in the middle and Next at the end, across the width (owner, 2026-11-11). The page is up to 104rem wide; the screen's glass is 85% opaque, so the grid shows through while secondary text keeps 4.5:1; dialogs stay solid.
 - Only the page scrolls. The one exception is an open dialog, which scrolls itself while the page behind it is inert.
 - Spacing follows a 4px base (4, 8, 12, 16, 24, 32, 48); more space above a heading (3rem) than below (1.125rem).
 

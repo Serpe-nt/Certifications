@@ -77,17 +77,6 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
               </div>
             )
           }
-          <div class="stepnav-wrap">
-            <StepNav
-              client:load
-              stepId={step.id}
-              backHref={prev ? prev.href : module.href}
-              backLabel="Back"
-              nextHref={next ? next.href : module.endHref}
-              nextLabel={next ? 'Next' : 'Finish the module'}
-              needsCheck={!!step.check}
-            />
-          </div>
         </article>
 
         <aside class="sidebar" aria-label="Look things up">
@@ -142,6 +131,31 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
       </div>
     </div>
   </section>
+
+  <!-- The end of a step stands under the article, on the console (owner, 2026-11-11): the card question,
+       then Back, Mark complete and Next across the width. The question is written inside the article
+       (<Question> in the MDX); the script right after this block moves it here as the page loads. -->
+  <div class="stepend" data-tab="learn" data-has-practice={hasPractice ? '' : undefined}>
+    <div class="stepend-q" data-stepend-q></div>
+    <div class="stepnav-wrap">
+      <StepNav
+        client:load
+        stepId={step.id}
+        backHref={prev ? prev.href : module.href}
+        backLabel="Back"
+        nextHref={next ? next.href : module.endHref}
+        nextLabel={next ? 'Next' : 'Finish the module'}
+        needsCheck={!!step.check}
+      />
+    </div>
+  </div>
+  <script is:inline>
+    (function () {
+      var q = document.querySelector('.prose > [data-block="question"]');
+      var slot = document.querySelector('[data-stepend-q]');
+      if (q && slot) slot.appendChild(q);
+    })();
+  </script>
 
   <div class="scale mono" aria-hidden="true">
     <svg viewBox="0 0 520 54">
@@ -213,8 +227,10 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
         (function () {
           var glass = document.querySelector('.glass[data-tab]');
           if (!glass) return;
+          var end = document.querySelector('.stepend');
           function show(tab) {
             glass.setAttribute('data-tab', tab);
+            if (end) end.setAttribute('data-tab', tab);
             document.querySelectorAll('.tabs [data-tab-link]').forEach(function (a) {
               a.setAttribute('aria-selected', String(a.getAttribute('data-tab-link') === tab));
             });

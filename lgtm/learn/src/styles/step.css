@@ -29,8 +29,9 @@
 }
 .stepcols {
   display: grid;
-  grid-template-columns: minmax(0, var(--lg-measure)) 300px;
-  gap: 64px;
+  grid-template-columns: minmax(0, var(--lg-measure)) 320px;
+  justify-content: center;
+  gap: clamp(64px, 6vw, 112px);
   border-top: 1px solid var(--lg-rule);
   padding-top: var(--lg-space-8);
 }
@@ -2444,4 +2445,35 @@
   40% {
     transform: scaleY(2);
   }
+}
+
+/* ---------------------------------------------------------------- the end of the step, under the article */
+/* The card question, centred, then Back at the start, Mark complete in the middle and Next at the end,
+   across the full width, standing on the console's grid. */
+.stepend {
+  margin-top: var(--lg-space-8);
+}
+.stepend-q {
+  max-width: 52rem;
+  margin: 0 auto;
+}
+.stepend-q > .part {
+  margin: 0;
+}
+.stepend .stepnav {
+  margin-top: var(--lg-space-8);
+  padding-top: var(--lg-space-4);
+  border-top: 2px solid var(--lg-ink);
+}
+.stepend .stepnav-hint {
+  justify-self: center;
+  padding: 4px 12px;
+  background: var(--lg-paper);
+  color: var(--lg-ink-2);
+}
+.stepend .btn:not(.btn-primary) {
+  background: var(--lg-paper);
+}
+[data-tab="learn"][data-has-practice] > .stepend-q [data-block="question"] {
+  display: none;
 }

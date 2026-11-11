@@ -2146,6 +2146,7 @@ body:has([data-exam-running]) .sync::before {
    their surfaces: the ink strip, the paper card, the paper tape. The intro and results keep the box. */
 main > .screen:has(.qz) {
   padding: 0;
+  border: 0;
   background: none;
 }
 main > .screen:has(.qz)::before {

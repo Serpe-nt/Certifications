@@ -51,7 +51,7 @@
   --lg-text-display: clamp(2.5rem, 4.6vw, 4.875rem); /* the step title */
 
   --lg-measure: 47.5rem; /* the reading column on the step page */
-  --lg-page-max: 90rem;
+  --lg-page-max: 104rem;
 
   /* The console: the page around the screen */
   --lg-ash: #5e6367;
@@ -66,6 +66,7 @@
   --lg-bezel-2: #3b3f42; /* unlit dots and dark insets on the bezel */
   --lg-screen: #d4d8da;
   --lg-screen-2: #c5cacc; /* insets and tracks on the screen */
+  --lg-screen-glass: color-mix(in srgb, var(--lg-screen) 85%, transparent); /* the page's screen: the console's grid shows through; 85% keeps the secondary ink at 4.5:1 */
   --lg-screen-idea: #ccd1d3; /* the key idea panel, between screen and screen-2 */
   --lg-scrim: rgb(20 21 22 / 0.72); /* behind an open dialog */
   --lg-scanline: rgb(0 0 0 / 0.16); /* the scanlines rolling over the dialog backdrop */
