@@ -90,9 +90,9 @@ const base = import.meta.env.BASE_URL;
         </>
       )
     }
-    <!-- Motion (src/styles/motion.css, src/lib/fx-ui.ts): the scroll gauge and the pointer's crosshair. -->
+    <!-- Motion (src/styles/motion.css, src/lib/fx-ui.ts): the scroll gauge and the crosshair that is the pointer. -->
     <div class="scroll-gauge" aria-hidden="true"></div>
-    <div class="reticle" aria-hidden="true"><span class="reticle-dot"></span><span class="reticle-xy mono"></span></div>
+    <div class="reticle" aria-hidden="true"><span class="reticle-body"><span class="reticle-lock"></span><span class="reticle-dot"></span></span><span class="reticle-xy mono"></span></div>
     <script>
       import { boot } from '../lib/page.ts';
       boot();

@@ -524,37 +524,58 @@
 }
 
 /* ================================================================ cursor reticle and click ping (fx-ui.ts) */
-/* Over the console (not over the reading screen) a crosshair follows the pointer with its
-   coordinates; every click sends a yellow octagon ping. */
+/* The crosshair is the pointer (owner, 2026-11-11: "I like the cursor, but it sits after my original
+   one"): the system cursor is hidden while it is on, except the text cursor in text fields. It
+   follows the pointer directly, over the screen and inside dialogs too. Over something you can click
+   it locks on: it grows, turns yellow and shows corner brackets; pressed, it tightens. Over the
+   console's ash it also shows its coordinates. Every click outside a dialog sends a yellow ping. */
+html[data-reticle]:not([data-motion="off"]),
+html[data-reticle]:not([data-motion="off"]) * {
+  cursor: none !important;
+}
+html[data-reticle]:not([data-motion="off"]) :is(input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="file"], [type="range"]), textarea, [contenteditable="true"]) {
+  cursor: text !important;
+}
 .reticle {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 30;
-  width: 44px;
-  height: 44px;
-  margin: -22px 0 0 -22px;
+  z-index: 1000;
+  width: 0;
+  height: 0;
   pointer-events: none;
   opacity: 0;
-  transition: opacity var(--lg-dur-fast) var(--lg-ease-out);
 }
 .reticle[data-on] {
   opacity: 1;
 }
-.reticle::before,
-.reticle::after {
+.reticle[data-text] {
+  opacity: 0;
+}
+.reticle-body {
+  position: absolute;
+  left: -22px;
+  top: -22px;
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 0 1px var(--lg-paper)) drop-shadow(0 0 1px var(--lg-paper));
+  transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+}
+.reticle-body::before,
+.reticle-body::after {
   content: "";
   position: absolute;
-  background: var(--lg-ash-ink);
+  background: var(--lg-ink);
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out);
 }
-.reticle::before {
+.reticle-body::before {
   left: 0;
   right: 0;
   top: 21px;
   height: 2px;
   clip-path: polygon(0 0, 38% 0, 38% 100%, 62% 100%, 62% 0, 100% 0, 100% 100%, 0 100%);
 }
-.reticle::after {
+.reticle-body::after {
   top: 0;
   bottom: 0;
   left: 21px;
@@ -563,21 +584,62 @@
 }
 .reticle-dot {
   position: absolute;
-  left: 18px;
-  top: 18px;
-  width: 8px;
-  height: 8px;
+  left: 19px;
+  top: 19px;
+  width: 6px;
+  height: 6px;
   background: var(--lg-signal);
   box-shadow: 0 0 0 2px var(--lg-ink);
+  transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+}
+/* Corner brackets, shown when locked on. */
+.reticle-lock {
+  position: absolute;
+  inset: 4px;
+  background:
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left top / 9px 2px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left top / 2px 9px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right top / 9px 2px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right top / 2px 9px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left bottom / 9px 2px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left bottom / 2px 9px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right bottom / 9px 2px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right bottom / 2px 9px no-repeat;
+  opacity: 0;
+  transform: scale(1.6);
+  transition:
+    opacity var(--lg-dur-fast) var(--lg-ease-out),
+    transform var(--lg-dur-fast) var(--lg-ease-out);
+}
+.reticle[data-hot] .reticle-body {
+  transform: scale(1.25);
+}
+.reticle[data-hot] .reticle-body::before,
+.reticle[data-hot] .reticle-body::after {
+  background: var(--lg-signal);
+}
+.reticle[data-hot] .reticle-lock {
+  opacity: 1;
+  transform: scale(1);
+}
+.reticle[data-down] .reticle-body {
+  transform: scale(0.8);
+}
+.reticle[data-down] .reticle-dot {
+  transform: scale(1.6);
 }
 .reticle-xy {
   position: absolute;
-  left: 34px;
-  top: 30px;
+  left: 14px;
+  top: 10px;
   padding: 1px 5px;
   background: var(--lg-paper);
   color: var(--lg-ink);
   white-space: nowrap;
+  opacity: 0;
+}
+.reticle[data-ash] .reticle-xy {
+  opacity: 1;
 }
 .ping {
   position: fixed;

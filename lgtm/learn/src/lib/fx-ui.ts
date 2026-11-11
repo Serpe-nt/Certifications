@@ -1,5 +1,5 @@
 // Small interface effects in the console style (styles in src/styles/motion.css): a crosshair that
-// follows the pointer over the console, a yellow ping on every click, and mono labels that decode
+// is the pointer, a yellow ping on every click, and mono labels that decode
 // from scrambled glyphs. All of them stand still when Effects is off in Settings or the device
 // asks for reduced motion. Styles are set through the CSSOM, which the CSP allows.
 
@@ -10,40 +10,66 @@ function motionOn(): boolean {
   return !(typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
 
-/** The crosshair: shown over the console's ash, hidden over the screen, dialogs and controls. */
+/** Things the crosshair locks on to. */
+const HOT = 'a[href], button:not(:disabled), label, select, summary, [role="tab"], input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled), [data-dialog-close]';
+/** Text fields keep the system's text cursor; the crosshair steps aside there. */
+const TEXT = 'input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="file"], [type="range"]), textarea, [contenteditable="true"]';
+
+/**
+ * The crosshair is the pointer on a device with a mouse: the system cursor is hidden while it is on
+ * (motion.css, html[data-reticle]). It follows the pointer directly, moves into an open dialog (a
+ * dialog sits in the top layer, above anything in the page), locks on over things you can click,
+ * tightens while pressed, and shows its coordinates over the console's ash. With Effects off,
+ * reduced motion, or while a mock exam runs, the system cursor comes back.
+ */
 export function wireReticle(): void {
   const r = document.querySelector<HTMLElement>('.reticle');
   const xy = r?.querySelector<HTMLElement>('.reticle-xy');
   if (!r || typeof window.matchMedia !== 'function' || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  const root = document.documentElement;
   let x = 0;
   let y = 0;
-  let tx = 0;
-  let ty = 0;
   let raf = 0;
-  const step = () => {
-    x += (tx - x) * 0.35;
-    y += (ty - y) * 0.35;
-    r.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
-    raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.5 ? requestAnimationFrame(step) : 0;
+  const off = () => {
+    root.removeAttribute('data-reticle');
+    r.removeAttribute('data-on');
+  };
+  const draw = () => {
+    raf = 0;
+    r.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   };
   window.addEventListener(
     'pointermove',
     (e) => {
-      if (!motionOn()) {
-        r.removeAttribute('data-on');
+      if (e.pointerType !== 'mouse' || !motionOn() || document.querySelector('[data-exam-running]')) {
+        off();
         return;
       }
+      // Live where the pointer is: inside the open dialog, or in the page.
+      const host = document.querySelector('dialog[open]') ?? document.body;
+      if (r.parentElement !== host) host.appendChild(r);
+      root.setAttribute('data-reticle', '');
+      r.setAttribute('data-on', '');
       const target = e.target instanceof Element ? e.target : null;
-      const busy = !!target?.closest('.screen, dialog, a, button, input, label, select, textarea, .topbar');
-      r.toggleAttribute('data-on', !busy);
-      tx = e.clientX;
-      ty = e.clientY;
-      if (xy) xy.textContent = `X_${String(Math.round(e.pageX)).padStart(4, '0')} Y_${String(Math.round(e.pageY)).padStart(4, '0')}`;
-      if (!raf) raf = requestAnimationFrame(step);
+      r.toggleAttribute('data-text', !!target?.closest(TEXT));
+      r.toggleAttribute('data-hot', !!target?.closest(HOT));
+      const ash = !target?.closest('.screen, dialog, .topbar, .pagehead');
+      r.toggleAttribute('data-ash', ash);
+      x = e.clientX;
+      y = e.clientY;
+      if (ash && xy) xy.textContent = `X_${String(Math.round(e.pageX)).padStart(4, '0')} Y_${String(Math.round(e.pageY)).padStart(4, '0')}`;
+      if (!raf) raf = requestAnimationFrame(draw);
     },
     { passive: true },
   );
-  document.documentElement.addEventListener('pointerleave', () => r.removeAttribute('data-on'));
+  window.addEventListener('pointerdown', () => r.setAttribute('data-down', ''), { passive: true });
+  window.addEventListener('pointerup', () => r.removeAttribute('data-down'), { passive: true });
+  root.addEventListener('pointerleave', () => r.removeAttribute('data-on'));
+  window.addEventListener('blur', () => r.removeAttribute('data-on'));
+  // When a dialog closes, the crosshair goes back to the page before the dialog leaves the top layer.
+  document.addEventListener('close', () => {
+    if (r.parentElement !== document.body) document.body.appendChild(r);
+  }, true);
 }
 
 /** A yellow octagon pings out wherever the learner clicks, outside dialogs. Inside a dialog a fixed
