@@ -31,7 +31,7 @@ Unchanged, plus two fields. The owner decided at the third stop (2026-11-11) tha
 6. On a lab or drill step: `<Do>`, `<Done>`, and `<Trap practice>` when the trap is about the lab work.
 7. `<Question>`, last.
 
-Section headings and parts are numbered by the page (01, 02, ...); authors do not write numbers. The sidebar lists the `##` headings as "In this article", so headings say what the section says ("Labels multiply series", not "Details").
+Section headings are numbered by the page (01, 02, ...); parts carry an icon and a name, not a number (the owner chose "Sections only" on 2026-11-11). Authors do not write numbers. The sidebar lists the `##` headings as "In this article", so headings say what the section says ("Labels multiply series", not "Details").
 
 ### Article parts
 
@@ -67,7 +67,8 @@ They take the place of pictures. An author fills them with data from the step; n
 
 - Learn is the article: everything except what is marked for practice.
 - Practice holds `<Do>`, `<Done>`, `<Trap practice>`, the lab check, and the card question. The owner chose the card question's place at the first stop: on Practice for lab steps, at the end of Learn for steps without Practice.
-- The tab is in the address (`?tab=practice`), so a reload and the Back key keep it. Mark complete sits at the end of both tabs and still waits for the check.
+- The lab check renders right after `<Done>` (the page puts it there; authors do not place it). A step in the old form, without `<Done>`, gets it at the end.
+- The tab is in the address (`?tab=practice`), so a reload and the Back key keep it. Back and Next sit at the end of both tabs. While the check is open, Learn offers "Go to practice" in the middle and Practice shows Mark complete, which waits for the check.
 
 ### Writing rules that change
 

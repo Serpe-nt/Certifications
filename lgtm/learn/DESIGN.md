@@ -142,12 +142,14 @@ The owner chose this look at the first design stop on 2026-11-11, after about tw
 - **Body:** Archivo 1.1875rem (19px), line height 1.7, paragraphs at most 70 characters wide.
 - **Key idea:** Archivo 1.3125rem, weight 500.
 - **Labels:** JetBrains Mono 0.75rem, weight 600, 0.14em tracking, capitals by CSS (the owner chose capitals for mono labels only; the files keep sentence case).
-- **Numbers that matter** (stats, counters, part numbers): display face.
+- **Numbers that matter** (stats, scores, section numbers, question numbers): display face.
+- **The ramp:** every font size is a token in `src/styles/tokens.css`: `--lg-text-label` 0.75rem, `-small` 0.9375rem, `-ui` 1.0625rem, `-body` 1.1875rem, `-lead` 1.375rem, `-h3` 1.75rem, `-h2` 2rem, `-stat` 2.75rem, `-page` clamp(2rem, 3.6vw, 3.25rem), `-display` clamp(2.5rem, 4.6vw, 4.875rem). No other size is used.
 
 ## Layout
 
 - The console: content max 90rem, side padding 116px on wide screens (24px under 1100px, 16px under 640px). The rails live in the outer 110px of the window and hide under 1100px.
-- The step page: a header (two columns, 1fr and 220px for the step number) on the ash; under it the screen with a reading column of 47.5rem and a 300px sidebar, 64px apart. Under 1100px the sidebar drops below the article; the header becomes one column under 900px.
+- Every page opens with the same header on the ash (`PageHead.astro`, `head.css`): a yellow tag, a crumb, the title, a lead or the step's outcome, chips, and the dot-matrix plate on the right (the owner chose the plate "on every page", 2026-11-11). Behind it turns the globe, or on module, quiz and step pages the module's own icon.
+- The step page: under that header, under it the screen with a reading column of 47.5rem and a 300px sidebar, 64px apart. Under 1100px the sidebar drops below the article; the header becomes one column under 900px.
 - Only the page scrolls. The one exception is an open dialog, which scrolls itself while the page behind it is inert.
 - Spacing follows a 4px base (4, 8, 12, 16, 24, 32, 48); more space above a heading (3rem) than below (1.125rem).
 
@@ -185,7 +187,9 @@ There are no soft cards. Article parts:
 - **In this lab:** paper with a 6px ink edge.
 - **Trap:** screen-2 with a hazard-stripe band.
 - **Remember:** paper ticket with notches and a barcode stub.
-- Every part's label carries its yellow two-digit number, an icon and a mono name.
+- Every part's label carries a small yellow tab, an icon and a mono name. Only the `##` sections are numbered (the owner chose "Sections only", 2026-11-11).
+- In this lab, Trap and Remember close the article together, after a heavier rule.
+- **Lab check:** paper panel with an ink frame, right after How you know it worked on the Practice tab; a primary Check button; a red frame and a message that says what is wrong for each kind of check; a green edge once passed.
 
 Information parts (Flow, Compare, Figures, Layers, Timeline) are drawn in ink and paper; the highlighted item is ink with paper text. See `../docs/adr/dz-article-format.md` for when to use each.
 
@@ -196,22 +200,30 @@ Paper fill, 2px ink frame, square corners, mono text; checkboxes and radios take
 ### Navigation
 
 - Top bar: the bracketed brand `[ LGTM // LAB ]`, a yellow sync lamp, the two nav buttons.
-- Learn and Practice: pill tabs with a 2px ink frame; the selected one is ink with yellow text. The tab is in the address (`?tab=practice`).
-- Dialogs (Settings, Practice): native `<dialog>` on a screen, opened over the current page; the open dialog is in the address (`#settings`, `#practice`, `#practice=<step id>`).
+- Learn and Practice: cut-corner tabs, 44px tall, with a 2px ink frame; the selected one is ink with yellow text. The tab is in the address (`?tab=practice`).
+- The end of an article: Back, the middle action, Next. While a lab check is open, Learn shows "Go to practice" in the middle (the owner's choice, 2026-11-11) and Practice shows Mark complete, waiting for the check.
+- The sidebar's contents list stays in view and marks the section being read (`aria-current="location"`).
+- Dialogs (Settings, Practice, and on a step page the module outline): native `<dialog>` on a screen, opened over the current page; the open dialog is in the address (`#settings`, `#practice`, `#practice=<step id>`, `#module`). The module name in the step header is a link with a yellow underline that opens the outline.
+- Quiz and mock exam: one question at a time; lettered option rows at least 56px tall; right and wrong shown with a mark and words as well as colour; one primary action at a time. Question squares are 44px; the current one has an ink ring outside and a yellow ring inside.
 
 ### Signature components
 
-- **Step number:** the number in a 5 by 7 octagon dot matrix on a bezel plate, with a running dashed line.
-- **Globe:** a wireframe sphere that turns once every 80 seconds behind the left of the header; its nodes blink.
+- **Plate:** one to four characters in a 5 by 7 octagon dot matrix on a bezel plate, with a mono line and a running dashed line (`Matrix.astro`): the step number, the module number, `P`, `60`, `404`. When a step is complete its dots are yellow.
+- **Globe:** a wireframe sphere that turns once every 80 seconds behind the left of the header on pages without a module; its nodes blink.
+- **Module icons:** one line-drawn, slowly animated icon per module (`ModuleIcon.astro`, `src/assets/deco/modules/`; m01 Helm a steering wheel, m02 the globe), on the overview's module cards and, large and faint, behind the module's page headers. One yellow detail, kept grey behind a title.
+- **Overview hero:** the four LGTM layers drawn as slabs pulled apart, with one yellow request falling through them (`src/assets/deco/hero-stack.svg`).
 - **Side rails:** two tall SVG compositions (`src/assets/deco/rail-left.svg`, `rail-right.svg`) of hairline spines and labelled micrographics, one of each drawing, repeating every 3400px.
 
 ## Motion
 
 - The step title wipes in from the left (900ms, exponential ease-out); page headings do the same.
-- The step number's lit dots fade in, digit by digit; the dashed line under it runs.
+- The plate's lit dots fade in, character by character; the dashed line under it runs, one 16px tile per loop so it never jumps.
+- Mark complete: the plate's dots turn yellow column by column; the celebration particles are yellow, paper and ink.
+- The bars of a Figures part grow as they scroll into view; quiz squares flash when a question is answered.
 - Article parts and information parts rise into place as they scroll into view.
 - The globe turns and its nodes blink; the sync lamp blinks.
 - Dialogs rise in when they open.
+- The running mock exam has no motion at all, the header's included.
 - Everything calms under the device's reduced-motion setting and when Effects is off in Settings (`data-motion="off"` on `<html>`). The celebrations keep their own ladder (`src/lib/fx.ts`).
 
 ## Do and don't
