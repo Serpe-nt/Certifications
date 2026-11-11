@@ -13,6 +13,7 @@ Read `../CLAUDE.md` first, then `README.md`, `PRODUCT.md` and `DESIGN.md` here. 
 - `src/figures/registry.ts` figure scenes by id; scenes go in `src/figures/<figure id>/index.tsx`.
 - `src/styles/tokens.css` every colour, font, type size (`--lg-text-*`), space, radius and motion value (one theme). `global.css` maps them into Tailwind and holds the shell; `head.css` the page header every page opens with; `step.css` the step page, its article parts, information parts and lab check; `home.css` the overview, module start and end, 404 and settings; `quiz.css` the quiz, practice and mock exam; `pages.css` older shared page rules. `src/assets/` the self-hosted display font and the decoration (side rails, globe, the overview's hero drawing, one icon per module in `deco/modules/`).
 - `src/components/PageHead.astro` the header (tag, crumb, title, lead, chips, the `Matrix.astro` plate, the globe or the module's `ModuleIcon.astro`); pages using `Base` pass it in the `head` slot.
+- `src/lib/fx-ui.ts` the pointer crosshair, click pings and decoding labels; `src/styles/motion.css` the motion of the shared controls and the shell (see DESIGN.md, Motion).
 - `src/lib/dialogs.ts` Settings, Practice and (on a step page) the module outline as dialogs over the page; the open one lives in the address (`#settings`, `#practice`, `#practice=<step id>`, `#module`). `src/lib/toc.ts` marks the section being read in the step's contents list.
 - `server/` the Node server: static files with the base path filled in, `/api/state`, guards, CSP. Plain JavaScript, no build step.
 

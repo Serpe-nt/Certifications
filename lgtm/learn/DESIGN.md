@@ -219,15 +219,17 @@ Paper fill, 2px ink frame, square corners, mono text; checkboxes and radios take
 
 ## Motion
 
-- The step title wipes in from the left (900ms, exponential ease-out); page headings do the same.
-- The plate's lit dots fade in, character by character; the dashed line under it runs, one 16px tile per loop so it never jumps.
+The owner asked for "maximum amount" of hover, effects and animation in the console style (2026-11-11). The vocabulary: scan bands that sweep, fills that wipe in from one side, labels that type or decode from scrambled glyphs, cut corners that light yellow, brackets that snap in, stamps that slam down, bars that charge in steps, dots that light in sweeps, dashes and chevrons that march, short glitches in ink and yellow offsets, tubes that power on from a line.
+
+- Where it lives: `motion.css` holds the shared controls and the shell (buttons, nav buttons, links, the close X, fields, the Settings switches, focus, dialogs, page boot, the scroll gauge, the rails' parallax, the crosshair and click pings); `src/lib/fx-ui.ts` drives the crosshair, the pings and the decoding labels. Each page's stylesheet holds its own motion: `head.css` (`hd-`), `step.css` (`st-`), `home.css` (`hm-`), `quiz.css` and `sticker.css` (`qz-`, `stk-`). Shared keyframes in `global.css` start with `lg-`, the shell's with `mo-`.
+- Pages boot: the top bar drops in, the notch slides down, the screen opens from its middle line, the header stamps its tag, types its crumb, scans its title and powers on its plate.
+- Below the fold, sections and parts build as they come into view (CSS view timelines, or an observer that adds `.st-seen` on the step page).
+- Controls: buttons sweep a band and light their corner; primary text flickers on; nav buttons fill with ink and decode; links grow a yellow underline; focused fields run a scanner; the focus ring snaps in.
+- Quiz: option rows sweep and punch; Submit turns into a stamp that slams in; the tape's cells boot, lock on and charge; results count up and charge their bars.
 - Mark complete: the plate's dots turn yellow column by column; the celebration particles are yellow, paper and ink.
-- The bars of a Figures part grow as they scroll into view; quiz squares flash when a question is answered.
-- Article parts and information parts rise into place as they scroll into view.
-- The globe turns and its nodes blink; the sync lamp blinks.
-- Dialogs rise in when they open.
-- The running mock exam has no motion at all, the header's included.
-- Everything calms under the device's reduced-motion setting and when Effects is off in Settings (`data-motion="off"` on `<html>`). The celebrations keep their own ladder (`src/lib/fx.ts`).
+- Nothing a click needs moves for longer than about 250ms after load or a click: buttons, option rows and tape cells change colour, clip-path and overlays, not their place (the browser tests click quickly).
+- The running mock exam has no motion beyond hover colour changes, the header's included.
+- Everything stops under the device's reduced-motion setting and when Effects is off in Settings (`data-motion="off"` on `<html>`): the kill rules in `global.css` cut durations, loops and delays, and the crosshair, pings and decoding do not run. Pages read the same without motion. The celebrations keep their own ladder (`src/lib/fx.ts`).
 
 ## Do and don't
 
