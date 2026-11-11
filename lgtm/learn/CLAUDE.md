@@ -1,6 +1,6 @@
 # lgtm/learn: notes for the next agent
 
-Read `../CLAUDE.md` first, then `README.md` here. Decisions: `../docs/adr/s1-*.md` and `../docs/adr/s2-*.md`.
+Read `../CLAUDE.md` first, then `README.md`, `PRODUCT.md` and `DESIGN.md` here. Decisions: `../docs/adr/s1-*.md`, `../docs/adr/s2-*.md` and `../docs/adr/dz-*.md` (the article form of a step and the design system).
 
 ## Layout
 
@@ -11,12 +11,15 @@ Read `../CLAUDE.md` first, then `README.md` here. Decisions: `../docs/adr/s1-*.m
 - `src/lib/state.ts` the progress document: shape, `parseState()` (validates and bounds every input), migrations, `mergeStates()`. `src/lib/store.ts` local storage and the sync with the server. `src/lib/checks.ts` and `token.ts` the five check kinds.
 - `src/lib/quiz.ts` the quiz core: pure functions, no page code, time and chance passed in. `src/lib/runs.ts` what starting, answering, finishing and closing a quiz, practice round or mock exam does to the state. `src/lib/rewards.ts` XP, levels, badges and the celebration rung, derived from the state. `src/lib/fx.ts` the celebrations themselves. `src/lib/bank.ts` loads `bank.json` in the browser.
 - `src/figures/registry.ts` figure scenes by id; scenes go in `src/figures/<figure id>/index.tsx`.
-- `src/styles/tokens.css` every colour, space, radius, shadow and font, light and dark. `global.css` maps them into Tailwind.
+- `src/styles/tokens.css` every colour, font, space, radius and motion value (one theme). `global.css` maps them into Tailwind and holds the shell; `step.css` the step page, its article parts and information parts; `pages.css` the other pages. `src/assets/` the self-hosted display font and the decoration (side rails, globe).
+- `src/lib/dialogs.ts` Settings and Practice as dialogs over the page; the open one lives in the address (`#settings`, `#practice`, `#practice=<step id>`).
 - `server/` the Node server: static files with the base path filled in, `/api/state`, guards, CSP. Plain JavaScript, no build step.
 
 ## Rules
 
-- One step per screen; no list of steps beside the card; only the page scrolls. Which card is on screen lives in the URL, not in the state.
+- One step per screen, as an article with a sidebar; no list of steps beside it; only the page scrolls (an open dialog scrolls itself). Which step, which tab (`?tab=practice`) and which dialog are on screen live in the URL, not in the state.
+- A step with a check has Learn and Practice tabs: parts marked `data-practice` (Do, Done, `<Trap practice>`, the lab check) and, on such steps, the card question show on Practice only. The form is `../docs/adr/dz-article-format.md`; `check:content` tells the article form (opens with `<Problem>`) from the old one.
+- The design follows `DESIGN.md`. Before changing the interface, read it and `PRODUCT.md`; record detector exceptions with `impeccable hooks ignore-value` so they land in `.impeccable/config.json`.
 - Every way into the state goes through `parseState()`. New fields get a default in `defaultState()` and bounds in `parseState()`; a new shape gets `STATE_VERSION` + 1 and a step in `MIGRATIONS`. Never drop progress; never rename the storage key.
 - `mergeStates()` follows the merge rules below. A new field needs a rule there too.
 - Automatic changes (the mock exam's clock) wait for `store.firstSync` and never act while `store.isPulling()`; nothing saves at start-up before the first sync.
@@ -36,7 +39,7 @@ Key `lgtm-learn-v1` in local storage (never renamed), the same JSON on the serve
 | `done` | `{stepId: ms}` | completed steps |
 | `checks` | `{stepId: ms}` | passed lab checks |
 | `answers` | `{q-<stepId>: {right, n, at}}` | card questions (the one on each step) |
-| `settings` | `{labDomain, labSeed, theme, effects, sound}` | `effects` and `sound` switch the celebrations |
+| `settings` | `{labDomain, labSeed, theme, effects, sound}` | `effects` switches the celebrations and the page's motion, `sound` the sound; `theme` is kept but unused since the site has one theme |
 | `settingsAt` | ms | when a setting last changed (0 = never); `Store.update()` stamps it whenever the settings differ after a change, an import included |
 | `qs` | `{questionId: {seen, right, last, at, xp}}` | per-question history of pool and mock questions; `xp` counts right answers that taught something |
 | `srs` | `{questionId: {step, due}}` | missed questions waiting for review; `due` is a local day `YYYY-MM-DD` |

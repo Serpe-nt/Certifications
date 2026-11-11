@@ -11,6 +11,24 @@
         ],
         "createdAt": "2026-11-11T17:30:40.955Z",
         "reason": "owner approved the v27 pre-design at stop 1 (2026-11-11): the yellow edge on the outcome label and the ink edge on In this lab are part of it"
+      },
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "src/styles/step.css"
+        ],
+        "createdAt": "2026-11-11T18:13:58.292Z",
+        "reason": "owner chose the cyberpunk console grid and the barcode at stop 1 (v7, v27; 2026-11-11)"
+      },
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "src/styles/global.css"
+        ],
+        "createdAt": "2026-11-11T18:13:58.399Z",
+        "reason": "owner chose the cyberpunk console grid and the barcode at stop 1 (v7, v27; 2026-11-11)"
       }
     ]
   }

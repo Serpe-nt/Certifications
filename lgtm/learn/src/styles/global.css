@@ -445,7 +445,7 @@
   .fx-banner-module,
   .fx-banner-mock,
   .fx-banner-all {
-    animation: fx-drop 520ms cubic-bezier(0.2, 1.4, 0.4, 1);
+    animation: fx-drop 620ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 @keyframes fx-drop {

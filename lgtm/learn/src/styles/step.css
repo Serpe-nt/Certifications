@@ -1068,3 +1068,17 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Small ink text never sits straight on the ash (3.4:1); it gets a bone backing (over 15:1). */
+.crumb {
+  width: fit-content;
+  padding: 3px 10px;
+  background: var(--lg-paper);
+}
+.chip:not(.chip-dark) {
+  background: var(--lg-paper);
+}
+.brand {
+  padding: 0 4px;
+  background: linear-gradient(var(--lg-paper), var(--lg-paper)) center / calc(100% - 28px) 70% no-repeat;
+}

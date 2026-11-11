@@ -6,3 +6,11 @@ dist-sample/
 data/
 test-results/
 playwright-report/
+
+# impeccable: per-developer and runtime files (PRODUCT.md, DESIGN.md and .impeccable/config.json are committed)
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/questions/
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/critique/snapshots/
