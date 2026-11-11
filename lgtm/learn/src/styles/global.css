@@ -303,7 +303,7 @@
     z-index: 1;
     background: var(--lg-bezel);
     border-radius: var(--lg-radius-screen);
-    padding: 9px;
+    padding: 3px;
   }
   .screen::before {
     content: "";
@@ -320,7 +320,7 @@
     position: relative;
     overflow: hidden;
     background: var(--lg-screen);
-    border-radius: calc(var(--lg-radius-screen) - 8px);
+    border-radius: calc(var(--lg-radius-screen) - 3px);
     padding: var(--lg-space-8) 44px 44px;
   }
   @media (max-width: 640px) {

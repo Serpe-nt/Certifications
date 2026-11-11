@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/styles/step.css"
+        ],
+        "createdAt": "2026-11-11T17:30:40.955Z",
+        "reason": "owner approved the v27 pre-design at stop 1 (2026-11-11): the yellow edge on the outcome label and the ink edge on In this lab are part of it"
+      }
+    ]
+  }
+}

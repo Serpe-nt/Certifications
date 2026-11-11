@@ -10,13 +10,15 @@ interface Props {
   answer: number;
 }
 
-/** The one knowledge-check question on a step card. Options are shuffled after hydration. */
+/** The one knowledge-check question on a step. Options are shuffled after hydration; a pick is graded only on Check answer. */
 export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
   const state = useStoreState();
   const ready = useHydrated();
   const name = useId();
   const [order, setOrder] = useState(() => options.map((_, i) => i));
   const [picked, setPicked] = useState<number | null>(null);
+  // The option the learner has selected but not yet checked.
+  const [choice, setChoice] = useState<number | null>(null);
 
   useEffect(() => {
     const o = options.map((_, i) => i);
@@ -51,7 +53,7 @@ export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
           return (
             <label key={i} className={`mb-2 block rounded-md border border-line bg-surface p-3 ${tone}`} data-option={right && answered ? 'right' : undefined}>
               <span className="flex items-start gap-2">
-                <input type="radio" name={name} disabled={answered || !ready} checked={picked === i} onChange={() => submit(i)} className="mt-1" />
+                <input type="radio" name={name} disabled={answered || !ready} checked={(answered ? picked : choice) === i} onChange={() => setChoice(i)} className="mt-1" />
                 <span dangerouslySetInnerHTML={{ __html: o.html }} />
               </span>
               {answered && (
@@ -64,6 +66,11 @@ export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
           );
         })}
       </fieldset>
+      {!answered && (
+        <button type="button" className="btn btn-primary mt-2" disabled={choice === null || !ready} onClick={() => choice !== null && submit(choice)} data-check-answer-card>
+          Check answer
+        </button>
+      )}
       <p className="text-sm text-ink-3" aria-live="polite" data-question-result>
         {answered ? (picked === answer ? 'Right.' : 'Not quite: the explanations are under each option.') : last ? `Last time: ${last.right ? 'right' : 'wrong'}.` : ''}
       </p>
