@@ -253,11 +253,12 @@ function ExamScreen({ exam, bank, now, ready }: { exam: ExamRun; bank: Bank; now
         </div>
       )}
       <article className="qz-card">
-        <header className="qz-qhead">
+        <header className="qz-qhead sticker-head">
           <p className="qz-qnum" aria-hidden="true">
             <span className="qz-qnum-n">{String(i + 1).padStart(2, '0')}</span>
             <span className="qz-qnum-of mono">of {exam.ids.length}</span>
           </p>
+          <span className="sticker-rail" aria-hidden="true"></span>
           <button type="button" className="qz-flag mono" aria-pressed={!!mark?.f} onClick={flag} disabled={!ready || over || !q} data-flag>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3.5 15V1.5M3.5 2.5h9l-2.5 3.5 2.5 3.5h-9" />

@@ -34,6 +34,17 @@ export function ScoreBar({ pct, mark, label }: { pct: number; mark?: number; lab
   );
 }
 
+/** Five chevrons pointing forward, at the end of a question box's rail (sticker.css). */
+export function Chevrons() {
+  return (
+    <svg className="sticker-chevrons" viewBox="0 0 100 18" aria-hidden="true">
+      {[0, 1, 2, 3, 4].map((k) => (
+        <polygon key={k} points={`${k * 20},0 ${k * 20 + 8},0 ${k * 20 + 17},9 ${k * 20 + 8},18 ${k * 20},18 ${k * 20 + 9},9`} />
+      ))}
+    </svg>
+  );
+}
+
 /** Previous and Next as small arrow buttons: moving between questions, apart from the one main action. */
 export function Stepper({ onPrev, onNext, prevOff, nextOff }: { onPrev: () => void; onNext: () => void; prevOff: boolean; nextOff: boolean }) {
   return (
@@ -141,12 +152,14 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
         })}
       </div>
       <article className="qz-card" key={id}>
-        <header className="qz-qhead">
+        <header className="qz-qhead sticker-head">
           <p className="qz-qnum" aria-hidden="true">
             <span className="qz-qnum-n">{two(i + 1)}</span>
             <span className="qz-qnum-of mono">of {two(run.ids.length)}</span>
           </p>
-          <Stepper onPrev={() => go(i - 1)} onNext={() => go(i + 1)} prevOff={!ready || i === 0} nextOff={!ready || i >= run.ids.length - 1} />
+          <span className="sticker-rail" aria-hidden="true">
+            <Chevrons />
+          </span>
         </header>
         <div className="qz-cardbody">
         {q ? (
@@ -192,6 +205,7 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
             )}
           </div>
         </div>
+        <Stepper onPrev={() => go(i - 1)} onNext={() => go(i + 1)} prevOff={!ready || i === 0} nextOff={!ready || i >= run.ids.length - 1} />
         </div>
       </article>
     </section>

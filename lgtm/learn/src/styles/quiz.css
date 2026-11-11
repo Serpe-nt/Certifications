@@ -292,27 +292,33 @@
   color: var(--lg-bad);
 }
 
-/* The map: one square per question, 44px everywhere. */
+/* The map: a tape of numbered cells above the card, one per question, 44px tall, about 4rem wide
+   (2.75rem on a phone). A quiz's 15 fill a row; the mock exam's 60 wrap into even rows. */
 .qz-map {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: var(--lg-space-4);
-  padding: 5px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+  gap: 3px;
+  margin-top: var(--lg-space-6);
+  padding: 0 0 8px;
+  border-bottom: 2px solid var(--lg-ink);
 }
 .q-square {
   position: relative;
-  display: inline-grid;
-  place-items: center;
-  width: 2.75rem;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  width: auto;
   height: 2.75rem;
-  padding: 0;
-  border: 2px solid var(--lg-ink);
+  padding: 0 0 5px 7px;
+  border: 0;
   border-radius: 0;
   background: var(--lg-paper);
-  color: var(--lg-ink);
-  font-family: var(--lg-font-display);
-  font-size: var(--lg-text-ui);
+  box-shadow: inset 0 4px 0 var(--lg-rule);
+  color: var(--lg-ink-3);
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-label);
   line-height: 1;
   cursor: pointer;
   transition: background-color var(--lg-dur-fast) var(--lg-ease-out);
@@ -323,31 +329,32 @@
 .q-square:disabled {
   cursor: default;
 }
-/* Right: a solid fill. Wrong: an outline with a cut corner. Answered (exam): an ink fill. */
+/* Right: a green cell. Wrong: a red bar and a red corner. Answered (exam): an ink cell. */
 .q-square[data-tone="right"] {
-  border-color: var(--lg-good);
   background: var(--lg-good);
+  box-shadow: inset 0 4px 0 var(--lg-ink);
   color: var(--lg-paper);
 }
 .q-square[data-tone="right"]:hover:not(:disabled):not([aria-current="true"]) {
   background: var(--lg-good);
 }
 .q-square[data-tone="wrong"] {
-  border-color: var(--lg-bad);
+  box-shadow: inset 0 4px 0 var(--lg-bad);
   color: var(--lg-bad);
 }
 .q-square[data-tone="wrong"]::after {
   content: "";
   position: absolute;
-  right: -2px;
-  bottom: -2px;
-  width: 14px;
-  height: 14px;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
   background: var(--lg-bad);
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 .q-square[data-tone="answered"] {
   background: var(--lg-ink);
+  box-shadow: inset 0 4px 0 var(--lg-ink-3);
   color: var(--lg-paper);
 }
 .q-square[data-tone="answered"]:hover:not(:disabled):not([aria-current="true"]) {
@@ -357,8 +364,8 @@
 .q-square[data-flagged="true"]::before {
   content: "";
   position: absolute;
-  top: -2px;
-  right: -2px;
+  top: 0;
+  right: 0;
   width: 15px;
   height: 15px;
   background: var(--lg-ink);
@@ -367,15 +374,11 @@
 .q-square[data-flagged="true"][data-tone="answered"]::before {
   background: var(--lg-signal);
 }
-/* The current question: an ink ring outside, a yellow ring inside, yellow when still open. */
+/* The current question: a yellow cell with a heavy ink bar, whatever its state. */
 .q-square[aria-current="true"] {
-  outline: 3px solid var(--lg-ink);
-  outline-offset: 2px;
-  box-shadow: inset 0 0 0 3px var(--lg-signal);
-}
-.q-square[aria-current="true"][data-tone="open"] {
   background: var(--lg-signal);
-  color: var(--lg-signal-ink);
+  box-shadow: inset 0 6px 0 var(--lg-ink), inset 0 0 0 2px var(--lg-ink);
+  color: var(--lg-ink);
 }
 .q-square[aria-current="true"][data-flagged="true"]::before {
   background: var(--lg-ink);
@@ -386,7 +389,7 @@
   box-shadow: 0 0 0 5px var(--lg-bezel);
 }
 .q-square[aria-current="true"]:focus-visible {
-  box-shadow: inset 0 0 0 3px var(--lg-signal), 0 0 0 5px var(--lg-bezel);
+  box-shadow: inset 0 6px 0 var(--lg-ink), inset 0 0 0 2px var(--lg-ink), 0 0 0 5px var(--lg-bezel);
 }
 
 /* The key under the exam's map, and Submit beside it. */
@@ -613,43 +616,6 @@
 }
 .qz-examnav {
   justify-content: space-between;
-}
-
-/* On a wide screen the squares sit in a sidebar beside the question, as the step page's sidebar does. */
-@media (min-width: 1100px) {
-  .qz {
-    display: grid;
-    grid-template-columns: minmax(0, var(--lg-measure)) minmax(0, 300px);
-    grid-template-rows: auto auto auto auto 1fr;
-    column-gap: 64px;
-    max-width: none;
-  }
-  .qz-strip {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-  .qz-card {
-    grid-column: 1;
-    grid-row: 2 / -1;
-  }
-  .qz-map {
-    grid-column: 2;
-    grid-row: 2;
-    align-self: start;
-    margin-top: var(--lg-space-6);
-    padding: 12px 5px 5px;
-    border-top: 3px solid var(--lg-ink);
-  }
-  .qz-legend {
-    grid-column: 2;
-    grid-row: 3;
-  }
-  .qz-confirm {
-    grid-column: 2;
-    grid-row: 4;
-    align-self: start;
-    padding-left: 36px;
-  }
 }
 
 /* On a phone the exam's 60 squares go under the question, so each question starts at the top. */
@@ -1085,4 +1051,10 @@ body:has([data-exam-running]) .sync::before {
   color: var(--lg-ink);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .qz-map {
+    grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+  }
 }

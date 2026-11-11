@@ -189,7 +189,7 @@ There are no soft cards. Article parts:
 - **Remember:** paper ticket with notches and a barcode stub.
 - Every part's label carries a small yellow tab, an icon and a mono name. Only the `##` sections are numbered (the owner chose "Sections only", 2026-11-11).
 - In this lab, Trap and Remember close the article together, after a heavier rule.
-- **Question box (sticker frame, `sticker.css`):** Check yourself on a step and the question card in quizzes and the mock exam share one shape, after the owner's label-sticker and type-specimen references: a stepped ink tab with the title (or the question number in yellow), a rail running on from it with a node and a block of chevrons, a paper body framed in 3px ink with a cut bottom-right corner, and on a step a foot with a dashed rule, a barcode and the question's code. Options are lettered rows (A to D), the same on a step as in a quiz.
+- **Question box (sticker frame, `sticker.css`):** Check yourself on a step and the question card in quizzes and the mock exam share one shape, after the owner's label-sticker and type-specimen references: a stepped ink tab with the title (or the question number in yellow), a rail running on from it with a node and five SVG chevrons pointing forward (none in the mock exam, where the flag button ends the rail), a paper body framed in 3px ink with a cut bottom-right corner, and on a step a foot with a dashed rule, a barcode and the question's code. Options are lettered rows (A to D), the same on a step as in a quiz.
 - **Lab check:** paper panel with an ink frame, right after How you know it worked on the Practice tab; a primary Check button; a red frame and a message that says what is wrong for each kind of check; a green edge once passed.
 
 Information parts (Flow, Compare, Figures, Layers, Timeline) are drawn in ink and paper; the highlighted item is ink with paper text. See `../docs/adr/dz-article-format.md` for when to use each.
@@ -205,7 +205,7 @@ Paper fill, 2px ink frame, square corners, mono text; checkboxes and radios take
 - The end of an article: Back, the middle action, Next. While a lab check is open, Learn shows "Go to practice" in the middle (the owner's choice, 2026-11-11) and Practice shows Mark complete, waiting for the check.
 - The sidebar's contents list stays in view and marks the section being read (`aria-current="location"`).
 - Dialogs (Settings, Practice, and on a step page the module outline): native `<dialog>` on a screen, opened over the current page; the open dialog is in the address (`#settings`, `#practice`, `#practice=<step id>`, `#module`). The module name in the step header is a link with a yellow underline that opens the outline.
-- Quiz and mock exam: one question at a time; lettered option rows at least 56px tall; right and wrong shown with a mark and words as well as colour; one primary action at a time. Question squares are 44px; the current one has an ink ring outside and a yellow ring inside.
+- Quiz and mock exam: one question at a time; lettered option rows at least 56px tall; right and wrong shown with a mark and words as well as colour; one primary action at a time. The question map is a tape of numbered cells above the card (44px tall, about 4rem wide; 2.75rem on a phone): open cells are paper with a grey bar, right is green, wrong has a red bar and corner, answered (mock exam) is ink, the current cell is yellow with a heavy ink bar. Previous and Next sit at the bottom of the card under a dashed rule, apart from the main action.
 
 ### Signature components
 
