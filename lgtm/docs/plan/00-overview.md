@@ -165,6 +165,7 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | 3 | L4 lab acceptance | the rest of `lgtm/lab/**` | `make platform` and `make lab` on the real cluster, defects fixed, budget measured, reference page of addresses, runbook |
 | 3 | C0 content pilot | module m02 (observability fundamentals) | One finished concept module that sets the pattern; the owner reads it before the rest is written |
 | 4 | DZ lesson page as an article | `lgtm/learn/src/**` (pages, layouts, components, styles, schemas), two specimen steps of m02 | The site's design with `impeccable` and the new article form of a step (section 13); the owner answers its checkpoints in that session |
+| 4 | X1 and X2 mock exam pools | `questions/mock-otca.yaml`, `questions/mock-pca.yaml` | At least 92 exam-style questions each, started early because the form of a question does not change |
 | 5 | C0b pilot rewrite | module m02 | The other eleven steps of m02 rewritten to the article form, after the planner has folded that form into the content contract |
 | 6 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
 | 6 | C1 setup and Helm | modules m00 and m01 | Written against the accepted lab, every action run on it |

@@ -132,6 +132,12 @@ describe('rules', () => {
     expect(rulesFor({ 'questions/m90.yaml': q.replace('id: q-m90-002', 'id: q-m04-002') })).toEqual(['questions/m90.yaml question-file']);
   });
 
+  it('a mock pool may name a tag no step teaches yet, until --final', () => {
+    const mock = edit('questions/mock-pca.yaml', 'tags: [sample-lab]', 'tags: [taught-later]');
+    expect(rulesFor({ 'questions/mock-pca.yaml': mock })).toEqual([]);
+    expect(rulesFor({ 'questions/mock-pca.yaml': mock }, { final: true })).toContain('questions/mock-pca.yaml tag-coverage');
+  });
+
   it('pool size and competency coverage become errors with --final', () => {
     const final = rulesFor({}, { final: true });
     expect(final).toContain('questions/m90.yaml pool-size');

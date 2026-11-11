@@ -164,6 +164,6 @@ Statuses: `checked`, `run on the lab`, `lab-unverified`, `inference` (say what i
 - Schema: every file parses and matches this contract.
 - Ids: unique, never changed against `main`, step ids match their module.
 - Questions: option count, answer index in range, an explanation per option, no positional wording, pool size per module.
-- Coverage: every tag on a question is taught by at least one step; every exam competency has at least one step and three questions by the end of the project.
+- Coverage: every tag on a question is taught by at least one step (in a mock pool this is a warning until the end of the project, because the pools are written before the modules); every exam competency has at least one step and three questions by the end of the project.
 - Tokens: a `token` check uses a slot of its own module, and no slot is used twice.
 - Links: every source URL answers 200 (a separate tool, needs the network).
