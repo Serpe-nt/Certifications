@@ -1,13 +1,14 @@
 // Settings and Practice open as dialogs over the page the learner is on (the owner's request at the
-// second design stop). The open dialog lives in the address: #settings, #practice or #practice=<step id>,
+// second design stop); on a step page the module's outline does too (the crumb link). The open dialog
+// lives in the address: #settings, #practice, #practice=<step id> or #module,
 // so a reload reopens it and Back closes it. Without a dialog on the page, the links go to the full pages.
 import { validId } from './state.ts';
 
-const NAMES = ['settings', 'practice'] as const;
+const NAMES = ['settings', 'practice', 'module'] as const;
 type Name = (typeof NAMES)[number];
 
 function parseHash(): { name: Name; step: string } | null {
-  const m = /^#(settings|practice)(?:=([a-z0-9-]+))?$/.exec(window.location.hash);
+  const m = /^#(settings|practice|module)(?:=([a-z0-9-]+))?$/.exec(window.location.hash);
   if (!m) return null;
   return { name: m[1] as Name, step: m[2] && validId(m[2]) ? m[2] : '' };
 }

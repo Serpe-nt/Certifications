@@ -11,9 +11,12 @@
   margin-bottom: var(--lg-space-6);
 }
 .tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   border: 2px solid var(--lg-ink);
-  border-radius: 999px;
-  padding: 8px 26px;
+  padding: 8px 30px 8px 22px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
   color: var(--lg-ink);
   text-decoration: none;
 }
@@ -43,7 +46,7 @@
 [data-tab="learn"][data-has-practice] .prose [data-block="question"] {
   display: none;
 }
-[data-tab="practice"] .prose > :not([data-practice]):not([data-block="question"]) {
+[data-tab="practice"] .prose > :not([data-practice]):not([data-block="question"]):not(.stepnav-wrap) {
   display: none;
 }
 
@@ -117,9 +120,8 @@
   margin: 0 0 1.375rem;
 }
 
-/* Every article part counts into the same numbering as the section headings. */
+/* Only the sections are numbered (owner, 2026-11-11: "Sections only"); a part shows its icon and name. */
 .part {
-  counter-increment: part;
   position: relative;
   margin: 1.75rem 0;
 }
@@ -130,13 +132,12 @@
   margin-bottom: 12px;
 }
 .part-label::before {
-  content: counter(part, decimal-leading-zero);
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 20px;
   background: var(--lg-signal);
-  color: var(--lg-signal-ink);
-  font-family: var(--lg-font-display);
-  font-size: var(--lg-text-label);
-  padding: 3px 14px 3px 8px;
-  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
 }
 .part-label svg {
   width: 20px;
@@ -638,12 +639,12 @@
   font-weight: 400;
   color: var(--lg-ink-3);
 }
-.toc li a[aria-current="true"] {
+.toc li a[aria-current="location"] {
   border-left-color: var(--lg-ink);
   color: var(--lg-ink);
   font-weight: 600;
 }
-.toc li a[aria-current="true"] b {
+.toc li a[aria-current="location"] b {
   background: var(--lg-signal);
   color: var(--lg-ink);
   padding: 0 4px;
@@ -684,18 +685,61 @@
 
 /* ---------------------------------------------------------------- nav and the scale under the screen */
 .stepnav {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   margin-top: 44px;
   padding-top: 24px;
   border-top: 1px solid var(--lg-rule);
 }
+.stepnav-back {
+  justify-self: start;
+}
+.stepnav-next {
+  justify-self: end;
+}
+.stepnav-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--lg-text-small);
+  color: var(--lg-ink-3);
+}
+/* Learn, check still open: "Go to practice" stands where Mark complete would. Practice: Mark complete. */
+[data-tab="learn"] .stepnav[data-blocked] [data-mark-complete],
+[data-tab="practice"] .stepnav [data-go-practice] {
+  display: none;
+}
+@media (max-width: 560px) {
+  .stepnav {
+    grid-template-columns: 1fr 1fr;
+  }
+  .stepnav-mid {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .stepnav-mid .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
 .scale {
   display: flex;
   justify-content: center;
   margin-top: 34px;
+  color: var(--lg-ink);
+}
+.scale {
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+}
+/* The position under the screen, on a bone backing: small ink on the ash alone is only 3.4:1. */
+.scale-label {
+  order: -1;
+  margin-bottom: -18px;
+  padding: 1px 8px;
+  background: var(--lg-paper);
   color: var(--lg-ink);
 }
 .scale svg {
@@ -802,4 +846,147 @@
 .brand {
   padding: 0 4px;
   background: linear-gradient(var(--lg-paper), var(--lg-paper)) center / calc(100% - 28px) 70% no-repeat;
+}
+
+/* ---------------------------------------------------------------- the module outline, a dialog over the step */
+.modal-module .glass {
+  padding-bottom: var(--lg-space-8);
+}
+.modal-lead {
+  max-width: 60ch;
+  margin: 0 0 var(--lg-space-2);
+  font-size: var(--lg-text-lead);
+  line-height: 1.45;
+  color: var(--lg-ink);
+}
+.modal-meta {
+  margin: 0 0 var(--lg-space-6);
+  color: var(--lg-ink-3);
+}
+.modsteps {
+  list-style: none;
+  margin: 0 0 var(--lg-space-8);
+  padding: 0;
+  border-top: 2px solid var(--lg-ink);
+}
+.modsteps a {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--lg-space-4);
+  min-height: 52px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--lg-rule);
+  color: var(--lg-ink-2);
+  text-decoration: none;
+  font-size: var(--lg-text-ui);
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.modsteps b {
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: var(--lg-text-h3);
+  color: var(--lg-ink-3);
+}
+.modsteps small {
+  color: var(--lg-ink-3);
+}
+.modsteps a:hover {
+  background: var(--lg-screen-2);
+  color: var(--lg-ink);
+}
+.modsteps a[aria-current="step"] {
+  background: var(--lg-ink);
+  color: var(--lg-paper);
+}
+.modsteps a[aria-current="step"] b,
+.modsteps a[aria-current="step"] small {
+  color: var(--lg-signal);
+}
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lg-space-3);
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- the lab check, right after Done */
+.labcheck {
+  padding: 22px 24px 24px;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+}
+/* The same size as the other part labels, which take the reading size from .prose p. */
+.labcheck h2.part-label {
+  margin: 0 0 12px;
+  font-size: var(--lg-text-body);
+  line-height: 1.7;
+  color: var(--lg-ink);
+}
+.labcheck-prompt {
+  display: block;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: var(--lg-text-body);
+  line-height: 1.5;
+  color: var(--lg-ink);
+}
+.labcheck-options {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.labcheck-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 2px solid var(--lg-rule);
+  margin-bottom: 8px;
+  font-size: var(--lg-text-ui);
+  cursor: pointer;
+}
+.labcheck-option:has(input:checked) {
+  border-color: var(--lg-ink);
+  background: var(--lg-screen);
+}
+.labcheck .field {
+  font-family: var(--lg-font-mono);
+  font-size: var(--lg-text-ui);
+}
+.labcheck .field[aria-invalid="true"],
+.labcheck-options[aria-invalid="true"] .labcheck-option:has(input:checked) {
+  border-color: var(--lg-bad);
+  box-shadow: inset 4px 0 0 var(--lg-bad);
+}
+.labcheck-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 16px;
+}
+.labcheck-result {
+  flex: 1 1 16rem;
+  font-size: var(--lg-text-ui);
+  line-height: 1.45;
+}
+.labcheck[data-state="pass"] {
+  border-color: var(--lg-good);
+  box-shadow: inset 6px 0 0 var(--lg-good);
+}
+
+/* ---------------------------------------------------------------- the close-out: In this lab, Trap, Remember */
+/* The parts that close the article sit together after a heavier rule, closer to each other. The rule
+   hangs under whatever comes before them, so the parts keep their own ::before and ::after. */
+.prose > :not(.part-lab, .part-trap, .part-remember):has(+ :is(.part-lab, .part-trap, .part-remember):not([data-practice])) {
+  padding-bottom: 2rem;
+  margin-bottom: 2.25rem;
+  border-bottom: 3px solid;
+  border-image: linear-gradient(90deg, var(--lg-ink) 0 64px, var(--lg-rule) 64px) 1;
+}
+:is(.part-lab, .part-trap, .part-remember) + :is(.part-lab, .part-trap, .part-remember) {
+  margin-top: 1rem;
 }
