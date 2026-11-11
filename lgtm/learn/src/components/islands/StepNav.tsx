@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { updateState, useHydrated, useStoreState } from '../../lib/use-store.ts';
 
 interface Props {
@@ -19,6 +20,11 @@ export default function StepNav({ stepId, backHref, backLabel, nextHref, nextLab
   const ready = useHydrated();
   const done = stepId in state.done;
   const blocked = needsCheck && !(stepId in state.checks) && !done;
+
+  // A completed step lights its plate in signal yellow (head.css); marking it complete plays the change.
+  useEffect(() => {
+    document.querySelector('.pagehead .matrix')?.toggleAttribute('data-done', done);
+  }, [done]);
 
   const toggle = () =>
     updateState((s) => {

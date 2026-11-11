@@ -91,9 +91,10 @@ interface Part {
   angle: number;
 }
 
+// Signal yellow leads, with paper and ink: the site's one accent, not a rainbow.
 function palette(): string[] {
   const css = getComputedStyle(document.documentElement);
-  const colors = ['--lg-accent', '--lg-good', '--lg-warn', '--lg-bad'].map((v) => css.getPropertyValue(v).trim()).filter(Boolean);
+  const colors = ['--lg-signal', '--lg-signal', '--lg-paper', '--lg-ink'].map((v) => css.getPropertyValue(v).trim()).filter(Boolean);
   return colors.length ? colors : ['currentColor'];
 }
 

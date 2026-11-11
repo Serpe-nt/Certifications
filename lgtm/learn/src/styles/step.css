@@ -754,6 +754,14 @@
     animation: lg-rise 0.7s var(--lg-ease-out) both;
     animation-timeline: view();
     animation-range: entry 0% entry 40%;
+  }  /* The bars of a Figures part grow from zero as it scrolls into view. */
+  .stat-fill,
+  .stat-hot {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: lg-grow 1s var(--lg-ease-out) both;
+    animation-timeline: view();
+    animation-range: entry 20% cover 45%;
   }
 }
 

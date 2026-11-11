@@ -101,6 +101,8 @@
 :root[data-motion="off"] *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
+  /* Scroll-driven animations ignore the duration; tie them to time so they end at once. */
+  animation-timeline: auto !important;
   transition-duration: 0.01ms !important;
 }
 
@@ -366,7 +368,27 @@
 }
 @keyframes lg-lit {
   from {
-    background: #3b3f42;
+    background: var(--lg-bezel-2);
+  }
+}
+/* A dot of the plate turns from paper to signal yellow when the step is marked complete. */
+@keyframes lg-relight {
+  0% {
+    background: var(--lg-paper);
+    transform: scale(1);
+  }
+  35% {
+    background: var(--lg-signal);
+    transform: scale(1.3);
+  }
+  100% {
+    background: var(--lg-signal);
+    transform: scale(1);
+  }
+}
+@keyframes lg-grow {
+  from {
+    transform: scaleX(0);
   }
 }
 

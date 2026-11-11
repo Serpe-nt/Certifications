@@ -195,6 +195,31 @@
   /* One 16px tile, repeated, so moving it by exactly one tile loops without a seam. */
   background: linear-gradient(90deg, var(--lg-signal) 0 12px, transparent 12px 16px) 0 0 / 16px 100% repeat-x;
 }
+/* A completed step: the lit dots turn signal yellow, column by column. */
+.matrix[data-done] .digit i.on {
+  background: var(--lg-signal);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .matrix[data-done] .digit i.on {
+    animation: lg-relight 0.7s var(--lg-ease-out) both;
+  }
+  .matrix[data-done] .digit i:nth-child(5n + 2) {
+    animation-delay: 50ms;
+  }
+  .matrix[data-done] .digit i:nth-child(5n + 3) {
+    animation-delay: 100ms;
+  }
+  .matrix[data-done] .digit i:nth-child(5n + 4) {
+    animation-delay: 150ms;
+  }
+  .matrix[data-done] .digit i:nth-child(5n) {
+    animation-delay: 200ms;
+  }
+  .matrix[data-done] .digit + .digit i.on {
+    animation-delay: 300ms;
+  }
+}
+
 /* Three or more characters, and every phone: smaller dots so the plate stays compact. */
 .matrix[data-len="3"] .digit,
 .matrix[data-len="4"] .digit {
