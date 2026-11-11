@@ -2,11 +2,11 @@
 
 Wave 4. Model Opus 5.5, high effort. The owner sits in this session: it has checkpoints where you stop and wait for them.
 
-Skills: `caveman`, `humanizer`, `ponytail` as every worker, and `web-design-engineer` for the design work.
+Skills: `caveman`, `humanizer`, `ponytail` as every worker, and `impeccable` for the design work.
 
 ## Owns
 
-`lgtm/learn/src/**` except `lgtm/learn/src/content/**`; `lgtm/learn/public/**`; `lgtm/learn/tests/**`; `lgtm/learn/README.md` and `lgtm/learn/CLAUDE.md`; `lgtm/docs/adr/dz-*.md`.
+`lgtm/learn/src/**` except `lgtm/learn/src/content/**`; `lgtm/learn/public/**`; `lgtm/learn/tests/**`; `lgtm/learn/README.md`, `lgtm/learn/CLAUDE.md`, `lgtm/learn/PRODUCT.md`, `lgtm/learn/DESIGN.md`, `lgtm/learn/.impeccable/**` and `lgtm/learn/.gitignore`; `lgtm/docs/adr/dz-*.md`.
 
 In the content, only the two specimen steps: `lgtm/learn/src/content/steps/m02/s10-cardinality.mdx` and `lgtm/learn/src/content/steps/m02/s06-one-request-three-signals.mdx`, with their rows in `lgtm/docs/verification/m02.md`.
 
@@ -17,6 +17,7 @@ In the content, only the two specimen steps: `lgtm/learn/src/content/steps/m02/s
 - `lgtm/learn/README.md`, `lgtm/learn/CLAUDE.md`, `lgtm/docs/adr/s1-stack.md`, `s1-content-format.md`, `s2-study-features.md`, `c0-content-notes.md`
 - The step page as it is: `lgtm/learn/src/pages/m/[module]/[step]/index.astro`, `src/components/mdx/*`, `src/layouts/Base.astro`, `src/styles/tokens.css` and `global.css`. Run `npm run dev` and walk module m02 before you design anything.
 - All thirteen steps of `lgtm/learn/src/content/steps/m02/`: this is the text the page has to carry.
+- `~/.claude/skills/impeccable/SKILL.md` and the reference pages it sends you to for `init`, `shape`, new work on a read surface, `critique`, `audit`, `polish` and `document`
 - `saa-plan/CLAUDE.md`, section "Rules": what the owner asked for in their other study site (one step per screen, an article with a sidebar, only the page scrolls, purpose first).
 
 ## The problem, in the owner's words
@@ -45,13 +46,20 @@ What they share, and what the owner is pointing at: the full width is used; one 
 5. **The rest of the site in the same design:** overview, module start and end, quiz, practice and review, mock exam, settings, 404. The mock exam stays quiet.
 6. **The design system** in `src/styles/tokens.css`, from what the owner brings: colour in light and dark, type with self-hosted fonts, space, radius, shadow, motion. No CDN, no third-party origin, the content security policy unchanged. Visible focus, keyboard use and reduced motion keep working.
 
-## How to work: checkpoints with the owner
+## How to work: impeccable, with three stops for the owner
 
-Follow `web-design-engineer`, with these stops. At each, show, then wait for the owner's answer in this session.
+Use the `impeccable` skill for the design work, run from `lgtm/learn` so its files land there. The lesson page is a surface that is read; the quiz, the mock exam and the settings are surfaces that are operated. The brief wins over the skill's own taste: the owner's aesthetics are followed even where the skill would warn.
 
-1. **Structure and look.** After walking the current site and reading m02: your reading of the brief in a few lines, a wireframe of the step page for a wide screen and for a phone (boxes and labels, no styling), and the list of article parts and information parts you propose. Ask the owner for the aesthetics and images they want you to follow. Then declare the design system.
-2. **First draft.** The step page built for real with step `m02-s10` (a concept step) and step `m02-s06` (the lab step, with its Practice tab), rewritten to the new form, in light and dark, at 1440, 820 and 390 wide. Screenshots in the session. The other pages untouched.
-3. **Before spreading it.** Any choice that changes how every step is written or how progress works.
+In order, with three stops. At each stop, show, then wait for the owner's answer in this session.
+
+1. `init`: walk the current site and read m02, then write `lgtm/learn/PRODUCT.md` from the code, this card and section 13 of the overview. Ask the owner only what those do not answer.
+2. `shape` the step page. **Stop 1, structure and look:** your reading of the brief in a few lines, a wireframe of the step page for a wide screen and for a phone (boxes and labels, no styling), and the list of article parts and information parts you propose. Ask the owner for the aesthetics and images they want you to follow. From their answer, set the design system.
+3. Build the step page for real with step `m02-s10` (a concept step) and step `m02-s06` (the lab step, with its Practice tab), both rewritten to the new form. **Stop 2, first draft:** screenshots in light and dark at 1440, 820 and 390 wide. The other pages untouched.
+4. **Stop 3, before spreading it:** any choice that changes how every step is written or how progress works.
+5. Bring the other pages into the design. Then `critique` and `audit` the step page and the overview, fix what they rank highest, and `polish`.
+6. `document`: write `lgtm/learn/DESIGN.md` from what was built, so later sessions follow it. Commit `PRODUCT.md`, `DESIGN.md` and the shared files under `lgtm/learn/.impeccable/`, with the ignore entries the skill's README lists for the rest.
+
+About the tool itself: its launcher downloads an engine binary once into `~/.impeccable/bin` and checks it against the checksums shipped with the skill; the owner accepted that. Do not install its edit hook, do not use live mode, do not change `.claude/settings*.json`, and do not weaken the content security policy for it. Run its detector by hand on `lgtm/learn/src` before you open the pull request and put the result in it; an allowed exception (for example the owner's chosen font) is recorded with the skill's own ignore command and named in the pull request.
 
 ## The two specimen steps
 
@@ -59,7 +67,7 @@ Rewrite `m02-s10` and `m02-s06` as articles in the new form: the same facts, sou
 
 ## What you hand to the planner
 
-`lgtm/docs/adr/dz-article-format.md`: the new form of a step, written so the planner can fold it into the content contract: frontmatter fields added or changed, every component with its purpose, when to use it and when not, how long an article and each part should be, what goes in Learn and what in Practice, and one annotated example. And `lgtm/docs/adr/dz-design-system.md`: the tokens, the type, the rules a later component must follow.
+`lgtm/docs/adr/dz-article-format.md`: the new form of a step, written so the planner can fold it into the content contract: frontmatter fields added or changed, every component with its purpose, when to use it and when not, how long an article and each part should be, what goes in Learn and what in Practice, and one annotated example. The design system itself is `lgtm/learn/DESIGN.md`; `lgtm/docs/adr/dz-design-system.md` is one page on what the owner chose at the first stop and why.
 
 ## Limits
 
@@ -70,13 +78,13 @@ Rewrite `m02-s10` and `m02-s06` as articles in the new form: the same facts, sou
 
 ## Done when
 
-- [ ] The owner said yes at each checkpoint; the pull request quotes what they agreed to.
+- [ ] The owner said yes at each of the three stops; the pull request quotes what they agreed to.
 - [ ] A step page on a 1440 screen uses the width with a reading column and a sidebar, and reads as one article; on 390 it reads in one column. Screenshots of `m02-s10` and `m02-s06` (Learn and Practice) in light and dark at the three widths are in the pull request.
 - [ ] A step without actions shows no tabs; a lab step shows Learn and Practice, the tab survives a reload, and Mark complete waits for the check.
 - [ ] The article parts and at least four information parts exist, are used in the two specimens, and are documented in the format ADR.
 - [ ] Every other page is in the new design.
 - [ ] `npm ci && npm test && npm run build` pass; the browser tests cover the tabs, the sidebar on wide and narrow screens, and one old-form step.
-- [ ] The two ADRs exist; `lgtm/learn/CLAUDE.md` is updated.
+- [ ] `PRODUCT.md`, `DESIGN.md` and the two ADRs exist; `lgtm/learn/CLAUDE.md` is updated; the detector's result on `lgtm/learn/src` is in the pull request.
 
 ## Report
 

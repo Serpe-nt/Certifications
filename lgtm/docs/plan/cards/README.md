@@ -75,4 +75,4 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 4 | `w4-dz-article-redesign.md` | DZ the lesson page as an article (with the owner in the session) |
 | 5 and later | `content-module-template.md` | one copy per module, filled in by the planner once the content contract is at version 2 |
 
-Cards for wave 5 and later (C0b, C1 and the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `web-design-engineer` skill and FG the `stageshow` skill; no other card uses them.
+Cards for wave 5 and later (C0b, C1 and the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
