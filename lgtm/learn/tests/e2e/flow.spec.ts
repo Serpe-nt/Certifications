@@ -116,8 +116,35 @@ test('a lab step has Learn and Practice; the tab is in the address and survives 
   await page.goBack();
   await expect(page).toHaveURL(/\/m\/m90\/s02\/$/);
   await expect(page.locator('[data-block="why"]')).toBeVisible();
-  // Mark complete still waits for the check, on either tab.
+  // Mark complete still waits for the check, on either tab. On Learn, Go to practice stands in its place.
   await expect(page.locator('[data-mark-complete]')).toBeDisabled();
+  await page.getByRole('link', { name: 'Go to practice' }).click();
+  await expect(page).toHaveURL(/\?tab=practice$/);
+  await expect(page.getByRole('tab', { name: 'Practice' })).toHaveAttribute('aria-selected', 'true');
+  // Back, Mark complete and Next stay on Practice.
+  await expect(page.locator('[data-mark-complete]')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Back' })).toBeVisible();
+});
+
+test('the lab check follows How you know it worked and says what is wrong', async ({ page }) => {
+  await page.goto('/m/m90/s06/?tab=practice');
+  const order = await page.locator('.prose > *').evaluateAll((els) => els.map((e) => e.getAttribute('data-block') ?? e.querySelector('[data-block]')?.getAttribute('data-block') ?? ''));
+  expect(order.indexOf('check')).toBe(order.indexOf('done') + 1);
+  await page.getByRole('textbox').fill('abc');
+  await page.getByRole('button', { name: 'Check', exact: true }).click();
+  await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', /wrong|no-seed/);
+});
+
+test('the module name in the header opens the outline over the step; Back closes it', async ({ page }) => {
+  await page.goto('/m/m90/s02/');
+  await page.locator('.crumb a').click();
+  await expect(page).toHaveURL(/#module$/);
+  const dlg = page.locator('dialog[data-dialog-name="module"]');
+  await expect(dlg).toBeVisible();
+  await expect(dlg.locator('[aria-current="step"]')).toContainText('A lab step with an exact check');
+  await page.goBack();
+  await expect(dlg).toBeHidden();
+  await expect(page).toHaveURL(/\/m\/m90\/s02\/$/);
 });
 
 test('an old-form step still renders its blocks', async ({ page }) => {
@@ -132,6 +159,10 @@ test('the sidebar sits beside the article on a wide screen and under it on a pho
   let side = await page.locator('aside.sidebar').boundingBox();
   expect(side!.x).toBeGreaterThan(art!.x + art!.width - 1);
   await expect(page.locator('.toc a')).toHaveCount(2);
+  // The contents list marks the section being read.
+  await page.locator('.prose > h2').nth(1).scrollIntoViewIfNeeded();
+  await page.mouse.wheel(0, 200);
+  await expect(page.locator('.toc a[aria-current="location"]')).toHaveCount(1);
   await page.setViewportSize({ width: 390, height: 844 });
   side = await page.locator('aside.sidebar').boundingBox();
   const art2 = await page.locator('article.prose').boundingBox();
