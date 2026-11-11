@@ -125,6 +125,10 @@ export function checkContent(corpus: RawCorpus, opts: RuleOptions = {}): { issue
         if (!top.some((b) => b.name === name)) err(s.file, `missing-${name.toLowerCase()}`, `a ${kind} step in the article form needs a <${name}>`);
       }
       if (top[0]?.name !== 'Problem') err(s.file, 'problem-first', '<Problem> opens a step in the article form');
+      // The owner made the outcome line required at the third design stop (2026-11-11); terms stay optional.
+      if (!s.data.outcome) err(s.file, 'missing-outcome', 'a step in the article form needs `outcome:` in its frontmatter ("You can ...")');
+      const infos = top.filter((b) => b.name in INFO_PARTS).length;
+      if (infos > 3) warn(s.file, 'info-count', `${infos} information parts; a step uses at most three`);
       for (const b of top) {
         if (b.name === 'Why' || b.name === 'Points') err(s.file, 'mixed-form', `line ${b.line}: <${b.name}> belongs to the old form; the article form uses <Problem> and running text`);
       }

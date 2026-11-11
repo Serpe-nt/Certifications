@@ -12,12 +12,12 @@ A step in the article form opens with `<Problem>`. The site detects the form by 
 
 ### Frontmatter
 
-Unchanged, plus two optional fields:
+Unchanged, plus two fields. The owner decided at the third stop (2026-11-11) that `outcome` is required on every step in the article form and `terms` stays optional:
 
 | Field | Shape | Shown | Rule |
 |---|---|---|---|
-| `outcome` | string, at most 240 characters | under the title, on a light label | What the learner can do after the step, as a sentence that starts with "You can". |
-| `terms` | list of up to 8 `{term, def}`; term at most 40 characters, definition at most 160 | in the sidebar | The terms the step introduces, each defined in one plain line. |
+| `outcome` | string, at most 240 characters; required in the article form | under the title, on a light label | What the learner can do after the step, as a sentence that starts with "You can". |
+| `terms` | list of up to 8 `{term, def}`; term at most 40 characters, definition at most 160; optional | in the sidebar | The terms the step introduces, each defined in one plain line. |
 
 `check` decides the tabs: a step with a check (every lab and drill step) gets Learn and Practice; a step without one shows only the article.
 
@@ -61,7 +61,7 @@ They take the place of pictures. An author fills them with data from the step; n
 | `<Layers caption>` | 2 to 5 `<Layer title hot>` with one line | A stack from top to bottom | Things sit on each other or go from general to specific | m02-s10: where a value goes |
 | `<Timeline caption>` | 2 to 6 `<Event at title>` with one line | Moments in order; `at` is a time or a position | Order in time matters (an incident, a release) | the sample module |
 
-`check:content` enforces: `<Problem>` first and its length; `<Problem>`, `<Idea>`, `<Question>` (and `<Do>`, `<Done>` on lab and drill steps) present; no old-form parts mixed in; each information part has at least two items and items sit inside their part; `<Stat>` has a label, a value and `0 <= amount <= max`.
+`check:content` enforces: `<Problem>` first and its length; `outcome` present; `<Problem>`, `<Idea>`, `<Question>` (and `<Do>`, `<Done>` on lab and drill steps) present; no old-form parts mixed in; each information part has at least two items and items sit inside their part; `<Stat>` has a label, a value and `0 <= amount <= max`. More than three information parts on one step is a warning.
 
 ### Learn and Practice
 
@@ -121,7 +121,7 @@ The lab step `m02-s06` follows the same order and adds `<Do>`, `<Done>` and `<Tr
 
 ## What the planner must check
 
-- The owner has not yet read the specimens in the finished page; this ADR records the form as built for the second stop.
+- The owner approved the first draft with both specimens at the second stop and this form for every step at the third stop (2026-11-11).
 - `content-module-template.md` and `03-content-contract.md` need the new section "Step file" and the writing-rule change above.
 
 ## Sources
