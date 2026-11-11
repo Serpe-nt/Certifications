@@ -503,6 +503,26 @@
     padding-bottom: var(--lg-space-4);
     border-bottom: 1px solid var(--lg-rule);
   }
+  .closebtn {
+    display: inline-grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--lg-ink);
+    cursor: pointer;
+    transition: color var(--lg-dur-fast) var(--lg-ease-out), transform var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .closebtn svg {
+    width: 2rem;
+    height: 2rem;
+  }
+  .closebtn:hover {
+    background: var(--lg-signal);
+    transform: rotate(90deg);
+  }
   .modal-title {
     margin: 0;
     font-family: var(--lg-font-display);
