@@ -45,26 +45,6 @@ export function Chevrons() {
   );
 }
 
-/** Previous and Next as small arrow buttons: moving between questions, apart from the one main action. */
-export function Stepper({ onPrev, onNext, prevOff, nextOff }: { onPrev: () => void; onNext: () => void; prevOff: boolean; nextOff: boolean }) {
-  return (
-    <div className="qz-stepper">
-      <button type="button" className="qz-stepbtn mono" onClick={onPrev} disabled={prevOff}>
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M10 3 5 8l5 5" />
-        </svg>
-        Previous
-      </button>
-      <button type="button" className="qz-stepbtn mono" onClick={onNext} disabled={nextOff}>
-        Next
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="m6 3 5 5-5 5" />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
 /**
  * Plays a quiz or practice run kept in the state: one question at a time, Previous and Next,
  * a square per question, Check, then every option explained. Answers save at once, so a reload
@@ -175,24 +155,26 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
         ) : (
           <p className="qz-missing">This question is no longer in the course. Skip it.</p>
         )}
-        <div className="qz-foot">
-          <div className="qz-verdict" aria-live="polite" data-verdict={answer ? (answerRight ? 'right' : 'wrong') : ''}>
-            {answer && (
-              <>
-                <Mark right={answerRight} />
-                <p className="qz-verdict-word">{answerRight ? 'Right.' : 'Not quite.'}</p>
-                <p className="qz-verdict-text">
-                  {answerRight ? 'Every option is explained above.' : 'The right answer is marked above, and every option is explained.'}
-                  {run.row >= 3 ? ` ${run.row} right in a row.` : ''}
-                  {run.row > run.best0 && run.row >= 3 && run.row === run.rowMax ? ' New record.' : ''}
-                </p>
-              </>
-            )}
-          </div>
-          <div className="qz-action">
+        <div className="qz-foot qz-foot3">
+          <button type="button" className="qz-stepbtn mono" onClick={() => go(i - 1)} disabled={!ready || i === 0}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M10 3 5 8l5 5" />
+            </svg>
+            Previous
+          </button>
+          <div className="qz-mid">
+            <p className="qz-verdict mono" aria-live="polite" data-verdict={answer ? (answerRight ? 'right' : 'wrong') : ''}>
+              {answer && (
+                <>
+                  <Mark right={answerRight} />
+                  {answerRight ? 'Correct' : 'Wrong'}
+                  {run.row >= 3 && <span className="qz-verdict-row">{run.row} in a row{run.row > run.best0 && run.row === run.rowMax ? ', a new record' : ''}</span>}
+                </>
+              )}
+            </p>
             {!answer ? (
               <button type="button" className="btn btn-primary" onClick={check} disabled={!ready || !canCheck} data-check-answer>
-                Check
+                Submit
               </button>
             ) : next === -1 ? (
               <button type="button" className="btn btn-primary" onClick={finish} disabled={!ready} data-see-results>
@@ -204,8 +186,13 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
               </button>
             )}
           </div>
+          <button type="button" className="qz-stepbtn mono" onClick={() => go(i + 1)} disabled={!ready || i >= run.ids.length - 1}>
+            Next
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="m6 3 5 5-5 5" />
+            </svg>
+          </button>
         </div>
-        <Stepper onPrev={() => go(i - 1)} onNext={() => go(i + 1)} prevOff={!ready || i === 0} nextOff={!ready || i >= run.ids.length - 1} />
         </div>
       </article>
     </section>

@@ -11,7 +11,7 @@ interface Props {
   answer: number;
 }
 
-/** The one knowledge-check question on a step. Options are shuffled after hydration; a pick is graded only on Check answer. */
+/** The one knowledge-check question on a step. Options are shuffled after hydration; a pick is graded only on Submit. */
 export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
   const state = useStoreState();
   const ready = useHydrated();
@@ -68,7 +68,7 @@ export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
                 )}
                 {answered && (
                   <span className="qopt-why">
-                    <strong>{right ? 'Right. ' : i === picked ? 'Not this one. ' : ''}</strong>
+                    <strong>{right ? 'Right. ' : i === picked ? 'Wrong. ' : ''}</strong>
                     <span dangerouslySetInnerHTML={{ __html: o.whyHtml }} />
                   </span>
                 )}
@@ -80,11 +80,12 @@ export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
       <div className="card-actions">
         {!answered && (
           <button type="button" className="btn btn-primary" disabled={choice === null || !ready} onClick={() => choice !== null && submit(choice)} data-check-answer-card>
-            Check answer
+            Submit
           </button>
         )}
-        <p className="card-result" aria-live="polite" data-question-result>
-          {answered ? (picked === answer ? 'Right.' : 'Not quite: the explanations are under each option.') : last ? `Last time: ${last.right ? 'right' : 'wrong'}.` : ''}
+        <p className="card-result mono" aria-live="polite" data-question-result data-verdict={answered ? (picked === answer ? 'right' : 'wrong') : undefined}>
+          {answered && <Mark right={picked === answer} />}
+          {answered ? (picked === answer ? 'Correct' : 'Wrong') : last ? `Last time: ${last.right ? 'right' : 'wrong'}` : ''}
         </p>
       </div>
     </div>

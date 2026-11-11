@@ -49,13 +49,13 @@ test('the card question shuffles, grades and remembers', async ({ page }) => {
   // The question hydrates when it comes into view (client:visible); until then it is disabled.
   await page.locator('[data-question]').scrollIntoViewIfNeeded();
   await page.getByRole('radio', { name: 'A metric' }).check();
-  // Picking an option does not grade it; Check answer does.
+  // Picking an option does not grade it; Submit does.
   await expect(page.locator('[data-question-result]')).toHaveText('');
-  await page.getByRole('button', { name: 'Check answer' }).click();
-  await expect(page.locator('[data-question-result]')).toHaveText('Right.');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.locator('[data-question-result]')).toHaveText('Correct');
   await expect(page.getByText('Right: a metric is a number sampled over time.')).toBeVisible();
   await page.reload();
-  await expect(page.locator('[data-question-result]')).toHaveText('Last time: right.');
+  await expect(page.locator('[data-question-result]')).toHaveText('Last time: right');
 });
 
 test('lab links follow the lab domain setting', async ({ page }) => {

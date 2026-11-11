@@ -292,11 +292,11 @@
   color: var(--lg-bad);
 }
 
-/* The map: a tape of numbered cells above the card, one per question, 44px tall, about 4rem wide
+/* The map: a tape of numbered cells above the card, one per question, 44px tall, about 3.5rem wide
    (2.75rem on a phone). A quiz's 15 fill a row; the mock exam's 60 wrap into even rows. */
 .qz-map {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
   gap: 3px;
   margin-top: var(--lg-space-6);
   padding: 0 0 8px;
@@ -508,10 +508,6 @@
 }
 
 /* Previous and Next (quiz), the flag (exam): small mono buttons with an ink frame. */
-.qz-stepper {
-  display: flex;
-  gap: 8px;
-}
 .qz-stepbtn,
 .qz-flag {
   display: inline-flex;
@@ -558,61 +554,82 @@
   box-shadow: 0 0 0 5px var(--lg-bezel);
 }
 
-/* Under the question: the verdict on the left, the one main action on the right. */
+/* Under the question: Previous, the main action in the middle (Submit, then Next question), Next.
+   After Submit a stamp says Correct or Wrong beside the button. */
 .qz-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--lg-space-4);
-  max-width: var(--lg-measure);
   margin-top: var(--lg-space-6);
 }
-.qz-verdict {
-  flex: 1 1 18rem;
+.qz-foot3 {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  padding-top: var(--lg-space-4);
+  border-top: 1px dashed var(--lg-ink-3);
+}
+.qz-foot3 > .qz-stepbtn:first-child {
+  justify-self: start;
+}
+.qz-foot3 > .qz-stepbtn:last-child {
+  justify-self: end;
+}
+.qz-mid {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  column-gap: 14px;
+  justify-content: center;
+  gap: var(--lg-space-3);
 }
-.qz-verdict:not(:empty) {
-  padding: 12px 18px 14px 14px;
-  background: var(--lg-paper);
-  border-left: 6px solid var(--lg-ink);
+.qz-verdict,
+.card-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
 }
-.qz-verdict[data-verdict="right"] {
-  border-left-color: var(--lg-good);
+.qz-verdict:empty {
+  display: none;
 }
-.qz-verdict[data-verdict="wrong"] {
-  border-left-color: var(--lg-bad);
+.qz-verdict[data-verdict],
+.card-result[data-verdict] {
+  min-height: 2.75rem;
+  padding: 0 14px;
+  border: 2px solid currentColor;
+  font-size: var(--lg-text-ui);
 }
-.qz-verdict .qz-mark {
-  grid-row: span 2;
-  width: 2rem;
-  height: 2rem;
-}
-.qz-verdict[data-verdict="right"] .qz-mark,
-.qz-verdict[data-verdict="right"] .qz-verdict-word {
+.qz-verdict[data-verdict="right"],
+.card-result[data-verdict="right"] {
   color: var(--lg-good);
 }
-.qz-verdict[data-verdict="wrong"] .qz-mark,
-.qz-verdict[data-verdict="wrong"] .qz-verdict-word {
+.qz-verdict[data-verdict="wrong"],
+.card-result[data-verdict="wrong"] {
   color: var(--lg-bad);
 }
-.qz-verdict-word {
-  margin: 0;
-  font-family: var(--lg-font-display);
-  font-size: var(--lg-text-h3);
-  line-height: 1.1;
+.qz-verdict[data-verdict=""] {
+  display: none;
 }
-.qz-verdict-text {
-  margin: 0;
-  font-size: var(--lg-text-small);
-  line-height: 1.5;
+.qz-verdict .qz-mark,
+.card-result .qz-mark {
+  width: 16px;
+  height: 16px;
+}
+.qz-verdict-row {
+  padding-left: 8px;
+  border-left: 1px solid currentColor;
+  font-size: var(--lg-text-label);
   color: var(--lg-ink-2);
 }
-.qz-action {
-  margin-left: auto;
+@media (max-width: 560px) {
+  .qz-foot3 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .qz-mid {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
 }
 .qz-examnav {
   justify-content: space-between;
@@ -1057,4 +1074,19 @@ body:has([data-exam-running]) .sync::before {
   .qz-map {
     grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
   }
+}
+
+/* The quiz, its intro and its results stand in the middle of the screen (owner, 2026-11-11), and the
+   answer rows fill the card's width. */
+.qz,
+.qz-intro,
+.qz-results {
+  margin-inline: auto;
+}
+.qz {
+  max-width: 60rem;
+}
+.qz-cardbody .qv-opts,
+.qz-cardbody .qv-text {
+  max-width: none;
 }

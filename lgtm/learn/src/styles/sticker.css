@@ -138,13 +138,15 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: var(--lg-space-3) var(--lg-space-4);
-  margin-top: var(--lg-space-4);
+  margin-top: var(--lg-space-6);
 }
-.sticker .card-result {
-  margin: 0;
-  font-size: var(--lg-text-ui);
-  color: var(--lg-ink-2);
+.sticker .card-result:empty {
+  display: none;
+}
+.sticker .card-result:not([data-verdict]) {
+  color: var(--lg-ink-3);
 }
 
 /* ---------------------------------------------------------------- the quiz card takes the same shape */
@@ -173,13 +175,6 @@
   align-self: flex-end;
   margin-bottom: 0;
   border-bottom-width: var(--stk-line, 3px);
-}
-/* Previous and Next close the card's body, under a dashed rule, apart from the main action. */
-.qz-cardbody > .qz-stepper {
-  justify-content: space-between;
-  margin-top: var(--lg-space-6);
-  padding-top: 12px;
-  border-top: 1px dashed var(--lg-ink-3);
 }
 @media (max-width: 560px) {
   .sticker-chevrons {

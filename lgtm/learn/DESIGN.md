@@ -169,7 +169,7 @@ Flat. Depth comes from the bezel and from ink frames, not shadows. The single sh
 
 ### Buttons
 
-- **Primary** (Mark complete, Start, Check answer): ink fill, yellow display text, cut corner.
+- **Primary** (Mark complete, Start, Submit): ink fill, yellow display text, cut corner.
 - **Secondary** (Back, Next, Practice three questions): 2px ink frame, ink display text, screen-2 on hover.
 - **Nav buttons** (Practice, Settings in the top bar): paper chip with an ink frame and mono capitals; ink with yellow text on hover.
 - **Close** (dialogs): a bold X drawing; on hover a yellow square behind it and the X turns a quarter.
@@ -205,7 +205,7 @@ Paper fill, 2px ink frame, square corners, mono text; checkboxes and radios take
 - The end of an article: Back, the middle action, Next. While a lab check is open, Learn shows "Go to practice" in the middle (the owner's choice, 2026-11-11) and Practice shows Mark complete, waiting for the check.
 - The sidebar's contents list stays in view and marks the section being read (`aria-current="location"`).
 - Dialogs (Settings, Practice, and on a step page the module outline): native `<dialog>` on a screen, opened over the current page; the open dialog is in the address (`#settings`, `#practice`, `#practice=<step id>`, `#module`). The module name in the step header is a link with a yellow underline that opens the outline.
-- Quiz and mock exam: one question at a time; lettered option rows at least 56px tall; right and wrong shown with a mark and words as well as colour; one primary action at a time. The question map is a tape of numbered cells above the card (44px tall, about 4rem wide; 2.75rem on a phone): open cells are paper with a grey bar, right is green, wrong has a red bar and corner, answered (mock exam) is ink, the current cell is yellow with a heavy ink bar. Previous and Next sit at the bottom of the card under a dashed rule, apart from the main action.
+- Quiz and mock exam: one question at a time; lettered option rows at least 56px tall; right and wrong shown with a mark and words as well as colour; one primary action at a time. The question map is a tape of numbered cells above the card (44px tall, about 3.5rem wide; 2.75rem on a phone): open cells are paper with a grey bar, right is green, wrong has a red bar and corner, answered (mock exam) is ink, the current cell is yellow with a heavy ink bar. The bottom of the card is one row under a dashed rule: Previous on the left, the main action in the middle (Submit, then Next question or See results), Next on the right. After Submit a stamp beside the button says Correct or Wrong (with a check or a cross); the explanation under each option says why. Check yourself on a step works the same way: Submit in the middle, then the stamp.
 
 ### Signature components
 
