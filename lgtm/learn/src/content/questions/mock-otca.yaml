@@ -58,7 +58,7 @@
     - text: A new child span for each log line
       why: Logging does not create spans. Logs and spans are separate signals that are correlated by IDs.
     - text: The full body of the HTTP request being served
-      why: OpenTelemetry does not copy request bodies into logs. That would also risk leaking personal data.
+      why: The docs describe adding the trace and span IDs, not the request. Copying bodies would also risk leaking personal data.
     - text: The trace ID and span ID of the active span
       why: The SDK correlates existing logs with the active trace and span by adding their IDs.
   answer: [3]
@@ -163,7 +163,7 @@
   q: An application uses a third-party library that is instrumented with the OpenTelemetry API. The application never installs an OpenTelemetry SDK. What happens to the library's instrumentation?
   options:
     - text: Its spans wait in memory until an SDK is installed
-      why: The API alone has no buffer. Without an SDK nothing is recorded.
+      why: Without an SDK the instrumentation does nothing, so there is nothing to keep for later.
     - text: It sends spans to localhost:4317 by default
       why: Exporting is part of the SDK. The API alone exports nothing.
     - text: The library fails to start because the SDK is missing
@@ -456,11 +456,11 @@
   q: While debugging, a developer wants spans to go to the OTLP exporter and also to the console. How is the tracing SDK built for this?
   options:
     - text: Create a second TracerProvider for the console
-      why: Two providers would split the spans between them. One provider can feed several pipelines.
+      why: One provider can feed several pipelines, so a second provider is not needed for a second destination.
     - text: Two span processors, each with its own exporter
       why: Each processor registered on the provider starts its own pipeline, which can end with its own exporter.
     - text: Chain the console exporter behind the OTLP exporter
-      why: Exporters are not chained. Each pipeline ends in one exporter.
+      why: The spec builds each pipeline from a span processor and its own exporter, so a second destination needs a second pipeline.
     - text: It cannot; sending to two places needs a Collector
       why: A Collector is a good idea in production, but the SDK can do this by itself.
   answer: [1]
@@ -550,7 +550,7 @@
     - text: <code>http://collector:4318/v1/traces</code>
       why: With OTLP/HTTP and the base endpoint variable, the SDK adds the signal path, here /v1/traces.
     - text: <code>http://collector:4318</code>
-      why: The base endpoint gets a path per signal added. Only the signal-specific variables are used as they are.
+      why: With the base endpoint variable, the SDK adds a path for each signal to the URL.
     - text: <code>http://collector:4317/v1/traces</code>
       why: The port comes from the variable. 4317 is the default for gRPC, not for this setting.
     - text: <code>http://collector:4318/traces</code>
@@ -920,7 +920,7 @@
     - text: The API uses no-op propagators unless one is configured
       why: Without a configured propagator nothing is injected. Set a global one, usually W3C Trace Context with baggage.
     - text: The sampler must be always_on for propagation to work
-      why: Context is propagated whether a span is sampled or not.
+      why: The sampler decides which spans are kept. Changing it does not add a propagator.
     - text: The resource lacks service.name, so headers are skipped
       why: The resource names the service in the backend. It does not control headers.
   answer: [1]
@@ -933,11 +933,11 @@
     - text: Baggage is sent in headers and can reach third-party APIs
       why: Instrumentation adds baggage to most outgoing network requests, so anyone who sees the traffic can read it.
     - text: Baggage is encrypted, so services cannot read it
-      why: Baggage is not encrypted. It travels as plain headers.
+      why: Baggage travels in HTTP headers that anyone inspecting the traffic can read.
     - text: Baggage stays in the process and never reaches other services
       why: Baggage is made to cross service boundaries.
     - text: Baggage values are hashed, so the email cannot be logged
-      why: Baggage values are not hashed. They arrive as they were set.
+      why: The docs describe no hashing of baggage. It is sent in headers that others can read.
   answer: [0]
   source: https://opentelemetry.io/docs/concepts/signals/baggage/
 - id: q-mock-otca-062
@@ -1012,7 +1012,7 @@
     - text: The annotation must be on the Collector, not the Deployment
       why: The annotation goes on the workload's pod template or on its namespace.
     - text: Injection needs the Collector to run as a sidecar
-      why: Injection works with any reachable Collector, in any deployment mode.
+      why: The docs mark creating a Collector as optional. Injection needs an endpoint that accepts OTLP, not a sidecar.
     - text: The pods started before the Instrumentation resource existed
       why: The init container is added when a pod starts. Pods created before the resource are not instrumented.
   answer: [3]
@@ -1194,7 +1194,7 @@
   q: A team installs the opentelemetry-collector Helm chart. In values.yaml it sets the traces pipeline's exporters to its own exporter only. After the upgrade, the <code>memory_limiter</code> processor is missing from the traces pipeline. Why?
   options:
     - text: The chart drops memory_limiter when a custom exporter is used
-      why: The chart does not remove processors by itself. The pipeline is whatever the values file says.
+      why: The chart docs cover this case. A changed pipeline contains only the components you list.
     - text: The new exporter replaced memory_limiter in the processor list
       why: Exporters and processors are separate lists in a pipeline.
     - text: Helm 4 does not merge lists inside values files
@@ -1213,9 +1213,9 @@
     - text: Build a custom distribution with the Collector Builder (ocb)
       why: ocb builds a distribution with exactly the components you list, custom ones included.
     - text: Use the core distribution and add the processor as a plugin file
-      why: Components are compiled into the binary. The docs describe ocb for adding custom ones.
+      why: The docs describe ocb as the way to build a Collector with custom components.
     - text: Use the Kubernetes distribution, which removes unused components at startup
-      why: Distributions do not shrink themselves at startup. Each ships a fixed set of components.
+      why: Each distribution has a fixed list of components in its manifest. The docs point to ocb for a smaller binary.
   answer: [1]
   source: https://opentelemetry.io/docs/collector/distributions/
 - id: q-mock-otca-080
@@ -1245,7 +1245,7 @@
     - text: An L4 balancer keeps long-lived gRPC connections on one replica
       why: A layer 4 balancer may keep a client on one Collector. Use a gRPC-aware layer 7 balancer.
     - text: New replicas accept data only after the old ones fill their queues
-      why: Collectors do not wait for each other. The balancer decides where data goes.
+      why: Nothing in the docs makes replicas wait for each other. A balancer that keeps gRPC connections open is the documented cause.
     - text: The memory_limiter sends traffic back to old replicas
       why: The memory limiter refuses data when memory is high. It does not route traffic.
   answer: [1]
@@ -1258,11 +1258,11 @@
     - text: Load is split evenly between replicas, so no other change is needed
       why: Each replica with the same configuration scrapes the same targets. Nothing splits them.
     - text: The replicas elect a leader, so only one scrapes and the others wait
-      why: The Prometheus receiver has no leader election of its own.
+      why: The docs describe no leader election. They say each replica with the same configuration scrapes the same endpoints.
     - text: All replicas scrape all targets; shard them with the Target Allocator
       why: Identical replicas scrape the same endpoints and cause problems such as out-of-order samples. Shard the targets instead.
     - text: The replicas share one queue, so duplicate samples are removed before export
-      why: Collectors do not share queues, and the copies cause problems rather than cancel out.
+      why: The docs say the duplicate scrapes cause problems such as out-of-order samples. Nothing removes the copies.
   answer: [2]
   source: https://opentelemetry.io/docs/collector/scaling/
 - id: q-mock-otca-083
@@ -1335,11 +1335,11 @@
     - text: Each exporter gets a copy of every span
       why: The last processor fans the data out, and each exporter gets a copy of each data element.
     - text: The spans are split evenly between the two
-      why: Exporters in one pipeline are not load-balanced. Each one gets everything.
+      why: Each exporter gets a copy of every item, so nothing is split between them.
     - text: Only the exporter listed first gets data
       why: All the exporters in the list receive the data.
     - text: The second exporter gets data only when the first one fails
-      why: There is no failover between exporters in one pipeline.
+      why: Each exporter gets a copy of every item, so the second one is not a fallback for the first.
   answer: [0]
   source: https://opentelemetry.io/docs/collector/architecture/
 - id: q-mock-otca-088
@@ -1429,7 +1429,7 @@
     - text: The error is hidden and the next statement runs
       why: That describes the silent mode.
     - text: The statement is retried until it succeeds
-      why: Statements are not retried.
+      why: None of the error modes retries a statement. Propagate returns the error and drops the payload.
     - text: The error goes up and the payload is dropped
       why: In propagate mode the error is returned up the pipeline, and the payload is dropped from the Collector.
   answer: [3]
@@ -1504,7 +1504,7 @@
     - text: k8sattributes cannot run in a gateway Collector
       why: It can run in a gateway, but it needs the right association rules and position.
     - text: Tail sampling removes all resource attributes from spans
-      why: Tail sampling decides which traces to keep. It does not strip resource attributes.
+      why: The README warns that tail sampling loses the context, not the attributes. The pod names were never added.
     - text: Tail sampling regroups spans and loses their context
       why: The tail sampling processor reassembles spans and loses their context, so processors that need it must come first.
     - text: Pod names are only added to metrics, never to spans
@@ -1581,9 +1581,9 @@
     - text: Between the clients and the receiver
       why: The receiver accepts the spans, so data is getting in.
     - text: In the memory limiter, which refuses spans
-      why: Refused spans would show as receiver refusals, not as rising accepted spans.
+      why: The memory limiter returns errors to the component before it. Spans that a receiver cannot push into the pipeline are counted as refused, and here accepted spans keep rising.
     - text: In the SDKs, which send malformed spans
-      why: Malformed data would be refused by the receiver. Here the receiver accepts it.
+      why: The receiver accepts the spans and the failures happen at export, which points away from the senders.
     - text: Between the exporter and the backend
       why: Data comes in but cannot be sent. Rising send failures point to the network or the backend.
   answer: [3]
@@ -1660,7 +1660,7 @@
     - text: When the component before the memory limiter does not retry
       why: Receivers are expected to retry refused data. If the preceding component does not, the data is lost.
     - text: Never, because the memory limiter writes refused data to disk
-      why: The memory limiter has no disk buffer. It returns errors to the preceding component.
+      why: The README describes refusing data and returning errors to the preceding component, not storing the data.
     - text: Only when the hard limit is reached
       why: Data is refused once the soft limit is crossed. The hard limit also forces garbage collection.
   answer: [1]
@@ -1673,7 +1673,7 @@
     - text: Lower the sending rate or scale the Collectors out
       why: These failures come from a full queue, so lower the rate or add Collectors.
     - text: Switch off retry_on_failure to empty the queue
-      why: Without retries, data that fails once is dropped instead of being tried again.
+      why: Without retries, data that fails once is not tried again, so more of it is lost.
     - text: Raise OTEL_BSP_MAX_QUEUE_SIZE in the applications
       why: That variable sizes the SDK's span queue, not the Collector exporter's queue.
     - text: Move the memory limiter after the exporter
@@ -1692,7 +1692,7 @@
     - text: A file_storage extension behind the <code>sending_queue</code>
       why: With file_storage the queue is written to disk and read again after a restart.
     - text: The batch processor with a larger timeout value
-      why: Batches are held in memory, so they are lost on restart too.
+      why: The batch processor has no storage setting, so its batches are in memory and lost on restart.
   answer: [2]
   source: https://opentelemetry.io/docs/collector/resiliency/
 
