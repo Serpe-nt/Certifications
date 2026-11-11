@@ -515,12 +515,13 @@
   gap: 8px;
   min-height: 2.75rem;
   padding: 0 14px;
+  position: relative;
+  overflow: hidden;
   border: 2px solid var(--lg-ink);
   border-radius: 0;
-  background: var(--lg-paper);
+  background: linear-gradient(var(--lg-ink), var(--lg-ink)) left / 0% 100% no-repeat, var(--lg-paper);
   color: var(--lg-ink);
   cursor: pointer;
-  transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
 }
 .qz-stepbtn svg,
 .qz-flag svg {
@@ -532,7 +533,7 @@
 }
 .qz-stepbtn:hover:not(:disabled),
 .qz-flag:hover:not(:disabled) {
-  background: var(--lg-ink);
+  background-size: 100% 100%;
   color: var(--lg-signal);
 }
 .qz-stepbtn:disabled,
@@ -541,7 +542,7 @@
   cursor: not-allowed;
 }
 .qz-flag[aria-pressed="true"] {
-  background: var(--lg-ink);
+  background-size: 100% 100%;
   color: var(--lg-signal);
 }
 .qz-flag[aria-pressed="true"] svg {
@@ -578,11 +579,8 @@
 }
 /* After Submit the one Next is the way on: ink with yellow text. */
 .qz-stepbtn-go {
-  background: var(--lg-ink);
+  background: linear-gradient(var(--lg-bezel-2), var(--lg-bezel-2)) left / 0% 100% no-repeat, var(--lg-ink);
   color: var(--lg-signal);
-}
-.qz-stepbtn-go:hover:not(:disabled) {
-  background: var(--lg-ink-2);
 }
 .qz-mid {
   display: flex;
@@ -1024,45 +1022,1136 @@
 }
 
 /* ---------------------------------------------------------------- motion */
-@keyframes qz-in {
-  from {
-    opacity: 0;
-    transform: translateX(14px);
-  }
+/*
+  The owner asked for as much motion as the console style can carry (2026-11-11): every hover,
+  entrance and answer moves like a readout. Three rules hold it:
+  - Everything that moves sits under prefers-reduced-motion: no-preference. Hover states (colour,
+    fill) hold without it. With Effects off the kill rules in global.css end every animation at
+    once; the delays are zeroed below.
+  - Option rows, tape cells and buttons never move for longer than a blink after a click, so a
+    click never waits for them to hold still: their effects are colour, clip-path, backgrounds and
+    overlays that let the pointer through.
+  - A running mock exam holds still (the last rule of this block); its intro and results move.
+  Keyframes here start with qz-. --qz-i is a list item's place, for staggered entrances.
+*/
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(2) {
+  --qz-i: 1;
 }
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(3) {
+  --qz-i: 2;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(4) {
+  --qz-i: 3;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(5) {
+  --qz-i: 4;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(6) {
+  --qz-i: 5;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(7) {
+  --qz-i: 6;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(8) {
+  --qz-i: 7;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(9) {
+  --qz-i: 8;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(10) {
+  --qz-i: 9;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(11) {
+  --qz-i: 10;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(12) {
+  --qz-i: 11;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(13) {
+  --qz-i: 12;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(14) {
+  --qz-i: 13;
+}
+:is(.q-square, .qz-domain, .pr-weak-row, .qz-missed li, .qz-facts > div, .qz-review-item, .pr-grid > .pr-bay):nth-child(15) {
+  --qz-i: 14;
+}
+:is(.q-square, .qz-review-item):nth-child(n + 16) {
+  --qz-i: 15;
+}
+.qopt:nth-of-type(2) {
+  --qz-i: 1;
+}
+.qopt:nth-of-type(3) {
+  --qz-i: 2;
+}
+.qopt:nth-of-type(4) {
+  --qz-i: 3;
+}
+.qopt:nth-of-type(5) {
+  --qz-i: 4;
+}
+.qopt:nth-of-type(6) {
+  --qz-i: 5;
+}
+
+/* Option rows: a fill that wipes in for the pick and the verdict, a scan band on hover, a frame
+   that flashes. The band and the frame are overlays the pointer passes through. */
+.qopt {
+  --qz-fill: transparent;
+  overflow: hidden;
+  background: linear-gradient(var(--qz-fill), var(--qz-fill)) left / 100% 100% no-repeat, var(--lg-paper);
+}
+.qopt[data-state="picked"] {
+  --qz-fill: color-mix(in srgb, var(--lg-signal) 16%, var(--lg-paper));
+}
+.qopt[data-state="right"] {
+  --qz-fill: color-mix(in srgb, var(--lg-good) 10%, var(--lg-paper));
+}
+.qopt[data-state="wrong"] {
+  --qz-fill: color-mix(in srgb, var(--lg-bad) 8%, var(--lg-paper));
+}
+.qopt::before,
+.qopt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.qopt::before {
+  background: linear-gradient(100deg, transparent 0 30%, color-mix(in srgb, var(--lg-signal) 55%, transparent) 46% 54%, transparent 70%);
+  transform: translateX(-101%);
+}
+.qopt::after {
+  box-shadow: inset 0 0 0 4px var(--lg-signal);
+  opacity: 0;
+}
+.qopt[data-state="right"]::after {
+  box-shadow: inset 0 0 0 4px var(--lg-good);
+}
+.qopt[data-state="wrong"]::after {
+  box-shadow: inset 0 0 0 4px var(--lg-bad);
+}
+.qopt[data-state="open"]:has(.qopt-input:enabled):hover .qopt-key {
+  border-right-color: var(--lg-ink);
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.qopt-why strong {
+  display: inline-block;
+}
+
+/* The tape: hovering an open cell drops a heavier ink bar; the current cell carries a scan band. */
+.q-square[data-tone="open"]:hover:not(:disabled):not([aria-current="true"]) {
+  box-shadow: inset 0 8px 0 var(--lg-ink);
+  color: var(--lg-ink);
+}
+.q-square[aria-current="true"] {
+  background-image: linear-gradient(90deg, transparent 35%, color-mix(in srgb, var(--lg-paper) 70%, transparent) 50%, transparent 65%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+}
+
+/* The status strip: scanlines, a light band that passes, a cursor after the line. */
+.qz-strip {
+  position: relative;
+}
+.qz-strip::before,
+.qz-strip::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.qz-strip::before {
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--lg-ink-on-dark) 7%, transparent) 0 1px, transparent 1px 4px);
+}
+.qz-strip::after {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--lg-signal) 20%, transparent) 50%, transparent);
+  transform: translateX(-100%);
+}
+.qz-status::after,
+.qz-intro-hint::after,
+.pr-kicker::after {
+  content: "";
+  display: inline-block;
+  width: 0.6em;
+  height: 1.1em;
+  margin-left: 6px;
+  vertical-align: -0.2em;
+  background: var(--lg-signal);
+}
+.qz-intro-hint::after,
+.pr-kicker::after {
+  background: var(--lg-ink);
+}
+.qz-exam .qz-status::after {
+  content: none;
+}
+
+/* Submit: a yellow bar charges along its foot once a pick arms it; hovered, hazard stripes march. */
+.qz-charge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  height: 4px;
+  background: var(--lg-signal);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+:enabled > .qz-charge {
+  transform: none;
+}
+:enabled:hover > .qz-charge {
+  height: 6px;
+  background: linear-gradient(135deg, var(--lg-signal) 25%, var(--lg-ink) 25% 50%, var(--lg-signal) 50% 75%, var(--lg-ink) 75%) 0 0 / 12px 12px;
+}
+
+/* Previous, Next and the flag: ink wipes in from the left (set above); a band passes over them. */
+.qz-stepbtn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--lg-signal) 45%, transparent) 45% 55%, transparent 70%);
+  transform: translateX(-101%);
+  pointer-events: none;
+}
+.qz-stepbtn-go:hover:not(:disabled) {
+  color: var(--lg-signal);
+}
+.qz-stepbtn svg:first-child {
+  --qz-dir: -1;
+}
+
+/* The verdict is a stamp: it never takes the pointer, so it can land over its neighbours. */
+.qz-verdict,
+.card-result {
+  position: relative;
+  pointer-events: none;
+}
+.qz-verdict[data-verdict="right"]::after,
+.qz-verdict[data-verdict="wrong"]::after,
+.card-result[data-verdict]::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+.qz-verdict-row {
+  display: inline-block;
+}
+/* Once the verdict lands, the rule over the foot takes its colour. */
+.qz-foot3:has(.qz-verdict[data-verdict="right"]) {
+  background: linear-gradient(var(--lg-good), var(--lg-good)) left top / 100% 3px no-repeat;
+}
+.qz-foot3:has(.qz-verdict[data-verdict="wrong"]) {
+  background: linear-gradient(var(--lg-bad), var(--lg-bad)) left top / 100% 3px no-repeat;
+}
+
+/* Fact tiles, domain rows and weak-spot rows answer the pointer: a top bar, a fill, a yellow id. */
+.qz-facts > div {
+  position: relative;
+}
+.qz-facts > div::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--lg-signal);
+  box-shadow: 0 1px 0 var(--lg-ink);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+.qz-facts > div:hover::before {
+  transform: none;
+}
+.qz-facts > div:hover dd {
+  text-shadow: 3px 0 var(--lg-signal);
+}
+.qz-domain,
+.pr-weak-row {
+  background: linear-gradient(var(--lg-screen-2), var(--lg-screen-2)) left / 0% 100% no-repeat;
+}
+.qz-domain:hover,
+.pr-weak-row:hover {
+  background-size: 100% 100%;
+}
+.qz-domain:hover .qz-domain-id {
+  background: var(--lg-signal);
+  color: var(--lg-ink);
+}
+.qz-domain:hover .qz-bar-fill,
+.pr-weak-row:hover .qz-bar-fill {
+  fill: var(--lg-ink-2);
+}
+
+/* Practice bays: a yellow bar along the top and a hazard strip along the foot on hover. */
+.pr-bay {
+  position: relative;
+}
+.pr-bay::before,
+.pr-bay::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  pointer-events: none;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.pr-bay::before {
+  top: -4px;
+  right: 0;
+  height: 4px;
+  background: var(--lg-signal);
+}
+.pr-bay-step::before {
+  background: var(--lg-ink);
+}
+.pr-bay::after {
+  right: 16px;
+  bottom: 0;
+  height: 6px;
+  background: linear-gradient(135deg, var(--lg-ink) 25%, var(--lg-signal) 25% 50%, var(--lg-ink) 50% 75%, var(--lg-signal) 75%) 0 0 / 12px 12px;
+}
+.pr-bay:hover::before,
+.pr-bay:hover::after {
+  transform: none;
+}
+
+/* The results board: scanlines on the score panel, a band that passes, a frame that flashes. */
+.qz-board {
+  position: relative;
+}
+.qz-board::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  box-shadow: inset 0 0 0 4px var(--lg-signal);
+  opacity: 0;
+  pointer-events: none;
+}
+.qz-board[data-pass="false"]::after {
+  box-shadow: inset 0 0 0 4px var(--lg-bad);
+}
+.qz-board-score {
+  position: relative;
+  overflow: hidden;
+}
+.qz-board-score::before,
+.qz-board-score::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.qz-board-score::before {
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--lg-ink-on-dark) 7%, transparent) 0 1px, transparent 1px 4px);
+}
+.qz-board-score::after {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 30%;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--lg-signal) 16%, transparent) 50%, transparent);
+  transform: translateY(-100%);
+}
+.qz-stamp {
+  position: relative;
+}
+
 @keyframes qz-fade {
   from {
     opacity: 0;
   }
 }
-@keyframes qz-grow {
+@keyframes qz-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+@keyframes qz-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes qz-row-in {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes qz-drop {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes qz-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes qz-sweep {
+  from {
+    transform: translateX(-101%);
+  }
+  to {
+    transform: translateX(101%);
+  }
+}
+@keyframes qz-pass {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+@keyframes qz-pass-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(340%);
+  }
+}
+@keyframes qz-frame {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  25%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes qz-lockring {
+  from {
+    outline-offset: 10px;
+    outline-color: var(--lg-ink);
+  }
+}
+/* Numbers, tags and titles come in like a bad signal that locks: slices, offsets, a yellow ghost. */
+@keyframes qz-glitch-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-10px);
+    clip-path: inset(0 0 100% 0);
+  }
+  18% {
+    opacity: 1;
+    transform: translateX(6px);
+    clip-path: inset(0 0 50% 0);
+    text-shadow: -3px 0 var(--lg-signal);
+  }
+  36% {
+    transform: translateX(-3px);
+    clip-path: inset(45% 0 0 0);
+    text-shadow: 3px 0 var(--lg-ink-3);
+  }
+  54% {
+    transform: translateX(2px);
+    clip-path: inset(0 0 20% 0);
+    text-shadow: -2px 0 var(--lg-signal);
+  }
+  72%,
+  100% {
+    transform: none;
+    clip-path: inset(0 0 0 0);
+    text-shadow: none;
+  }
+}
+@keyframes qz-rgb {
+  0% {
+    transform: translateX(4px);
+    clip-path: inset(0 0 50% 0);
+    text-shadow: -3px 0 var(--lg-signal), 3px 0 var(--lg-ink);
+  }
+  25% {
+    transform: translateX(-4px);
+    clip-path: inset(50% 0 0 0);
+  }
+  50% {
+    transform: translateX(2px);
+    clip-path: inset(0 0 0 0);
+    text-shadow: 2px 0 var(--lg-signal), -2px 0 var(--lg-ink);
+  }
+  75%,
+  100% {
+    transform: none;
+    text-shadow: none;
+  }
+}
+/* A rubber stamp: dropped from above the page, tilted, it hits, rebounds and settles. */
+@keyframes qz-slam {
+  0% {
+    opacity: 0;
+    transform: scale(2.6) rotate(-14deg);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(0.88) rotate(-1deg);
+  }
+  70% {
+    transform: scale(1.06) rotate(-3deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes qz-shock {
+  from {
+    opacity: 0.9;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35, 1.9);
+  }
+}
+@keyframes qz-punch {
+  0% {
+    transform: scale(0.5);
+    background: var(--lg-signal);
+    color: var(--lg-ink);
+  }
+  45% {
+    transform: scale(1.25);
+    background: var(--lg-signal);
+    color: var(--lg-ink);
+  }
+  100% {
+    transform: none;
+  }
+}
+/* The key turns over: it narrows to a line and opens again in ink. */
+@keyframes qz-flip {
+  0% {
+    transform: none;
+    background: var(--lg-screen);
+    color: var(--lg-ink);
+  }
+  49.9% {
+    background: var(--lg-screen);
+    color: var(--lg-ink);
+  }
+  50% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes qz-shake {
+  20% {
+    transform: translateX(-7px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+@keyframes qz-fill {
+  from {
+    background-size: 0% 100%;
+  }
+}
+@keyframes qz-key-charge {
+  from {
+    background: linear-gradient(var(--lg-good), var(--lg-good)) bottom / 100% 0% no-repeat, var(--lg-screen);
+    color: var(--lg-ink);
+  }
+  to {
+    background: linear-gradient(var(--lg-good), var(--lg-good)) bottom / 100% 100% no-repeat, var(--lg-screen);
+    color: var(--lg-paper);
+  }
+}
+@keyframes qz-alarm {
+  0%,
+  40% {
+    background: var(--lg-paper);
+    color: var(--lg-bad);
+  }
+  20%,
+  60% {
+    background: var(--lg-bad);
+    color: var(--lg-paper);
+  }
+}
+@keyframes qz-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+/* Tape cells: they boot like a display, the current one locks on, an answer charges or alarms. */
+@keyframes qz-boot {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+    background: var(--lg-signal);
+    color: var(--lg-ink);
+  }
+  40% {
+    opacity: 0.35;
+    background: var(--lg-ink);
+  }
+  60% {
+    opacity: 1;
+    background: var(--lg-signal);
+  }
+  80% {
+    opacity: 0.7;
+  }
+}
+@keyframes qz-lock {
+  from {
+    box-shadow: inset 0 44px 0 var(--lg-ink), inset 0 0 0 2px var(--lg-ink);
+    color: var(--lg-signal);
+  }
+}
+@keyframes qz-scan {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@keyframes qz-cell-right {
+  from {
+    background: var(--lg-paper);
+    box-shadow: inset 0 4px 0 var(--lg-ink), inset 0 0 0 var(--lg-good);
+    color: var(--lg-ink-3);
+  }
+  to {
+    background: var(--lg-paper);
+    box-shadow: inset 0 4px 0 var(--lg-ink), inset 0 -44px 0 var(--lg-good);
+    color: var(--lg-paper);
+  }
+}
+@keyframes qz-cell-wrong {
+  0%,
+  50% {
+    background: var(--lg-bad);
+    color: var(--lg-paper);
+  }
+  25%,
+  75% {
+    background: var(--lg-paper);
+    color: var(--lg-bad);
+  }
+}
+@keyframes qz-hit {
+  0%,
+  50% {
+    background: var(--lg-ink);
+    color: var(--lg-signal);
+  }
+  25%,
+  75% {
+    background: var(--lg-signal);
+    color: var(--lg-ink);
+  }
+}
+@keyframes qz-corner {
+  0% {
+    transform: scale(3);
+  }
+  30% {
+    transform: scale(1.6) translateX(-3px);
+  }
+  60% {
+    transform: scale(1.2) translateX(2px);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes qz-strip-in {
+  from {
+    clip-path: polygon(0 0, 0 0, 0 0, 0 100%, 0 100%);
+  }
+  to {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  }
+}
+@keyframes qz-flag-up {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes qz-bar {
   from {
     transform: scaleX(0);
   }
 }
-@media (prefers-reduced-motion: no-preference) {
-  /* Quizzes and practice welcome an answer: the square lights up, the verdict slides in. */
-  .qz:not(.qz-exam) .q-square[data-tone="right"],
-  .qz:not(.qz-exam) .q-square[data-tone="wrong"] {
-    animation: lg-lit 0.7s var(--lg-ease-out);
+/* A bar charges across and fades, leaving the hover state to bring it back. */
+@keyframes qz-charge {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
   }
-  /* The question fades in place, so its buttons do not move under the pointer; the verdict slides. */
+  60% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: 0;
+  }
+}
+@keyframes qz-arm {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes qz-march {
+  to {
+    background-position: 12px 0;
+  }
+}
+@keyframes qz-nudge {
+  50% {
+    transform: translateX(calc(var(--qz-dir, 1) * 4px));
+  }
+}
+@keyframes qz-tick {
+  0%,
+  40%,
+  80% {
+    opacity: 0;
+  }
+  20%,
+  60% {
+    opacity: 1;
+    transform: scaleY(1.5);
+  }
+}
+@keyframes qz-tile {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+    background: var(--lg-ink);
+  }
+  40% {
+    opacity: 0.4;
+    background: var(--lg-paper);
+  }
+  60% {
+    opacity: 1;
+    background: var(--lg-signal);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* ---- option rows */
+  .qopt {
+    transition: border-color var(--lg-dur-fast) var(--lg-ease-out), box-shadow var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .qopt-body {
+    transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .qopt:has(.qopt-input:enabled):hover .qopt-body {
+    transform: translateX(6px);
+  }
+  .qopt:has(.qopt-input:enabled):hover::before {
+    animation: qz-sweep 560ms var(--lg-ease-out);
+  }
+  .qopt[data-state="open"]:has(.qopt-input:enabled):hover .qopt-key {
+    animation: qz-flip 240ms linear;
+  }
+  .qopt:has(.qopt-input:focus-visible) {
+    animation: qz-lockring 260ms var(--lg-ease-out);
+  }
+  .qopt[data-state="picked"] {
+    animation: qz-fill 260ms var(--lg-ease-out);
+  }
+  .qopt[data-state="picked"] .qopt-key {
+    animation: qz-punch 300ms var(--lg-ease-out);
+  }
+  .qopt[data-state="picked"]::after {
+    animation: qz-frame 420ms linear;
+  }
+  /* The answer, on a live question (not the exam's review list): the right row fills green and
+     its key charges, a wrong pick shakes and alarms, the tags glitch in and the explanations drop
+     in one after another. */
+  :is(.qz-cardbody, .sticker) .qopt[data-state="right"] {
+    animation: qz-fill 560ms var(--lg-ease-out) 80ms backwards;
+  }
+  :is(.qz-cardbody, .sticker) .qopt[data-state="right"] .qopt-key {
+    animation: qz-key-charge 480ms steps(6, end) backwards;
+  }
+  :is(.qz-cardbody, .sticker) .qopt[data-state="right"]::after {
+    animation: qz-frame 640ms linear 120ms;
+  }
+  :is(.qz-cardbody, .sticker) .qopt[data-state="wrong"] {
+    animation: qz-shake 240ms linear, qz-fill 560ms var(--lg-ease-out) 80ms backwards;
+  }
+  :is(.qz-cardbody, .sticker) .qopt[data-state="wrong"] .qopt-key {
+    animation: qz-alarm 560ms step-end;
+  }
+  :is(.qz-cardbody, .sticker) .qopt[data-state="wrong"]::after {
+    animation: qz-frame 640ms linear;
+  }
+  :is(.qz-cardbody, .sticker) .qopt-tag {
+    animation: qz-glitch-in 460ms step-end 200ms backwards;
+  }
+  :is(.qz-cardbody, .sticker) .qopt-tag .qz-mark path {
+    stroke-dasharray: 1 2;
+    animation: qz-draw 320ms var(--lg-ease-out) 480ms backwards;
+  }
+  :is(.qz-cardbody, .sticker) .qopt-why {
+    animation: qz-drop 420ms var(--lg-ease-out) backwards;
+    animation-delay: calc(280ms + var(--qz-i, 0) * 110ms);
+  }
+  :is(.qz-cardbody, .sticker) .qopt-why strong {
+    animation: qz-glitch-in 400ms step-end backwards;
+    animation-delay: calc(380ms + var(--qz-i, 0) * 110ms);
+  }
+  .qopt[data-state="other"] .qopt-text {
+    transition: color var(--lg-dur) var(--lg-ease-out);
+  }
+
+  /* ---- the verdict stamp */
+  .qz-verdict[data-verdict="right"],
+  .card-result[data-verdict="right"] {
+    animation: qz-slam 440ms var(--lg-ease-out) backwards;
+  }
+  .qz-verdict[data-verdict="wrong"],
+  .card-result[data-verdict="wrong"] {
+    animation: qz-slam 440ms var(--lg-ease-out) backwards, qz-rgb 420ms step-end 460ms;
+  }
+  .qz-verdict[data-verdict="right"]::after,
+  .qz-verdict[data-verdict="wrong"]::after,
+  .card-result[data-verdict]::after {
+    animation: qz-shock 520ms var(--lg-ease-out) 200ms;
+  }
+  :is(.qz-verdict, .card-result)[data-verdict] .qz-mark path {
+    stroke-dasharray: 1 2;
+    animation: qz-draw 300ms var(--lg-ease-out) 260ms backwards;
+  }
+  .qz-verdict-row {
+    animation: qz-type 420ms steps(14, end) 420ms backwards;
+  }
+  .qz-foot3:has(.qz-verdict:is([data-verdict="right"], [data-verdict="wrong"])) {
+    animation: qz-fill 520ms var(--lg-ease-out) 180ms backwards;
+  }
+
+  /* ---- Submit and the step buttons */
+  :enabled > .qz-charge {
+    animation: qz-arm 420ms steps(8, end);
+  }
+  :enabled:hover > .qz-charge {
+    animation: qz-march 380ms linear infinite;
+  }
+  .qz-stepbtn,
+  .qz-flag {
+    transition: background-size 220ms var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .qz-stepbtn:hover:not(:disabled)::after {
+    animation: qz-sweep 600ms var(--lg-ease-out);
+  }
+  .qz-stepbtn:hover:not(:disabled) svg {
+    animation: qz-nudge 640ms ease-in-out infinite;
+  }
+  /* Next, once it is the way on, arrives charged: the ink wipes in and a band passes. */
+  .qz-stepbtn-go {
+    animation: qz-fill 320ms var(--lg-ease-out) backwards;
+  }
+  .qz-stepbtn-go::after {
+    animation: qz-sweep 640ms var(--lg-ease-out) 260ms;
+  }
+  :is(.qz-stepbtn, .q-square):focus-visible {
+    animation: qz-lockring 260ms var(--lg-ease-out);
+  }
+
+  /* ---- the tape */
+  .q-square {
+    transition: background-color var(--lg-dur-fast) var(--lg-ease-out), box-shadow var(--lg-dur-fast) var(--lg-ease-out), transform 120ms var(--lg-ease-out);
+  }
+  .q-square:hover:not(:disabled):not([aria-current="true"]) {
+    transform: translateY(-3px);
+  }
+  .qz:not(.qz-exam) .q-square {
+    animation: qz-boot 460ms step-end calc(var(--qz-i, 0) * 35ms) backwards;
+  }
+  .qz:not(.qz-exam) .q-square[data-tone="right"] {
+    animation: qz-boot 460ms step-end calc(var(--qz-i, 0) * 35ms) backwards, qz-cell-right 540ms steps(6, end);
+  }
+  .qz:not(.qz-exam) .q-square[data-tone="wrong"] {
+    animation: qz-boot 460ms step-end calc(var(--qz-i, 0) * 35ms) backwards, qz-cell-wrong 560ms step-end;
+  }
+  .qz:not(.qz-exam) .q-square[data-tone="wrong"]::after {
+    transform-origin: bottom right;
+    animation: qz-corner 520ms step-end;
+  }
+  .qz:not(.qz-exam) .q-square[aria-current="true"] {
+    animation: qz-boot 460ms step-end calc(var(--qz-i, 0) * 35ms) backwards, qz-lock 320ms var(--lg-ease-out), qz-scan 1.8s linear 0.5s infinite;
+  }
+  .qz:not(.qz-exam) .q-square[aria-current="true"]:not([data-tone="open"]) {
+    animation: qz-boot 460ms step-end calc(var(--qz-i, 0) * 35ms) backwards, qz-lock 320ms var(--lg-ease-out), qz-scan 1.8s linear 0.5s infinite, qz-hit 480ms step-end;
+  }
+
+  /* ---- the status strip */
+  .qz-strip {
+    animation: qz-strip-in 380ms var(--lg-ease-out) backwards;
+  }
+  .qz-strip::after {
+    animation: qz-pass 3.4s linear 0.4s infinite;
+  }
+  .qz-status {
+    animation: qz-type 560ms steps(32, end) backwards;
+  }
+  .qz-status::after,
+  .qz-intro-hint::after,
+  .pr-kicker::after {
+    animation: qz-cursor 1s step-end infinite;
+  }
+  .qz-strip-kind {
+    display: inline-block;
+    animation: qz-glitch-in 420ms step-end 120ms backwards;
+  }
+
+  /* ---- the question card: it fades in place, so its buttons hold still */
   .qz:not(.qz-exam) .qz-card {
     animation: qz-fade var(--lg-dur) var(--lg-ease-out);
   }
-  .qz-verdict:not(:empty) {
-    animation: qz-in var(--lg-dur) var(--lg-ease-out);
+  .qz-card .qz-qnum::before {
+    transform-origin: bottom;
+    animation: qz-flag-up 360ms steps(6, end) 260ms backwards;
   }
-  [data-results] .qz-bar-fill {
+  .qz-card .qz-qnum-n {
+    animation: qz-glitch-in 420ms step-end 160ms backwards;
+  }
+  .qz-card .qz-qnum-of {
+    animation: qz-type 360ms steps(6, end) 320ms backwards;
+  }
+  .qz-cardbody .qv-text {
+    animation: qz-fade 380ms var(--lg-ease-out) 120ms backwards;
+  }
+  .qz-cardbody .qv-legend {
+    animation: qz-type 420ms steps(15, end) 180ms backwards;
+  }
+
+  /* ---- labels and notices */
+  .qz-label {
+    animation: qz-type 520ms steps(18, end) backwards;
+  }
+  .qz-label::before {
+    transform-origin: bottom;
+    animation: qz-flag-up 300ms steps(5, end) backwards;
+  }
+  .qz-notice {
+    animation: qz-drop 420ms var(--lg-ease-out) backwards;
+  }
+  .qz-notice-label {
+    animation: qz-cursor 0.5s step-end 300ms 3;
+  }
+
+  /* ---- intro: tiles boot one after another, the figures glitch in, the bars charge */
+  .qz-intro {
+    animation: qz-rise 0.6s var(--lg-ease-out) backwards;
+  }
+  .qz-facts > div {
+    animation: qz-tile 520ms step-end backwards;
+    animation-delay: calc(160ms + var(--qz-i, 0) * 120ms);
+  }
+  .qz-facts > div::before {
+    transition: transform 260ms var(--lg-ease-out);
+    animation: qz-charge 720ms steps(10, end);
+    animation-delay: calc(360ms + var(--qz-i, 0) * 120ms);
+  }
+  .qz-facts dt {
+    animation: qz-type 360ms steps(10, end) backwards;
+    animation-delay: calc(300ms + var(--qz-i, 0) * 120ms);
+  }
+  .qz-facts dd {
+    transition: text-shadow var(--lg-dur-fast) var(--lg-ease-out);
+    animation: qz-glitch-in 480ms step-end backwards;
+    animation-delay: calc(420ms + var(--qz-i, 0) * 120ms);
+  }
+  .qz-intro-text,
+  .qz-intro-note,
+  .qz-intro-actions {
+    animation: qz-fade 600ms var(--lg-ease-out) 520ms backwards;
+  }
+  .qz-intro .qz-stamp {
+    animation: qz-slam 440ms var(--lg-ease-out) 640ms backwards;
+  }
+  .qz-intro .qz-stamp .qz-mark path {
+    stroke-dasharray: 1 2;
+    animation: qz-draw 300ms var(--lg-ease-out) 900ms backwards;
+  }
+  .qz-domain {
+    transition: background-size 300ms var(--lg-ease-out);
+    animation: qz-row-in 460ms var(--lg-ease-out) backwards;
+    animation-delay: calc(240ms + var(--qz-i, 0) * 90ms);
+  }
+  .qz-domain-id {
+    transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .qz-domain-big {
+    animation: qz-glitch-in 440ms step-end backwards;
+    animation-delay: calc(520ms + var(--qz-i, 0) * 90ms);
+  }
+  .qz-domain .qz-bar-fill,
+  .pr-weak-row .qz-bar-fill {
     transform-box: fill-box;
     transform-origin: left;
-    animation: qz-grow var(--lg-dur-slow) var(--lg-ease-out) both;
+    transition: fill var(--lg-dur-fast) var(--lg-ease-out);
+    animation: qz-bar 900ms steps(18, end) backwards;
+    animation-delay: calc(420ms + var(--qz-i, 0) * 90ms);
   }
-  .qz-intro,
-  .pr-bay,
-  [data-results] .qz-board {
-    animation: lg-rise 0.6s var(--lg-ease-out) both;
+
+  /* ---- results: the board rises, the score counts (Count in QuizPlayer), the stamp slams,
+     the bars charge and the pass mark blinks, the topics to go back to drop in */
+  :is([data-results], [data-exam-results]) .qz-board {
+    animation: qz-rise 0.6s var(--lg-ease-out) backwards;
   }
+  .qz-board[data-pass]::after {
+    animation: qz-frame 900ms linear 1.4s;
+  }
+  .qz-board-score::after {
+    animation: qz-pass-down 3.6s linear 1s infinite;
+  }
+  .qz-board-big {
+    animation: qz-glitch-in 520ms step-end 200ms backwards;
+  }
+  .qz-board-title {
+    animation: qz-type 640ms steps(28, end) 280ms backwards;
+  }
+  .qz-results .qz-stamp {
+    animation: qz-slam 460ms var(--lg-ease-out) 950ms backwards;
+  }
+  .qz-results .qz-stamp[data-pass="false"] {
+    animation: qz-slam 460ms var(--lg-ease-out) 950ms backwards, qz-rgb 420ms step-end 1.45s;
+  }
+  .qz-results .qz-stamp .qz-mark path {
+    stroke-dasharray: 1 2;
+    animation: qz-draw 320ms var(--lg-ease-out) 1.2s backwards;
+  }
+  :is([data-results], [data-exam-results]) .qz-bar-fill {
+    transform-box: fill-box;
+    transform-origin: left;
+    animation: qz-bar 1.1s steps(22, end) backwards;
+    animation-delay: calc(450ms + var(--qz-i, 0) * 120ms);
+  }
+  :is([data-results], [data-exam-results]) .qz-bar-mark {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: qz-tick 600ms step-end backwards;
+    animation-delay: calc(1.55s + var(--qz-i, 0) * 120ms);
+  }
+  .qz-board-scale,
+  .qz-board-text,
+  .qz-board-note,
+  .qz-board-actions {
+    animation: qz-fade 500ms var(--lg-ease-out) 700ms backwards;
+  }
+  .qz-missed {
+    animation: qz-drop 500ms var(--lg-ease-out) 600ms backwards;
+  }
+  .qz-missed li {
+    animation: qz-row-in 420ms var(--lg-ease-out) backwards;
+    animation-delay: calc(800ms + var(--qz-i, 0) * 90ms);
+  }
+  .qz-review-item {
+    animation: qz-fade 500ms var(--lg-ease-out) backwards;
+    animation-delay: calc(var(--qz-i, 0) * 50ms);
+  }
+
+  /* ---- practice */
+  .pr-bay {
+    animation: qz-rise 0.6s var(--lg-ease-out) backwards;
+    animation-delay: calc(var(--qz-i, 0) * 120ms);
+  }
+  .pr-bay::before,
+  .pr-bay::after {
+    transition: transform 280ms var(--lg-ease-out);
+  }
+  .pr-bay::before {
+    animation: qz-charge 800ms steps(12, end);
+    animation-delay: calc(300ms + var(--qz-i, 0) * 120ms);
+  }
+  .pr-bay:hover::after {
+    animation: qz-march 400ms linear infinite;
+  }
+  .pr-kicker {
+    animation: qz-type 420ms steps(14, end) backwards;
+    animation-delay: calc(200ms + var(--qz-i, 0) * 120ms);
+  }
+  .pr .pr-title,
+  .pr-count-n {
+    animation: qz-glitch-in 460ms step-end backwards;
+    animation-delay: calc(320ms + var(--qz-i, 0) * 120ms);
+  }
+  .pr-text,
+  .pr-actions {
+    animation: qz-fade 500ms var(--lg-ease-out) backwards;
+    animation-delay: calc(460ms + var(--qz-i, 0) * 120ms);
+  }
+  .pr-weak-row {
+    transition: background-size 300ms var(--lg-ease-out);
+    animation: qz-row-in 420ms var(--lg-ease-out) backwards;
+    animation-delay: calc(480ms + var(--qz-i, 0) * 80ms);
+  }
+  .pr-weak-name {
+    transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .pr-weak-row:hover .pr-weak-name {
+    transform: translateX(6px);
+  }
+}
+
+/* With Effects off the kill rules end every animation at once; their delays end too. */
+:root[data-motion="off"] :is(.qz, .qz-intro, .qz-results, .pr, .qz-notice),
+:root[data-motion="off"] :is(.qz, .qz-intro, .qz-results, .pr, .qz-notice) *,
+:root[data-motion="off"] :is(.qz, .qz-intro, .qz-results, .pr, .qz-notice) *::before,
+:root[data-motion="off"] :is(.qz, .qz-intro, .qz-results, .pr, .qz-notice) *::after {
+  animation-delay: 0s !important;
+}
+
+/* A running mock exam holds still (CLAUDE.md: it passes quiet). Only the controls' own hover and
+   press feedback stays: the transitions above and the buttons' rules in motion.css. */
+[data-exam-running],
+[data-exam-running] :not(.btn),
+[data-exam-running] :not(.btn)::before,
+[data-exam-running] :not(.btn)::after {
+  animation: none !important;
 }
 /* While a mock exam runs the header around it holds still too. */
 body:has([data-exam-running]) :is(.dashline, .globe .spin, .globe .n),

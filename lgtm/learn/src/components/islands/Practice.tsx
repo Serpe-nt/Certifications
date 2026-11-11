@@ -6,7 +6,7 @@ import { startRun } from '../../lib/runs.ts';
 import { validId } from '../../lib/state.ts';
 import { practiceStepFromHash } from '../../lib/dialogs.ts';
 import { updateState, useHydrated, useStoreState } from '../../lib/use-store.ts';
-import QuizPlayer, { ScoreBar } from './QuizPlayer.tsx';
+import QuizPlayer, { Count, ScoreBar } from './QuizPlayer.tsx';
 import RunBusy, { runHref } from './RunBusy.tsx';
 
 const TITLES = { review: 'Questions due for review', step: 'Three questions on a step', weak: 'Your weak spots' } as const;
@@ -89,7 +89,9 @@ export default function Practice() {
           <p className="pr-kicker mono">Spaced review</p>
           <h2 className="pr-title">Review</h2>
           <p className="pr-count" aria-hidden="true">
-            <span className="pr-count-n">{String(dueKnown.length).padStart(2, '0')}</span>
+            <span className="pr-count-n">
+              <Count to={dueKnown.length} pad={2} ms={600} />
+            </span>
             <span className="mono">due today</span>
           </p>
           {dueKnown.length ? (

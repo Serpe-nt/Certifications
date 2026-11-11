@@ -8,7 +8,7 @@ import type { ExamRun, MockRecord } from '../../lib/state.ts';
 import { getStore } from '../../lib/store.ts';
 import { updateState, useHydrated, useStoreState } from '../../lib/use-store.ts';
 import QuestionView, { Mark, shownOrder, togglePick } from './QuestionView.tsx';
-import { ScoreBar } from './QuizPlayer.tsx';
+import { Count, ScoreBar } from './QuizPlayer.tsx';
 
 /** After a gap longer than this the page was frozen or asleep: ask for news before the clock acts. */
 const GAP_MS = 15_000;
@@ -299,9 +299,11 @@ function ExamResults({ exam, bank, record }: { exam: ExamRun; bank: Bank; record
       <div className="qz-board" data-pass={String(pass)}>
         <div className="qz-board-score" aria-hidden="true">
           <span className="qz-board-label mono">{exam.cert.toUpperCase()} score</span>
-          <span className="qz-board-big">{pct}%</span>
+          <span className="qz-board-big">
+            <Count to={pct} />%
+          </span>
           <span className="qz-board-label mono">
-            {score} / {n} right
+            <Count to={score} /> / {n} right
           </span>
         </div>
         <div className="qz-board-main">
@@ -342,7 +344,9 @@ function ExamResults({ exam, bank, record }: { exam: ExamRun; bank: Bank; record
               </span>
               <ScoreBar pct={share} mark={info.pass} />
               <span className="qz-domain-figs">
-                <span className="qz-domain-big">{share}%</span>
+                <span className="qz-domain-big">
+                  <Count to={share} />%
+                </span>
                 <span className="mono" data-domain-score>
                   {r[0]} of {r[1]}
                 </span>

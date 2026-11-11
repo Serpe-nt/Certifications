@@ -81,6 +81,7 @@ export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
         {!answered && (
           <button type="button" className="btn btn-primary" disabled={choice === null || !ready} onClick={() => choice !== null && submit(choice)} data-check-answer-card>
             Submit
+            <span className="qz-charge" aria-hidden="true" />
           </button>
         )}
         <p className="card-result mono" aria-live="polite" data-question-result data-verdict={answered ? (picked === answer ? 'right' : 'wrong') : undefined}>

@@ -23,7 +23,7 @@ export const whyText = (html: string) => html.replace(OWN_VERDICT, '');
 export function Mark({ right }: { right: boolean }) {
   return (
     <svg className="qz-mark" viewBox="0 0 16 16" aria-hidden="true">
-      {right ? <path d="M2.5 8.5 6.5 12.5 13.5 3.5" /> : <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" />}
+      {right ? <path d="M2.5 8.5 6.5 12.5 13.5 3.5" pathLength={1} /> : <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" pathLength={1} />}
     </svg>
   );
 }

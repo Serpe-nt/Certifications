@@ -210,3 +210,238 @@
   gap: 0;
   max-width: none;
 }
+
+/* ---------------------------------------------------------------- motion */
+/*
+  The frame assembles itself like a label printing: the tab wipes out from the left, the rail draws
+  from the tab to the chevrons, a scan band runs down the body. Then it idles: the chevrons march,
+  the node pulses, a laser crosses the barcode and the code's cursor blinks. On a step the box builds
+  as it scrolls into view (the decoration only: the options never wait). Everything here sits under
+  prefers-reduced-motion: no-preference; a running mock exam stops it (quiz.css). Keyframes: stk-.
+*/
+.sticker-body::before,
+.qz-cardbody::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--lg-signal) 40%, transparent) 70%, var(--lg-signal) 72%, transparent 74%) 0 -80px / 100% 80px no-repeat;
+  pointer-events: none;
+}
+.sticker-foot {
+  position: relative;
+}
+.sticker-foot::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 0;
+  width: 3px;
+  height: 26px;
+  background: var(--lg-signal);
+  box-shadow: 0 0 0 1px var(--lg-ink);
+  opacity: 0;
+  pointer-events: none;
+}
+.sticker-code::after {
+  content: "";
+  width: 0.6em;
+  height: 1.1em;
+  background: var(--lg-ink-3);
+}
+.sticker-chevrons polygon:nth-child(2) {
+  --stk-i: 1;
+}
+.sticker-chevrons polygon:nth-child(3) {
+  --stk-i: 2;
+}
+.sticker-chevrons polygon:nth-child(4) {
+  --stk-i: 3;
+}
+.sticker-chevrons polygon:nth-child(5) {
+  --stk-i: 4;
+}
+/* Hovering the box speeds the chevrons up and lights the rail's node. */
+.sticker:hover .sticker-rail::before,
+.qz-card:hover .sticker-rail::before {
+  background: var(--lg-signal);
+}
+
+@keyframes stk-tab {
+  from {
+    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+  }
+  to {
+    clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 100%, 0 100%);
+  }
+}
+@keyframes stk-qnum {
+  from {
+    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+  }
+  to {
+    clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 100%, 0 100%);
+  }
+}
+@keyframes stk-rail {
+  from {
+    clip-path: inset(-12px 100% -12px 0);
+  }
+  to {
+    clip-path: inset(-12px 0 -12px 0);
+  }
+}
+@keyframes stk-unfold {
+  from {
+    clip-path: polygon(0 0, 100% 0, 100% 0, 100% 0, 0 0);
+  }
+  to {
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%);
+  }
+}
+@keyframes stk-scan {
+  from {
+    background-position: 0 -80px;
+  }
+  to {
+    background-position: 0 calc(100% + 80px);
+  }
+}
+@keyframes stk-icon {
+  from {
+    transform: rotate(-180deg) scale(0);
+  }
+}
+@keyframes stk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Each chevron lights yellow in turn and fades, so the block seems to run forward. */
+@keyframes stk-march {
+  0% {
+    fill: var(--lg-signal);
+    opacity: 1;
+  }
+  18% {
+    fill: var(--lg-ink);
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes stk-node {
+  0%,
+  62%,
+  100% {
+    transform: none;
+  }
+  72% {
+    transform: scale(1.5);
+    background: var(--lg-signal);
+  }
+  84% {
+    transform: scale(0.9);
+    background: var(--lg-signal);
+  }
+}
+@keyframes stk-laser {
+  0%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(107px);
+  }
+}
+@keyframes stk-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sticker-tab {
+    animation: stk-tab 420ms var(--lg-ease-out) backwards;
+  }
+  .sticker-tab svg {
+    animation: stk-icon 520ms var(--lg-ease-out) 200ms backwards;
+  }
+  .sticker:hover .sticker-tab svg {
+    animation: stk-spin 700ms var(--lg-ease-out);
+  }
+  .qz-card .qz-qnum {
+    animation: stk-qnum 380ms var(--lg-ease-out) backwards;
+  }
+  .sticker-rail {
+    animation: stk-rail 520ms var(--lg-ease-out) 180ms backwards;
+  }
+  .sticker-rail::before {
+    animation: stk-node 2.4s var(--lg-ease-out) 0.8s infinite;
+  }
+  .sticker-chevrons polygon {
+    animation: stk-march 1.5s linear infinite;
+    animation-delay: calc(var(--stk-i, 0) * 0.15s - 1.5s);
+  }
+  .sticker:hover .sticker-chevrons polygon,
+  .qz-card:hover .sticker-chevrons polygon {
+    animation-duration: 0.6s;
+    animation-delay: calc(var(--stk-i, 0) * 0.06s - 0.6s);
+  }
+  .sticker-body {
+    animation: stk-unfold 520ms var(--lg-ease-out) 240ms backwards;
+  }
+  /* The quiz card's body comes in quicker: its options are clicked at once. */
+  .qz-cardbody {
+    animation: stk-unfold 220ms var(--lg-ease-out) backwards;
+  }
+  .sticker-body::before,
+  .qz-cardbody::before {
+    animation: stk-scan 900ms var(--lg-ease-out) 300ms;
+  }
+  .sticker-foot::before {
+    animation: stk-laser 2.6s ease-in-out 1s infinite;
+  }
+  .sticker-code::after {
+    animation: stk-cursor 1s step-end infinite;
+  }
+
+  /* On a step the box builds as it scrolls into view; the options are never clipped. */
+  @supports (animation-timeline: view()) {
+    .part.sticker {
+      view-timeline: --stk block;
+    }
+    .part.sticker .sticker-tab,
+    .part.sticker .sticker-rail,
+    .part.sticker .sticker-body::before {
+      animation-timeline: --stk;
+      animation-fill-mode: both;
+      animation-delay: 0s;
+    }
+    .part.sticker .sticker-tab {
+      animation-range: entry 0% entry 60%;
+    }
+    .part.sticker .sticker-rail {
+      animation-range: entry 20% entry 90%;
+    }
+    .part.sticker .sticker-body::before {
+      animation-range: entry 30% cover 55%;
+    }
+    .part.sticker .sticker-body {
+      animation: none;
+    }
+  }
+}
+
+/* With Effects off the kill rules end every animation at once; their delays end too. */
+:root[data-motion="off"] .sticker *,
+:root[data-motion="off"] .sticker *::before,
+:root[data-motion="off"] .sticker *::after {
+  animation-delay: 0s !important;
+}

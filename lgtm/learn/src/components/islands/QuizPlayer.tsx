@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { byId, stepsTeaching, type Bank } from '../../lib/bank.ts';
 import { answerFx } from '../../lib/fx.ts';
 import { href } from '../../lib/links.ts';
@@ -32,6 +32,31 @@ export function ScoreBar({ pct, mark, label }: { pct: number; mark?: number; lab
       {mark !== undefined && <rect className="qz-bar-mark" x={Math.min(99, mark * 100)} y="-2" width="1" height="16" />}
     </svg>
   );
+}
+
+/** True when motion is off: the device asks for less, or Effects is off in Settings. */
+const calm = () =>
+  typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'off';
+
+/** A figure that ticks up from zero to `to` once, like a counter on a readout; shown at once when motion is off. */
+export function Count({ to, pad = 0, ms = 900 }: { to: number; pad?: number; ms?: number }) {
+  const [n, setN] = useState(() => (calm() ? to : 0));
+  useEffect(() => {
+    if (calm()) {
+      setN(to);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - t0) / ms);
+      setN(Math.round(to * (1 - (1 - k) ** 3)));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [to, ms]);
+  return <>{String(n).padStart(pad, '0')}</>;
 }
 
 /** Five chevrons pointing forward, at the end of a question box's rail (sticker.css). */
@@ -106,7 +131,7 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
   return (
     <section className="qz" data-quiz-run={run.kind} data-run-t0={run.t0}>
       <div className="qz-strip">
-        <p className="qz-status mono">
+        <p className="qz-status mono" key={i}>
           <span className="qz-strip-kind">{KIND_TEXT[run.kind]}:</span> {title}. Question {i + 1} of {run.ids.length}, {answered} answered.
         </p>
       </div>
@@ -175,6 +200,7 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
             {!answer && (
               <button type="button" className="btn btn-primary" onClick={check} disabled={!ready || !canCheck} data-check-answer>
                 Submit
+                <span className="qz-charge" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -220,9 +246,11 @@ function Results({ run, bank, title, onRetake }: Props) {
       <div className="qz-board" data-pass={module ? String(pass) : undefined}>
         <div className="qz-board-score" aria-hidden="true">
           <span className="qz-board-label mono">Score</span>
-          <span className="qz-board-big">{r.pct}%</span>
+          <span className="qz-board-big">
+            <Count to={r.pct} />%
+          </span>
           <span className="qz-board-label mono">
-            {r.score} / {r.n} right
+            <Count to={r.score} /> / {r.n} right
           </span>
         </div>
         <div className="qz-board-main">
