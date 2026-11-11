@@ -54,6 +54,8 @@ test('token: needs the seed, then accepts the token computed from it', async ({ 
   await answer(page, token('log-m90-1'));
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'no-seed');
   await page.getByRole('link', { name: 'Open the settings' }).click();
+  // The Settings dialog hydrates when it opens; its controls stay disabled until then.
+  await expect(page.getByRole('textbox', { name: 'Lab seed' })).toBeEnabled();
   await page.getByRole('textbox', { name: 'Lab seed' }).fill('not a seed');
   await page.locator('[data-save-seed]').click();
   await expect(page.locator('[data-settings-message]')).toContainText('16 characters');

@@ -1,13 +1,15 @@
 import { useEffect, useId, useState, type ChangeEvent } from 'react';
 import { parseSettings, parseState, type Settings as SettingsShape } from '../../lib/state.ts';
 import { getStore } from '../../lib/store.ts';
-import { updateState, useStoreState } from '../../lib/use-store.ts';
+import { updateState, useHydrated, useStoreState } from '../../lib/use-store.ts';
 
 const MAX_IMPORT = 1024 * 1024;
 
 /** Lab domain, lab seed, effects and sound; export and import of progress. */
 export default function Settings() {
   const state = useStoreState();
+  // Controls stay disabled until hydrated, so a click or keystroke before then is not lost.
+  const ready = useHydrated();
   const ids = { domain: useId(), seed: useId(), file: useId() };
   const [domain, setDomain] = useState(state.settings.labDomain);
   const [seed, setSeed] = useState(state.settings.labSeed);
@@ -83,8 +85,8 @@ export default function Settings() {
         </label>
         <p className="mt-0 text-sm text-ink-3">The lab's addresses live under this name, for example grafana.lab.k8s.local.</p>
         <div className="flex gap-2">
-          <input id={ids.domain} className="field" value={domain} onChange={(e) => setDomain(e.target.value)} autoComplete="off" spellCheck={false} />
-          <button type="button" className="btn" onClick={saveDomain} data-save-domain>
+          <input id={ids.domain} disabled={!ready} className="field" value={domain} onChange={(e) => setDomain(e.target.value)} autoComplete="off" spellCheck={false} />
+          <button type="button" className="btn" onClick={saveDomain} disabled={!ready} data-save-domain>
             Save
           </button>
         </div>
@@ -93,8 +95,8 @@ export default function Settings() {
         </label>
         <p className="mt-0 text-sm text-ink-3">16 characters, printed at the end of the lab install. Token checks need it.</p>
         <div className="flex gap-2">
-          <input id={ids.seed} className="field font-mono" value={seed} onChange={(e) => setSeed(e.target.value)} autoComplete="off" spellCheck={false} maxLength={64} />
-          <button type="button" className="btn" onClick={saveSeed} data-save-seed>
+          <input id={ids.seed} disabled={!ready} className="field font-mono" value={seed} onChange={(e) => setSeed(e.target.value)} autoComplete="off" spellCheck={false} maxLength={64} />
+          <button type="button" className="btn" onClick={saveSeed} disabled={!ready} data-save-seed>
             Save
           </button>
         </div>
@@ -104,12 +106,12 @@ export default function Settings() {
         <h2>Look and feel</h2>
         {/* The site has one theme since the design card (DZ); the theme field stays in the state, unused. */}
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={state.settings.effects} onChange={(e) => set({ effects: e.target.checked })} />
+          <input type="checkbox" checked={state.settings.effects} disabled={!ready} onChange={(e) => set({ effects: e.target.checked })} />
           Effects and motion
         </label>
         <p className="mt-0 text-sm text-ink-3">Celebrations when you finish something, and the moving parts of the page. Reduced motion on the device always calms them.</p>
         <label className="mt-1 flex items-center gap-2">
-          <input type="checkbox" checked={state.settings.sound} onChange={(e) => set({ sound: e.target.checked })} />
+          <input type="checkbox" checked={state.settings.sound} disabled={!ready} onChange={(e) => set({ sound: e.target.checked })} />
           Sound
         </label>
       </section>
@@ -118,13 +120,13 @@ export default function Settings() {
         <h2>Your progress</h2>
         <p className="mt-0 text-sm text-ink-3">Progress is saved on this device and on the server, so other devices see it too. A file is a copy you keep yourself.</p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn" onClick={exportProgress} data-export>
+          <button type="button" className="btn" onClick={exportProgress} disabled={!ready} data-export>
             Export to a file
           </button>
           <label htmlFor={ids.file} className="btn">
             Import from a file
           </label>
-          <input id={ids.file} type="file" accept="application/json,.json" className="sr-only" onChange={importProgress} data-import />
+          <input id={ids.file} type="file" disabled={!ready} accept="application/json,.json" className="sr-only" onChange={importProgress} data-import />
         </div>
         <p className="mb-0 text-sm text-ink-3">Importing replaces the progress on every device with the file's copy.</p>
       </section>

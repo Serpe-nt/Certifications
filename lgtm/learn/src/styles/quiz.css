@@ -573,8 +573,16 @@
 .qz-foot3 > .qz-stepbtn:first-child {
   justify-self: start;
 }
-.qz-foot3 > .qz-stepbtn:last-child {
+.qz-foot3 > :last-child {
   justify-self: end;
+}
+/* After Submit the one Next is the way on: ink with yellow text. */
+.qz-stepbtn-go {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.qz-stepbtn-go:hover:not(:disabled) {
+  background: var(--lg-ink-2);
 }
 .qz-mid {
   display: flex;

@@ -172,26 +172,33 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
                 </>
               )}
             </p>
-            {!answer ? (
+            {!answer && (
               <button type="button" className="btn btn-primary" onClick={check} disabled={!ready || !canCheck} data-check-answer>
                 Submit
               </button>
-            ) : next === -1 ? (
-              <button type="button" className="btn btn-primary" onClick={finish} disabled={!ready} data-see-results>
-                See results
-              </button>
-            ) : (
-              <button type="button" className="btn btn-primary" onClick={() => go(next)} disabled={!ready} data-next-open>
-                Next question
-              </button>
             )}
           </div>
-          <button type="button" className="qz-stepbtn mono" onClick={() => go(i + 1)} disabled={!ready || i >= run.ids.length - 1}>
-            Next
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="m6 3 5 5-5 5" />
-            </svg>
-          </button>
+          {/* One Next: before Submit it steps to the next question; after, it goes to the next open
+              question, and once every question is answered it becomes See results. */}
+          {answer && next === -1 ? (
+            <button type="button" className="btn btn-primary qz-next" onClick={finish} disabled={!ready} data-see-results>
+              See results
+            </button>
+          ) : answer ? (
+            <button type="button" className="qz-stepbtn qz-stepbtn-go mono" onClick={() => go(next)} disabled={!ready} data-next-open>
+              Next
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="m6 3 5 5-5 5" />
+              </svg>
+            </button>
+          ) : (
+            <button type="button" className="qz-stepbtn mono" onClick={() => go(i + 1)} disabled={!ready || i >= run.ids.length - 1}>
+              Next
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="m6 3 5 5-5 5" />
+              </svg>
+            </button>
+          )}
         </div>
         </div>
       </article>
