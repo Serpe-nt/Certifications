@@ -41,10 +41,14 @@ export default function StepNav({ stepId, backHref, backLabel, nextHref, nextLab
         {blocked && (
           <a className="btn btn-primary" href="?tab=practice" data-tab-link="practice" data-go-practice>
             Go to practice
+            <svg className="stepnav-chev" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 3l5 5-5 5M8 3l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
           </a>
         )}
         <button type="button" className={`btn ${done ? '' : 'btn-primary'}`} onClick={toggle} disabled={blocked || !ready} aria-pressed={done} data-mark-complete>
           {done ? 'Completed' : 'Mark complete'}
+          <span className="stepnav-charge" aria-hidden="true" />
         </button>
       </div>
       <a className="btn stepnav-next" href={nextHref} rel="next">

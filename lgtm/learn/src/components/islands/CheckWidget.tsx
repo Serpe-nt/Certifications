@@ -45,6 +45,7 @@ export default function CheckWidget({ stepId, check, settingsHref }: Props) {
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [busy, setBusy] = useState(false);
   const [checked, setChecked] = useState(''); // the answer the verdict is about
+  const [tries, setTries] = useState(0); // only for the motion: each check replays the scan and the shake (step.css)
   const passed = stepId in state.checks;
   const failed = !!verdict && !verdict.ok;
   const resultId = `${inputId}-result`;
@@ -52,6 +53,7 @@ export default function CheckWidget({ stepId, check, settingsHref }: Props) {
   const onSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setBusy(true);
+    setTries((n) => n + 1);
     try {
       const v = await grade(check, value, { seed: state.settings.labSeed });
       setVerdict(v);
@@ -63,7 +65,8 @@ export default function CheckWidget({ stepId, check, settingsHref }: Props) {
   };
 
   return (
-    <section className="labcheck" data-block="check" data-check-kind={check.kind} data-state={passed || verdict?.ok ? 'pass' : failed ? 'fail' : ''}>
+    <section className={`labcheck labcheck-t${tries % 2}`} data-block="check" data-check-kind={check.kind} data-state={passed || verdict?.ok ? 'pass' : failed ? 'fail' : ''}>
+      <span className="labcheck-scan" key={tries} aria-hidden="true" />
       <h2 className="part-label mono">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <path d="M4 12l5 5L20 6" />

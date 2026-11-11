@@ -145,9 +145,11 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
 
   <div class="scale mono" aria-hidden="true">
     <svg viewBox="0 0 520 54">
-      {Array.from({ length: total }, (_, i) => <path d={`M${tickX(i + 1).toFixed(1)} 30 v8`} stroke="currentColor" stroke-width="1.5" />)}
-      <path d="M10 38 H510" stroke="currentColor" stroke-width="1" />
-      <path d={`M${(tickX(position) - 7).toFixed(1)} 52 l7 -12 l7 12 z`} fill="var(--lg-signal)" stroke="currentColor" stroke-width="1.2" />
+      {Array.from({ length: total }, (_, i) => <path class="scale-tick" d={`M${tickX(i + 1).toFixed(1)} 30 v8`} stroke="currentColor" stroke-width="1.5" />)}
+      <path class="scale-base" pathLength="1" d="M10 38 H510" stroke="currentColor" stroke-width="1" />
+      <g class="scale-ptr" transform={`translate(${tickX(position).toFixed(1)} 0)`}>
+        <path d="M-7 52 l7 -12 l7 12 z" fill="var(--lg-signal)" stroke="currentColor" stroke-width="1.2" />
+      </g>
     </svg>
     <span class="scale-label">{position} / {total}</span>
   </div>
@@ -155,6 +157,24 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
   <script>
     import { wireToc } from '../../../../lib/toc.ts';
     wireToc();
+    // Motion only (step.css): sections, parts and the sidebar play their entrance once they come into
+    // view. Nothing waits for this: without it, or with motion off, everything is simply in place.
+    if ('IntersectionObserver' in window) {
+      const seen = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            e.target.classList.add('st-seen');
+            seen.unobserve(e.target);
+          }
+        },
+        { rootMargin: '0px 0px -10% 0px' },
+      );
+      document
+        .querySelectorAll('.prose > h2, .prose .part, .prose .info, .prose [data-figure], .prose [data-query], .prose [data-cmd], .side-box, .stepnav-wrap, .scale')
+        .forEach((el) => seen.observe(el));
+      document.documentElement.classList.add('st-armed');
+    }
   </script>
 
   <dialog class="modal modal-module" data-dialog-name="module" aria-labelledby="dlg-module-title">

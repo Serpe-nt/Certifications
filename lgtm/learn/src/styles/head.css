@@ -39,6 +39,8 @@
   margin-bottom: var(--lg-space-6);
 }
 .tag {
+  position: relative;
+  overflow: hidden;
   background: var(--lg-signal);
   color: var(--lg-signal-ink);
   padding: 4px 16px;
@@ -50,11 +52,13 @@
 .tag-tail {
   width: 120px;
   height: 28px;
-  background: repeating-linear-gradient(135deg, var(--lg-ash-ink) 0 2px, transparent 2px 7px);
+  /* One 10px tile of the 7px hatching, so the hatching can crawl by a tile without a seam. */
+  background: linear-gradient(135deg, var(--lg-ash-ink) 0 14%, transparent 14% 50%, var(--lg-ash-ink) 50% 64%, transparent 64%) 0 0 / 10px 10px;
 }
 
 /* Small ink text never sits straight on the ash (3.4:1); it gets a bone backing (over 15:1). */
 .crumb {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -94,6 +98,7 @@
 }
 
 .pagetitle {
+  position: relative;
   margin: 0;
   max-width: 58rem;
   font-family: var(--lg-font-display);
@@ -108,6 +113,7 @@
   font-size: var(--lg-text-display);
 }
 .outcome {
+  position: relative;
   max-width: 41rem;
   margin: var(--lg-space-6) 0 0;
   padding: 12px 18px 12px 16px;
@@ -143,6 +149,17 @@
 .chip-dark {
   background: var(--lg-ink);
   color: var(--lg-paper);
+}
+.chip {
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.chip:hover {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.chip-dark:hover {
+  background: var(--lg-paper);
+  color: var(--lg-ink);
 }
 
 /* The plate: a code lit in an octagon dot matrix, 5 by 7 dots per character */
@@ -181,6 +198,22 @@
 .digit i.on {
   background: var(--lg-paper);
 }
+/* Each dot knows its column (--c), row (--r) and character (--dg): the sweeps below are timed by them. */
+.digit i { --c: 0; --r: 0; }
+.digit i:nth-child(5n + 2) { --c: 1; }
+.digit i:nth-child(5n + 3) { --c: 2; }
+.digit i:nth-child(5n + 4) { --c: 3; }
+.digit i:nth-child(5n) { --c: 4; }
+.digit i:nth-child(n + 6) { --r: 1; }
+.digit i:nth-child(n + 11) { --r: 2; }
+.digit i:nth-child(n + 16) { --r: 3; }
+.digit i:nth-child(n + 21) { --r: 4; }
+.digit i:nth-child(n + 26) { --r: 5; }
+.digit i:nth-child(n + 31) { --r: 6; }
+.digit { --dg: 0; }
+.digit:nth-child(2) { --dg: 1; }
+.digit:nth-child(3) { --dg: 2; }
+.digit:nth-child(4) { --dg: 3; }
 .matrix-foot {
   display: flex;
   justify-content: space-between;
@@ -294,19 +327,186 @@
   }
 }
 
+
+/* ---------------------------------------------------------------- motion: the header boots like a HUD */
+/*
+  On load, in this order: the tag stamps down and its hatching wipes in and crawls; the crumb types
+  itself out behind a caret; a yellow scan bar leads the title's wipe and the title glitches once; the
+  outcome unfolds and its yellow edge draws down; the chips pop in one by one. On the right the plate
+  powers on like a tube, its dots light in a diagonal sweep (a yellow flash, then paper), unlit dots
+  twinkle now and then, a scan band passes over it, the dashed line runs and the corner ticks blink.
+  Hovering the plate sends a ripple through its dots; hovering the title glitches it again.
+  The idle loops are small and slow; all of it stops with reduced motion, Effects off or a running mock exam.
+*/
 @media (prefers-reduced-motion: no-preference) {
+  /* The tag */
+  .tag {
+    animation: hd-stamp 460ms var(--lg-ease-out) both;
+  }
+  .tag::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--lg-paper) 75%, transparent) 50%, transparent 70%);
+    transform: translateX(-130%);
+    pointer-events: none;
+    animation: hd-sheen 7s var(--lg-ease-out) 480ms infinite;
+  }
+  .tag-tail {
+    animation:
+      hd-type 420ms steps(8) 160ms both,
+      hd-hatch 1.8s linear infinite;
+  }
+
+  /* The crumb types itself out, a yellow caret blinking after it */
+  .crumb {
+    animation: hd-type 420ms steps(18) 120ms both;
+  }
+  .crumb::before {
+    animation: lg-blink 260ms steps(2) 600ms 3;
+  }
+  .crumb::after {
+    content: "";
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    width: 7px;
+    height: 14px;
+    margin-top: -7px;
+    background: var(--lg-signal);
+    box-shadow: 1px 1px 0 var(--lg-ink);
+    animation: hd-caret 1.8s steps(1) 120ms both;
+  }
+  .crumb a {
+    background: linear-gradient(90deg, var(--lg-ink) 50%, transparent 50%) 100% 0 / 200% 100% no-repeat;
+    transition:
+      background-position 240ms var(--lg-ease-out),
+      color var(--lg-dur-fast) var(--lg-ease-out),
+      box-shadow var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .crumb a:hover {
+    background: linear-gradient(90deg, var(--lg-ink) 50%, transparent 50%) 0 0 / 200% 100% no-repeat;
+  }
+  .crumb a svg {
+    transition: transform 240ms var(--lg-ease-out);
+  }
+  .crumb a:hover svg {
+    transform: scaleX(1.45);
+  }
+
+  /* The title: a scan bar rides the wipe's edge, then one glitch */
   .pagetitle {
-    animation: lg-wipe var(--lg-dur-slow) var(--lg-ease-out) both;
+    animation:
+      lg-wipe var(--lg-dur-slow) var(--lg-ease-out) both,
+      hd-glitch 300ms steps(1) 1000ms;
+  }
+  .pagetitle:hover {
+    animation-name: lg-wipe, hd-glitch-again;
+    animation-delay: 0s, 0s;
+  }
+  .pagetitle::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent 0 calc(100% - 120px), color-mix(in srgb, var(--lg-signal) 40%, transparent) calc(100% - 8px), var(--lg-signal) calc(100% - 8px));
+    animation:
+      hd-ride var(--lg-dur-slow) var(--lg-ease-out) both,
+      hd-out 260ms linear 780ms both;
+  }
+
+  /* The outcome or lead unfolds from its left edge; the yellow edge draws down */
+  .outcome,
+  .pagelead {
+    animation: hd-unfold 560ms var(--lg-ease-out) 380ms both;
+  }
+  .outcome {
+    border-left-color: transparent;
+  }
+  .outcome::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: var(--lg-signal);
+    transform-origin: top;
+    animation: hd-draw-y 420ms var(--lg-ease-out) 760ms both;
+  }
+
+  /* Chips pop in one after another and jolt when hovered */
+  .pagehead .chip {
+    display: inline-block;
+    animation: hd-pop 380ms var(--lg-ease-out) both;
+    animation-delay: calc(820ms + var(--hd-i, 0) * 90ms);
+  }
+  .pagehead .chip:nth-child(2) { --hd-i: 1; }
+  .pagehead .chip:nth-child(3) { --hd-i: 2; }
+  .pagehead .chip:nth-child(4) { --hd-i: 3; }
+  .pagehead .chip:nth-child(n + 5) { --hd-i: 4; }
+  .chip:hover {
+    animation: hd-jolt 180ms steps(1);
+  }
+  /* Keep the pop in the list so it does not replay when the pointer leaves. */
+  .pagehead .chip:hover {
+    animation:
+      hd-pop 380ms var(--lg-ease-out) both,
+      hd-jolt 180ms steps(1);
+    animation-delay: calc(820ms + var(--hd-i, 0) * 90ms), 0s;
+  }
+
+  /* The plate powers on, its dots light in a diagonal sweep */
+  .matrix {
+    animation: hd-boot 620ms var(--lg-ease-out) both;
   }
   .digit i.on {
-    animation: lg-lit 0.5s var(--lg-ease-out) both;
+    animation: hd-lit 520ms var(--lg-ease-out) both;
+    animation-delay: calc(380ms + (var(--c) + var(--r)) * 30ms + var(--dg) * 170ms);
   }
-  .digit:nth-child(2) i.on {
-    animation-delay: 0.35s;
+  /* Unlit dots twinkle, each set on its own slow beat */
+  .digit i:not(.on):nth-child(7n + 3) {
+    animation: hd-twinkle 5.3s linear 2.2s infinite;
   }
-  .digit:nth-child(3) i.on {
-    animation-delay: 0.7s;
+  .digit i:not(.on):nth-child(11n + 5) {
+    animation: hd-twinkle 7.1s linear 3.4s infinite;
   }
+  .digit:nth-child(2n) i:not(.on):nth-child(9n + 8) {
+    animation: hd-twinkle 6.2s linear 4.1s infinite;
+  }
+  /* Hover: a ripple runs through the dots from the top left */
+  .matrix.matrix:hover .digit.digit i {
+    animation: hd-ripple 560ms var(--lg-ease-out) both;
+    animation-delay: calc((var(--c) + var(--r)) * 28ms + var(--dg) * 60ms);
+  }
+  /* A scan band passes over the plate every few seconds */
+  .matrix::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 30%;
+    pointer-events: none;
+    background: linear-gradient(transparent, color-mix(in srgb, var(--lg-paper) 14%, transparent) 70%, color-mix(in srgb, var(--lg-signal) 45%, transparent) 96%, transparent);
+    transform: translateY(-100%);
+    animation: hd-scan 6.5s linear 1.3s infinite;
+  }
+  .matrix::after {
+    animation: lg-blink 1.6s steps(2) 1.2s infinite;
+  }
+  .matrix:hover .dashline {
+    animation-duration: 0.35s;
+  }
+  .matrix-foot {
+    animation: hd-type 520ms steps(14) 900ms both;
+  }
+
+  /* The globe or module icon fades up behind */
+  .globe {
+    animation: hd-globe 1.6s var(--lg-ease-out) both;
+  }
+
   .dashline {
     animation: lg-run 1.2s linear infinite;
   }
@@ -322,5 +522,234 @@
   }
   .globe .n:nth-of-type(3n) {
     animation-delay: 1s;
+  }
+}
+
+/* Effects off: the global rules shorten every animation; the delays go too, so nothing waits hidden. */
+:root[data-motion="off"] .pagehead :is(*, *::before, *::after) {
+  animation-delay: 0s !important;
+  transition-delay: 0s !important;
+}
+/* The running mock exam has no motion at all, the header's included. */
+body:has([data-exam-running]) .pagehead :is(*, *::before, *::after) {
+  animation: none !important;
+}
+
+@keyframes hd-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.9) rotate(-7deg);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(0.9) rotate(1deg);
+  }
+  70% {
+    transform: scale(1.05) rotate(0deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes hd-sheen {
+  0% {
+    transform: translateX(-130%);
+  }
+  14%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+@keyframes hd-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes hd-hatch {
+  to {
+    background-position: 10px 0;
+  }
+}
+@keyframes hd-caret {
+  0%,
+  25%,
+  50%,
+  75% {
+    opacity: 1;
+  }
+  12.5%,
+  37.5%,
+  62.5%,
+  87.5%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes hd-ride {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes hd-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes hd-glitch {
+  0% {
+    clip-path: inset(0 0 58% 0);
+    transform: translateX(6px) skewX(-10deg);
+  }
+  25% {
+    clip-path: inset(42% 0 0 0);
+    transform: translateX(-5px);
+  }
+  50% {
+    clip-path: inset(18% 0 30% 0);
+    transform: translateX(3px) skewX(6deg);
+  }
+  75% {
+    clip-path: inset(0 0 0 0);
+    transform: translateX(-1px);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+@keyframes hd-glitch-again {
+  0% {
+    clip-path: inset(48% 0 0 0);
+    transform: translateX(-5px) skewX(8deg);
+  }
+  30% {
+    clip-path: inset(0 0 52% 0);
+    transform: translateX(5px);
+  }
+  60% {
+    clip-path: inset(0 0 0 0);
+    transform: translateX(-2px);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+@keyframes hd-unfold {
+  from {
+    clip-path: polygon(0 0, 0 0, 0 14px, 0 100%, 0 100%);
+  }
+}
+@keyframes hd-draw-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes hd-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(8px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes hd-jolt {
+  0% {
+    transform: translate(3px, -1px);
+  }
+  33% {
+    transform: translate(-2px, 1px);
+  }
+  66% {
+    transform: translate(1px, 0);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes hd-boot {
+  0% {
+    opacity: 0;
+    transform: scale(0.25, 0.03);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1, 0.03);
+  }
+  70% {
+    transform: scale(1, 1);
+  }
+  78% {
+    opacity: 0.35;
+  }
+  86%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hd-lit {
+  0% {
+    background: var(--lg-bezel-2);
+    transform: scale(0.4);
+  }
+  45% {
+    background: var(--lg-signal);
+    transform: scale(1.25);
+  }
+  100% {
+    background: var(--lg-paper);
+    transform: scale(1);
+  }
+}
+@keyframes hd-twinkle {
+  0%,
+  91%,
+  100% {
+    background: var(--lg-bezel-2);
+  }
+  94% {
+    background: var(--lg-ash-mark);
+  }
+  96% {
+    background: var(--lg-signal);
+  }
+}
+@keyframes hd-ripple {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.45);
+    filter: brightness(2.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes hd-scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  22%,
+  100% {
+    transform: translateY(360%);
+  }
+}
+@keyframes hd-globe {
+  from {
+    opacity: 0;
+    transform: scale(0.88) rotate(-10deg);
   }
 }
