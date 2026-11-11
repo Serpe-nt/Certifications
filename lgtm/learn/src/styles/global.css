@@ -6,6 +6,7 @@
 @import "./pages.css";
 @import "./home.css";
 @import "./quiz.css";
+@import "./motion.css";
 
 /* The Tailwind theme points at the tokens, so utilities such as bg-surface or text-ink follow them. */
 @theme inline {
@@ -100,6 +101,7 @@
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
@@ -109,6 +111,7 @@
 :root[data-motion="off"] *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
+  animation-delay: 0s !important;
   /* Scroll-driven animations ignore the duration; tie them to time so they end at once. */
   animation-timeline: auto !important;
   transition-duration: 0.01ms !important;

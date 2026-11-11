@@ -105,13 +105,13 @@ export default function Settings() {
       <section className="box">
         <h2>Look and feel</h2>
         {/* The site has one theme since the design card (DZ); the theme field stays in the state, unused. */}
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={state.settings.effects} disabled={!ready} onChange={(e) => set({ effects: e.target.checked })} />
+        <label className="toggle-row">
+          <input type="checkbox" className="toggle" checked={state.settings.effects} disabled={!ready} onChange={(e) => set({ effects: e.target.checked })} />
           Effects and motion
         </label>
         <p className="mt-0 text-sm text-ink-3">Celebrations when you finish something, and the moving parts of the page. Reduced motion on the device always calms them.</p>
-        <label className="mt-1 flex items-center gap-2">
-          <input type="checkbox" checked={state.settings.sound} disabled={!ready} onChange={(e) => set({ sound: e.target.checked })} />
+        <label className="toggle-row mt-1">
+          <input type="checkbox" className="toggle" checked={state.settings.sound} disabled={!ready} onChange={(e) => set({ sound: e.target.checked })} />
           Sound
         </label>
       </section>
