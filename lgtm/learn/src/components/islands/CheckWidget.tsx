@@ -83,7 +83,7 @@ export default function CheckWidget({ stepId, check, settingsHref }: Props) {
                 {verdict.reason === 'no-seed' && (
                   <>
                     {' '}
-                    <a href={settingsHref}>Open the settings</a>
+                    <a href={settingsHref} data-dialog="settings">Open the settings</a>
                   </>
                 )}
               </span>

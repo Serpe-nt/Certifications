@@ -458,3 +458,60 @@
   }
 }
 
+
+/* ---------------------------------------------------------------- top bar buttons and dialogs */
+@layer components {
+  .navbtn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: 0 14px;
+    border: 2px solid var(--lg-ink);
+    background: var(--lg-paper);
+    color: var(--lg-ink) !important;
+    text-decoration: none !important;
+    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+    transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+  }
+  .navbtn:hover {
+    background: var(--lg-ink);
+    color: var(--lg-signal) !important;
+  }
+  /* The dialog itself is the one thing that scrolls while it is open. */
+  .modal {
+    width: min(64rem, calc(100vw - 2rem));
+    max-width: none;
+    max-height: calc(100vh - 2rem);
+    margin: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: auto;
+  }
+  .modal::backdrop {
+    background: rgb(20 21 22 / 0.72);
+  }
+  .modal-screen {
+    border-radius: var(--lg-radius-screen);
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--lg-space-4);
+    margin-bottom: var(--lg-space-6);
+    padding-bottom: var(--lg-space-4);
+    border-bottom: 1px solid var(--lg-rule);
+  }
+  .modal-title {
+    margin: 0;
+    font-family: var(--lg-font-display);
+    font-weight: 400;
+    font-size: 2rem;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .modal[open] {
+    animation: lg-rise var(--lg-dur) var(--lg-ease-out) both;
+  }
+}

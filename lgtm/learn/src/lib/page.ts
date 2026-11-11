@@ -1,5 +1,6 @@
 // Runs on every page: starts the sync, applies the motion setting, fills in lab links, wires copy buttons.
 import { fetchBank } from './bank.ts';
+import { wireDialogs } from './dialogs.ts';
 import { getStore, type SyncStatus } from './store.ts';
 import type { State } from './state.ts';
 
@@ -54,6 +55,7 @@ export function boot(): void {
   render(store.get());
   setInterval(() => statusEl && (statusEl.textContent = STATUS_TEXT[store.status]), 2000);
   wireCopyButtons();
+  wireDialogs();
   // The course outline lets a celebration see that a module or the course was finished.
   fetchBank().catch(() => undefined);
 }

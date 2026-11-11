@@ -8,7 +8,7 @@ const token = (slot: string) => crypto.createHmac('sha256', SEED).update(slot).d
 
 async function answer(page: import('@playwright/test').Page, text: string) {
   await page.locator('[data-block="check"] input.field').fill(text);
-  await page.getByRole('button', { name: 'Check' }).click();
+  await page.getByRole('button', { name: 'Check', exact: true }).click();
 }
 
 test('exact: wrong, then right; Mark complete waits for the check', async ({ page }) => {
@@ -42,10 +42,10 @@ test('range', async ({ page }) => {
 test('choice', async ({ page }) => {
   await page.goto('/m/m90/s05/?tab=practice');
   await page.getByLabel('Latency').check();
-  await page.getByRole('button', { name: 'Check' }).click();
+  await page.getByRole('button', { name: 'Check', exact: true }).click();
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'wrong');
   await page.getByLabel('Error ratio').check();
-  await page.getByRole('button', { name: 'Check' }).click();
+  await page.getByRole('button', { name: 'Check', exact: true }).click();
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'pass');
 });
 
@@ -54,10 +54,10 @@ test('token: needs the seed, then accepts the token computed from it', async ({ 
   await answer(page, token('log-m90-1'));
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'no-seed');
   await page.getByRole('link', { name: 'Open the settings' }).click();
-  await page.getByLabel('Lab seed').fill('not a seed');
+  await page.getByRole('textbox', { name: 'Lab seed' }).fill('not a seed');
   await page.locator('[data-save-seed]').click();
   await expect(page.locator('[data-settings-message]')).toContainText('16 characters');
-  await page.getByLabel('Lab seed').fill(SEED.toUpperCase());
+  await page.getByRole('textbox', { name: 'Lab seed' }).fill(SEED.toUpperCase());
   await page.locator('[data-save-seed]').click();
   await expect(page.locator('[data-settings-message]')).toHaveText('Lab seed saved.');
   await page.goto('/m/m90/s06/?tab=practice');

@@ -4,6 +4,7 @@ import { href } from '../../lib/links.ts';
 import { REVIEW_SIZE, STEP_PRACTICE, WEAK_SIZE, drawByTags, dueIds, localDay, pickReview, pickStep, pickWeak, weakTags } from '../../lib/quiz.ts';
 import { startRun } from '../../lib/runs.ts';
 import { validId } from '../../lib/state.ts';
+import { practiceStepFromHash } from '../../lib/dialogs.ts';
 import { updateState, useHydrated, useStoreState } from '../../lib/use-store.ts';
 import QuizPlayer from './QuizPlayer.tsx';
 import RunBusy, { runHref } from './RunBusy.tsx';
@@ -19,10 +20,18 @@ export default function Practice() {
   // Today follows the clock, so a review that comes due at midnight shows without a reload.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search).get('step') ?? '';
-    if (validId(p)) setStepId(p);
+    // The step comes from ?step= on the practice page, or from #practice=<step> in the dialog.
+    const fromUrl = () => {
+      const p = new URLSearchParams(window.location.search).get('step') || practiceStepFromHash();
+      setStepId(validId(p) ? p : '');
+    };
+    fromUrl();
+    window.addEventListener('hashchange', fromUrl);
     const t = window.setInterval(() => setNow(Date.now()), 30_000);
-    return () => window.clearInterval(t);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener('hashchange', fromUrl);
+    };
   }, []);
 
   if (failed) return <p data-bank-failed>The questions could not be loaded. Check the connection and reload the page.</p>;

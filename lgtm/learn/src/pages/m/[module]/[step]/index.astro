@@ -140,7 +140,7 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
           {
             practice && (
               <p class="side-box">
-                <a class="btn" href={href.stepPractice(step.id)} data-step-practice-link>Practice three questions</a>
+                <a class="btn" href={href.stepPractice(step.id)} data-dialog="practice" data-practice-step={step.id} data-step-practice-link>Practice three questions</a>
               </p>
             )
           }
