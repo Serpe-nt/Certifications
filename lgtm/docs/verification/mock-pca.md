@@ -86,7 +86,7 @@ The fact column is the explanation of the right answer as it stands in the pool.
 | q-mock-pca-024 | P2 Configuration and Scraping | With `honor_labels` false, clashing labels from the target are renamed to `exported_*`. True keeps the target's values, which is what the docs suggest for the Pushgateway. | https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config | 2026-11-11 | checked |
 | q-mock-pca-025 | P2 Configuration and Scraping | A SIGHUP makes Prometheus reload its configuration file. / The reload endpoint applies the file, but only when the lifecycle flag is enabled. | https://prometheus.io/docs/introduction/faq/ | 2026-11-11 | checked |
 | q-mock-pca-026 | P2 Configuration and Scraping | Metric relabeling runs on the scraped samples as the last step before ingestion, so it can drop expensive series. | https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs | 2026-11-11 | checked |
-| q-mock-pca-027 | P2 Configuration and Scraping | If more samples than the limit remain after metric relabeling, the entire scrape is treated as failed. | https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config | 2026-11-11 | checked |
+| q-mock-pca-027 | P2 Configuration and Scraping | If more samples than the limit remain after metric relabeling, the entire scrape is treated as failed, and a failed scrape sets `up` to 0. | https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config (the `up` part: https://prometheus.io/docs/concepts/jobs_instances/) | 2026-11-11 | checked |
 | q-mock-pca-028 | P2 Understanding Prometheus Limitations | Local storage is limited to one node's scalability and durability. Remote write lets a clustered system keep the data. | https://prometheus.io/docs/prometheus/latest/storage/ | 2026-11-11 | checked |
 | q-mock-pca-029 | P2 Understanding Prometheus Limitations | File systems that are not POSIX compliant are not supported, and NFS, including AWS EFS, is named. A local file system is strongly recommended. | https://prometheus.io/docs/prometheus/latest/storage/ | 2026-11-11 | checked |
 | q-mock-pca-030 | P2 Understanding Prometheus Limitations | The guidelines use this very case. Per-user quota on 10,000 nodes quickly reaches a double-digit number of millions of series. | https://prometheus.io/docs/practices/instrumentation/ | 2026-11-11 | checked |
@@ -319,3 +319,19 @@ Questions per competency (every one has at least 3):
 - Scenario questions (a situation, a symptom, a configuration snippet or a query to read): 88 of 109 (81%). The other 21 ask a concept directly: 002, 004, 005, 009, 017, 019, 021, 025, 032, 033, 037, 041, 060, 070, 075, 077, 084, 085, 096, 098, 108.
 - Choose-two questions: 5 of 109 (4.6%).
 - Option lengths (characters of visible text): the right answer averages 44.0, the wrong options 43.6. The right answer is the longest option in 12 questions (11%) and the shortest in 25 (23%); with four options, chance alone gives 25% for each.
+
+## Independent check
+
+One read-only sub-agent checked 15 questions across the five domains (q-mock-pca-013, 016, 018, 020, 027, 039, 045, 052, 063, 065, 072, 081, 099, 100, 101). It fetched each source itself and judged every right answer, wrong option and explanation. Result: 13 OK, 2 with wording problems, 0 wrong answers, 0 weak distractors, 0 wrong explanations, 0 wrong sources.
+
+- q-mock-pca-018: the stem said "above 0.1%" while the workbook rule is 0.1% or higher, which the explanation relies on. Fixed: "is 0.1% or higher".
+- q-mock-pca-045: "keeps falling back to pending" was unclear. Fixed: "never fires, because its for timer keeps starting again".
+- q-mock-pca-027 (optional note): the source page does not say that a failed scrape sets `up` to 0. The explanation now says it, and the log cites the jobs and instances page for it.
+
+The same kinds of fault were then searched in the rest of the pool: stems with a threshold that an explanation reads differently (none left) and right answers that rest partly on a second page (none besides 027).
+
+Taking the full mock exam in the browser found one more kind: a right option whose first words differ from three wrong options that share theirs (q-mock-pca-018, 030, 031, 080, 083, 091, 105). Those were reworded, a script now finds no such question, and q-mock-pca-052 now has a service that exposes the metric, since a series pushed to a Pushgateway never goes missing.
+
+## Mock exam in the browser
+
+Taken on 2026-11-11 with `npx astro dev --port 8098` in `lgtm/learn`. The exam drew 60 questions split 11, 12, 17, 9 and 11 over P1 to P5, and the result page showed a result per domain: P1 10 of 11, P2 12 of 12, P3 16 of 17, P4 9 of 9, P5 11 of 11, 58 of 60 in all. Both misses were clicks on the wrong option while the click mapping was being set up, not faults in the questions.

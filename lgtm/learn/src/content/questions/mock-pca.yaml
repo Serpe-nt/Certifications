@@ -286,7 +286,7 @@
 - id: q-mock-pca-018
   tags: [slo]
   exam: {cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs"}
-  q: For a 99.9% SLO over 30 days, an alert fires whenever the error rate over the last 10 minutes is above 0.1%. What does the SRE workbook say about this alert?
+  q: For a 99.9% SLO over 30 days, an alert fires whenever the error rate over the last 10 minutes is 0.1% or higher. What does the SRE workbook say about this alert?
   options:
     - text: It has good recall but also fires on events that barely use the budget
       why: Correct. Recall and detection time are good, but precision is low. A 0.1% error rate for 10 minutes fires the alert while using only 0.02% of the monthly budget.
@@ -439,7 +439,7 @@
   q: A scrape job has <code>sample_limit</code> set to 5000. After a deployment, a target exposes 8000 samples. What happens?
   options:
     - text: The whole scrape counts as failed, and <code>up</code> becomes 0
-      why: Correct. If more samples than the limit remain after metric relabeling, the entire scrape is treated as failed.
+      why: Correct. If more samples than the limit remain after metric relabeling, the entire scrape is treated as failed, and a failed scrape sets <code>up</code> to 0.
     - text: Prometheus stores the first 5000 samples and drops the rest
       why: The limit does not cut the scrape in half. It fails the scrape as a whole.
     - text: Prometheus stores all 8000 samples and logs a warning
@@ -729,7 +729,7 @@
 - id: q-mock-pca-045
   tags: [promql-rate, alert-rules]
   exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
-  q: 'An alert uses <code>irate(errors_total[5m]) > 5</code> with <code>for: 10m</code>. The error rate stays high, but the alert keeps falling back to pending. What is the better choice?'
+  q: 'An alert uses <code>irate(errors_total[5m]) > 5</code> with <code>for: 10m</code>. The error rate stays high, but the alert never fires, because its for timer keeps starting again. What is the better choice?'
   options:
     - text: Use <code>rate()</code>, which the docs advise for alerts
       why: Correct. irate() looks only at the last two samples, so brief dips can reset the for clause. rate() averages over the range.
