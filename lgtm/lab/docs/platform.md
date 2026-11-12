@@ -168,7 +168,9 @@ List what it covers with
 The same role sets `dataLocality: best-effort` on the three Kafka volumes, one at a time, so that
 each keeps a replica on the worker of the broker that uses it. Longhorn places a new replica by
 what is already scheduled on each disk, and RustFS's 25 GiB volume, created first, had pushed all
-six Kafka replicas onto the two workers without it (`lgtm/docs/adr/l5b-rustfs-memory.md`).
+six Kafka replicas onto the two workers without it (`lgtm/docs/adr/l5b-rustfs-memory.md`). `make lab-check`
+fails when a Longhorn disk has less than 25% free (`runbook.md`, "A Longhorn disk is short of
+space").
 
 Longhorn keeps 30% of each disk in reserve (its default for a node's default disk), so with
 over-provisioning at 100% only about 117 GiB of replicas fit on four workers, less than the

@@ -126,6 +126,24 @@ has one on worker3. Longhorn's page does not say whether it builds the local rep
 removes another; the role's wait checks the end state (two running, one local), and the commands
 in the pull request watch that each volume stays `healthy` in between.
 
+A check backs it up, whatever places the replicas: `make lab-check` check 9
+(`tests/lab/longhorn-disks.sh`) fails when a Longhorn disk has less than 25% free; Longhorn stops
+scheduling at 15%. `runbook.md`, "A Longhorn disk is short of space", says what to do.
+
+Options not chosen:
+
+- A StorageClass for Kafka with Longhorn node or disk tags (`nodeSelector`, `diskSelector`; the
+  scheduling page above). The tags have to be kept right when workers change, and Strimzi changes
+  a pool's storage class only by adding a new pool, "currently ... only possible for broker-only
+  node pools" (https://strimzi.io/docs/operators/latest/deploying); this pool is dual-role, so it
+  would mean rebuilding Kafka.
+- One Longhorn replica per Kafka volume, with data locality: Kafka already keeps three copies,
+  and the data locality page describes this for applications that replicate themselves. It would
+  halve Kafka's Longhorn space, but losing a worker then loses that broker's disk, and Kafka
+  copies the partitions back when the broker returns. It needs a StorageClass with
+  `numberOfReplicas: "1"`, so the same Strimzi limit applies. The first choice if the lab is ever
+  rebuilt for another reason.
+
 ## Not done
 
 My session's permission rules blocked `make platform TAGS=s3` as a change to the shared

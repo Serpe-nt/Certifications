@@ -253,7 +253,8 @@ Card L5b sets data locality on the Kafka volumes (`platform.md`), which keeps on
 on its broker's worker (worker4, worker1, worker3 today): expected two Kafka replicas fewer on
 worker2 and worker3 and one more on worker1 and worker4. Before, on 2026-11-12 at 15:55 UTC:
 worker1 21.8, worker2 16.6, worker3 15.1, worker4 25.9 GiB free of 39.1 (56, 42, 39 and 66%).
-The numbers after are added when it has run (pull request of card L5b).
+The numbers after are added when it has run (pull request of card L5b). `make lab-check` check 9 fails when a
+Longhorn disk has less than 25% free.
 
 RustFS: its memory request is 768Mi and its limit 1536Mi since card L5b (was 512Mi and 1Gi). It
 used 530 to 670 MiB through a day, and one heavy Loki query added about 300 MiB that it kept; at

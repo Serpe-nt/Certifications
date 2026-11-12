@@ -142,6 +142,44 @@ applies it only once it runs. Give it room first, then let the size limit hold i
 
 Done on 2026-11-12 (`acceptance-lab.md`, "Kafka ran out of disk").
 
+## A Longhorn disk is short of space
+
+How it shows: `make lab-check` fails check 9, `FAIL  Longhorn disk of <worker> has ... free (..%),
+under 25%`. Longhorn itself stops placing replicas on a disk below 15% free.
+
+The usual cause is that replicas have bunched on a few workers. Longhorn places a new replica by
+what is already *scheduled* on each disk, so RustFS's thin 25 GiB volume, created first, pushes
+the Kafka volumes onto the other workers (`lgtm/docs/adr/l5b-rustfs-memory.md`). The role
+`platform_kafka` prevents that for Kafka with data locality: each Kafka volume keeps one replica
+on the worker of the broker that uses it.
+
+See where the replicas are and what each disk has free:
+
+```bash
+kubectl -n longhorn-system get replicas.longhorn.io -o custom-columns=VOLUME:.spec.volumeName,NODE:.spec.nodeID,STATE:.status.currentState --sort-by=.spec.nodeID
+kubectl -n longhorn-system get volumes.longhorn.io -o custom-columns=VOLUME:.metadata.name,PVC:.status.kubernetesStatus.pvcName,NODE:.status.currentNodeID,LOCALITY:.spec.dataLocality,ROBUSTNESS:.status.robustness
+kubectl -n longhorn-system get nodes.longhorn.io -o custom-columns=NODE:.metadata.name,AVAILABLE:.status.diskStatus.*.storageAvailable,MAXIMUM:.status.diskStatus.*.storageMaximum
+```
+
+If Kafka's replicas are the ones bunched (a Kafka volume without a replica on its broker's node,
+or `LOCALITY` not `best-effort`), run `make platform TAGS=kafka`. The role sets data locality on
+one Kafka volume at a time and waits until it has two running replicas, one of them on its
+broker's node; a volume that is already right passes at once. Expect a few minutes per volume
+that moves, each volume `healthy` throughout, the Kafka pods not restarted, and the free space
+of the crowded disks going up by the size of the replicas that left. The broker pods must be
+running: a volume that is not attached has no node, and its wait fails after 30 minutes. Get
+Kafka Ready first (`kubectl -n kafka get kafka,pods`) and run it again.
+
+If other volumes fill the disk, see "Free disk" below.
+
+Fallback, when the role cannot be used: move one replica of a volume by hand, keeping two
+healthy ones. Raise the volume's count to 3
+(`kubectl -n longhorn-system patch volumes.longhorn.io <volume> --type merge -p '{"spec":{"numberOfReplicas":3}}'`),
+wait until it is healthy with three replicas running, set the count back to 2 (Longhorn removes
+none of three healthy replicas by itself), then delete the replica on the crowded worker
+(`kubectl -n longhorn-system delete replicas.longhorn.io <replica>`). Check the counts after each
+step, and do one volume at a time.
+
 ## Free disk
 
 The lab is planned for at most 90 GB of real disk. To see where it goes:
