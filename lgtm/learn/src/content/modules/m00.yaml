@@ -1,0 +1,6 @@
+id: m00
+title: Start here
+goal: Build the lab cluster on your PC and reach it with kubectl.
+order: 0
+quiz: false
+exams: []
