@@ -114,7 +114,7 @@ The dashboard `Shop service (m05)` in the folder `Learn m05` shows one panel, Re
 </Done>
 
 <Trap practice>
-If the preview stays empty, check the data source picker in the Queries tab: a new panel starts with the default data source, and the query must also be run with **Refresh**. While the lab's metrics ingest is paused, Mimir has no recent span metrics; set the time range back to a period with data.
+If the preview stays empty, check the data source picker in the Queries tab: a new panel starts with the default data source, and the query must also be run with **Refresh**. Keep the time range at the last hour or less. The checkout service handles only a few orders a minute, so expect small values such as 0.03 requests per second.
 </Trap>
 
 <Question id="q-m05-s04" answer="b">

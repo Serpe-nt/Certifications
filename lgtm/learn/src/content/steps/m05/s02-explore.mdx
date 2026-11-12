@@ -93,7 +93,7 @@ Explore is for questions, dashboards are for questions you ask again. Use an ins
 3. Click **Run query**. With the default type **Both**, Explore shows a graph with one flat line and a table with the current value.
 4. Open **Options** under the query and set **Type** to **Instant**. Run the query again. The graph goes away and the table holds one number: the nodes in the cluster.
 5. Set **Type** to **Range** and the time picker to **Last 24 hours**. The line stays flat if no node joined or left today.
-6. Click **Split**. In the new right-hand pane choose **Mimir (tenant prom)** and run the same query. Compare it with the left pane. While the lab's ingest into Mimir is paused, the right pane can show no data or stop early; the left one, read straight from Prometheus, still answers.
+6. Click **Split**. In the new right-hand pane choose **Mimir (tenant prom)** and run the same query. Set the time picker of both panes to **Last 1 hour** and compare them: the two roads give the same count.
 7. Click **Query history** at the bottom of the page and find your query. Star it, then close the split view with **Close**.
 8. Paste the number of nodes in the lab check below.
 </Do>
