@@ -19,6 +19,9 @@ LAB_CHECK_WARMUP ?= 3
 # lab-check fails when a volume is fuller than this ratio (the alert LabVolumeFillingUp
 # of lab-glue fires at the same one). Lower it to see the check fail.
 LAB_VOLUME_FULL_RATIO ?= 0.85
+# lab-check fails when a Longhorn disk has less than this ratio free (Longhorn itself stops
+# scheduling replicas at 15%). Raise it to see the check fail.
+LAB_LONGHORN_FREE_RATIO ?= 0.25
 
 # The playbook lives in ansible/playbooks/, the roles in ansible/roles/.
 LAB_ROLES_PATH = ANSIBLE_ROLES_PATH=$(ANSIBLE_DIR)/roles
@@ -46,7 +49,8 @@ reset: ## Remove the lab releases, their volumes and bucket objects; keep the cl
 
 lab-check: ## Smoke test: every signal arrives and the shop can be followed metric -> trace -> log
 	LAB_KUBECONFIG=$(LAB_KUBECONFIG) LAB_GATEWAY_URL=$(LAB_GATEWAY_URL) LAB_CHECK_WARMUP=$(LAB_CHECK_WARMUP) \
-	LAB_VOLUME_FULL_RATIO=$(LAB_VOLUME_FULL_RATIO) bash $(CURDIR)/tests/lab/smoke.sh
+	LAB_VOLUME_FULL_RATIO=$(LAB_VOLUME_FULL_RATIO) LAB_LONGHORN_FREE_RATIO=$(LAB_LONGHORN_FREE_RATIO) \
+	bash $(CURDIR)/tests/lab/smoke.sh
 
 lab-kind-up: lab-tools ## Create the kind test cluster lgtm-l3 with stand-ins for the platform
 	KIND_CLUSTER=$(LAB_KIND_CLUSTER) LAB_KUBECONFIG=$(LAB_KIND_KUBECONFIG) bash $(CURDIR)/tests/lab/kind-up.sh

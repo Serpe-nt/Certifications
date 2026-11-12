@@ -142,6 +142,48 @@ applies it only once it runs. Give it room first, then let the size limit hold i
 
 Done on 2026-11-12 (`acceptance-lab.md`, "Kafka ran out of disk").
 
+## Kafka's replicas all sit on two workers
+
+How it shows: `make lab-check` fails check 9, a Longhorn disk under 25% free. Longhorn places a
+new replica by what is already *scheduled* on each disk, so RustFS's thin 25 GiB volume, created
+first, can push all six Kafka replicas onto the two workers without it, and those two disks then
+fill first (`lgtm/docs/adr/l5b-rustfs-memory.md`). Longhorn itself stops scheduling on a disk
+below 15% free.
+
+Where each replica is, and what each disk has free:
+
+```bash
+kubectl -n longhorn-system get replicas.longhorn.io -o custom-columns=VOLUME:.spec.volumeName,NODE:.spec.nodeID,STATE:.status.currentState --sort-by=.spec.nodeID
+kubectl -n longhorn-system get volumes.longhorn.io -o custom-columns=VOLUME:.metadata.name,PVC:.status.kubernetesStatus.pvcName,REPLICAS:.spec.numberOfReplicas,ROBUSTNESS:.status.robustness
+kubectl -n longhorn-system get nodes.longhorn.io -o custom-columns=NODE:.metadata.name,AVAILABLE:.status.diskStatus.*.storageAvailable,MAXIMUM:.status.diskStatus.*.storageMaximum
+```
+
+Move one replica of a volume to another worker, keeping two healthy replicas all the time. Do
+one volume at a time; each move copies what the volume holds (3 to 6 GiB for a Kafka volume,
+a few minutes). `V` is the Longhorn volume name (`pvc-...`) from the second command.
+
+1. Add a third replica. Longhorn puts it on a worker that has no replica of the volume yet:
+   ```bash
+   kubectl -n longhorn-system patch volumes.longhorn.io $V --type merge -p '{"spec":{"numberOfReplicas":3}}'
+   ```
+2. Wait until the volume is `healthy` with three replicas `running` (first and second command),
+   and check that the new one is on the worker you want. If it is not, delete that new replica
+   and wait again; Longhorn rebuilds it on another worker.
+3. Set the count back to 2. Longhorn keeps all three healthy replicas; it removes none by itself:
+   ```bash
+   kubectl -n longhorn-system patch volumes.longhorn.io $V --type merge -p '{"spec":{"numberOfReplicas":2}}'
+   ```
+4. Delete the replica on the crowded worker (`R` is its name from the first command). Two healthy
+   replicas remain and nothing is rebuilt:
+   ```bash
+   kubectl -n longhorn-system delete replicas.longhorn.io $R
+   ```
+5. Check: the volume is `healthy` with two replicas on two different workers, and that disk's
+   free space has gone up (third command). Then the next volume.
+
+If a volume shows `degraded` at any point, stop and look at it on the Longhorn screen before you
+go on. The lab's Longhorn has replica auto-balance off, so it moves nothing back by itself.
+
 ## Free disk
 
 The lab is planned for at most 90 GB of real disk. To see where it goes:
