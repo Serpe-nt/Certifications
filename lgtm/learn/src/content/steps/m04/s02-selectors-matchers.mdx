@@ -1,0 +1,126 @@
+---
+id: m04-s02
+title: Selectors and label matchers
+kind: lab
+minutes: 15
+order: 2
+exam:
+  - cert: pca
+    domain: P3
+    competency: Selecting Data
+tags: [promql-selectors]
+check:
+  kind: exact
+  prompt: How many series does the query with two matchers on job (action 5) return?
+  answers: ["3"]
+outcome: You can select exactly the series you need with the four label matchers, use regular expressions that are anchored, and select by metric name through __name__.
+terms:
+  - term: Selector
+    def: The part of a query that names which series to fetch, such as up{job="coredns"}.
+  - term: Label matcher
+    def: One condition on a label inside the braces of a selector, written with =, !=, =~ or !~.
+  - term: Anchored regex
+    def: A regular expression that must match the whole label value, not a part of it.
+  - term: RE2
+    def: The regular expression syntax Prometheus uses, from the Go language.
+sources:
+  - title: Querying basics, time series selectors (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/basics/
+    checked: 2026-11-12
+  - title: Query examples (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/examples/
+    checked: 2026-11-12
+---
+
+<Problem>
+The lab's Prometheus scrapes 39 targets. You want the Prometheus server and its operator, but not Alertmanager. Typing every job name works today and breaks the day someone adds a target. You need a way to say "these jobs, but not those" in one selector.
+</Problem>
+
+<Idea>
+A selector picks series by metric name and by label matchers inside braces. Four operators exist: equal, not equal, matches a regular expression, and does not match. Every matcher in the braces must pass, so you narrow a selection by adding matchers.
+</Idea>
+
+## Four ways to match a label
+
+Inside the braces, each matcher compares one label with a string:
+
+- `=` selects series whose label equals the string exactly.
+- `!=` selects series whose label is anything else.
+- `=~` selects series whose label matches a regular expression.
+- `!~` selects series whose label does not match it.
+
+Matchers are joined by commas, and a series must pass all of them. `up{job="kubelet", metrics_path!="/metrics"}` keeps the kubelet targets that are not the plain `/metrics` path, which in the lab are the `/metrics/cadvisor` and `/metrics/probes` targets of the seven nodes.
+
+You may even put two matchers on the same label. `up{job=~"prom-.*", job!~".*manager"}` keeps the jobs that start with `prom-` and drops the one that ends with `manager`.
+
+## Regular expressions are anchored
+
+Prometheus uses the RE2 syntax of the Go language, and every regular expression must match the whole label value. `job=~"prom"` is read as `job=~"^prom$"`. It finds a job called exactly `prom`, and the lab has none, so the query returns nothing. To match a prefix you write `job=~"prom-.*"`.
+
+Alternatives are written with a bar: `job=~"coredns|apiserver"`. To match a literal dot, as in an IP address, escape it. In a double-quoted string the backslash itself must be escaped too, so you write `instance=~"10\\.10\\.0\\.30:.*"`.
+
+<Compare caption="Two regular expressions on the label job">
+  <Col title='job=~"prom"'>Read as ^prom$. Matches only a job named exactly prom. In the lab: no series.</Col>
+  <Col title='job=~"prom-.*"' hot>Matches every job that starts with prom-. In the lab: five targets.</Col>
+</Compare>
+
+## Empty values and missing labels
+
+A label that a series does not have counts as a label with an empty value. A matcher that accepts the empty string therefore also selects series that lack the label. In the lab, `up{pod=""}` returns 24 series: the API servers and the kubelets, which have no `pod` label.
+
+This rule also explains why a selector cannot consist only of matchers that accept the empty string. `{job=~".*"}` would match every series in the database, so Prometheus refuses it with "vector selector must contain at least one non-empty matcher". `{job=~".+"}` is accepted, because it needs a value.
+
+## The metric name is a label too
+
+Module m03 showed that the metric name is stored in the label `__name__`. So `up` is a short way of writing `{__name__="up"}`, and you can use the other three operators on the name as well. `{__name__=~"node_memory_.*_bytes", instance="10.10.0.30:9100"}` returns every memory gauge of worker1's node exporter.
+
+<InLab>
+The lab's targets carry the labels `job`, `instance`, `namespace`, `pod`, `service` and `endpoint` from the operator, and the kubelet targets add `node` and `metrics_path`. They are the labels you will filter by most in this module.
+</InLab>
+
+<Trap>
+A regular expression without `.*` matches less than you expect. `job=~"prom"` does not mean "contains prom": the expression is anchored at both ends, so it must match the whole value.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab.
+2. Select with a regular expression: <Query lang="promql">{`up{job=~"prom-.*"}`}</Query> Five rows come back: two from Prometheus, two from Alertmanager and one from the operator.
+3. Remove `-.*` so the matcher reads `job=~"prom"` and run it again. The result is empty: the expression must match the whole value.
+4. Narrow the kubelet targets with a negative matcher: <Query lang="promql">{`up{job="kubelet", metrics_path!="/metrics"}`}</Query> You get 14 rows, two per node.
+5. Put two matchers on the same label: <Query lang="promql">{`up{job=~"prom-.*", job!~".*manager"}`}</Query> Count the rows.
+6. Select by metric name with a regular expression: <Query lang="promql">{`{__name__=~"node_memory_.*_bytes", instance="10.10.0.30:9100"}`}</Query> Every row is a different memory gauge of worker1.
+7. Try the selector that Prometheus refuses: <Query lang="promql">{`{job=~".*"}`}</Query> Read the error. Then count what the accepted form selects, instead of listing it: <Query lang="promql">{`count({job=~".+"})`}</Query> The number is well over a hundred thousand series, which is why you never run such a selector bare.
+8. Paste the number of rows from action 5 in the check below.
+</Do>
+
+<Done>
+You selected the same jobs with a prefix, saw an anchored expression return nothing, combined two matchers on one label, and selected metrics by their name.
+</Done>
+
+<Trap practice>
+If action 5 returns five rows, the second matcher is `job!="manager"` or `job!~"manager"`. Both compare the whole value with the word manager, which no job equals, so nothing is removed. Write `.*manager`.
+</Trap>
+
+<Remember>
+`=`, `!=`, `=~` and `!~` compare one label each, and all matchers must pass. Regular expressions match the whole value, and a missing label counts as an empty one.
+</Remember>
+
+<Question id="q-m04-s02" answer="d">
+Series of `http_requests_total` have `instance` values `10.0.1.5:8080`, `10.0.1.50:8080` and `10.0.10.5:8080`. Which selector returns only the first one?
+
+- `http_requests_total{instance=~"10.0.1.5"}`
+
+  The expression must match the whole value, and no value ends right after 5. This returns nothing.
+
+- `http_requests_total{instance=~"10.0.1.5.*"}`
+
+  The trailing .* also accepts 10.0.1.50:8080, so two series come back.
+
+- `http_requests_total{instance!~"10.0.10.*"}`
+
+  This drops 10.0.10.5:8080 but keeps the other two.
+
+- `http_requests_total{instance=~"10.0.1.5:.*"}`
+
+  The colon after the 5 rules out 10.0.1.50:8080, and 1.5 rules out 10.5, so only the first series matches.
+</Question>
