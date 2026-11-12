@@ -104,7 +104,7 @@ kubectl get deploy,svc,pods -n learn-m01`}</Cmd>
 
 <Trap practice>
 Every Helm command needs `-n learn-m01`. Without it Helm looks in the namespace of your kubeconfig context, usually `default`, and answers that the release is not found.
-</Trap practice>
+</Trap>
 
 <Question id="q-m01-s03" answer="a">
 Right after `helm install` prints `STATUS: deployed`, `kubectl get pods` shows the pod in `ContainerCreating`. What does that tell you?

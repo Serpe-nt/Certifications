@@ -200,7 +200,7 @@ helm template m01-hello ./greeter -n learn-m01 --set debug=true --show-only temp
 
 <Trap practice>
 If `helm lint` reports `unclosed action`, a `}}` is missing in the file and line it names. If kubectl finds no ConfigMap, check the release name: the object is named `<release>-greeter`.
-</Trap practice>
+</Trap>
 
 <Question id="q-m01-s10" answer="a">
 You install the greeter chart with `--set extraLabels=null`. What happens to the Deployment's labels?

@@ -104,7 +104,7 @@ helm get values m01-podinfo -n learn-m01`}</Cmd>
 
 <Trap practice>
 If revision numbers differ from the ones here because you ran extra upgrades, roll back to the revision whose values hold the message: `helm get values m01-podinfo -n learn-m01 --revision <n>` shows them.
-</Trap practice>
+</Trap>
 
 <Question id="q-m01-s06" answer="c">
 A release is at revision 5. You run `helm rollback web 3`. What does `helm history web` show afterwards?
