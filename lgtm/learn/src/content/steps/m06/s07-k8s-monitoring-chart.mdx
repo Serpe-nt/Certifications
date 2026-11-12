@@ -56,7 +56,7 @@ A feature is one monitoring task. Among them: cluster metrics (the kubelet, cAdv
 
 A collector is a Grafana Alloy instance. You name it yourself, and you give it presets that set its shape: `daemonset` runs one pod per node, `singleton` makes sure only one replica runs, `statefulset` and `clustered` let several replicas share a large scrape load, and `filesystem-log-reader` mounts the node's `/var/log` so Alloy can read the pods' log files. Each feature names the collector that does its work.
 
-A destination is where the data goes, named by protocol rather than product: `prometheus` sends with remote write, `loki` sends logs, `otlp` sends any signal over OTLP.
+A destination is where the data goes, named by protocol rather than product: `prometheus` sends with remote write, `loki` sends logs, `otlp` sends metrics, logs or traces over OTLP.
 
 <Flow caption="How the chart turns values into running Alloy">
   <Stage title="Features" kicker="You switch on">podLogsViaLoki, clusterEvents</Stage>
@@ -67,7 +67,7 @@ A destination is where the data goes, named by protocol rather than product: `pr
 
 ## Why the shape matters
 
-Pod logs live in files on each node, so the collector that reads them must run on every node and see `/var/log`: the `daemonset` and `filesystem-log-reader` presets. Events come from the API server, and two replicas watching them would send every event twice, so the event collector is a `singleton`. Cluster metrics are scraped over the network, which any replica can do, so a large cluster gives them a clustered StatefulSet.
+Pod logs live in files on each node, so the collector that reads them must run on every node and see `/var/log`: the `daemonset` and `filesystem-log-reader` presets. Events come from the API server, and two replicas watching them would send every event twice, so the event collector is a `singleton` unless you turn on the feature's clustering option, which splits the events between replicas. Cluster metrics are scraped over the network, which any replica can do, so a large cluster gives them a clustered StatefulSet.
 
 The Pod Logs feature sets `service_name` on every log line: from the pod annotation `resource.opentelemetry.io/service.name` if there is one, then the pod label `app.kubernetes.io/name`, then the container name. That label is how you will find a pod's logs in step 8.
 

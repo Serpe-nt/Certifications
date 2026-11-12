@@ -62,7 +62,7 @@ The CRDs come with the chart, but Helm has no support for upgrading or deleting 
 
 ## The scrape jobs it sets up
 
-The chart writes one ServiceMonitor per source: the API server, the kubelet, CoreDNS, kube-state-metrics, node exporter, and Prometheus, Alertmanager and the operator themselves. It also has ServiceMonitors for the controller manager, the scheduler, etcd and kube-proxy, each behind an `enabled` switch. On a kubeadm cluster these four listen only on the node's own loopback address, so their targets would be down; step 10 looks at them.
+The chart writes one ServiceMonitor per source: the API server, the kubelet, CoreDNS, kube-state-metrics, node exporter, and Prometheus, Alertmanager and the operator themselves. It also has ServiceMonitors for the controller manager, the scheduler, etcd and kube-proxy, each behind an `enabled` switch. On a kubeadm cluster the scheduler, the controller manager and kube-proxy serve their metrics only on the node's loopback address, and etcd only on loopback or behind a client certificate, so these targets would be down; step 10 looks at them.
 
 <InLab>
 The lab's release `kube-prometheus-stack` in `prom` (chart 93.1.1, operator v0.95.1) has `kubeControllerManager`, `kubeScheduler`, `kubeEtcd` and `kubeProxy` set to `enabled: false`, and its own Grafana off: the dashboards go to the lab's Grafana as ConfigMaps.

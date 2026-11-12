@@ -22,13 +22,16 @@ terms:
   - term: Pressure stall information
     def: Linux counters of the time tasks waited for CPU, memory or I/O; node exporter reads them from /proc/pressure.
   - term: Allocatable
-    def: The part of a node's capacity that Kubernetes offers to pods, after what is kept back for the system.
+    def: The part of a node's capacity that Kubernetes offers to pods, after reserves and the eviction threshold.
 sources:
   - title: node_exporter README, v1.12.1 (GitHub)
     url: https://github.com/prometheus/node_exporter/blob/v1.12.1/README.md
     checked: 2026-11-12
   - title: kube-state-metrics node metrics (GitHub)
     url: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/cluster/node-metrics.md
+    checked: 2026-11-12
+  - title: Reserve compute resources for system daemons (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/
     checked: 2026-11-12
   - title: Node metrics data, PSI (Kubernetes v1.35)
     url: https://v1-35.docs.kubernetes.io/docs/reference/instrumentation/node-metrics/
@@ -61,7 +64,7 @@ Node exporter is built from collectors, most of them on by default. The ones you
 
 ## Two views of one node
 
-The API also knows each node, and kube-state-metrics reports what it says: `kube_node_status_capacity`, `kube_node_status_allocatable` and `kube_node_status_condition`. Allocatable is smaller than capacity, because Kubernetes keeps some of the machine back for the system. Node exporter knows nothing about allocatable or conditions; kube-state-metrics knows nothing about how full a disk is.
+The API also knows each node, and kube-state-metrics reports what it says: `kube_node_status_capacity`, `kube_node_status_allocatable` and `kube_node_status_condition`. Allocatable is smaller than capacity, because the kubelet keeps some of the machine back: any reserve for Kubernetes and system daemons, and the hard eviction threshold, by default 100Mi of memory. On this lab's workers the gap is that 100Mi. Node exporter knows nothing about allocatable or conditions; kube-state-metrics knows nothing about how full a disk is.
 
 <Compare caption="Which view answers which question">
   <Col title="node exporter" hot>How busy is the CPU? How much memory is free? Which file system fills up?</Col>

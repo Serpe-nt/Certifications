@@ -40,6 +40,9 @@ sources:
   - title: Monitoring etcd (etcd v3.6)
     url: https://etcd.io/docs/v3.6/op-guide/monitoring/
     checked: 2026-11-12
+  - title: kubeadm constants, EtcdMetricsPort, release-1.35 (GitHub)
+    url: https://github.com/kubernetes/kubernetes/blob/release-1.35/cmd/kubeadm/app/constants/constants.go
+    checked: 2026-11-12
   - title: etcd metrics (etcd v3.6)
     url: https://etcd.io/docs/v3.6/metrics/
     checked: 2026-11-12
@@ -52,17 +55,17 @@ A colleague opens "Kubernetes / Scheduler" in a fresh kube-prometheus-stack setu
 Every control plane component serves `/metrics`. Whether Prometheus can reach it is a choice made when the cluster was built.
 
 <Idea>
-kubeadm runs the API server, the scheduler, the controller manager and etcd as static pods on the control plane nodes. The API server listens on the node's address, so Prometheus scrapes it. The scheduler, the controller manager, etcd's metrics and kube-proxy listen only on loopback, so a Prometheus pod cannot reach them. You either open them in the cluster's configuration or leave them out on purpose, as this lab does.
+kubeadm runs the API server, the scheduler, the controller manager and etcd as static pods on the control plane nodes. The API server listens on the node's address, so Prometheus scrapes it. The scheduler, the controller manager and kube-proxy serve their metrics only on loopback, and etcd serves them on loopback without a certificate or on its client port with one. A Prometheus pod cannot reach them as they are. You either open them in the cluster's configuration or leave them out on purpose, as this lab does.
 </Idea>
 
 ## Who listens where
 
 <Compare caption="Control plane metrics on this kubeadm cluster">
   <Col title="Reachable" hot>kube-apiserver: port 6443 on each master's address, scraped as job apiserver.</Col>
-  <Col title="Loopback only">kube-scheduler (port 10259) and kube-controller-manager (10257) with --bind-address=127.0.0.1; etcd metrics on http://127.0.0.1:2381; kube-proxy on 127.0.0.1:10249 by default.</Col>
+  <Col title="Loopback only">kube-scheduler (port 10259) and kube-controller-manager (10257) with --bind-address=127.0.0.1; etcd metrics on http://127.0.0.1:2381 (or on port 2379 with a client certificate); kube-proxy on 127.0.0.1:10249 by default.</Col>
 </Compare>
 
-The kube-prometheus-stack chart has a ServiceMonitor ready for each of the four loopback components. With their `enabled` switch on and the components on loopback, the targets show down, and the stack's alerts such as `KubeSchedulerDown` fire. With the switches off, as in this lab, the jobs and their alert rules do not exist at all, so nothing tells you the scheduler is unwatched.
+The kube-prometheus-stack chart has a ServiceMonitor ready for each of these four components. With their `enabled` switch on and the components on loopback, the targets show down, and the stack's alerts such as `KubeSchedulerDown` fire. With the switches off, as in this lab, the jobs and their alert rules do not exist at all, so nothing tells you the scheduler is unwatched.
 
 ## Seeing the control plane through the API server
 
@@ -99,7 +102,7 @@ You found the loopback flags of three control plane components, and the API serv
 </Trap>
 
 <Remember>
-On kubeadm only the API server is reachable by default. The scheduler, the controller manager, etcd's metrics and kube-proxy listen on loopback until the cluster's configuration opens them.
+On kubeadm only the API server is reachable by default. The scheduler, the controller manager, kube-proxy and etcd's plain metrics port listen on loopback until the cluster's configuration opens them.
 </Remember>
 
 <Question id="q-m06-s10" answer="c">

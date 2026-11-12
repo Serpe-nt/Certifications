@@ -48,7 +48,7 @@
     - text: "The API server keeps events one hour by default"
       why: "The kube-apiserver flag --event-ttl defaults to one hour, so older events are gone."
     - text: "Events are written to the node's log files instead"
-      why: "Events are API objects; they are not written to the pods' log files."
+      why: "Events are API objects kept by the API server, not lines in a file on a node."
   answer: [2]
   source: https://v1-35.docs.kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
 
@@ -96,7 +96,7 @@
     - text: "Plain HTTP on port 10255 instead of HTTPS"
       why: "The README asks for token checks on the secure port, not for an open port."
     - text: "A ClusterRole that allows list on all nodes"
-      why: "Reading the kubelet's metrics is a get on the non-resource URL /metrics."
+      why: "The kubelet maps /metrics to the subresource nodes/metrics, so the role needs get on that, not list on nodes."
   answer: [1]
   source: https://github.com/prometheus-operator/kube-prometheus
 
@@ -201,8 +201,8 @@
   exam: {cert: pca, domain: P4, competency: "Exporters"}
   q: "On a node, <code>node_memory_MemTotal_bytes</code> is 5.79 GiB and <code>kube_node_status_allocatable{resource=\"memory\"}</code> is 5.69 GiB. Why do they differ?"
   options:
-    - text: "Allocatable keeps back a reserve for the system"
-      why: "kube-state-metrics reports allocatable as what is left for pods after some is kept for system daemons."
+    - text: "Allocatable keeps back reserves and an eviction margin"
+      why: "Allocatable is capacity minus any reserves and the hard eviction threshold, which is 100Mi of memory by default."
     - text: "Node exporter counts swap space into the total"
       why: "MemTotal is the kernel's memory figure, not swap."
     - text: "kube-state-metrics rounds memory down to whole MiB"
@@ -210,7 +210,7 @@
     - text: "Allocatable leaves out what pods use right now"
       why: "Allocatable is a fixed amount from the node's status, not current use."
   answer: [0]
-  source: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/cluster/node-metrics.md
+  source: https://v1-35.docs.kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/
 
 - id: q-m06-014
   tags: [k8s-node-exporter, exporter-standard]
@@ -430,7 +430,7 @@
     - text: "RED does not apply to DNS servers"
       why: "DNS has requests and responses, so rate, errors and duration all apply."
     - text: "Search-list misses are NXDOMAIN, not failures"
-      why: "A pod's search list tries several suffixes, and each miss is an NXDOMAIN; a failure is SERVFAIL."
+      why: "A pod's search list tries several suffixes first, and each miss is an NXDOMAIN, so most of them are normal traffic."
     - text: "NXDOMAIN answers are cached and never counted"
       why: "They are counted; the counter shows two thirds of all answers."
   answer: [2]

@@ -65,7 +65,7 @@ Saturation is the line people forget. A CPU at 70% with no waiting has room left
 A workload needs metrics of its own requests for RED; Kubernetes does not make them for it. CoreDNS has them, and the lab's Prometheus scrapes it, so it is a good workload to try. Rate is `coredns_dns_requests_total`. Duration is the histogram `coredns_dns_request_duration_seconds`. Errors need thought: `coredns_dns_responses_total` counts answers by `rcode`. `NOERROR` is a good answer. `NXDOMAIN` means the name does not exist, which is often not a fault at all: a pod's DNS search list in Kubernetes tries the name with several suffixes first, and each miss is an `NXDOMAIN`. `SERVFAIL` means the server failed to answer, and that is an error.
 
 <InLab>
-The lab's Grafana has the dashboard "Node Exporter / USE Method / Node" in the folder Kubernetes, built from the node mixin's recording rules, such as `instance:node_cpu_utilisation:rate5m` and `instance:node_vmstat_pgmajfault:rate5m`. The drill below builds the same view by hand, so that you know what each panel means.
+The lab's Grafana has the dashboard "Node Exporter / USE Method / Node" in the folder Kubernetes, built from the node mixin's recording rules, such as `instance:node_cpu_utilisation:rate5m` and `instance:node_vmstat_pgmajfault:rate5m`. Pick `Prometheus` in its Data source menu. The drill below builds the same view by hand, so that you know what each panel means.
 </InLab>
 
 <Trap>
