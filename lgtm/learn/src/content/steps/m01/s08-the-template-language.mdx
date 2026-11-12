@@ -1,0 +1,109 @@
+---
+id: m01-s08
+title: "The template language: values, pipelines, functions, named templates"
+kind: concept
+minutes: 15
+order: 8
+exam:
+  - cert: none
+tags: [helm-templates]
+outcome: You can read a Helm template line, say what it prints for given values, and reuse a block of YAML with define and include.
+terms:
+  - term: Action
+    def: Anything between {{ and }} in a template; Helm replaces it with its result.
+  - term: Built-in object
+    def: Data Helm passes to every template, such as .Values, .Release and .Chart.
+  - term: Pipeline
+    def: A chain of functions joined by |, each taking the result of the one before.
+  - term: Named template
+    def: A block defined once with define and inserted elsewhere with include.
+sources:
+  - title: Built-in objects
+    url: https://helm.sh/docs/chart_template_guide/builtin_objects/
+    checked: 2026-11-12
+  - title: Template functions and pipelines
+    url: https://helm.sh/docs/chart_template_guide/functions_and_pipelines/
+    checked: 2026-11-12
+  - title: Named templates
+    url: https://helm.sh/docs/chart_template_guide/named_templates/
+    checked: 2026-11-12
+  - title: Template function list
+    url: https://helm.sh/docs/chart_template_guide/function_list/
+    checked: 2026-11-12
+---
+
+<Problem>
+You open a chart's `deployment.yaml` and see `{{ include "podinfo.labels" . | nindent 4 }}` and `{{ .Values.image.tag | default .Chart.AppVersion }}`. It is YAML, but with code in it. Until you can read those lines, the chart is a black box, and so is every release made from it.
+</Problem>
+
+<Idea>
+A template is YAML with actions between `{{` and `}}`. An action reads data from built-in objects such as `.Values` and `.Release`, passes it through functions joined by `|`, and prints the result. Named templates let a chart define a block once and include it in many files.
+</Idea>
+
+## Built-in objects
+
+Every template gets the same data. `.Values` holds the computed values. `.Release` describes the release: `.Release.Name`, `.Release.Namespace`, `.Release.Revision`, and `.Release.IsInstall` or `.Release.IsUpgrade`. `.Chart` is the content of `Chart.yaml`, so `.Chart.Name` and `.Chart.Version` work. `.Capabilities` tells what the cluster supports, for example its Kubernetes version. `.Files` reads other files of the chart. The dot in front means "in the current scope"; at the top of a template that scope holds all of them.
+
+## Functions and pipelines
+
+A function call is its name followed by its arguments: `quote .Values.greeting`. Most charts write the same thing as a pipeline, `.Values.greeting | quote`, where the value on the left becomes the last argument of the function on the right. Pipelines chain:
+
+```yaml
+greeting: {{ .Values.greeting | upper | quote }}
+```
+
+With `greeting: hello, helm` this prints `greeting: "HELLO, HELM"`. Helm has more than 60 functions, from Go's template language and from the Sprig library. A few you will meet in every chart: `quote` wraps a string in quotes, `default` gives a fallback when a value is empty, `toYaml` turns a map or list into YAML, `indent` and `nindent` shift text to the right, and `printf`, `trunc` and `trimSuffix` build names.
+
+<Flow caption="One pipeline, step by step">
+  <Stage title=".Values.greeting" kicker="Read">hello, helm</Stage>
+  <Stage title="upper" kicker="Function">HELLO, HELM</Stage>
+  <Stage title="quote" kicker="Function">"HELLO, HELM"</Stage>
+</Flow>
+
+## Defaults inside the template
+
+`{{ .Values.image.tag | default .Chart.AppVersion }}` prints the tag from the values when it is set and the chart's `appVersion` when it is empty. That is how most charts keep the image in step with the chart unless you override it.
+
+## Named templates
+
+Labels, names and selectors repeat in every object of a chart. A chart defines them once, usually in `templates/_helpers.tpl`:
+
+```yaml
+{{- define "greeter.fullname" -}}
+{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+```
+
+and uses them with `include`, passing the scope as the last argument: `{{ include "greeter.fullname" . }}`. `include` returns text, so it can feed a pipeline: `{{- include "greeter.labels" . | nindent 4 }}` indents a block of labels under `labels:`. The older `template` action does the same insert but cannot be piped, which is why Helm's guide prefers `include`. Names are global across a chart and its sub-charts, so they start with the chart's name.
+
+<InLab>
+`helm template m01-podinfo podinfo/podinfo` from step 5 shows the Service's labels, such as `helm.sh/chart: podinfo-6.16.0`, all built by one named template in podinfo's `_helpers.tpl`.
+</InLab>
+
+<Trap>
+Forgetting the dot in `include "greeter.labels"` passes no scope, so `.Release` and `.Chart` are empty inside the helper. Always end with ` .` unless you pass a different scope on purpose.
+</Trap>
+
+<Remember>
+`{{ }}` prints, `.Values` and `.Release` feed it, `|` chains functions, and `include` reuses a named block with `nindent` to place it.
+</Remember>
+
+<Question id="q-m01-s08" answer="b">
+`values.yaml` has `image.tag: ""` and `Chart.yaml` has `appVersion: "6.17.0"`. What does `{{ .Values.image.tag | default .Chart.AppVersion }}` print?
+
+- An empty string, because the tag is set in values.yaml
+
+  An empty string counts as empty, so `default` uses its fallback.
+
+- 6.17.0, because default uses the fallback when the value is empty
+
+  `default` returns the chart's appVersion when the tag is empty.
+
+- .Chart.AppVersion, as plain text
+
+  `.Chart.AppVersion` is read from Chart.yaml, not printed as text.
+
+- An error, because the tag is a string and appVersion is a version
+
+  Both are strings here. `default` simply picks one of them.
+</Question>
