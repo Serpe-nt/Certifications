@@ -31,6 +31,9 @@ sources:
   - title: Histograms and summaries (Prometheus best practices)
     url: https://prometheus.io/docs/practices/histograms/
     checked: 2026-11-12
+  - title: Prometheus 3.0 migration guide, le and quantile label values (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/migration/
+    checked: 2026-11-12
 ---
 
 <Problem>
@@ -38,7 +41,7 @@ Users say the Prometheus screen feels slow. The average request time is half a m
 </Problem>
 
 <Idea>
-A classic histogram counts observations into cumulative buckets, one counter series per upper bound, in the label `le`. `histogram_quantile()` takes the per-second rate of those buckets and estimates where a quantile falls, by assuming that observations are spread evenly inside each bucket. The estimate is only as precise as the buckets are narrow.
+A classic histogram counts observations into cumulative buckets, one counter series per upper bound, in the label `le`. You take the per-second rate of those buckets with `rate()`, and `histogram_quantile()` estimates from it where a quantile falls, by assuming that observations are spread evenly inside each bucket. The estimate is only as precise as the buckets are narrow.
 </Idea>
 
 ## Buckets are counters, so start with rate()
@@ -78,10 +81,10 @@ The `_sum` and `_count` series answer two other questions. The average duration 
 
 <Query lang="promql">{`sum(rate(prometheus_http_request_duration_seconds_sum[5m])) / sum(rate(prometheus_http_request_duration_seconds_count[5m]))`}</Query>
 
-The share of requests faster than a bound is one bucket divided by the count: `sum(rate(x_bucket{le="0.1"}[5m])) / sum(rate(x_count[5m]))`. This works only if a bucket has exactly that bound. If it does not, the query returns nothing, with no estimate and no warning.
+The share of requests faster than a bound is one bucket divided by the count: `sum(rate(x_bucket{le="0.1"}[5m])) / sum(rate(x_count[5m]))`. This works only if a bucket has exactly that bound. If it does not, the query returns nothing, with no estimate and no warning. Write the bound as Prometheus 3 stores it: `le` values are normalized at ingestion, so a bound of 1 is matched as `le="1.0"`, and `le="1"` finds nothing.
 
 <InLab>
-`prometheus_http_request_duration_seconds` has ten buckets in the lab: 0.1, 0.2, 0.4, 1, 3, 8, 20, 60 and 120 seconds, and `+Inf`. The API server's `apiserver_request_duration_seconds` is another classic histogram, with bounds of its own.
+`prometheus_http_request_duration_seconds` has ten buckets in the lab, with the `le` values 0.1, 0.2, 0.4, 1.0, 3.0, 8.0, 20.0, 60.0, 120.0 and `+Inf`. The API server's `apiserver_request_duration_seconds` is another classic histogram, with bounds of its own.
 </InLab>
 
 <Trap>
@@ -119,7 +122,7 @@ A latency histogram has the buckets 0.05, 0.1, 0.5, 1 and +Inf seconds. Almost e
 
 - 0.5 seconds, the upper bound of the bucket
 
-  The function interpolates inside the bucket. It returns the upper bound only for a quantile in the +Inf bucket.
+  The function interpolates inside the bucket. It returns a bucket bound as such only in special cases, such as a quantile in the +Inf bucket.
 
 - About 0.3 seconds, the middle of the bucket from 0.1 to 0.5
 

@@ -301,7 +301,7 @@
     - text: 120, one every 30 seconds
       why: Without a resolution after the colon, the subquery uses the global evaluation interval.
     - text: 60 times, once a minute
-      why: One minute is not a default. The evaluation interval is.
+      why: One minute is the default of evaluation_interval, but this server sets it to 30 seconds.
     - text: Once, because no resolution is given after the colon
       why: A missing resolution falls back to the evaluation interval. The subquery still runs many steps.
   answer: [1]
@@ -425,7 +425,7 @@
   q: <code>sum(rate(api_duration_seconds_bucket{le="0.5"}[5m])) / sum(rate(api_duration_seconds_count[5m]))</code> returns 0.97. What does it mean?
   options:
     - text: The 97th percentile of the request time over 5 minutes is 0.5 seconds
-      why: Close, but the query gives the share under a bound, not a percentile estimate.
+      why: The share only shows that the 97th percentile is at most 0.5 seconds. It can be well below that.
     - text: 97% of requests took 0.5 seconds or less
       why: The bucket counts observations at or below its bound, and the count is all observations.
     - text: Requests took 0.97 seconds on average

@@ -46,7 +46,7 @@ Most PromQL mistakes do not fail loudly. A counter read without `rate()`, a sum 
 
 ## Wrong numbers that look fine
 
-These queries return values, and nothing warns you:
+These queries return values, and at most an info note above the result hints at the problem:
 
 - A counter without `rate()`. `sum by (instance) (node_cpu_seconds_total)` adds CPU seconds since boot, a number that only grows. Wrap the selector in `rate()`.
 - `rate()` of a gauge. `rate(node_load1[5m])` reads every fall as a reset. Use the gauge's value, `deriv()` or an `_over_time` function.

@@ -61,7 +61,7 @@ PromQL reads the native form directly. `rate()` of a native histogram returns a 
 - Average duration: `histogram_avg(rate(http_request_duration_seconds[5m]))`, the same as `histogram_sum(...)` divided by `histogram_count(...)`.
 - Share of requests up to 0.3 seconds: `histogram_fraction(0, 0.3, sum(rate(http_request_duration_seconds[5m])))`. With a classic histogram this needs a bucket exactly at 0.3; here the function estimates between bucket bounds.
 
-Native histograms also know whether they behave as a counter or a gauge. When you apply `rate()` to a gauge histogram, the result carries a warning, which a float series can never give you.
+Native histograms also know whether they behave as a counter or a gauge. When you apply `rate()` to a gauge histogram, the result carries a warning based on the data itself. For a float series, Prometheus can only guess from the metric's name.
 
 ## Getting them into Prometheus
 

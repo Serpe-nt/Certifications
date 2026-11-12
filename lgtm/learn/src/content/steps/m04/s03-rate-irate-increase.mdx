@@ -76,16 +76,16 @@ The documentation calls `increase()` syntactic sugar for readability, and asks y
 
 ## Two mistakes that return a number anyway
 
-The first is `rate()` of a gauge. A gauge goes up and down, and `rate()` reads every fall as a counter reset. `rate(node_load1[5m])` returns a value without any warning, and the value means nothing. For a gauge you want `deriv()` or `delta()`, which step 10 shows. Prometheus cannot warn you here, because a float sample does not store whether it is a counter or a gauge. The `_total` at the end of a name is the convention that tells you.
+The first is `rate()` of a gauge. A gauge goes up and down, and `rate()` reads every fall as a counter reset. `rate(node_load1[5m])` returns a value, and the value means nothing. For a gauge you want `deriv()` or `delta()`, which step 10 shows. A float sample does not store whether it is a counter or a gauge, so Prometheus can only guess from the name. The `_total` at the end of a name is the convention for counters. When the name does not end in `_total`, `_sum`, `_count` or `_bucket`, the query page shows an info note that the metric "might not be a counter", and still returns the number.
 
-The second is to aggregate before the rate. A sum of counters from several pods is not a counter any more: when one pod restarts, the sum drops a little, and `rate()` cannot tell that drop from a real reset. The rule from the documentation is to take `rate()` first, then aggregate: `sum(rate(x[5m]))`, never a rate of a sum. Step 4 explains `sum`. If you try `rate(sum(x)[5m])`, Prometheus refuses it, because a range can only follow a selector.
+The second is to aggregate before the rate. A sum of counters from several pods is not a counter any more: when one pod restarts, the sum drops a little, and `rate()` cannot tell that drop from a real reset. The rule from the documentation is to take `rate()` first, then aggregate: `sum(rate(x[5m]))`, never a rate of a sum. Step 4 explains `sum`. If you write `rate(sum(x)[5m])`, Prometheus refuses it, because a plain range can only follow a selector. That refusal is no safety net: the subquery form `rate(sum(x)[5m:])` of step 11 is accepted and gives the wrong rate without a word.
 
 <InLab>
 The lab's Prometheus evaluates its rule groups every 30 seconds (`evaluation_interval: 30s`), and its own counter `prometheus_rule_group_iterations_total` has one series per group. That makes it a counter whose rate you can predict.
 </InLab>
 
 <Trap>
-`rate()` never fails on the wrong input. Feed it a gauge, or a sum of counters, and it returns a plausible number. Check that the metric is a counter, usually a name ending in `_total`, and that `rate()` sits directly on the selector.
+`rate()` never fails on the wrong input. Feed it a gauge, or a sum of counters, and it returns a plausible number, with at most an info note that is easy to overlook. Check that the metric is a counter, usually a name ending in `_total`, and that `rate()` sits directly on the selector.
 </Trap>
 
 <Do>
@@ -94,13 +94,13 @@ The lab's Prometheus evaluates its rule groups every 30 seconds (`evaluation_int
 3. Shorten the window to `[30s]` and run it again. The result is empty: the window holds fewer than two samples.
 4. Ask for the increase over ten minutes: <Query lang="promql">{`increase(prometheus_rule_group_iterations_total{rule_group=~".*;node-exporter.rules"}[10m])`}</Query> Compare the answer with 0.0333 times 600 seconds.
 5. Read a counter of seconds. The node exporter counts CPU seconds per CPU and mode: <Query lang="promql">{`rate(node_cpu_seconds_total{instance="10.10.0.30:9100", mode="idle"}[5m])`}</Query> Each of worker1's CPUs shows a value between 0 and 1: the share of each second that the CPU was idle.
-6. See the gauge mistake: <Query lang="promql">{`rate(node_load1{instance="10.10.0.30:9100"}[5m])`}</Query> You get a number and no warning, although `node_load1` is a gauge.
+6. See the gauge mistake: <Query lang="promql">{`rate(node_load1{instance="10.10.0.30:9100"}[5m])`}</Query> You get a number, although `node_load1` is a gauge. Above the result, an info note says the metric might not be a counter; it is based only on the name.
 7. See the order mistake: <Query lang="promql">{`rate(sum(prometheus_http_requests_total)[5m])`}</Query> Read the error, then run the right order: <Query lang="promql">{`sum(rate(prometheus_http_requests_total[5m]))`}</Query>
 8. Paste the result of action 4 in the check below.
 </Do>
 
 <Done>
-The rate of the rule group's counter was one thirtieth per second, its increase over ten minutes was about 20, and you saw one wrong query return a number and the other one refused.
+The rate of the rule group's counter was one thirtieth per second, its increase over ten minutes was about 20, and you saw one wrong query return a number with only an info note and the other one refused.
 </Done>
 
 <Trap practice>

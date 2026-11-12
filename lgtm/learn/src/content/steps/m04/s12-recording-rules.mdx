@@ -31,6 +31,12 @@ sources:
   - title: Data model, metric names (Prometheus)
     url: https://prometheus.io/docs/concepts/data_model/
     checked: 2026-11-12
+  - title: Query functions, increase() (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+  - title: Storage, backfilling for recording rules (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/storage/
+    checked: 2026-11-12
   - title: Querying basics, avoiding slow queries (Prometheus)
     url: https://prometheus.io/docs/prometheus/latest/querying/basics/
     checked: 2026-11-12
@@ -56,7 +62,7 @@ groups:
         expr: count without (cpu, mode) (node_cpu_seconds_total{job="node-exporter",mode="idle"})
 ```
 
-At every evaluation, Prometheus runs `expr` at the current time and stores the result under the name in `record`. An optional `labels` field adds or overwrites labels on the result. Rules inside a group run one after another, all with the same evaluation time, so a later rule in a group can read what an earlier one just stored. When no interval is given, the group uses the global `evaluation_interval`.
+At every evaluation, Prometheus runs `expr` at the current time and stores the result under the name in `record`. An optional `labels` field adds or overwrites labels on the result. Rules inside a group run one after another, all with the same evaluation time. When no interval is given, the group uses the global `evaluation_interval`.
 
 If a group takes longer to evaluate than its interval, the next evaluation is skipped, and the recorded series gets a gap. The counter `prometheus_rule_group_iterations_missed_total` records each skip.
 
@@ -68,11 +74,13 @@ The best-practice name has three parts separated by colons:
 - `metric` is the source metric's name, kept as it is, except that `_total` is dropped when a rate is taken.
 - `operations` lists what was applied, the newest first, such as `rate5m` or `sum`.
 
-So `instance:node_num_cpu:sum` is a sum (here a count) of a CPU metric, with one series per instance. The colons also tell you at a glance that a series is recorded, because colons are reserved for recording rules. The guidelines ask for `without` with the labels being removed, so `job` and other labels survive, and for `rate` rather than `increase` in rules, so stored values are always per second.
+The guidelines' own example is `instance_path:requests:rate5m`: the rate over five minutes of `requests_total`, with the labels `instance` and `path` left. The colons also tell you at a glance that a series is recorded, because colons are reserved for recording rules. The guidelines ask for `without` with the labels being removed, so `job` and other labels survive. The functions page adds that rules should use `rate` rather than `increase`, so stored values are always per second.
 
-<Layers caption="Reading instance:node_cpu_utilisation:rate5m">
-  <Layer title="instance">The level: one series per node exporter target.</Layer>
-  <Layer title="node_cpu_utilisation">The metric: what is measured.</Layer>
+Real rule sets bend the pattern. The lab's `instance:node_num_cpu:sum` keeps the level and the colons, but `node_num_cpu` is not the name of a source metric, and its expression is a `count`, not a `sum`. Read the level and the colons as a guide, and the expression on Rule health as the truth.
+
+<Layers caption="Reading instance_path:requests:rate5m">
+  <Layer title="instance_path">The level: the labels instance and path are left.</Layer>
+  <Layer title="requests">The metric: requests_total, with _total dropped after the rate.</Layer>
   <Layer title="rate5m" hot>The operation: a rate over five minutes.</Layer>
 </Layers>
 
@@ -89,7 +97,7 @@ The lab's Prometheus loads 30 rule groups with 86 recording rules from kube-prom
 </InLab>
 
 <Trap>
-A recorded series exists only from the moment its rule was first loaded. A dashboard switched to the recorded name shows nothing for the time before. Prometheus does not compute it backwards.
+A recorded series exists only from the moment its rule was created. A dashboard switched to the recorded name shows nothing for the time before. The server does not fill the past on its own; `promtool tsdb create-blocks-from rules` can backfill it as a separate job.
 </Trap>
 
 <Do>
