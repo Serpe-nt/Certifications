@@ -1,0 +1,131 @@
+---
+id: m03-s14
+title: The Prometheus screen, the HTTP API and promtool
+kind: drill
+minutes: 20
+order: 14
+exam:
+  - cert: pca
+    domain: P2
+    competency: System Architecture
+  - cert: pca
+    domain: P2
+    competency: Configuration and Scraping
+tags: [prom-tools]
+check:
+  kind: exact
+  prompt: Paste the number of rule files that promtool check config reports for the lab's configuration.
+  answers: ["30"]
+outcome: You can find a server's state on its screen, ask the same questions through the HTTP API, and check configuration and metrics with promtool before they cause trouble.
+terms:
+  - term: HTTP API
+    def: The JSON interface under /api/v1 that the screen, Grafana and scripts use to query Prometheus.
+  - term: promtool
+    def: The command-line tool shipped with Prometheus that checks configuration, rules and metrics and runs queries.
+  - term: Lint
+    def: A check for style and likely mistakes that does not by itself make a file invalid.
+sources:
+  - title: HTTP API (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/api/
+    checked: 2026-11-12
+  - title: Management API (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/management_api/
+    checked: 2026-11-12
+  - title: promtool (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/command-line/promtool/
+    checked: 2026-11-12
+---
+
+<Problem>
+A colleague changed a rule file and a scrape job on Friday. On Monday the server runs, but nobody is sure it loaded the change, and a new exporter's metrics look odd. You want answers in minutes: what is loaded, what is scraped, and whether the files and metrics are valid.
+</Problem>
+
+<Idea>
+Prometheus answers three ways. Its screen shows the loaded configuration, the targets, discovery, rules and the database. The HTTP API under `/api/v1` gives the same facts as JSON for scripts. And `promtool`, which ships with Prometheus, checks configuration, rules and metrics before you load them, and can run queries.
+</Idea>
+
+## The screen
+
+The Prometheus screen has a page for each question you ask most:
+
+- Query: run PromQL and see a table or a graph. It is for quick questions; dashboards belong in Grafana.
+- Alerts and Rules: the alerting and recording rules that are loaded, and their state.
+- Targets: every active target with its state, its labels and the error of the last scrape.
+- Service discovery: discovered labels next to target labels, as in steps 6 and 7.
+- Configuration and Command-line flags: the configuration and flags the server runs with right now.
+- TSDB status: the head block and the series counts by metric name, from step 12.
+- Runtime and build information: the version, the start time and the retention.
+
+## The HTTP API
+
+The same facts come from the HTTP API under `/api/v1`. Every answer is JSON with a `status` field and a `data` field, and a successful call returns a 2xx code. The calls you will use first:
+
+- `/api/v1/query?query=up` runs a PromQL query at one moment; `/api/v1/query_range` runs it over a time range.
+- `/api/v1/targets` lists active and dropped targets.
+- `/api/v1/status/config`, `/api/v1/status/flags`, `/api/v1/status/buildinfo` and `/api/v1/status/tsdb` return what the status pages show.
+- `/api/v1/labels` and `/api/v1/label/<name>/values` list label names and values.
+
+Next to them are management endpoints without `/api/v1`. `/-/healthy` always answers 200 while the process runs. `/-/ready` answers 200 once the server can serve queries. `/-/reload` reloads the configuration, but only when the server runs with `--web.enable-lifecycle`.
+
+## promtool
+
+`promtool` checks files before they reach a server. `promtool check config` reads a configuration file and every rule file it names. `promtool check rules` checks rule files alone, and `promtool test rules` runs unit tests for them. `promtool check metrics` reads a `/metrics` page from standard input and reports names that break the conventions of step 10. `promtool query instant` runs a query against a running server, and `promtool tsdb` inspects a data directory.
+
+Lint findings are printed, but they change the exit code only when you add `--lint-fatal`. A rule file can be marked FAILED with "lint error 1 duplicate rule(s) found" while the whole command still exits with code 0, which a CI pipeline reads as a pass.
+
+<Layers caption="Three ways to ask the same server">
+  <Layer title="Screen">For a person: pages for targets, configuration, rules and the database.</Layer>
+  <Layer title="HTTP API">For scripts and Grafana: the same facts as JSON under /api/v1.</Layer>
+  <Layer title="promtool" hot>For checks before you load: configuration, rules, metrics.</Layer>
+</Layers>
+
+<InLab>
+The lab's pinned tools do not include `promtool`, but the Prometheus image ships it, so you run it inside the pod `prometheus-prom-prometheus-0` with `kubectl exec`. The lab's server runs with `--web.enable-lifecycle`, and the `config-reloader` container in the same pod calls `/-/reload` after each change.
+</InLab>
+
+<Trap>
+`/-/healthy` answering 200 does not mean Prometheus can answer queries. During start-up, while the WAL replays, only `/-/ready` tells you the server is ready.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/status">the runtime and build information page</LabLink>. Note the version and the storage retention.
+2. Ask the API for the same version: open <LabLink to="prometheus" path="/api/v1/status/buildinfo">/api/v1/status/buildinfo</LabLink>. The browser shows JSON with `"status":"success"` and `"version"`.
+3. Run a query through the API: open <LabLink to="prometheus" path="/api/v1/query?query=count(up)">/api/v1/query?query=count(up)</LabLink>. The value is the number of active targets.
+4. Check that the server is healthy and ready: open <LabLink to="prometheus" path="/-/healthy">/-/healthy</LabLink> and <LabLink to="prometheus" path="/-/ready">/-/ready</LabLink>.
+5. In your WSL terminal, check the configuration the operator generated, inside the Prometheus pod: <Cmd>kubectl -n prom exec prometheus-prom-prometheus-0 -c prometheus -- promtool check config /etc/prometheus/config_out/prometheus.env.yaml</Cmd> The first lines report how many rule files were found. Scroll through the rest: one rule file is marked FAILED with a lint error for a duplicate rule. Run `echo $status` in fish, or `echo $?` in bash: the exit code is still 0.
+6. Lint a real `/metrics` page. This feeds the node exporter of worker1 to promtool in the pod: <Cmd>curl -s http://10.10.0.30:9100/metrics | kubectl -n prom exec -i prometheus-prom-prometheus-0 -c prometheus -- promtool check metrics</Cmd> Read the findings: names in camel case and a unit in bits instead of bytes.
+7. Run a query with promtool: <Cmd>kubectl -n prom exec prometheus-prom-prometheus-0 -c prometheus -- promtool query instant http://localhost:9090 'up{job="node-exporter"}'</Cmd>
+8. Paste the number of rule files from action 5 in the check below.
+</Do>
+
+<Done>
+You read the same version on the screen and through the API, checked health and readiness, and used promtool to check the generated configuration, lint a metrics page and run a query.
+</Done>
+
+<Trap practice>
+`kubectl exec` passes your standard input to the pod only with `-i`. Without it, `promtool check metrics` in action 6 reads nothing and reports nothing.
+</Trap practice>
+
+<Remember>
+The screen is for people, the HTTP API under `/api/v1` is for scripts, and `promtool` checks configuration, rules and metrics before they reach a server. `/-/ready`, not `/-/healthy`, says when queries can be served.
+</Remember>
+
+<Question id="q-m03-s14" answer="b">
+A CI pipeline should stop a change to `prometheus.yml` that would not load, before it is deployed. What fits best?
+
+- A POST to `/-/reload` on the production server
+
+  That loads the file on the live server. A broken file would be found only after it was deployed.
+
+- Run `promtool check config` on the file in the pipeline
+
+  promtool reads the configuration and the rule files it names and fails when they are invalid, without a server.
+
+- Run `promtool check metrics` on the file
+
+  check metrics reads a /metrics page in the exposition format, not a configuration file.
+
+- Query `/-/healthy` after the deployment
+
+  The health endpoint answers 200 whenever the process runs. It says nothing about the file you changed.
+</Question>
