@@ -98,3 +98,10 @@ beacon:
   resources:
     requests: { cpu: 10m, memory: 32Mi }
     limits: { cpu: 200m, memory: 64Mi }
+
+# The lab's own alert rules (templates/alerts.yaml), loaded by the lab's
+# Prometheus. LabVolumeFillingUp fires when a volume is fuller than this ratio
+# for five minutes; `make lab-check` uses the same threshold.
+alerts:
+  enabled: true
+  volumeFullRatio: 0.85
