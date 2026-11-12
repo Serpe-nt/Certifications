@@ -62,11 +62,11 @@ A dashboard is a saved page of panels. Each panel holds one or more queries and 
 
 Folders group dashboards, and permissions set on a folder pass to every dashboard in it. In a Grafana that many people share, your work goes into a folder of its own. Then nothing that someone else set up is touched, and one delete cleans up. A folder name cannot contain an underscore or a percent sign.
 
-Some dashboards come from files, like the lab's data sources. These provisioned dashboards cannot be saved from the screen unless the setup allows it. When you try, Grafana opens a **Cannot save provisioned dashboard** dialog and offers the JSON to copy instead. To change one, you save a copy under a new name or change the file it came from.
+Some dashboards come from files, like the lab's data sources. These provisioned dashboards cannot be saved from the screen unless the setup allows it. When you try, the **Save dashboard** drawer says the dashboard cannot be saved from the Grafana UI because it was provisioned from another source, and offers its JSON to copy or to save as a file. To change one, you save a copy under a new name or change the file it came from.
 
 ## Inside the panel editor
 
-When you add a visualization, Grafana opens the panel editor. Its parts follow the path data takes. The **Queries** tab at the bottom picks the data source and holds the queries. The preview in the middle shows the result, and a switch turns it into a plain table of the raw data, which helps when a graph looks wrong. On the right, you pick the visualization and set its options.
+When you configure a new panel, Grafana opens the panel editor. Its parts follow the path data takes. The **Queries** tab at the bottom picks the data source and holds the queries; a new panel starts with the default data source. The preview in the middle shows the result, and a switch turns it into a plain table of the raw data, which helps when a graph looks wrong. On the right, you pick the visualization and set its options.
 
 <Figure id="m05-s04-panel-editor" alt="The Grafana panel editor: a time series preview at the top, the Queries tab below it with a PromQL query on the Mimir data source, and a sidebar on the right with the visualization picker and a search box over the panel options." brief="A fake Grafana panel editor. The cursor types a rate() query into the Queries tab and clicks Refresh; a time series with three lines appears in the preview. The cursor then toggles Table view and the graph turns into rows of raw numbers, then toggles it back. Finally it opens the visualization picker on the right and hovers over Time series, Stat and Table, each showing a small preview. The learner should notice the three areas: queries at the bottom, preview in the middle, options on the right." />
 
@@ -99,13 +99,13 @@ Put your dashboards in a folder of your own, use `$__rate_interval` in `rate()`,
 </Remember>
 
 <Do>
-1. Open <LabLink to="grafana" path="/dashboards">Dashboards</LabLink>, click **New** and choose **New folder**. Name it `Learn m05` and click **Create**.
-2. Open the folder **Shop** and then **Shop / checkout (RED)**. Click **Edit**, change the title of any panel, and click **Save**. Read the dialog **Cannot save provisioned dashboard**, then close it and leave with **Exit edit** and **Discard**.
-3. Go back to the folder `Learn m05`. Click **New** and choose **New dashboard**, then **+ Add visualization**. Pick the data source **Mimir**.
-4. In the **Queries** tab, switch to **Code** and enter this query: <Query lang="promql">{`sum by (span_name) (rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))`}</Query> Click **Refresh**. The preview draws one line per operation of the checkout service.
-5. Keep the visualization **Time series**. Turn on **Table view** above the preview to see the raw numbers, then turn it off again.
-6. In the options on the right, set the panel **Title** to `Requests per second`.
-7. Click **Save**. Give the dashboard the title `Shop service (m05)`, check that the folder is `Learn m05`, and save. Click **Back to dashboard** and **Exit edit**.
+1. Open <LabLink to="grafana" path="/dashboards">Dashboards</LabLink>, click **New** and choose **New folder**. Name it `Learn m05` and click **Create**. Grafana opens the empty folder.
+2. Open the folder **Shop** and the dashboard **Shop / checkout (RED)**. Click **Edit**, then **Save** without changing anything. Read the **Save dashboard** drawer: the dashboard was provisioned, so it offers **Copy JSON to clipboard** and **Save JSON to file** instead of saving. Click **Cancel**, then **Exit edit**.
+3. Go back to the folder `Learn m05`. Click **New** and choose **New dashboard**. The empty dashboard opens in edit mode with a sidebar headed **Add**: click **Panel**, then **Configure visualization** on the new panel. The panel editor opens with the data source **Mimir**, the default.
+4. Set the time picker to **Last 1 hour**. In the **Queries** tab, switch to **Code**, enter this query and click **Run queries**: <Query lang="promql">{`sum by (span_name) (rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))`}</Query> The preview draws one line per server operation of checkout; there is one, `oteldemo.CheckoutService/PlaceOrder`.
+5. Under **Suggestions** on the right, pick **Time series**. Turn on **Table view** above the preview to see the raw numbers, then turn it off again.
+6. Under **Panel options**, set the **Title** to `Requests per second`.
+7. Click **Save**. In the **Save dashboard** drawer, set the title to `Shop service (m05)`, check that the folder is `Learn m05`, and click **Save**. Then click **Back** and **Exit edit**.
 8. Reload the page. The panel is still there. Copy the UID from the address bar, the part after `/d/`, and paste it in the lab check below.
 </Do>
 
@@ -114,7 +114,7 @@ The dashboard `Shop service (m05)` in the folder `Learn m05` shows one panel, Re
 </Done>
 
 <Trap practice>
-If the preview stays empty, check the data source picker in the Queries tab: a new panel starts with the default data source, and the query must also be run with **Refresh**. Keep the time range at the last hour or less. The checkout service handles only a few orders a minute, so expect small values such as 0.03 requests per second.
+If the preview stays empty, check the data source picker in the Queries tab: a new panel starts with the default data source, and the query must be run with **Run queries**. Keep the time range at the last hour or less. The checkout service handles only a few orders a minute, so expect small values such as 0.03 requests per second.
 </Trap>
 
 <Question id="q-m05-s04" answer="b">
