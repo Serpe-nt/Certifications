@@ -1,0 +1,128 @@
+---
+id: m04-s14
+title: The usual PromQL mistakes
+kind: drill
+minutes: 20
+order: 14
+exam:
+  - cert: pca
+    domain: P3
+    competency: Rates and Derivatives
+  - cert: pca
+    domain: P3
+    competency: Aggregating over dimensions
+tags: [promql-mistakes]
+check:
+  kind: range
+  prompt: After you fixed query 5, what value does it return for instance 10.10.0.30:9100?
+  min: 3.8
+  max: 4.2
+outcome: You can spot the mistakes that make a PromQL query return a wrong number, an empty result or an error, and correct each one.
+terms:
+  - term: Silent failure
+    def: A query that returns a plausible number or an empty result instead of an error, although it is wrong.
+sources:
+  - title: Query functions, rate() and histogram_quantile() (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+  - title: Querying basics (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/basics/
+    checked: 2026-11-12
+  - title: Operators, vector matching (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/operators/
+    checked: 2026-11-12
+  - title: Recording rules, aggregation (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/rules/
+    checked: 2026-11-12
+---
+
+<Problem>
+A colleague's dashboard shows CPU use of 358,000 for a node with four CPUs, an empty latency panel, and an error rate that looks too low. No panel shows an error. Each one runs a query that Prometheus accepted, and each query is wrong in a way you met earlier in this module.
+</Problem>
+
+<Idea>
+Most PromQL mistakes do not fail loudly. A counter read without `rate()`, a sum taken before the rate, a quantile without `le`, an average of ratios or two vectors with different labels all return a number or an empty result. Knowing the handful of usual slips, and the symptom each one leaves, is faster than debugging from scratch.
+</Idea>
+
+## Wrong numbers that look fine
+
+These queries return values, and nothing warns you:
+
+- A counter without `rate()`. `sum by (instance) (node_cpu_seconds_total)` adds CPU seconds since boot, a number that only grows. Wrap the selector in `rate()`.
+- `rate()` of a gauge. `rate(node_load1[5m])` reads every fall as a reset. Use the gauge's value, `deriv()` or an `_over_time` function.
+- The sum before the rate. A sum of counters drops when one pod restarts, and `rate()` cannot tell that from a reset. Write `sum(rate(x[5m]))`.
+- The average of ratios. `avg()` of per-node ratios gives a small node the same weight as a big one. Sum the numerators, sum the denominators, then divide. The same is true of averaging the quantiles of several summaries, which the documentation calls statistically nonsensical.
+
+<Compare caption="The same question, wrong and right">
+  <Col title="Wrong">sum by (instance) (node_cpu_seconds_total): seconds since boot, hundreds of thousands per node in the lab.</Col>
+  <Col title="Right" hot>sum by (instance) (rate(node_cpu_seconds_total[5m])): CPU seconds per second, about 4 on a worker.</Col>
+</Compare>
+
+## Empty results
+
+An empty result is easy to read as "nothing is happening". It often means that the query matched nothing:
+
+- `histogram_quantile()` after `sum` without `le`. The buckets collapse, and the function has nothing to read. Write `sum by (le)`.
+- Two vectors whose labels differ. `a / b` pairs only series with the same labels. Add `on (...)` or `ignoring (...)`, and `group_left` when one side has more series.
+- A regular expression without wildcards. `job=~"node"` must match the whole value. Write `job=~"node.*"`.
+- A window shorter than two samples. `rate(x[30s])` with a 30-second scrape interval has nothing to compute from. Use a window of several scrape intervals.
+- A classic bucket bound that does not exist. `x_bucket{le="0.25"}` matches nothing when the buckets are 0.2 and 0.4.
+
+## Errors, and how to read them
+
+Some mistakes are refused, and the message points at the fix:
+
+- "ranges only allowed for vector selectors": a `[5m]` after an expression. Move the range onto the selector, or use a subquery `[5m:]`.
+- "offset modifier must be preceded by an instant vector selector or range vector selector or a subquery": `offset` after a function. Put it right after the selector.
+- "vector selector must contain at least one non-empty matcher": every matcher accepts the empty string. Add a name or a matcher that needs a value.
+- "found duplicate series for the match group": the `on (...)` labels do not make each series unique on one side. Match on more labels, or add `group_left`.
+
+<InLab>
+Every wrong query below was run on the lab's Prometheus while this step was written, and each returned the symptom described. They read only data that every healthy lab has.
+</InLab>
+
+<Trap>
+An empty panel is not proof of zero. Before you trust "no errors" or "no latency", run the inner selector alone and check that it returns series.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. For each query below, run it, name the mistake, fix it and run the fix.
+2. Query 1 should count the node exporter targets, 7: <Query lang="promql">{`count(up{job=~"node"})`}</Query>
+3. Query 2 should give the 90th percentile of Prometheus's HTTP requests: <Query lang="promql">{`histogram_quantile(0.9, sum(rate(prometheus_http_request_duration_seconds_bucket[5m])))`}</Query>
+4. Query 3 should give the request rate of each handler an hour ago: <Query lang="promql">{`sum by (handler) (rate(prometheus_http_requests_total[5m])) offset 1h`}</Query>
+5. Query 4 should give the CPU use of the whole cluster. Compare the two lines; the first is the wrong one: <Query lang="promql">{`avg(instance:node_cpu_utilisation:rate5m)`}</Query> <Query lang="promql">{`sum(rate(node_cpu_seconds_total{mode!~"idle|iowait|steal"}[5m])) / sum(rate(node_cpu_seconds_total[5m]))`}</Query> The masters have 2 CPUs and the workers 4, so the plain average gives each master too much weight.
+6. Query 5 should give how many CPUs' worth of time each node spends, in all modes together. On a node with four CPUs that is about 4: <Query lang="promql">{`sum by (instance) (node_cpu_seconds_total)`}</Query>
+7. Paste the fixed value of query 5 for instance 10.10.0.30:9100 in the check below.
+</Do>
+
+<Done>
+Each broken query is fixed: an anchored regular expression, `le` kept in the sum, `offset` moved onto the selector, a ratio of sums instead of an average of ratios, and `rate()` around a counter.
+</Done>
+
+<Trap practice>
+If query 5 still returns a value in the thousands, `rate()` is missing or wraps the sum. It must sit directly on `node_cpu_seconds_total[5m]`, inside `sum by (instance)`.
+</Trap>
+
+<Remember>
+When a query gives a strange number, check for a counter without `rate()`, a gauge with `rate()`, a sum before the rate or an average of ratios. When it gives nothing, check `le`, the labels on both sides, the regular expression and the window.
+</Remember>
+
+<Question id="q-m04-s14" answer="d">
+`errors:ratio_rate5m` holds one error ratio per pod. One pod serves 1,000 requests a second with 1% errors, nine pods serve 10 each with 10% errors. A panel shows `avg(errors:ratio_rate5m)`. What is wrong?
+
+- Nothing; avg() of the ratios is the service's error ratio
+
+  The average is 9.1%, but the service as a whole fails about 1.7% of its requests: 19 errors in 1,090. The busy pod should count more.
+
+- The panel needs max() instead of avg()
+
+  max() shows the worst pod, 10%. That is a different question, not the service's ratio.
+
+- avg() cannot be applied to recorded series
+
+  Aggregation operators work on any instant vector, recorded or not.
+
+- Ratios must be aggregated as a sum of errors divided by a sum of requests
+
+  Summing the numerators and the denominators first weights each pod by its traffic, which gives the real ratio.
+</Question>
