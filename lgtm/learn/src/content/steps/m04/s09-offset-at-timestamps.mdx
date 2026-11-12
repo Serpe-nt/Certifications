@@ -49,13 +49,13 @@ PromQL measures time in seconds since 1970, and lets you move a selector in time
 
 <Query lang="promql">{`sum(rate(prometheus_http_requests_total[5m] offset 1h))`}</Query>
 
-This is the request rate as it was one hour ago. Subtract it from the current rate and you see the change. `offset` must come directly after the selector, inside the function. `sum(x) offset 5m` is refused, because an offset applies to a selector, not to the result of an expression. A negative offset looks forward in time, which is useful only when you evaluate a query in the past.
+This is the request rate as it was one hour ago. Subtract it from the current rate and you see the change. `offset` must come directly after the selector, inside the function, or after a subquery's closing bracket (step 11). `sum(x) offset 5m` is refused, because an offset applies to a selector or a subquery, not to the result of an expression. A negative offset looks forward in time, which is useful only when you evaluate a query in the past.
 
 ## @: a fixed moment
 
 The `@` modifier evaluates one selector at a fixed Unix time instead of the query's own time. `up @ 1794480000` returns the value `up` had at that moment, however late you run the query. In a range query, `@ start()` and `@ end()` refer to the start and the end of the whole range, so every step of a graph can be compared with the same reference point. `@` and `offset` can be used together; the offset is then counted back from the `@` time.
 
-Like `offset`, `@` follows the selector directly. It is useful mainly in dashboards and in reports about a known incident.
+Like `offset`, `@` follows the selector or the subquery directly. It is useful mainly in dashboards and in reports about a known incident.
 
 ## Timestamps are numbers too
 
@@ -102,7 +102,7 @@ If action 5 returns 0, both selectors have no offset. If it returns about 30, yo
 </Trap>
 
 <Remember>
-`offset` and `@` follow a selector directly and move it in time. Timestamps are Unix seconds: subtract a timestamp from `time()` to get an age.
+`offset` and `@` follow a selector or a subquery directly and move it in time. Timestamps are Unix seconds: subtract a timestamp from `time()` to get an age.
 </Remember>
 
 <Question id="q-m04-s09" answer="b">

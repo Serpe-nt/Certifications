@@ -60,7 +60,7 @@ To get one percentile for a whole service, you add up the buckets of all its ins
 
 <Query lang="promql">{`histogram_quantile(0.9, sum by (le) (rate(prometheus_http_request_duration_seconds_bucket[5m])))`}</Query>
 
-Add any label you want to keep per result, as in `sum by (job, le)`. If you write `sum(...)` without `le`, all buckets collapse into one series. The function then finds no bucket bounds and returns nothing; the query page shows a warning that the label `le` is missing.
+Add any label you want to keep per result, as in `sum by (job, le)`. If you write `sum(...)` without `le`, all buckets collapse into one series. The function then finds no bucket bounds and returns nothing. The functions page only says that samples without `le` are silently ignored; the lab's Prometheus 3.13 also returns the warning `bucket label "le" is missing or has a malformed value of ""`, which the query page shows above the empty result.
 
 <Compare caption="Two ways to aggregate the buckets">
   <Col title="sum(rate(..._bucket[5m]))">Buckets added into one series. le is gone, and histogram_quantile() returns nothing.</Col>
@@ -69,7 +69,7 @@ Add any label you want to keep per result, as in `sum by (job, le)`. If you writ
 
 ## How the estimate is made, and how far off it can be
 
-The function finds the bucket where the quantile falls and assumes the observations inside it are spread evenly from its lower to its upper bound. The lowest bucket is assumed to start at 0. The true value can lie anywhere in that bucket, so the error is limited by the bucket's width.
+The function finds the bucket where the quantile falls and assumes the observations inside it are spread evenly from its lower to its upper bound. The lowest bucket is assumed to start at 0 if its upper bound is greater than 0; otherwise the function returns that upper bound for any quantile that falls into it. The true value can lie anywhere in that bucket, so the error is limited by the bucket's width.
 
 The lab shows how large that can be. Nearly all of Prometheus's HTTP requests take well under a millisecond, and its first bucket ends at 0.1 seconds. All of them land in that bucket, so the 90th percentile comes out at about 0.09 seconds: nine tenths of the way through a bucket from 0 to 0.1. With an average of half a millisecond, the real 90th percentile is almost certainly far lower. The answer is a fact about the buckets more than about the requests.
 
@@ -81,7 +81,7 @@ The `_sum` and `_count` series answer two other questions. The average duration 
 
 <Query lang="promql">{`sum(rate(prometheus_http_request_duration_seconds_sum[5m])) / sum(rate(prometheus_http_request_duration_seconds_count[5m]))`}</Query>
 
-The share of requests faster than a bound is one bucket divided by the count: `sum(rate(x_bucket{le="0.1"}[5m])) / sum(rate(x_count[5m]))`. This works only if a bucket has exactly that bound. If it does not, the query returns nothing, with no estimate and no warning. Write the bound as Prometheus 3 stores it: `le` values are normalized at ingestion, so a bound of 1 is matched as `le="1.0"`, and `le="1"` finds nothing.
+The share of requests faster than a bound is one bucket divided by the count: `sum(rate(x_bucket{le="0.1"}[5m])) / sum(rate(x_count[5m]))`. This division needs a bucket with exactly that bound; if there is none, it returns nothing, with no estimate and no warning. For any other bound, `histogram_fraction(0, 0.3, sum by (le) (rate(x_bucket[5m])))` estimates the share with the same interpolation as `histogram_quantile()`, so the error is again up to a bucket's width. In the lab every request lands in the bucket from 0 to 0.1, so a bound of 0.05 gives 0.5: a guess from the interpolation, not a measurement. The functions page warns that a bound far from any bucket bound gives a large error, and says that with classic histograms, acting on the bucket series directly is often more robust. So use the bucket division when a bucket has your bound, and `histogram_fraction()` only when none does. Write the bound as Prometheus 3 stores it: `le` values are normalized at ingestion, so a bound of 1 is matched as `le="1.0"`, and `le="1"` finds nothing.
 
 <InLab>
 `prometheus_http_request_duration_seconds` has ten buckets in the lab, with the `le` values 0.1, 0.2, 0.4, 1.0, 3.0, 8.0, 20.0, 60.0, 120.0 and `+Inf`. The API server's `apiserver_request_duration_seconds` is another classic histogram, with bounds of its own.
@@ -96,7 +96,7 @@ A quantile from a classic histogram is an estimate within one bucket, never a me
 2. Compare the `+Inf` bucket with the count: <Query lang="promql">{`prometheus_http_request_duration_seconds_count{handler="/-/ready"}`}</Query> The two values are equal.
 3. Compute the average request time over five minutes: <Query lang="promql">{`sum(rate(prometheus_http_request_duration_seconds_sum[5m])) / sum(rate(prometheus_http_request_duration_seconds_count[5m]))`}</Query> It is a small fraction of a millisecond.
 4. Estimate the 90th percentile for the whole server: <Query lang="promql">{`histogram_quantile(0.9, sum by (le) (rate(prometheus_http_request_duration_seconds_bucket[5m])))`}</Query>
-5. Make the classic mistake: change `sum by (le)` to `sum`. The result is empty, and a warning says the label `le` is missing.
+5. Make the classic mistake: change `sum by (le)` to `sum`. The result is empty, and the lab's Prometheus shows a warning that the bucket label `le` is missing.
 6. Keep one percentile per handler: change `sum by (le)` to `sum by (le, handler)`. Handlers without requests in the window show NaN.
 7. Paste the result of action 4 in the check below.
 </Do>

@@ -85,7 +85,7 @@ A series with the value 1 whose labels hold facts about a target is called an in
 
 <Query lang="promql">{`up{job="kubelet", metrics_path="/metrics"} unless on (node) kube_node_role`}</Query>
 
-When operators meet, `^` binds the strongest, then `*`, `/` and `%`, then `+` and `-`, then the comparisons, then `and` and `unless`, and `or` binds the weakest.
+When operators meet, `^` binds the strongest, then `*`, `/`, `%` and `atan2`, then `+` and `-`, then the comparisons, then `and` and `unless`, and `or` binds the weakest. Operators on the same level are evaluated from left to right, so `2 * 3 % 2` is `(2 * 3) % 2`. Only `^` goes from right to left: `2 ^ 3 ^ 2` is `2 ^ (3 ^ 2)`.
 
 <InLab>
 The lab's node exporters expose `node_uname_info`, with `nodename` set to the VM's host name, master1 to master3 and worker1 to worker4. kube-state-metrics exposes `kube_node_info` and `kube_node_role`, labelled by `node`.
@@ -98,7 +98,7 @@ A binary operation between vectors that returns nothing is usually a matching pr
 <Do>
 1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. Compute the share of memory in use per node: <Query lang="promql">{`1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes`}</Query> Seven rows, and none has a metric name.
 2. Filter with a comparison: `node_load1 > 0.5`. Then add `bool`: `node_load1 > bool 0.5`. The second returns all seven nodes, with 0 or 1.
-3. Divide the load by the number of CPUs. Both sides come from the node exporter and have the same labels: <Query lang="promql">{`node_load1 / instance:node_num_cpu:sum`}</Query>
+3. Divide the load by the number of CPUs. The right side is a recorded series from the node-exporter recording rules (step 12). Its rule counts `node_cpu_seconds_total` without `cpu` and `mode`, so it keeps the exporter's other labels, and each node's two series pair up: <Query lang="promql">{`node_load1 / instance:node_num_cpu:sum`}</Query>
 4. Try to add the node name without `group_left`: <Query lang="promql">{`node_load1 / on (instance) node_uname_info`}</Query> It works, but the result keeps only the label `instance`.
 5. Now copy the name across with `group_left`: <Query lang="promql">{`node_load1 * on (instance) group_left (nodename) node_uname_info`}</Query> Every row keeps its labels and gains `nodename`.
 6. Find the worker kubelets with a set operator: <Query lang="promql">{`up{job="kubelet", metrics_path="/metrics"} unless on (node) kube_node_role`}</Query> Four rows, worker1 to worker4.

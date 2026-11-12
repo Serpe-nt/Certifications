@@ -59,7 +59,7 @@ PromQL reads the native form directly. `rate()` of a native histogram returns a 
 - 90th percentile for a whole service: `histogram_quantile(0.9, sum(rate(http_request_duration_seconds[5m])))`. There is no `_bucket` suffix and no `by (le)`.
 - Requests per second: `histogram_count(rate(http_request_duration_seconds[5m]))`.
 - Average duration: `histogram_avg(rate(http_request_duration_seconds[5m]))`, the same as `histogram_sum(...)` divided by `histogram_count(...)`.
-- Share of requests up to 0.3 seconds: `histogram_fraction(0, 0.3, sum(rate(http_request_duration_seconds[5m])))`. With a classic histogram this needs a bucket exactly at 0.3; here the function estimates between bucket bounds.
+- Share of requests up to 0.3 seconds: `histogram_fraction(0, 0.3, sum(rate(http_request_duration_seconds[5m])))`. A classic histogram gives an exact share only if it has a bucket at 0.3. Without one, `histogram_fraction()` on the `_bucket` series with `sum by (le)` estimates the share, with an error up to the width of the classic bucket around 0.3. A native histogram's many narrow buckets make the same estimate much tighter.
 
 Native histograms also know whether they behave as a counter or a gauge. When you apply `rate()` to a gauge histogram, the result carries a warning based on the data itself. For a float series, Prometheus can only guess from the metric's name.
 
@@ -67,7 +67,7 @@ Native histograms also know whether they behave as a counter or a gauge. When yo
 
 Native histograms were added as an experiment in Prometheus 2.40 and became a stable feature in 3.8.0. Scraping them is still switched off by default in version 3. You turn it on with `scrape_native_histograms: true`, globally or per scrape job. It makes Prometheus ask targets for the protobuf format, which is the only scrape format that carries native histograms today. Sending them on through remote write needs `send_native_histograms` as well. From version 4 on, both settings are meant to default to true.
 
-The instrumented program must expose them too. Library support is still limited; the Go and Java client libraries have it. Two other paths exist:
+The instrumented program must expose them too. Library support is still limited: the specification lists three official Prometheus instrumentation libraries with native histograms as of 2026-06-15, for Go, Java and Rust. Two other paths exist:
 
 - `convert_classic_histograms_to_nhcb` makes Prometheus store existing classic histograms as NHCB. Storage gets cheaper, the queries above work, and the error stays that of the classic buckets.
 - An OpenTelemetry exponential histogram arrives as a native histogram with standard buckets.

@@ -46,7 +46,7 @@
       why: Both matchers must pass, so the second one removes /api/health from what the first one selects.
     - text: Only the series of /api/health, because the last matcher wins
       why: No matcher wins over another. A series must pass every matcher.
-    - text: Every series of every handler, because the two matchers cancel out
+    - text: Every series of every handler; the two matchers cancel out
       why: Matchers do not cancel each other. Each one narrows the selection further.
   answer: [1]
   source: https://prometheus.io/docs/prometheus/latest/querying/basics/
@@ -76,9 +76,9 @@
       why: A name in front is optional. A matcher on __name__ that needs a value is enough.
     - text: Only series that have a label called __name__ besides their name
       why: __name__ is where the metric name itself is stored. There is no second label.
-    - text: An error, because regular expressions are not allowed on __name__
+    - text: "An error: regular expressions are not allowed on __name__"
       why: The documentation allows =, !=, =~ and !~ on __name__.
-    - text: Every metric named node_network_..._total, for the device eth0
+    - text: Every metric named node_network_..._total, for the device eth0 only
       why: The metric name is the label __name__, so a regular expression on it selects many metrics at once.
   answer: [3]
   source: https://prometheus.io/docs/prometheus/latest/querying/basics/
@@ -216,9 +216,9 @@
   exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
   q: What does <code>quantile(0.5, node_load1)</code> return for a cluster of seven nodes?
   options:
-    - text: "Seven series: each node's median load over the last 5 minutes"
+    - text: "Seven series: each node's median load over 5 minutes"
       why: That would need quantile_over_time with a range. quantile has no time window.
-    - text: The load of the node in the middle of the list, with its labels
+    - text: The load of the middle node in the list, with its labels
       why: quantile computes a value. It does not return one of the input series.
     - text: "One series: the median load among the seven nodes right now"
       why: quantile works across series at one moment, like the other aggregation operators.
@@ -232,7 +232,7 @@
   exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
   q: Every instance exposes <code>app_build_info</code> with a <code>version</code> label and the value 1. What does <code>count(count by (version) (app_build_info))</code> return?
   options:
-    - text: The number of instances that run each version
+    - text: How many instances run each version
       why: That is the inner query alone. The outer count turns it into one number.
     - text: The number of different versions running
       why: The inner count gives one series per version. The outer count counts those series.
@@ -264,11 +264,11 @@
   exam: {cert: pca, domain: P3, competency: Aggregating over time}
   q: <code>avg_over_time(up{job="db"}[1d])</code> returns 0.98. What does it tell you?
   options:
-    - text: The database was down for 0.98 hours in total during the last day
+    - text: The database was down for 0.98 hours that day
       why: The value is a share of samples, not a duration.
     - text: 98% of the database targets are up right now
       why: avg_over_time works along time, per series. It does not look across targets.
-    - text: The database answered 98% of its queries in the last day
+    - text: The database answered 98% of its queries that day
       why: up describes scrapes of the target, not the queries the database served.
     - text: The target answered about 98% of its scrapes in the day
       why: up is 1 for a successful scrape and 0 for a failed one, so its average is the share of good scrapes.
@@ -446,7 +446,7 @@
       why: The value is interpolated inside a bucket, not measured.
     - text: It is at most 0.25 seconds
       why: The function places the quantile in the 0.25 to 0.5 bucket, so it is above 0.25.
-    - text: It is above 0.5 seconds, since estimates are too low
+    - text: It is above 0.5 seconds; estimates run low
       why: The bucket counts place the 95th percentile in the bucket from 0.25 to 0.5, so the true value is there too.
   answer: [0]
   source: https://prometheus.io/docs/practices/histograms/#errors-of-quantile-estimation
@@ -458,7 +458,7 @@
   options:
     - text: The number of buckets in the histogram
       why: histogram_count returns the count of observations, not of buckets.
-    - text: The total number of requests since the process started
+    - text: All requests since the process started
       why: The rate() inside turns the count into a per-second value.
     - text: The 50th percentile of the request time
       why: Percentiles come from histogram_quantile.
@@ -486,23 +486,23 @@
 - id: q-m04-031
   tags: [promql-histograms]
   exam: {cert: pca, domain: P3, competency: Histograms}
-  q: You need the share of requests under 0.3 seconds, and the buckets are 0.25 and 0.5. Why does a native histogram help?
+  q: You need the share of requests under 0.3 seconds, and the classic buckets are 0.25 and 0.5. Why does a native histogram help?
   options:
     - text: A native histogram stores every observation, so the share is exact
       why: A native histogram also counts into buckets. Its buckets are just narrower.
-    - text: histogram_fraction() estimates between bucket bounds
-      why: The classic query divides one bucket by the count, which needs a bucket at exactly 0.3; otherwise it returns nothing.
+    - text: Its narrow buckets make the estimate near 0.3 much tighter
+      why: histogram_fraction() estimates the share from both kinds. The error is up to the width of the bucket around 0.3, which is 0.25 seconds in the classic one.
     - text: Native histograms always have a bucket at 0.3
       why: Bucket bounds follow the schema. No bound at 0.3 is promised.
-    - text: The classic query works too; the native one is only faster
-      why: The classic query returns nothing without a bucket at 0.3.
+    - text: Only a native histogram works with histogram_fraction()
+      why: histogram_fraction() also reads classic _bucket series summed by le, with the error of the classic buckets.
   answer: [1]
-  source: https://prometheus.io/docs/practices/histograms/#bucketing
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_fraction
 
 - id: q-m04-032
   tags: [promql-time]
   exam: {cert: pca, domain: P3, competency: Timestamp Metrics}
-  q: In a range query over the last 6 hours, what does <code>node_load1 @ end()</code> return at each step?
+  q: A Grafana panel graphs <code>node_load1 @ end()</code> over the last 6 hours. Which value does the line show at each point?
   options:
     - text: The load at the end of the range, at every step
       why: end() resolves to the end of the range query and stays the same for all steps.
@@ -634,11 +634,11 @@
   options:
     - text: Evaluations are skipped, leaving gaps in the recorded series
       why: An unfinished evaluation blocks the next one, which is skipped, and rule_group_iterations_missed_total grows.
-    - text: Prometheus raises the group's interval to 40 seconds to keep up
+    - text: Prometheus raises the group's interval to 40 seconds
       why: Prometheus does not change the interval. It skips evaluations.
     - text: The slow rules are dropped from the group
       why: The rules stay loaded. Their evaluations are skipped while the group is still running.
-    - text: Two evaluations of the group run in parallel so that it can catch up
+    - text: Two evaluations of the group run in parallel to catch up
       why: A group is not evaluated twice at the same time. The next run is skipped.
   answer: [0]
   source: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/#failed-rule-evaluations-due-to-slow-evaluation
@@ -648,7 +648,7 @@
   exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
   q: A rule group in a rule file has no <code>interval</code> field. How often are its rules evaluated?
   options:
-    - text: At the scrape_interval of the jobs the rules read
+    - text: At the scrape_interval of the jobs it reads
       why: Rules have their own interval, separate from scraping.
     - text: Once, when the rule file is loaded
       why: Rules are evaluated again and again at their interval.
@@ -732,7 +732,7 @@
       why: The conventions treat 4xx and 5xx differently on the server side.
     - text: They are errors only when error.type is missing
       why: error.type is set for failures. A 4xx response on a server is not one.
-    - text: Not server errors; only 5xx fails a server span
+    - text: Not server errors; only a 5xx status fails a server span
       why: A 4xx is left unset on a server span, because the client sent a bad request.
     - text: They are dropped from the request histogram
       why: Every request is recorded, with its status code as a label.
