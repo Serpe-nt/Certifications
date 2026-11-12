@@ -1,0 +1,142 @@
+---
+id: m04-s13
+title: RED for the shop in PromQL
+kind: drill
+minutes: 30
+order: 13
+exam:
+  - cert: pca
+    domain: P3
+    competency: Rates and Derivatives
+  - cert: pca
+    domain: P3
+    competency: Histograms
+tags: [promql-red]
+check:
+  kind: exact
+  prompt: Which label of http_server_request_duration_seconds did your error query filter on? Paste its name.
+  answers: ["http_response_status_code"]
+outcome: You can write the rate, error and duration queries for any service from its request histogram, without looking them up, and check them against a ready-made dashboard.
+terms:
+  - term: RED
+    def: Rate, errors and duration, the three numbers that describe a request-driven service.
+  - term: Error ratio
+    def: Failed requests per second divided by all requests per second.
+  - term: Span metrics
+    def: Request counts and durations that Tempo computes from traces and writes to Mimir.
+sources:
+  - title: Query functions, rate() and histogram_quantile() (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+  - title: Histograms and summaries, count and sum of observations (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/histograms/
+    checked: 2026-11-12
+  - title: Operators, logical and set operators (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/operators/
+    checked: 2026-11-12
+  - title: Semantic conventions for HTTP metrics (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/semconv/http/http-metrics/
+    checked: 2026-11-12
+  - title: Semantic conventions for HTTP spans, status (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+    checked: 2026-11-12
+---
+
+<Problem>
+The shop's frontend is slow, and the incident channel asks three questions at once: how many requests is it getting, how many fail, and how long do they take? Nobody has a dashboard for this service yet. You have Explore and a request histogram, and you should not need to search the web for the queries.
+</Problem>
+
+<Idea>
+Three queries describe any request-driven service: the request rate, the share of requests that fail, and a percentile of the duration. All three come from one request histogram. The rate and the errors come from its `_count` series, and the duration from its `_bucket` series, each read through `rate()` and aggregated as this module taught.
+</Idea>
+
+## One histogram, three answers
+
+Module m02 called these three numbers RED: rate, errors, duration. The shop's services are instrumented with OpenTelemetry and send their metrics to Mimir. HTTP servers record every request in a histogram named `http.server.request.duration`, which Mimir stores as `http_server_request_duration_seconds` with `_bucket`, `_sum` and `_count` series. Each series carries the service's name in `service_name` and the response's status in `http_response_status_code`.
+
+The `_count` series is a counter of requests, as step 7 explained, so you never need a separate request counter.
+
+## Rate: requests per second
+
+Take the rate of the count and add up all series of the service:
+
+<Query lang="promql">{`sum(rate(http_server_request_duration_seconds_count{service_name="frontend"}[5m]))`}</Query>
+
+Rate first, then sum, as in step 3. Add `by (http_request_method)` or another label if you want the rate split.
+
+## Errors: failed requests as a share
+
+Divide the rate of failed requests by the rate of all requests. The OpenTelemetry conventions count a server's response as an error when its status code is in the 5xx range; a 4xx is the client's mistake, not the server's:
+
+<Query lang="promql">{`(sum(rate(http_server_request_duration_seconds_count{service_name="frontend", http_response_status_code=~"5.."}[5m])) or vector(0)) / sum(rate(http_server_request_duration_seconds_count{service_name="frontend"}[5m]))`}</Query>
+
+Both sides are summed to no labels, so they match without `on`. The `or vector(0)` gives 0 instead of an empty result while no 5xx series exists, the case of step 6. Sum the numerator and the denominator before you divide, never average ratios, as step 12 showed.
+
+## Duration: a percentile from the buckets
+
+The 95th percentile over five minutes, for all pods of the service:
+
+<Query lang="promql">{`histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="frontend"}[5m])))`}</Query>
+
+Keep `le` in the `by` clause, as step 7 showed. The OpenTelemetry conventions advise 14 bounds for this histogram, from 0.005 to 10 seconds. With `+Inf` that makes the 15 buckets you find in the lab, and the estimate is precise only to the bucket it lands in.
+
+<Flow caption="Three queries from one histogram">
+  <Stage title="_count" kicker="Rate">sum(rate(x_count[5m]))</Stage>
+  <Stage title="_count with 5xx" kicker="Errors">sum of failed rate / sum of all rate</Stage>
+  <Stage title="_bucket" kicker="Duration">histogram_quantile(0.95, sum by (le) (rate(x_bucket[5m])))</Stage>
+</Flow>
+
+## The same pattern on any service
+
+Only the names change from service to service. Services that speak gRPC record `rpc_server_call_duration_seconds` instead. Tempo also computes span metrics from every trace and writes them to Mimir: `traces_spanmetrics_calls_total` counts spans by `service_name`, `span_kind` and `status_code`, and `traces_spanmetrics_latency_bucket` holds their durations. That gives RED for every traced service, which is what the dashboard Shop / checkout (RED) from module m02 shows.
+
+<InLab>
+In the lab, the frontend, cart and ad services write `http_server_request_duration_seconds` to Mimir, tenant `lab`, which Grafana reaches as the data source `mimir`. The lab's Prometheus does not scrape the shop, so these queries do not work on its query page.
+</InLab>
+
+<Trap>
+An empty error panel can mean zero errors or a query that matched nothing. Run the numerator alone: if it is empty, the label or its values are not what you assumed.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> and pick the data source `mimir`. Set the time range to the last 15 minutes. Write each query below without scrolling back to Learn; compare afterwards.
+2. Find the request histogram of the frontend and its labels: <Query lang="promql">{`count by (__name__) ({service_name="frontend", __name__=~"http_server.*"})`}</Query> Then open one `http_server_request_duration_seconds_count` series and read its labels.
+3. Write the frontend's request rate in requests per second, summed over all its series.
+4. Write its error ratio: requests with a 5xx status code divided by all requests. Run the numerator alone first, then the whole ratio.
+5. Write its 95th percentile of request duration over five minutes.
+6. Change `frontend` to `cart` in all three queries. They work unchanged.
+7. Write the same three numbers for checkout from span metrics, using `traces_spanmetrics_calls_total` and `traces_spanmetrics_latency_bucket` with `span_kind="SPAN_KIND_SERVER"`; an error has `status_code="STATUS_CODE_ERROR"`. Compare them with the dashboard <LabLink to="grafana" path="/d/shop-red-checkout">Shop / checkout (RED)</LabLink>.
+8. Paste the name of the label your error query filtered on in the check below.
+</Do>
+
+<Done>
+You wrote rate, error ratio and 95th percentile for the frontend from one histogram, reused them for cart by changing one value, and matched the checkout numbers to the dashboard.
+</Done>
+
+<Trap practice>
+Mimir stored nothing while the lab's Kafka was full on 2026-11-11 and 2026-11-12. If a query is empty, shorten the time range to the last 15 minutes so it does not reach into that gap.
+</Trap>
+
+<Remember>
+Rate: `sum(rate(x_count[5m]))`. Errors: the failed rate divided by the total rate, both summed first. Duration: `histogram_quantile(0.95, sum by (le) (rate(x_bucket[5m])))`.
+</Remember>
+
+<Question id="q-m04-s13" answer="b">
+A gRPC service records `rpc_server_call_duration_seconds` as a classic histogram. Which query gives its request rate?
+
+- `sum(rate(rpc_server_call_duration_seconds_sum[5m]))`
+
+  The rate of the sum is seconds of work per second, not requests per second.
+
+- `sum(rate(rpc_server_call_duration_seconds_count[5m]))`
+
+  The _count series counts one per request, so its rate is the request rate.
+
+- `sum(rpc_server_call_duration_seconds_count)`
+
+  This is the total since the processes started, not a rate.
+
+- `histogram_quantile(0.5, sum by (le) (rate(rpc_server_call_duration_seconds_bucket[5m])))`
+
+  This is the median duration, not the number of requests.
+</Question>

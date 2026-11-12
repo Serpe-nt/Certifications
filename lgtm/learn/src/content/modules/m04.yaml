@@ -1,0 +1,6 @@
+id: m04
+title: PromQL
+goal: Write the RED queries for any service without looking them up.
+order: 4
+quiz: true
+exams: [pca]

@@ -1,0 +1,129 @@
+---
+id: m04-s01
+title: "What a query returns: instant vectors, range vectors, scalars"
+kind: lab
+minutes: 15
+order: 1
+exam:
+  - cert: pca
+    domain: P3
+    competency: Selecting Data
+tags: [promql-selectors]
+check:
+  kind: exact
+  prompt: Run the range vector of action 4 in the Table tab. How many samples does its one series hold?
+  answers: ["10"]
+outcome: You can tell an instant vector, a range vector and a scalar apart, say which one a query returns, and know which tab of the query page can show it.
+terms:
+  - term: PromQL
+    def: The Prometheus Query Language, used to select and combine time series.
+  - term: Instant vector
+    def: A set of series with one sample each, all at the same moment.
+  - term: Range vector
+    def: A set of series with every sample from a window of time before the moment of the query.
+  - term: Scalar
+    def: A single number with no labels.
+  - term: Instant query
+    def: A query evaluated at one moment. The Table tab runs one.
+  - term: Range query
+    def: The same query evaluated at evenly spaced steps between a start and an end. The Graph tab runs one.
+sources:
+  - title: Querying basics (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/basics/
+    checked: 2026-11-12
+  - title: Query examples (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/examples/
+    checked: 2026-11-12
+---
+
+<Problem>
+In module m03 you typed `up` on the query page and got a table of 39 rows. Now you add `[5m]` to the same name. The Table tab still answers, with more numbers per row, but the Graph tab shows an error. The series are the same. The answer is a different kind of thing.
+</Problem>
+
+Every PromQL expression has a type. The type decides what you can do with the result next, and where it can be shown.
+
+<Idea>
+A PromQL expression returns one of a few types. An instant vector holds one sample per series, a range vector holds all samples of a time window per series, and a scalar is one plain number. Functions ask for one type and give back another, so the type tells you which pieces fit together.
+</Idea>
+
+## One moment or many
+
+When you send a query, Prometheus evaluates it either at one moment or at many. An instant query runs once, at one timestamp. A range query runs the same expression at evenly spaced steps between a start and an end, as if you ran an instant query at each step. PromQL itself works the same way in both cases.
+
+The query page shows this as two tabs. The Table tab runs an instant query. The Graph tab runs a range query and draws one line per series. Grafana panels and alert rules use the same two kinds of request through the HTTP API.
+
+## Instant vectors: one sample per series
+
+A metric name on its own is an instant vector selector. `up` selects every series named `up` and returns, for each one, its newest sample at or before the moment of the query. All samples in the result share that one timestamp.
+
+A series appears in the result only if its newest sample is less than the lookback period old. By default the lookback period is 5 minutes. A target that stopped answering an hour ago therefore drops out of the result instead of showing an old value.
+
+## Range vectors: a window of samples per series
+
+Add a duration in square brackets and the selector becomes a range vector selector. `up{job="kube-state-metrics"}[5m]` returns, for each matching series, every sample of the last 5 minutes. The window is open at its start and closed at its end: a sample exactly 5 minutes old is left out, a sample taken at the moment of the query is kept.
+
+You rarely want a range vector as the final answer. You feed it to a function such as `rate()` or `max_over_time()`, which turns each window into one number again. That is why the Graph tab refuses a bare range vector: a range query accepts only expressions that give an instant vector or a scalar.
+
+Durations are written as a number and a unit: `ms`, `s`, `m`, `h`, `d`, `w` and `y`. Units can be joined from the longest to the shortest, as in `1h30m`.
+
+<Compare caption="Three types a query can return">
+  <Col title="Instant vector" hot>One sample per series, all at one timestamp. The Table and Graph tabs both show it.</Col>
+  <Col title="Range vector">Every sample of a window, per series. Only the Table tab shows it. You usually pass it to a function.</Col>
+  <Col title="Scalar">One number, no labels, such as 42 or the result of scalar(). Both tabs show it.</Col>
+</Compare>
+
+## Scalars and strings
+
+A scalar is a single floating point number with no labels. A literal such as `42` is one, and so is the result of the function `scalar()`. When you multiply an instant vector by a scalar, as in `up * 2`, the operation is applied to every sample of the vector.
+
+PromQL also defines a string type, but it is not used today. A query never returns a string you need to handle.
+
+<InLab>
+The lab's Prometheus scrapes most targets every 30 seconds. Its `global.scrape_interval` is `30s`, so a 5-minute window of one such series holds 10 samples.
+</InLab>
+
+<Trap>
+A range vector is not a graph. Graphs come from range queries, which evaluate an instant vector at many steps. A range vector is a different thing: raw samples that a function still has to turn into one value per series.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> of the lab's Prometheus and stay on the Table tab.
+2. Run an instant vector selector: <Query lang="promql">{`up{job="kube-state-metrics"}`}</Query> One row comes back, with the labels of the series and one value, 1.
+3. Switch to the Graph tab with the same query. You see one line at 1 over the last hour.
+4. Back on the Table tab, run the range vector: <Query lang="promql">{`up{job="kube-state-metrics"}[5m]`}</Query> The row now holds a list of values, each with its own timestamp. Count them.
+5. Switch to the Graph tab with this query. Read the error: a range vector is not a valid type for a range query.
+6. On the Table tab, run a scalar: <Query lang="promql">{`scalar(count(up))`}</Query> The result is one number with no labels: the number of targets the lab scrapes.
+7. Paste the number of samples you counted in action 4 in the check below.
+</Do>
+
+<Done>
+You saw the same series as an instant vector with one value and as a range vector with a list of values, and the Graph tab refused the range vector.
+</Done>
+
+<Trap practice>
+The samples in action 4 are 30 seconds apart. If you count 11, look at the first and the last timestamp: they cannot be a full 5 minutes apart, because a sample exactly at the start of the window is left out.
+</Trap>
+
+<Remember>
+An instant vector has one sample per series, a range vector has a window of samples per series, and a scalar is one number. The Graph tab draws instant vectors and scalars only.
+</Remember>
+
+<Question id="q-m04-s01" answer="c">
+Which of these expressions returns a range vector?
+
+- `rate(node_network_receive_bytes_total[5m])`
+
+  rate() takes a range vector and returns an instant vector, one value per series.
+
+- `node_network_receive_bytes_total offset 5m`
+
+  offset moves the moment of an instant vector selector into the past. The result is still one sample per series.
+
+- `node_network_receive_bytes_total[5m]`
+
+  A selector followed by a duration in square brackets selects every sample of that window.
+
+- `scalar(sum(node_network_receive_bytes_total))`
+
+  scalar() turns a one-element vector into a single number, which is a scalar.
+</Question>
