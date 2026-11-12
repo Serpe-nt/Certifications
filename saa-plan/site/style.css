@@ -480,8 +480,9 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .b-why p+p{margin-top:var(--space-3);padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule)}   /* the problem, then the idea that answers it */
 .b-do{border-color:var(--ink)}
 .c-do{margin:0;padding:0;list-style:none;counter-reset:do;display:grid;gap:var(--space-3);font-size:17px;line-height:1.55}
-.c-do li{counter-increment:do;display:grid;grid-template-columns:36px 1fr;gap:var(--space-2)}
-.c-do li::before{content:counter(do,decimal-leading-zero);font:600 12px/26px var(--font-mono);color:var(--ink-3)}
+/* the number hangs in the margin: the step is running text (terms, code), so it must stay one flow, not grid cells */
+.c-do li{counter-increment:do;position:relative;padding-left:44px}
+.c-do li::before{content:counter(do,decimal-leading-zero);position:absolute;left:0;top:0;font:600 12px/26px var(--font-mono);color:var(--ink-3)}
 .b-do .c-done{margin:var(--space-4) 0 0;padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule);font-size:16.5px;line-height:1.55}
 .b-trap{border-color:var(--alert)}
 .b-trap .bi{width:24px;height:10px;background:repeating-linear-gradient(135deg,var(--alert) 0 3px,transparent 3px 6px)}
