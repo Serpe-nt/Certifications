@@ -66,7 +66,7 @@ An externally shared dashboard, formerly called a public dashboard, stays live: 
 
 ## To another Grafana: export as code
 
-**Export as code** writes the whole dashboard to a file: layout, variables, queries, styles and the data sources it uses. Under **Advanced options** you choose the model, Classic or V2 Resource, as in step 9. The switch **Share dashboard with another instance** removes what only your Grafana knows. Each data source becomes an input, a placeholder with a name such as `DS_PROMETHEUS`, and on import Grafana asks which of its own data sources to use for it.
+**Export as code** writes the whole dashboard to a file: layout, variables, queries, styles and the data sources it uses. Under **Advanced options** you choose the model, Classic or V2 Resource, as in step 9. A switch removes what only your Grafana knows; the lab's Grafana calls it **Share dashboard with another instance** for the V2 Resource and **Export for sharing externally** for the Classic model. Each data source becomes an input, a placeholder with a name such as `DS_PROMETHEUS`, and on import Grafana asks which of its own data sources to use for it. When a dynamic dashboard is exported in the Classic model, Grafana warns that features such as tabs and conditional rendering may be lost.
 
 Import is under **New** > **Import dashboard**: upload the file or paste the JSON, and optionally change the name, the folder and the UID. To publish a dashboard to the community catalog on grafana.com, export it in the Classic model.
 
@@ -77,7 +77,7 @@ Import is under **New** > **Import dashboard**: upload the file or paste the JSO
 </Flow>
 
 <InLab>
-The lab's Grafana runs with Grafana's open source image, so a few ways of sharing in the documentation are missing: PDF export and scheduled reports are Grafana Enterprise features, and an image export needs the separate image renderer service.
+The lab's Grafana runs with Grafana's open source image, so a few ways of sharing in the documentation are missing: PDF export and scheduled reports are Grafana Enterprise features. The **Export** menu does offer **Export as image**, but that needs the separate image renderer service, which the lab does not run.
 </InLab>
 
 <Trap>
@@ -85,25 +85,25 @@ A snapshot hides the queries but not the data. Everything the panels show at tha
 </Trap>
 
 <Remember>
-Internal link for people who sign in, snapshot for a moment in time, export as code for another Grafana. Turn on Share dashboard with another instance before you export for someone else.
+Internal link for people who sign in, snapshot for a moment in time, export as code for another Grafana. Turn on the switch that removes your instance's details before you export for someone else.
 </Remember>
 
 <Do>
-1. Open your dashboard `Shop service (m05)`. Open the **Share** drop-down and choose **Share internally**. Look at **Lock time range** and **Shorten link**, then click **Copy link** and close the drawer.
-2. Open the **Export** drop-down and choose **Export as code**. Under **Advanced options**, choose the model **Classic**.
-3. Turn on **Share dashboard with another instance**. Near the top of the JSON, find `__inputs`: one entry for the data source Mimir, with its `name` and `label`. In the panels, the data source now refers to that input.
+1. Open your dashboard `Shop service (m05)`. Open the **Share** drop-down and look at its three entries: **Share internally**, **Share externally** and **Share snapshot**. Choose **Share internally**: **Lock time range** and **Shorten link** are on. Click **Copy link** and close the drawer.
+2. Open the **Export** drop-down and choose **Export as code**. Open **Advanced options**: the model is **V2 Resource**, with the format JSON or YAML. Choose **Classic** and read the warning about features that may be lost.
+3. Turn on **Export for sharing externally**. The JSON now starts with `__inputs`: one entry for the data source Mimir, with its `name` and `label`. In the panels, the data source refers to that input.
 4. Click **Copy to clipboard** and close the drawer.
-5. Open **Dashboards**, click **New** and choose **Import dashboard**. Paste the JSON and click **Load**. Change the name to `Shop service (m05) import`, choose the folder `Learn m05`, change the UID, and pick **Mimir** for the input. Click **Import** and look at the copy.
-6. Clean up the module: open **Dashboards**, select the folder `Learn m05` and delete it. The dashboards inside go with it.
+5. Open **Dashboards**, click **New** and choose **Import dashboard**. Paste the JSON under **Import via dashboard JSON model** and click **Load**. Grafana warns that a dashboard with the same UID exists and offers **Import (Overwrite)**: do not take it. Change the name to `Shop service (m05) import`, choose the folder `Learn m05`, click **Change uid** and give it a new UID, and pick **Mimir** for the input `DS_MIMIR`. Click **Import** and look at the copy.
+6. Clean up the module: open the folder `Learn m05`, choose **Folder actions** > **Delete this folder**, type `Delete` and confirm. The dashboards inside go with it and wait under **Recently deleted**.
 7. Paste the name of the input from action 3 in the lab check below.
 </Do>
 
 <Done>
-You shared the dashboard by link, exported it for another instance and imported it again with a data source picked on import. The folder Learn m05 and everything in it are gone.
+You shared the dashboard by link, exported it for another instance and imported it again with a data source picked on import. The folder Learn m05 is gone.
 </Done>
 
 <Trap practice>
-If the import complains that a dashboard with the same UID exists, you kept the original UID: change it, or the import offers to overwrite your own dashboard. Delete the folder only after you have read the input name.
+If the import shows **Import (Overwrite)**, the UID is still the one of your own dashboard: change it, or the import replaces the original. Read the input name before you delete the folder.
 </Trap>
 
 <Question id="q-m05-s12" answer="c">
