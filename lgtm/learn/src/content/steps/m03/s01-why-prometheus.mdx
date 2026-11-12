@@ -1,0 +1,109 @@
+---
+id: m03-s01
+title: Why Prometheus exists, and what it is made of
+kind: concept
+minutes: 12
+order: 1
+exam:
+  - cert: pca
+    domain: P2
+    competency: System Architecture
+tags: [prom-architecture]
+outcome: You can name the parts of a Prometheus setup and follow a number from the program that exposes it to the query that reads it.
+terms:
+  - term: Target
+    def: An endpoint that Prometheus scrapes, usually one process that serves a /metrics page.
+  - term: Scrape
+    def: One HTTP request from Prometheus to a target that reads all of its current metric values.
+  - term: Exporter
+    def: A program that reads numbers from a system you cannot change and serves them as Prometheus metrics.
+  - term: Pushgateway
+    def: A small service that holds metrics pushed by short jobs until Prometheus scrapes them.
+  - term: Alertmanager
+    def: The service that receives alerts from Prometheus and groups, silences and sends them.
+sources:
+  - title: Overview (Prometheus)
+    url: https://prometheus.io/docs/introduction/overview/
+    checked: 2026-11-12
+  - title: FAQ (Prometheus)
+    url: https://prometheus.io/docs/introduction/faq/
+    checked: 2026-11-12
+  - title: Jobs and instances (Prometheus)
+    url: https://prometheus.io/docs/concepts/jobs_instances/
+    checked: 2026-11-12
+---
+
+<Problem>
+A team runs 40 services on Kubernetes. Pods come and go all day. Their old monitoring tool needs a host list that someone edits by hand, and it stores its data on a shared disk. During the last outage the shared disk was down too, so the team could not see anything while they needed it most.
+</Problem>
+
+Prometheus was built for exactly this kind of system: many small services that move around, watched by a tool that keeps working when the rest is broken.
+
+<Idea>
+Prometheus is a monitoring and alerting toolkit. One server finds its targets, pulls their metrics over HTTP at a fixed interval, stores them on its own disk and answers queries in PromQL. Everything else, such as alert delivery and dashboards, is a separate component.
+</Idea>
+
+## Where it came from
+
+Prometheus was started at SoundCloud in 2012. In 2016 it joined the Cloud Native Computing Foundation as its second hosted project, after Kubernetes. Today no single company owns it.
+
+Two design choices explain most of what you will see in this module. First, each Prometheus server is standalone. It does not depend on network storage or on other remote services, so you can still use it while other parts of your infrastructure fail. Second, Prometheus pulls. The server asks each target for its numbers, so it always knows whether a target answered. Module m02 compared pull and push; here you see how Prometheus builds on pull.
+
+## The parts of the ecosystem
+
+The Prometheus server is the center. It scrapes targets and stores the samples it gets. Around it sit optional parts:
+
+- Client libraries let you add metrics to your own code. Step 10 shows them.
+- Exporters serve metrics for systems you cannot change, such as Linux itself or HAProxy. Step 9 covers them.
+- The Pushgateway holds metrics from short jobs that end before a scrape could reach them.
+- Alertmanager receives alerts from Prometheus and decides who gets told, and how.
+- Grafana, or any other program that uses the HTTP API, draws the data.
+
+The server also runs rules on the data it stores. A recording rule saves the result of a query as a new series. An alerting rule sends an alert to Alertmanager when its query returns something.
+
+## One number, from a target to a query
+
+Follow one value through the system. A program counts the requests it answers and shows the count on a page called `/metrics`. Prometheus finds the program through service discovery or a static list, and every scrape interval it reads that page. It adds two labels that name the source: `job`, the name of the scrape configuration, and `instance`, the host and port it scraped. It also writes a series called `up`, which is 1 when the scrape worked and 0 when it failed. The samples go into the local database, and PromQL reads them from there.
+
+<Flow caption="The path of one value">
+  <Stage title="Target" kicker="Exposes">The program serves its current values on /metrics.</Stage>
+  <Stage title="Scrape" kicker="Pulls">The server reads the page and adds job and instance labels.</Stage>
+  <Stage title="Local storage" kicker="Stores">Samples go into the server's own time series database.</Stage>
+  <Stage title="PromQL" kicker="Reads">Queries, rules and dashboards read the stored samples.</Stage>
+</Flow>
+
+## What it is not for
+
+Prometheus records numbers, and it values staying up over being complete. Its own overview says that it is a poor choice when you need every value to be exact, for example to bill each request. The data is not detailed or complete enough for that. It is also not a log store: the FAQ sends logs to a system such as Grafana Loki. Step 12 comes back to the limits of one server.
+
+<InLab>
+The lab's Prometheus stack runs in the namespace `prom`: one Prometheus 3.13 server, Alertmanager, node exporter on every node, kube-state-metrics, and the Prometheus Operator that writes the server's configuration. Open <LabLink to="prometheus" path="/targets">the targets page</LabLink> to see what it scrapes.
+</InLab>
+
+<Trap>
+Alertmanager does not decide when something is wrong. The Prometheus server evaluates the alerting rules; Alertmanager only receives the alerts that fire and routes them.
+</Trap>
+
+<Remember>
+One standalone server pulls metrics from targets, stores them locally and evaluates rules. Exporters, the Pushgateway, Alertmanager and Grafana are separate parts around it.
+</Remember>
+
+<Question id="q-m03-s01" answer="d">
+A nightly backup job runs for 30 seconds and exits. The team wants its result in Prometheus. Which part of the ecosystem is made for this case?
+
+- Alertmanager
+
+  Alertmanager receives alerts from the server. It does not hold metrics for jobs.
+
+- An exporter beside the job
+
+  An exporter serves metrics for a long-running system. A job that exits leaves nothing to scrape.
+
+- A recording rule
+
+  A recording rule saves the result of a query. The job's result has to reach Prometheus first.
+
+- The Pushgateway
+
+  A short job pushes its metrics to the Pushgateway, which keeps them until Prometheus scrapes it.
+</Question>
