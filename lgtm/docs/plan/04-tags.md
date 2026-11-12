@@ -2,7 +2,7 @@
 
 A tag names one topic. Steps teach tags, questions carry them, and the site uses them to send a learner from a missed question back to the steps that teach it and to build weak-spot practice. `npm run check:content` fails a module pool question whose tag no step teaches.
 
-Owned by the planner. Version 1 (2026-11-11), built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
+Owned by the planner. Version 2 (2026-11-12): tags for m04 to m06 added for wave 6. Version 1 (2026-11-11) was built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
 
 ## Rules
 
@@ -91,14 +91,40 @@ No quiz, so no question carries these; steps still need a tag.
 | `promql-histograms` | 7, 8 | 8 |
 | `promql-time` | 9 | 4 |
 | `promql-functions` | 10 | 2 |
+| `promql-recording-rules` | 12 | 0 |
+| `promql-red` | 13 | 0 |
+| `promql-mistakes` | 14 | 0 |
 
 ## m05 Grafana core
 
 | Tag | Steps | Mock (PCA) |
 |---|---|---|
+| `grafana-data-sources` | 1 | 0 |
+| `grafana-explore` | 2, 3 | 0 |
 | `dashboard-panels` | 4, 5 | 2 |
 | `dashboard-variables` | 6 | 2 |
+| `dashboard-transformations` | 7 | 0 |
 | `dashboard-design` | 8 | 2 |
+| `dashboard-schema` | 9 | 0 |
+| `dashboard-links` | 10 | 0 |
+| `grafana-access` | 11 | 0 |
+| `dashboard-sharing` | 12 | 0 |
+
+## m06 Kubernetes monitoring
+
+| Tag | Steps | Also | Mock |
+|---|---|---|---|
+| `k8s-what-to-watch` | 1 | | 0 |
+| `k8s-kubelet-cadvisor` | 2 | | 0 |
+| `k8s-kube-state-metrics` | 3 | carries `exporter-standard` too | 0 |
+| `k8s-node-exporter` | 4 | carries `exporter-standard` too | 0 |
+| `k8s-prometheus-stack` | 5, 6 | | 0 |
+| `k8s-monitoring-chart` | 7 | m10 step 11 | 0 |
+| `k8s-logs-events` | 8 | | 0 |
+| `k8s-use-red` | 9 | | 0 |
+| `k8s-control-plane` | 10 | | 0 |
+| `k8s-resources` | 11 | | 0 |
+| `k8s-probes` | 12 | | 0 |
 
 ## m07 OpenTelemetry: the model and tracing
 
@@ -154,4 +180,4 @@ No quiz, so no question carries these; steps still need a tag.
 
 ## Modules without tags yet
 
-m06, m10 to m14, m16 to m18. The planner adds their tags when their cards are written; no mock question depends on them.
+m10 to m14, m16 to m18. The planner adds their tags when their cards are written; no mock question depends on them.

@@ -59,6 +59,15 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - Host ports in wave 5, all on 127.0.0.1: the design session keeps 8095 and 8096; C0b uses 8097, C1 8098, C2 8099 for the site (`npx astro dev --port <port>`). Port-forwards: C1 18100 to 18109, C2 18110 to 18119.
 - No kind clusters in wave 5: the VMs leave Docker Desktop too little memory.
 
+## Wave 6
+
+- Worktrees are cut from `main` again; the design and wave 5 are merged.
+- The lab's Kafka ran out of disk on 2026-11-11 at 17:57 UTC. Card L5 repairs it and is the only card that changes the cluster in this wave. Until L5 reports, Mimir and Tempo have no fresh data; Prometheus (one day of cluster metrics) and Loki work. Content cards run the steps that need Mimir after the planner says ingest is back.
+- Grafana: no session types a password or reads the admin password from the cluster. The owner signs in once in the app's browser pane. A session that still meets the sign-in page says so, goes on with other steps, and logs what it could not do as `lab-unverified`.
+- One end-to-end test, `tests/e2e/quiz.spec.ts` line 7, is flaky in CI (it passes on a re-run). The design session is making it robust. If it is the only failure on your pull request, say so; do not change it.
+- Host ports, all on 127.0.0.1: C3 uses 8097, C4 8098, C5 8100 for the site (8099 is held by something else on this PC). Port-forwards: C3 18100 to 18109, C4 18110 to 18119, C5 18120 to 18129, L5 18130 to 18139.
+- No kind clusters.
+
 ## Pull request text
 
 - Title: `[lgtm <card id>] <what it delivers>`
@@ -87,5 +96,9 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 5 | `w5-c0b-m02-rewrite.md` | C0b module m02 in the article form |
 | 5 | `w5-c1-setup-helm.md` | C1 modules m00 Start here and m01 Helm |
 | 5 | `w5-c2-prometheus.md` | C2 module m03 Prometheus fundamentals |
+| 6 | `w6-l5-kafka-disk.md` | L5 Kafka ran out of disk: repair the live lab and give it a ceiling |
+| 6 | `w6-c3-promql.md` | C3 module m04 PromQL |
+| 6 | `w6-c4-grafana-core.md` | C4 module m05 Grafana core |
+| 6 | `w6-c5-kubernetes-monitoring.md` | C5 module m06 Kubernetes monitoring |
 
-Cards for wave 6 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
+Cards for wave 7 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
