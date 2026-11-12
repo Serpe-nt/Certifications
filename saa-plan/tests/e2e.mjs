@@ -1007,7 +1007,7 @@ try {
   await page.click('#settings button[value="save"]');
   await page.waitForFunction(() => !document.getElementById("settings").open && document.documentElement.dataset.theme, null, { timeout: 3000 }).catch(() => {});   // the dialog's close event comes a moment after the click
   assert.deepEqual(await page.evaluate(() => [document.documentElement.dataset.theme, document.documentElement.dataset.size]), ["dark", "l"], "theme and text size apply");
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue("--card").trim()), "#202531", "dark colours (the palette's black-90 card) although the system is light");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue("--paper").trim()), "#0E100F", "dark colours (Field Manual Carbon paper) although the system is light");
   await page.reload();
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark", "and stay after a reload");
   await openCard(page, HELPDAY, HELP);
@@ -1271,7 +1271,7 @@ try {
   await page.clock.runFor(8 * 60000 + 2000);
   await page.waitForSelector("#brk[open]");
   assert.match(await page.textContent("#brk"), /Focus block done/);
-  assert.deepEqual(await page.evaluate(() => window.__notes), ["Focus block done 🎯"], "a notification, once, when the page isn't the one in use");
+  assert.deepEqual(await page.evaluate(() => window.__notes), ["Focus block done"], "a notification, once, when the page isn't the one in use");
   await ctx.close();
 
   log("course diagrams on the course's and the labs' cards: the step's parts first, a click or Enter explains a part, a larger view");
@@ -1438,7 +1438,7 @@ try {
   await page.locator("#progress").screenshot({ path: path.join(SHOTS, "31-readiness-trends.png") });
   const ch = page.locator('#trends .tr-fig[data-chart="acc"]');
   assert.equal(await ch.locator("circle.dot").count(), 3, "a point for each day with answers");
-  assert.equal(await page.locator('#trends .tr-fig[data-chart="focus"] path.mk').count(), 3);
+  assert.equal(await page.locator('#trends .tr-fig[data-chart="focus"] .mk').count(), 3);
   const hi = await page.evaluate(() => { const r = document.querySelectorAll('#trends .tr-fig[data-chart="acc"] .hit'); return r.length - 2; });
   await ch.locator(`.hit[data-i="${hi}"]`).hover();
   assert.match(await ch.locator(".tt").textContent(), /^75%15 of 20 right/, "the tooltip adds up both devices of a day");
@@ -1521,7 +1521,7 @@ try {
   assert.ok(!rr.ans[q0] && rr.x[q0].includes(ord0[1]), "striking the picked option unpicks it");
   await page.click(`#qz-body [data-o="${ord0[0]}"]`);
   await page.click('#qz-body [data-qz="flag"]');
-  assert.match(await page.textContent("#qz-meta .mk-time"), /^⏱ 0:10:0/);
+  assert.match(await page.textContent("#qz-meta .mk-time"), /^0:10:0/);
   await page.waitForSelector(".fx-toast.show", { timeout: 6000 });
   assert.match(await page.textContent(".fx-toast"), /10 minutes left/, "a word when 10 minutes are left");
   assert.ok(await page.locator("#qz-meta .mk-time.low").count(), "the clock turns red");

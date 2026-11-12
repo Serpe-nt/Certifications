@@ -106,6 +106,8 @@ Two containers share the page and exactly one is visible: `#home` (the overview)
 
 The owner asked for more to see and hear whenever something is finished. The effects form a ladder, and each rung is clearly bigger than the one below, so the size of the effect tells you what you just finished. In the design survey (2026-10-17) the owner asked for the day quizzes to be even more of a game (a combo meter, a sound on every answer, bigger streak effects) and for the top rungs (day, week, everything) to be much bigger, the small ones unchanged; the mock exam stays exam-like, with none of the quiz effects:
 
+Since the Field Manual redesign (2026-11-11) every rung keeps its size, counts, timings and sounds, but is drawn the Field Manual way (the owner's choice): the pieces are squares, bars and pixels in signal, ink and paper read from the theme's tokens, turning in 45-degree steps on a 4 px grid; rings became viewfinder brackets, flashes a scan line with dotted rows, emoji and trophy rain falling packets, stars dot-matrix diamond bursts, fireworks dotted rays in eight directions; banners are panels with a bracketed display title (`[ DAY 03 COMPLETE ]`) and a `> …_` line, badges mono codes (`R10`, `MAX`, `L07`). Motion is stepped and linear; `glow()` steps an outline out twice. The table below still says what each rung holds in the old words.
+
 | Finished | What happens | Where it is fired |
 |---|---|---|
 | A step | A burst of confetti and a ring from the button, the step's dot pops, a toast says "✓ 5 of 9 · 4 steps to go". The sound is one note of a scale that climbs with the steps of the day. A long step (a lab, a lecture chunk: 30 minutes or more) adds stars and a rocket. | `stepDone` |
