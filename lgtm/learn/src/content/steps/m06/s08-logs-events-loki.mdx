@@ -110,19 +110,19 @@ Pod logs: `{namespace="...", container="..."}`, then `| pod="..."`. Events: `{jo
 <Question id="q-m06-s08" answer="b">
 A Deployment's pods crash every few minutes in the night, and each crash makes a new pod name. In the morning you want every line the crashed pods printed. Which Loki query starts from the right place?
 
-- {pod=~"web-.*"}
+- `{pod=~"web-.*"}`
 
   pod is stored as structured metadata in this setup, not as a stream label, so this selector matches no stream.
 
-- {namespace="shop-web", container="web"}
+- `{namespace="shop-web", container="web"}`
 
   The namespace and container stay the same across pod names, so this stream holds the lines of every pod, crashed or not.
 
-- {job="integrations/kubernetes/eventhandler", namespace="shop-web"}
+- `{job="integrations/kubernetes/eventhandler", namespace="shop-web"}`
 
   That stream holds the namespace's events, such as BackOff, not what the containers printed.
 
-- {service_name="kubelet"}
+- `{service_name="kubelet"}`
 
   The kubelet does not ship container output under its own name; each line keeps its pod's labels.
 </Question>
