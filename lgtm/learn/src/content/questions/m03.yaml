@@ -406,14 +406,14 @@
 - id: q-m03-026
   tags: [prom-operator]
   exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
-  q: 'A Service has one port, <code>{name: http-metrics, port: 9100}</code>. How must the ServiceMonitor endpoint refer to it?'
+  q: 'A Service has one port, <code>{name: http-metrics, port: 9100}</code>. How must the ServiceMonitor endpoint refer to this Service port?'
   options:
     - text: '<code>port: "9100"</code>'
       why: The port field takes the name of the Service port, not its number.
     - text: '<code>port: http-metrics</code>'
       why: A ServiceMonitor refers to the Service port by its name.
     - text: '<code>targetPort: 9100</code> only'
-      why: The Service port name is what the operator documentation asks for. A named port is required.
+      why: targetPort points at a container port of the selected pods, not at the Service port. The port field names the Service port.
     - text: Nothing, because a ServiceMonitor scrapes every port
       why: Each endpoint of a ServiceMonitor names the port it scrapes.
   answer: [1]

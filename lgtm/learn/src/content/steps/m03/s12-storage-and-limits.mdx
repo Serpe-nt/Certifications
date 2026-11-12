@@ -56,7 +56,7 @@ In the background, Prometheus compacts the two-hour blocks into larger ones, up 
 
 The block that is still filling is the head block. It lives in memory, so it is not fully on disk yet. Every incoming sample is also written to the write-ahead log, the WAL, in segments of 128 MB in the folder `wal`. When Prometheus starts again after a crash or a restart, it replays the WAL and rebuilds the head block. That answers the first question of the scene: the forty minutes come back from the WAL.
 
-Prometheus keeps at least three WAL files, and a busy server keeps more, so that it always has at least two hours of raw data. The WAL is larger than the blocks, because it is not compacted yet.
+Prometheus keeps at least three WAL files, and a busy server may keep more, to hold at least two hours of raw data. The WAL is larger than the blocks, because it is not compacted yet.
 
 <Timeline caption="Where a sample lives over time">
   <Event at="Now" title="Head block and WAL">The sample sits in memory and is written to the WAL on disk.</Event>
@@ -80,7 +80,7 @@ To plan the disk, multiply three numbers: retention in seconds, samples ingested
 
 ## What one server cannot do
 
-Local storage is not clustered and not replicated. If the disk or the node is lost, the data is lost, so treat Prometheus like any single-node database and back it up with snapshots. File systems that are not POSIX compliant, NFS among them, are not supported and can corrupt the data.
+Local storage is not clustered and not replicated. If the disk or the node is lost, the data is lost, so treat Prometheus like any single-node database and back it up with snapshots. File systems that are not POSIX compliant are not supported and can corrupt the data beyond repair, and NFS, AWS EFS included, is not supported at all.
 
 High availability comes from running two or more identical servers that scrape the same targets; Alertmanager drops the duplicate alerts. For a view across many servers, federation lets one Prometheus scrape selected series from others, and for long-term, durable storage Prometheus sends its data to a remote system, which is step 13. Recall from step 1 that Prometheus is also the wrong tool when every single value must be exact, as in billing.
 

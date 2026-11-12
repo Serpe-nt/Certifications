@@ -76,10 +76,10 @@ Some values are not one number but many observations: the duration of every requ
 The buckets are cumulative: each one also counts everything in the smaller buckets. A histogram is therefore a set of counters, and you read it with `rate()` too. On the server, the function `histogram_quantile()` estimates a percentile from the buckets, and because buckets from many instances can be added up, you can compute one percentile for a whole service. Module m04 shows how.
 
 <Figures caption="Cumulative buckets of one histogram" unit="Observations">
-  <Stat label='le="0.1"' value="33,444" amount={33444} max={144320} />
-  <Stat label='le="0.5"' value="129,389" amount={129389} max={144320} />
-  <Stat label='le="1"' value="133,988" amount={133988} max={144320} />
-  <Stat label='le="+Inf", equal to _count' value="144,320" amount={144320} max={144320} hot />
+  <Stat label="Bucket 0.1" value="33,444" amount={33444} max={144320} />
+  <Stat label="Bucket 0.5" value="129,389" amount={129389} max={144320} />
+  <Stat label="Bucket 1" value="133,988" amount={133988} max={144320} />
+  <Stat label="Bucket +Inf, same as count" value="144,320" amount={144320} max={144320} hot />
 </Figures>
 
 ## Native histograms

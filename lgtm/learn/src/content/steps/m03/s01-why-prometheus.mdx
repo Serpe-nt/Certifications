@@ -47,7 +47,7 @@ Prometheus is a monitoring and alerting toolkit. One server finds its targets, p
 
 Prometheus was started at SoundCloud in 2012. In 2016 it joined the Cloud Native Computing Foundation as its second hosted project, after Kubernetes. Today no single company owns it.
 
-Two design choices explain most of what you will see in this module. First, each Prometheus server is standalone. It does not depend on network storage or on other remote services, so you can still use it while other parts of your infrastructure fail. Second, Prometheus pulls. The server asks each target for its numbers, so it always knows whether a target answered. Module m02 compared pull and push; here you see how Prometheus builds on pull.
+Two design choices explain most of what you will see in this module. First, each Prometheus server is standalone. It does not depend on network storage or on other remote services, so you can still use it while other parts of your infrastructure fail. Second, Prometheus pulls. The server asks each target for its numbers, so it can tell reliably whether a target is down. Module m02 compared pull and push; here you see how Prometheus builds on pull.
 
 ## The parts of the ecosystem
 
@@ -77,7 +77,7 @@ Follow one value through the system. A program counts the requests it answers an
 Prometheus records numbers, and it values staying up over being complete. Its own overview says that it is a poor choice when you need every value to be exact, for example to bill each request. The data is not detailed or complete enough for that. It is also not a log store: the FAQ sends logs to a system such as Grafana Loki. Step 12 comes back to the limits of one server.
 
 <InLab>
-The lab's Prometheus stack runs in the namespace `prom`: one Prometheus 3.13 server, Alertmanager, node exporter on every node, kube-state-metrics, and the Prometheus Operator that writes the server's configuration. Open <LabLink to="prometheus" path="/targets">the targets page</LabLink> to see what it scrapes.
+The lab's Prometheus stack runs in the namespace `prom`: one Prometheus 3.13 server, Alertmanager, node exporter on every node, kube-state-metrics, and the Prometheus Operator that writes the server's configuration. Open its <LabLink to="prometheus" path="/targets">Target health</LabLink> page to see what it scrapes.
 </InLab>
 
 <Trap>

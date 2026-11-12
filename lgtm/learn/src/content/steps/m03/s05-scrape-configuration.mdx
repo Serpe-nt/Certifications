@@ -77,7 +77,7 @@ Besides the target's own metrics, each scrape writes a few series of its own, wi
 - `scrape_samples_post_metric_relabeling`: how many were left after metric relabeling (step 7).
 - `scrape_series_added`: about how many new series this scrape created.
 
-When a target's metrics are missing, `up` for that target is the first thing to check. If `up` is 0, the target page of the Prometheus screen shows the error of the last scrape.
+When a target's metrics are missing, `up` for that target is the first thing to check. If `up` is 0, the Target health page of the Prometheus screen shows the error of the last scrape.
 
 <Flow caption="From a job to stored series">
   <Stage title="global" kicker="Defaults">Interval, timeout, external labels.</Stage>

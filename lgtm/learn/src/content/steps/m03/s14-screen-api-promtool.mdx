@@ -46,15 +46,15 @@ Prometheus answers three ways. Its screen shows the loaded configuration, the ta
 
 ## The screen
 
-The Prometheus screen has a page for each question you ask most:
+The Prometheus screen has a page for each question you ask most. Apart from Query and Alerts, they sit in the Status menu:
 
 - Query: run PromQL and see a table or a graph. It is for quick questions; dashboards belong in Grafana.
-- Alerts and Rules: the alerting and recording rules that are loaded, and their state.
-- Targets: every active target with its state, its labels and the error of the last scrape.
+- Alerts, and Rule health under Status: the alerting and recording rules that are loaded, and their state.
+- Target health: every active target with its state, its labels and the error of the last scrape.
 - Service discovery: discovered labels next to target labels, as in steps 6 and 7.
 - Configuration and Command-line flags: the configuration and flags the server runs with right now.
 - TSDB status: the head block and the series counts by metric name, from step 12.
-- Runtime and build information: the version, the start time and the retention.
+- Runtime & build information: the version, the start time and the retention.
 
 ## The HTTP API
 
@@ -88,7 +88,7 @@ The lab's pinned tools do not include `promtool`, but the Prometheus image ships
 </Trap>
 
 <Do>
-1. Open <LabLink to="prometheus" path="/status">the runtime and build information page</LabLink>. Note the version and the storage retention.
+1. Open <LabLink to="prometheus" path="/status">Runtime & build information</LabLink>. Note the version and the storage retention.
 2. Ask the API for the same version: open <LabLink to="prometheus" path="/api/v1/status/buildinfo">/api/v1/status/buildinfo</LabLink>. The browser shows JSON with `"status":"success"` and `"version"`.
 3. Run a query through the API: open <LabLink to="prometheus" path="/api/v1/query?query=count(up)">/api/v1/query?query=count(up)</LabLink>. The value is the number of active targets.
 4. Check that the server is healthy and ready: open <LabLink to="prometheus" path="/-/healthy">/-/healthy</LabLink> and <LabLink to="prometheus" path="/-/ready">/-/ready</LabLink>.

@@ -128,7 +128,7 @@ spec:
   ports:
     - name: web
       port: 8080`}</Cmd>
-3. Apply it and wait for the pod: <Cmd>kubectl apply -f m03-app.yaml</Cmd> <Cmd>kubectl -n learn-m03 rollout status deploy/example-app</Cmd> On <LabLink to="prometheus" path="/targets">the targets page</LabLink>, nothing from `learn-m03` appears yet: no scrape job asks for it.
+3. Apply it and wait for the pod: <Cmd>kubectl apply -f m03-app.yaml</Cmd> <Cmd>kubectl -n learn-m03 rollout status deploy/example-app</Cmd> On the <LabLink to="prometheus" path="/targets">Target health</LabLink> page, nothing from `learn-m03` appears yet: no scrape job asks for it.
 4. Save this as `m03-servicemonitor.yaml`. It selects Services with the label `app: example-app` and scrapes their port named `web` every 15 seconds: <Cmd>{`apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -142,13 +142,13 @@ spec:
     - port: web
       interval: 15s`}</Cmd>
 5. Apply it: <Cmd>kubectl apply -f m03-servicemonitor.yaml</Cmd> Within a minute or two, <LabLink to="prometheus" path="/config">the configuration page</LabLink> shows a new job, `serviceMonitor/learn-m03/example-app/0`.
-6. Reload the targets page and type `learn-m03` in its search box. One target appears, with the state UP and the address of the pod on port 8080.
+6. Reload the Target health page and type `learn-m03` in the box "Filter by endpoint or labels". The pool `serviceMonitor/learn-m03/example-app/0` shows "1 / 1 up", with the address of the pod on port 8080.
 7. On <LabLink to="prometheus" path="/query">the query page</LabLink>, run <Query lang="promql">{`up{namespace="learn-m03"}`}</Query> Read the labels of the result: `namespace`, `pod`, `service`, `endpoint` and `job`. Paste the value of `job` in the check below.
 8. Clean up: <Cmd>kubectl delete namespace learn-m03</Cmd> Within a minute or two the job disappears from the configuration page.
 </Do>
 
 <Done>
-A target from `learn-m03` was UP on the targets page, and its series carried `namespace`, `pod` and `job` labels you never wrote yourself.
+A target from `learn-m03` was up on the Target health page, and its series carried `namespace`, `pod` and `job` labels you never wrote yourself.
 </Done>
 
 <Trap practice>
