@@ -114,7 +114,7 @@ A target's discovered labels include `__meta_kubernetes_pod_label_team="payments
 
   keep decides whether the target is scraped. It does not add any label.
 
-- `relabel_configs` with `source_labels: [__meta_kubernetes_pod_label_team]` and `target_label: team`
+- `relabel_configs`: copy `__meta_kubernetes_pod_label_team` to `target_label: team`
 
   The default action, replace, copies the meta label's value into team before the meta labels are removed.
 

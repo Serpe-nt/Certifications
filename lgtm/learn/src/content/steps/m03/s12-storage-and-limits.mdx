@@ -103,7 +103,7 @@ A server runs with `--storage.tsdb.retention.time=30d` and `--storage.tsdb.reten
 
   Neither limit wins over the other. The first limit reached applies.
 
-- The oldest blocks are deleted to stay under 20 GB
+- Oldest blocks are deleted to stay under 20 GB
 
   When both are set, whichever is reached first applies, and the size limit was reached first.
 

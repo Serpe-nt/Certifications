@@ -117,7 +117,7 @@ A CI pipeline should stop a change to `prometheus.yml` that would not load, befo
 
   That loads the file on the live server. A broken file would be found only after it was deployed.
 
-- Run `promtool check config` on the file in the pipeline
+- Run `promtool check config` in the pipeline
 
   promtool reads the configuration and the rule files it names and fails when they are invalid, without a server.
 

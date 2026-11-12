@@ -113,7 +113,7 @@ A job sets `scrape_interval: 15s` and `scrape_timeout: 20s`. What happens when P
 
   Prometheus does not adjust the value for you. The configuration states a rule the job breaks.
 
-- The configuration is invalid, because the timeout may not be longer than the interval
+- The file is rejected: the timeout exceeds the interval
 
   The scrape timeout cannot be greater than the scrape interval, so the file does not load.
 

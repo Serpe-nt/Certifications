@@ -116,7 +116,7 @@ The remote store is down for 40 minutes during an upgrade, then comes back. What
 
   The queue reads from the WAL and keeps trying while the receiver is away.
 
-- They are sent after the store returns, because the queue retries from the WAL
+- They are sent when the store returns, retried from the WAL
 
   Failures are retried without loss as long as the outage is shorter than about two hours.
 
