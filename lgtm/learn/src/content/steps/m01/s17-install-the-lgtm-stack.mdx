@@ -11,7 +11,7 @@ check:
   kind: exact
   prompt: Paste the CHART column that helm list -A shows for the release loki.
   answer: loki-21.1.0
-outcome: You can install the observability stack and the shop with make lab, read the key values of each release, and install or upgrade a single release with TAGS.
+outcome: You can install the observability stack and the shop with make lab, read the main values of each release, and install or upgrade a single release with TAGS.
 terms:
   - term: Microservices mode
     def: Running Loki, Mimir or Tempo as many small components, each scaled on its own.
@@ -73,7 +73,7 @@ To change one release later, edit its values file and run `make lab TAGS=loki`, 
 </Trap>
 
 <Remember>
-Read the key values, run `make lab`, check with `helm list -A`; afterwards change one release with its values file and `TAGS`.
+Read the main values, run `make lab`, check with `helm list -A`; afterwards change one release with its values file and `TAGS`.
 </Remember>
 
 <Do>
