@@ -9,8 +9,8 @@ exam:
 tags: [dashboard-links]
 check:
   kind: exact
-  prompt: Paste the name of the built-in annotation query that every dashboard has, as the Annotations settings show it.
-  answers: ["Annotations & Alerts"]
+  prompt: Paste the name of the built-in annotation query that every dashboard has, as the dashboard's sidebar lists it.
+  answers: ["Annotations & Alerts", "Annotations & Alerts (Built-in)"]
 outcome: You can mark an event on a dashboard with an annotation, and link a dashboard, a panel and a single series to the next place a reader needs to go.
 terms:
   - term: Annotation
@@ -50,7 +50,7 @@ An annotation marks an event on the time axis of every graph on the dashboard, s
 
 ## Annotations put events on the graph
 
-An annotation is a vertical line or a shaded region with a text and tags. You can add one by hand: hold Ctrl (Cmd on a Mac) and click a graph, or drag to mark a range. Annotations made this way are stored in Grafana and belong to the dashboard. A saved dashboard is needed first.
+An annotation is a vertical line or a shaded region with a text and tags. You can add one by hand: click a point on a graph and choose **Add annotation** in its tooltip, or hold Ctrl (Cmd on a Mac) and click, or drag to mark a range. Annotations made this way are stored in Grafana and belong to the dashboard. The dashboard must be saved first, and after a save you may need to reload the page.
 
 They show up because of the built-in annotation query that every dashboard has. It fetches the dashboard's own annotations and alerts from the special data source **-- Grafana --**, and only this data source accepts annotations added by hand.
 
@@ -88,13 +88,13 @@ Mark events where the graph changes, and give every dashboard a way to the next 
 </Remember>
 
 <Do>
-1. Open your dashboard `Shop service (m05)`. Hold Ctrl (Cmd on a Mac) and click a point on the panel Requests per second. In the dialog, write `m05 test annotation`, add the tag `m05`, and save it. A marker appears on every graph of the dashboard.
-2. Click **Edit**, open the dashboard options and click **View all settings**. On the **Annotations** tab, find the built-in query and its data source.
-3. On the **Links** tab, add a dashboard link of the type **Dashboards** with the tag `shop`. Turn on **Show as dropdown**, give it the title `Shop RED dashboards`, and turn on **Include current time range** and **Include current template variable values**.
-4. Close the settings. Edit the panel Requests per second, find **Data links and actions** and add a link titled `Provisioned RED for ${service}` with this URL: <Cmd>{`/d/shop-red-\${service}?\${__url_time_range}`}</Cmd>
-5. Save the dashboard and exit edit mode. Open the drop-down Shop RED dashboards at the top: it lists the dashboards of the folder Shop.
-6. Click a point on the panel Requests per second and choose the data link. The provisioned RED dashboard of the same service opens with your time range.
-7. Go back, hover over your annotation marker and delete it with the trash icon.
+1. Open your dashboard `Shop service (m05)` (not in edit mode) and reload the page. Click a point on the panel Requests per second: a tooltip opens. Click **Add annotation**, write `m05 test annotation`, add the tag `m05` and click **Save**. Grafana confirms **Annotation added**, and a dashed line marks the moment.
+2. Click **Edit** and open the dashboard's sidebar with the **Options** icon. Under **Annotations**, in the group **Hidden**, find the built-in query.
+3. Click **+** next to **Links**. Set the **Title** to `Shop RED dashboards`, keep the **Type** **Dashboards**, and add the tag `shop` under **With tags**. **Show as dropdown** is already on; turn on **Include current time range** and **Include current template variable values**.
+4. Edit the panel Requests per second. Under **Data links and actions**, click **Add link**. Set the title to `Provisioned RED for ${service}` and the URL to the line below, then click **Save** in the dialog. Save the dashboard, click **Back** and **Exit edit**. <Cmd>{`/d/shop-red-\${service}?\${__url_time_range}`}</Cmd>
+5. Open the drop-down Shop RED dashboards at the top: it lists the eleven RED dashboards of the folder Shop.
+6. Reload the page and click a point on the panel Requests per second. With a single data link, the click opens it at once: the provisioned RED dashboard of the same service opens with your time range.
+7. Go back, hover over the small marker of your annotation at the foot of the graph, and delete it with the trash icon.
 8. Paste the name of the built-in annotation query in the lab check below.
 </Do>
 
@@ -103,7 +103,7 @@ Your dashboard links to the shop's RED dashboards with the time range kept, and 
 </Done>
 
 <Trap practice>
-If the data link opens a dashboard that is not found, look at the URL it built: `${service}` must hold a single service name, and the address must look like `/d/shop-red-checkout?from=...`. A link written without the question mark before the time range breaks the address.
+If the data link opens a dashboard that is not found, look at the address it built: `${service}` must hold a single service name, and the address must look like `/d/shop-red-checkout?from=...`. In the link dialog, do not press Escape to close a suggestion list: it closes the dialog and drops the link.
 </Trap>
 
 <Question id="q-m05-s10" answer="b">
