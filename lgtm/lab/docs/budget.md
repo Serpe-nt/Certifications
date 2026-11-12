@@ -228,3 +228,23 @@ trims the three Kafka volumes every hour. Its first run (12:19) took each Kafka 
 9.8 GiB to 16.1 and 14.5 GiB; after the second run (13:07) the replicas were 3.7 to 4.2 GB and
 the two disks had 17.2 and 15.6 GiB free. `kubectl -n longhorn-system get nodes.longhorn.io`
 with the columns in `runbook.md`, "Free disk", shows it.
+
+What the Kafka replicas cost on worker2 and worker3, which hold all six of them (three each,
+one replica of each volume). "Replica" is the volume's `actualSize` in Longhorn; "free" is the
+Longhorn disk's `storageAvailable` (39.1 GiB disks).
+
+| Moment (2026-11-12, UTC) | One Kafka replica | Three replicas on one worker | Free on worker2 | Free on worker3 |
+|---|---:|---:|---:|---:|
+| 11:40, before the repair: 5 GiB volumes, full | 5.66 to 5.73 GB | about 17.1 GB | 12.9 GiB | 11.1 GiB |
+| 12:14, volumes grown to 10 GiB, not trimmed yet | 6.02 to 6.14 GB, plus a 4.4 GiB `expand-...` snapshot inside that size | about 18.2 GB | 11.5 GiB | 9.8 GiB |
+| 12:20, after the first trim (by hand) | 3.90 to 3.95 GB | about 11.8 GB | 16.1 GiB | 14.5 GiB |
+| 13:19, after the second trim (hourly job) | 3.75 to 4.20 GB | about 11.9 GB | 17.2 GiB | 15.6 GiB |
+| Without the trim, at worst | 10 GiB plus what the snapshots keep | about 30 GiB or more, close to the whole 39.1 GiB disk | about 0 | about 0 |
+| With the trim, at worst | what Kafka keeps (5.6 GiB) plus an hour of writes (0.7 GiB), plus the slack seen so far (a replica stayed about 0.8 GB above what its filesystem uses) | about 19 to 22 GiB | about 6 to 9 GiB | about 5 to 8 GiB |
+
+The last row assumes nothing else on these disks grows. Worker3 would then come close to
+Longhorn's own floor (`storageMinimalAvailablePercentage: 15`, 5.9 GiB), below which Longhorn
+schedules no new replica there; it does not stop the replicas it already holds. Moving one
+replica of each Kafka volume to worker1 or worker4 (23 and 27 GiB free) would halve the Kafka
+share on worker2 and worker3. That is a Longhorn change (the Longhorn screen, or the setting
+`replica-auto-balance`), which this card did not make.

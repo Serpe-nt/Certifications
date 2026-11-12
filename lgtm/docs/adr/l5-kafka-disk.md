@@ -137,6 +137,22 @@ so Longhorn copies the group to the volumes. The first run (12:19) took the repl
 14.5 GiB free. After the second run (13:07) the replicas were 3.7 to 4.2 GB, the expansion
 snapshots 2.5 to 3.0 GiB, and worker2 and worker3 had 17.2 and 15.6 GiB free.
 
+What the job is scoped to:
+
+- It is the only object of this card outside the namespace `kafka`. The role `platform_kafka`
+  installs it, on the real cluster only (`lab_profile == 'full'`; kind has no Longhorn).
+- It acts on the volumes of the Longhorn group `kafka`, and only the three Kafka claims carry
+  that group (`kubectl -n longhorn-system get volumes.longhorn.io
+  -l recurring-job-group.longhorn.io/kafka=enabled` lists three). The other 18 volumes of the
+  lab are only in Longhorn's automatic group `default`, and no RecurringJob uses that group;
+  `kafka-trim` is the only RecurringJob on the cluster.
+- Its task is `filesystem-trim`: Longhorn runs `fstrim` on the mounted filesystem and gives the
+  freed blocks back, and it may purge system snapshots or snapshots already marked removed. It
+  takes no snapshot or backup, deletes no file Kafka still has, and does not restart a pod. Kafka
+  ran on through both runs (12:19 and 13:07) without a restart.
+- Removing it: delete the RecurringJob and the two labels from the KafkaNodePool template; the
+  volumes then simply stop being trimmed.
+
 ## Consequences
 
 - Kafka keeps less than 24 hours when the lab writes a lot. An ingester or block-builder that is

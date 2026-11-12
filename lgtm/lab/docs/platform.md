@@ -153,6 +153,18 @@ limit and filled on 2026-11-11 (`runbook.md`, "Kafka's disks are full";
 `lgtm/docs/adr/l5-kafka-disk.md`). `make lab-check` fails, and the alert `LabVolumeFillingUp`
 fires, when any volume of the lab is more than 85% full.
 
+The role `platform_kafka` also installs one object outside the namespace `kafka`: the Longhorn
+RecurringJob `longhorn-system/kafka-trim` (real cluster only, not on kind). Kafka deletes old
+segments all the time, but Longhorn keeps every block a volume has written until the filesystem
+is trimmed, so without it a Kafka replica would grow to its full 10 GiB plus the snapshot
+Longhorn takes when a volume grows, on disks that also hold the replicas of Mimir, Loki and
+Prometheus. The job runs `fstrim` (task `filesystem-trim`) every hour at minute 7 on the volumes
+of the group `kafka` and on nothing else: only the three Kafka claims carry the labels
+`recurring-job.longhorn.io/source: enabled` and `recurring-job-group.longhorn.io/kafka: enabled`,
+set by the KafkaNodePool's `template.persistentVolumeClaim`. It does not stop or restart Kafka.
+List what it covers with
+`kubectl -n longhorn-system get volumes.longhorn.io -l recurring-job-group.longhorn.io/kafka=enabled`.
+
 Longhorn keeps 30% of each disk in reserve (its default for a node's default disk), so with
 over-provisioning at 100% only about 117 GiB of replicas fit on four workers, less than the
 platform and the lab ask for together (about 155 GiB). The values set
