@@ -73,7 +73,7 @@ Every discovered target carries labels that start with `__meta_kubernetes_`. Wit
 - `__meta_kubernetes_pod_name`, `__meta_kubernetes_pod_label_<name>`, `__meta_kubernetes_pod_container_port_name`: the pod behind the address, its labels and the port name.
 - `__meta_kubernetes_endpointslice_port_name`: the name of the port in the EndpointSlice.
 
-Characters that a label name cannot hold become underscores, so the Kubernetes label `app.kubernetes.io/name` turns into `__meta_kubernetes_service_label_app_kubernetes_io_name`. A `namespaces` block limits discovery to the namespaces you list.
+Kubernetes discovery converts characters it does not support in these names, such as dots and slashes, to underscores, so the Kubernetes label `app.kubernetes.io/name` turns into `__meta_kubernetes_service_label_app_kubernetes_io_name`. A `namespaces` block limits discovery to the namespaces you list.
 
 These labels exist only while Prometheus decides what to do with a target. Step 7 shows how relabeling uses them to keep or drop targets and to copy what you need into real labels.
 
@@ -86,7 +86,7 @@ These labels exist only while Prometheus decides what to do with a target. Step 
 
 ## Discovered is not the same as scraped
 
-Discovery usually finds far more than you want to scrape: every port of every service in the watched namespaces. Relabeling then drops most of them. The Prometheus screen shows both sides on the page Service discovery: the labels each target had when it was discovered, and the labels it kept, or the word "dropped".
+Discovery usually finds more than you want to scrape: every port of every service in the watched namespaces. Relabeling then drops most of them. The Prometheus screen shows both sides on the page Service discovery: the labels each target had when it was discovered, and the labels it kept, or the word "dropped".
 
 <InLab>
 The lab's scrape jobs use the `endpoints` role, limited to one namespace each, for example `namespaces: names: [prom]`. On <LabLink to="prometheus" path="/service-discovery">the service discovery page</LabLink> you see a few dozen active targets and several hundred dropped ones.

@@ -60,7 +60,7 @@ Prometheus keeps at least three WAL files, and a busy server may keep more, to h
 
 <Timeline caption="Where a sample lives over time">
   <Event at="Now" title="Head block and WAL">The sample sits in memory and is written to the WAL on disk.</Event>
-  <Event at="About 2 hours" title="First block">The head is cut into a two-hour block in its own directory.</Event>
+  <Event at="Then" title="Two-hour block">The samples are grouped into a block of two hours, in its own directory.</Event>
   <Event at="Later" title="Compaction">Blocks are merged into larger ones in the background.</Event>
   <Event at="Retention" title="Deleted">The block is removed when it is older or larger than the limit allows.</Event>
 </Timeline>
@@ -89,7 +89,7 @@ The lab's Prometheus keeps 1 day or 3 GiB, whichever comes first, on a 4 GiB Lon
 </InLab>
 
 <Trap>
-The size limit counts the WAL and the in-memory chunks, but it can only delete finished blocks. A size limit as large as the whole volume still lets the disk fill up. Keep it at 80 to 85% of the volume, as the documentation advises.
+The size limit counts the WAL and the memory-mapped head chunks, but it can only delete finished blocks. A size limit as large as the whole volume still lets the disk fill up. Keep it at 80 to 85% of the volume, as the documentation advises.
 </Trap>
 
 <Remember>

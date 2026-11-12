@@ -45,7 +45,7 @@ sources:
 ---
 
 <Problem>
-A developer exposes the number of jobs in a queue as a counter, because it "counts jobs". When the queue drains, the counter drops from 80 to 3. The query function that turns counters into rates reads that drop as a restart, and the rate on the dashboard jumps to a large, false number.
+A developer exposes the number of jobs in a queue as a counter, because it "counts jobs". Over four scrapes the queue drains: 80, 70, 50, 3. The query function that turns counters into rates reads each fall as a restart and counts 70, 50 and 3 as new growth, so the dashboard shows the queue growing while it shrinks.
 </Problem>
 
 The value was right. Its type was wrong, and the type decides what the numbers can mean later.
@@ -56,7 +56,7 @@ Prometheus client libraries offer four types. A counter only goes up, a gauge go
 
 ## Counter and gauge
 
-A counter is a total that only grows: requests served, errors raised, bytes sent. It may fall back to zero only when the process restarts. Queries depend on that rule. The PromQL function `rate()` treats a drop as a counter reset and adjusts for it, which is what went wrong in the scene above. Module m04 covers `rate()`.
+A counter is a total that only grows: requests served, errors raised, bytes sent. It may fall back to zero only when the process restarts. Queries depend on that rule. The PromQL function `rate()` treats a drop as a counter reset and counts the value after the drop as new growth. That is what went wrong in the scene above. Module m04 covers `rate()`.
 
 A gauge is a value that can move both ways: memory in use, the temperature of a disk, the number of requests in progress right now. The Prometheus guidelines give a simple test. If the value can go down, it is a gauge.
 

@@ -49,7 +49,7 @@ An exporter is a small program that reads numbers from a system you cannot instr
 
 ## Node exporter: the machine
 
-Node exporter is the official exporter for Linux and other Unix machines. It reports CPU, memory, disks, file systems, network and much more, grouped into collectors that you can switch on and off. It listens on port 9100 by default, and in Kubernetes it runs as a DaemonSet, one pod per node.
+Node exporter is the official exporter for Linux and other Unix machines. It reports CPU, memory, disks, file systems, network and much more, grouped into collectors that you can switch on and off. It listens on port 9100 by default.
 
 One of its collectors, the textfile collector, reads files ending in `.prom` from a directory you name with `--collector.textfile.directory`. A script or a cron job writes metrics in the text format of step 4 into such a file, and node exporter serves them with its own. That suits facts tied to one machine, such as the role of a host. Facts about a whole service belong in the Pushgateway instead.
 

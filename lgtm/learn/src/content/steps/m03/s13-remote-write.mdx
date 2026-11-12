@@ -94,7 +94,7 @@ When a server should only forward data, run it with `--agent`. Agent mode keeps 
 </Compare>
 
 <InLab>
-The lab's Prometheus remote-writes everything to Mimir as tenant `prom`, with exemplars and native histograms. Its `cluster: lgtm-lab` external label travels with every sample. You can read the section on <LabLink to="prometheus" path="/config">the configuration page</LabLink>, under `remote_write`.
+The lab's Prometheus remote-writes everything to Mimir as tenant `prom`, and its `cluster: lgtm-lab` external label travels with every sample. The options for exemplars and native histograms are on, but the lab scrapes classic histograms only (step 3), so no native histogram is sent. You can read the section on <LabLink to="prometheus" path="/config">the configuration page</LabLink>, under `remote_write`.
 </InLab>
 
 <Trap>

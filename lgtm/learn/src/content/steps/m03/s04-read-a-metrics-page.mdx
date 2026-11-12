@@ -87,7 +87,7 @@ A metric name on the page is not always the name of one series. `prometheus_http
 <Do>
 1. Open <LabLink to="prometheus" path="/metrics">/metrics of the lab's Prometheus</LabLink> in your browser. Use the browser's search (Ctrl+F) for each of the next steps.
 2. Find a counter: search for `# TYPE prometheus_http_requests_total`. The lines below it carry the labels `code` and `handler`, one line per combination.
-3. Find a gauge: search for `# TYPE prometheus_tsdb_head_series`. This is the number of series in memory right now, and it can go down.
+3. Find a gauge: search for `# TYPE prometheus_tsdb_head_series`. This is the number of series in the head block right now, and it can go down.
 4. Find a summary: search for `# TYPE go_gc_duration_seconds`. Its lines carry a `quantile` label, then come `_sum` and `_count`.
 5. Find a histogram: search for `# TYPE prometheus_http_request_duration_seconds`. Below it, look at the lines with `handler="/metrics"`.
 6. Read those bucket lines in order. Check that the values never get smaller from one bucket to the next, and that the `+Inf` bucket equals `prometheus_http_request_duration_seconds_count{handler="/metrics"}`.

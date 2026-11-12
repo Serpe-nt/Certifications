@@ -27,7 +27,7 @@
     - text: Nothing at all until the target answers again
       why: Prometheus writes a sample for every scrape attempt, failed or not, in the series up.
     - text: The last scraped values again, copied with a new timestamp
-      why: Prometheus does not invent values for a failed scrape. The target's own series get no new samples.
+      why: Prometheus does not copy old values. The target's series are marked stale, and queries stop returning them.
     - text: A sample of 0 in the series up for that target
       why: up is 1 when the scrape worked and 0 when it failed, so a failed scrape is visible at once.
     - text: An error line in the target's own metrics
@@ -166,18 +166,18 @@
 - id: q-m03-011
   tags: [prom-metric-types]
   exam: {cert: pca, domain: P4, competency: Instrumentation}
-  q: A dashboard shows <code>rate(queue_length[5m])</code>, where <code>queue_length</code> is a gauge. Each time the queue drains, the panel shows a large spike. Why?
+  q: A dashboard shows <code>rate(queue_length[5m])</code>, where <code>queue_length</code> is a gauge. Each time the queue drains, the panel shows the queue growing. Why?
   options:
     - text: The scrape interval is too short for rate()
       why: The interval is not the problem. rate() is the wrong function for a gauge.
     - text: The gauge needs a _total suffix before rate() works
       why: A suffix does not change the data. The values still fall.
     - text: Gauges must be read with irate() instead of rate()
-      why: irate() also assumes a counter and treats drops as resets.
+      why: The functions reference says irate() too should only be used with counters.
     - text: rate() reads each drop as a counter reset
-      why: rate() adjusts for counter resets. A gauge that falls gets read as a reset and adds a false increase.
+      why: rate() adjusts for counter resets. Each fall of the gauge is read as a reset and counted as growth.
   answer: [3]
-  source: https://prometheus.io/docs/practices/instrumentation/
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/
 
 - id: q-m03-012
   tags: [prom-exposition-format]
@@ -270,8 +270,8 @@
       why: This estimates how many new series a scrape created.
     - text: <code>scrape_samples_post_metric_relabeling</code>
       why: It holds the number of samples remaining after metric relabeling.
-    - text: <code>prometheus_target_scrapes_exceeded_sample_limit_total</code>
-      why: This counts scrapes that were rejected for hitting sample_limit, not the samples kept.
+    - text: <code>prometheus_remote_storage_samples_pending</code>
+      why: This shows samples waiting to be sent by remote write, not samples left after relabeling.
   answer: [2]
   source: https://prometheus.io/docs/concepts/jobs_instances/
 
@@ -313,7 +313,7 @@
   q: A pod has the Kubernetes label <code>app.kubernetes.io/name=cart</code>. Under which meta label does the pod role offer it to relabeling?
   options:
     - text: '<code>__meta_kubernetes_pod_label_app.kubernetes.io/name</code>'
-      why: Characters that a label name cannot hold are turned into underscores.
+      why: Kubernetes discovery converts characters it does not support in meta label names, such as dots and slashes, to underscores.
     - text: '<code>__meta_kubernetes_pod_label_app_kubernetes_io_name</code>'
       why: Dots and slashes become underscores, after the prefix for pod labels.
     - text: '<code>__meta_kubernetes_label_app_kubernetes_io_name</code>'
