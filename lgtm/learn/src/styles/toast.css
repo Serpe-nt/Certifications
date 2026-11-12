@@ -30,7 +30,8 @@
   background: var(--lg-paper);
   color: var(--lg-ink);
   box-shadow: 6px 6px 0 var(--lg-bezel);
-  pointer-events: auto;
+  /* Clicks pass through a notification to whatever it covers (Submit, Next); only its X takes them. */
+  pointer-events: none;
 }
 .toast p {
   margin: 0;
@@ -75,6 +76,7 @@
   border: 0;
   background: transparent;
   color: var(--lg-ink);
+  pointer-events: auto;
 }
 .toast-close:hover {
   background: var(--lg-ink);
@@ -181,7 +183,8 @@
   .toast-timer {
     animation: to-timer var(--toast-ms, 4000ms) linear both;
   }
-  .toast:hover .toast-timer {
+  /* Resting the pointer on the X holds the notification. */
+  .toast:has(.toast-close:hover) .toast-timer {
     animation-play-state: paused;
   }
   .toast[data-leaving] {

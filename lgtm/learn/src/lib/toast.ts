@@ -1,7 +1,8 @@
 // Notifications at the right-hand side of the window (styles in src/styles/toast.css): saved
 // settings, errors, finished steps and modules, new levels and badges. The owner asked for "a pop
 // message at the right hand side of the screen" for these (2026-11-11). Each one slides in, shows a
-// countdown bar, and leaves on its own; hovering it holds the countdown, and its X dismisses it.
+// countdown bar, and leaves on its own; clicks pass through it to what it covers, resting the pointer
+// on its X holds the countdown, and the X dismisses it.
 // While a dialog is open the stack lives inside it, because a dialog sits above everything else.
 // Text is set with textContent only: nothing from the state reaches the page as HTML.
 
@@ -154,15 +155,15 @@ export function toast(o: ToastOptions): HTMLElement {
   if (motionOn()) {
     timer.addEventListener('animationend', () => leave(el), { once: true });
   } else {
-    // Without motion: a timeout, held while the pointer is on the toast.
+    // Without motion: a timeout, held while the pointer is on the X.
     let left = ms;
     let since = Date.now();
     let t = window.setTimeout(() => leave(el), left);
-    el.addEventListener('pointerenter', () => {
+    close.addEventListener('pointerenter', () => {
       window.clearTimeout(t);
       left -= Date.now() - since;
     });
-    el.addEventListener('pointerleave', () => {
+    close.addEventListener('pointerleave', () => {
       since = Date.now();
       t = window.setTimeout(() => leave(el), Math.max(800, left));
     });

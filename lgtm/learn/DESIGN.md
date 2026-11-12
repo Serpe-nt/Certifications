@@ -211,7 +211,7 @@ Paper fill, 2px ink frame, square corners, mono text; checkboxes and radios take
 
 ### Notifications
 
-Messages appear at the bottom right, lined up with the console (`src/lib/toast.ts`, `toast.css`), inside an open dialog when there is one, never over the top bar or a dialog's close button; the same message twice replaces the first: saved settings (paper, a check), errors (a red edge and icon, they stay longer), finished steps, quizzes and modules, a new level (with its number) and a badge earned (with what earned it), the last three in yellow. Each slides in through a glitch slice, runs a countdown bar that holds while hovered, and has an X. The owner asked for them because the line at the bottom of Settings was "almost not noticeable" (2026-11-11). The mock exam stays quiet while it runs.
+Messages appear at the bottom right, lined up with the console (`src/lib/toast.ts`, `toast.css`), inside an open dialog when there is one, never over the top bar or a dialog's close button; the same message twice replaces the first: saved settings (paper, a check), errors (a red edge and icon, they stay longer), finished steps, quizzes and modules, a new level (with its number) and a badge earned (with what earned it), the last three in yellow. Each slides in through a glitch slice, runs a countdown bar, lets clicks pass through to what it covers, and has an X (resting the pointer on the X holds it). The owner asked for them because the line at the bottom of Settings was "almost not noticeable" (2026-11-11). The mock exam stays quiet while it runs.
 
 ### Signature components
 
