@@ -1,0 +1,575 @@
+# Quiz pool for module m05, Grafana core. Questions on panels, variables and dashboard design
+# serve PCA domain P5 (Dashboarding basics); the rest serve jobs (cert none). Every fact is
+# checked against the source given on the question; the log is lgtm/docs/verification/m05.md.
+
+# grafana-data-sources
+- id: q-m05-001
+  tags: [ grafana-data-sources ]
+  exam: { cert: none }
+  q: What does a Grafana data source hold?
+  options:
+    - text: The address and settings Grafana uses to query one backend
+      why: A data source is a connection. The data stays in the backend it points at.
+    - text: A copy of the backend's data, refreshed every minute
+      why: Grafana copies nothing ahead of time. It queries the backend when a panel or Explore asks.
+    - text: The plugin code that parses the backend's query language
+      why: That is the data source plugin. A data source is one configured use of a plugin.
+    - text: The dashboards that read from that backend
+      why: Dashboards are stored apart from data sources, and one dashboard can use several of them.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/datasources/concepts/
+
+- id: q-m05-002
+  tags: [ grafana-data-sources ]
+  exam: { cert: none }
+  q: You open a data source that was defined in a provisioning file. What does its settings page offer?
+  options:
+    - text: Save & test, but only for users with the Admin role
+      why: No permission makes a provisioned data source editable on the screen, not even Admin.
+    - text: Save & test, after a warning that the file will be updated
+      why: Grafana never writes changes back to a provisioning file.
+    - text: Only Test, because the page is read only
+      why: Provisioned data sources are read only in the UI. You change them in the file.
+    - text: Nothing at all, because the page is hidden
+      why: The page still opens, so you can read the settings and test the connection.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/administration/data-source-management/
+
+- id: q-m05-003
+  tags: [ grafana-data-sources ]
+  exam: { cert: none }
+  q: One panel must show request rates from Prometheus and error lines from Loki on the same graph. Which data source does the panel use?
+  options:
+    - text: Prometheus, with a Loki query added as a second query
+      why: A query belongs to its panel's data source unless the panel uses Mixed.
+    - text: Dashboard, which reuses the queries of other panels
+      why: The Dashboard data source reuses another panel's result. It does not mix two backends.
+    - text: Grafana, the built-in data source for test data
+      why: The built-in Grafana data source gives random walks and annotations, not your backends.
+    - text: Mixed, so each query can pick its own data source
+      why: Mixed lets every query in one panel use a different data source.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/datasources/
+
+# grafana-explore
+- id: q-m05-004
+  tags: [ grafana-explore ]
+  exam: { cert: none }
+  q: You need the node count of two clusters, each with its own data source, side by side for the same hour. What does Explore offer for this?
+  options:
+    - text: Split view, with its own data source in each pane
+      why: Split opens a second pane with its own data source, and the time pickers can be synced.
+    - text: Query history, with both queries starred
+      why: The history keeps queries you ran. It does not show two results side by side.
+    - text: The query inspector, with both requests open
+      why: The inspector shows one query's request and response, for debugging.
+    - text: A second query in the same pane, under the same data source
+      why: Queries in one pane share the data source unless you pick Mixed.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/explore/get-started-with-explore/
+
+- id: q-m05-005
+  tags: [ grafana-explore ]
+  exam: { cert: none }
+  q: A colleague asks for a query you ran in Explore three weeks ago. You did not star it. Where is it now?
+  options:
+    - text: In your query history, kept for a year
+      why: Query history keeps entries for two weeks, not a year.
+    - text: In the colleague's query history, which is shared
+      why: Query history is personal and not shared with other users.
+    - text: Deleted, since unstarred entries last two weeks
+      why: Grafana deletes history entries after two weeks unless they are starred.
+    - text: In the dashboard the query was added to
+      why: Nothing says it was added to a dashboard. History is the only place Explore keeps it.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/explore/query-management/
+
+- id: q-m05-006
+  tags: [ grafana-explore ]
+  exam: { cert: none }
+  q: In Explore, a query with the type Instant returns one value per series. Which point in time is it for?
+  options:
+    - text: The start of the selected time range
+      why: An instant query is evaluated at the end of the range, not the start.
+    - text: The middle of the time range, as an average
+      why: Instant does no averaging. It evaluates the expression once.
+    - text: Each step of the range, averaged into one value
+      why: That would be a range query reduced afterwards. Instant evaluates once.
+    - text: The end of the selected time range
+      why: An instant query evaluates the expression once, at the end of the time range.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/datasources/prometheus/query-editor/
+
+- id: q-m05-007
+  tags: [ grafana-explore ]
+  exam: { cert: none }
+  q: Which data sources can Logs Drilldown work with?
+  options:
+    - text: Any data source that stores logs, such as Elasticsearch
+      why: Logs Drilldown is built for Loki and supports Loki data sources only.
+    - text: Loki data sources only, nothing else
+      why: The app is made for Loki and lists only Loki data sources.
+    - text: Loki and Prometheus, so it can show volume graphs
+      why: Logs Drilldown draws volume from Loki itself. It does not need Prometheus.
+    - text: Any data source, through the Mixed data source
+      why: Mixed is for panels. Logs Drilldown picks one Loki data source.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/logs/get-started/
+
+# dashboard-panels
+- id: q-m05-008
+  tags: [ dashboard-panels ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: A panel's query returns the share of failed requests as a number between 0 and 1. Which unit shows 0.034 as 3.4%?
+  options:
+    - text: Percent (0-100)
+      why: This unit expects 34 for 34%, so 0.034 would show as 0.034%.
+    - text: Percent (0.0-1.0)
+      why: This unit multiplies a share between 0 and 1 by 100 for display.
+    - text: Decimals set to 1, with no unit
+      why: Decimals change how many digits show, not the scale, so the panel shows 0.0.
+    - text: Custom unit suffix:%
+      why: A suffix only adds the sign, so the panel would show 0.034%.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/configure-standard-options/
+
+- id: q-m05-009
+  tags: [ dashboard-panels ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: A stat panel shows the error share of a whole day. Its calculation is Mean, and it shows 0.2%, although there was a bad hour at 9%. Which change makes the bad hour show?
+  options:
+    - text: Set the unit to Percent (0-100)
+      why: The unit changes how the value looks, not which value is shown.
+    - text: Add a threshold at 5%
+      why: A threshold colours the value it gets. The mean is still 0.2%.
+    - text: Set the calculation to Max
+      why: Max reduces the day to its highest value, so the bad hour shows.
+    - text: Raise Decimals to 4
+      why: More decimals show the mean more precisely. It stays the mean.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/visualizations/stat/
+
+- id: q-m05-010
+  tags: [ dashboard-panels ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: A panel shows bytes sent and requests per second. Setting Unit to bytes in Standard options makes the request line read as bytes too. What fixes it?
+  options:
+    - text: An override for the bytes field alone
+      why: Standard options apply to every field. An override changes options for chosen fields.
+    - text: A value mapping from numbers to the word bytes
+      why: Value mappings replace values with text and skip unit formatting. They do not set a unit per field.
+    - text: A transformation that renames the bytes field
+      why: A new name does not change the unit that formats the values.
+    - text: Clearing the unit in Standard options
+      why: Then neither field reads as bytes. Only an override sets a unit for some fields.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/configure-overrides/
+
+- id: q-m05-011
+  tags: [ dashboard-panels ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: Which visualization is Grafana's default for values over time?
+  options:
+    - text: Bar chart
+      why: A bar chart is for categorical data, not the default for values over time.
+    - text: Stat
+      why: A stat shows one big value, with an optional sparkline.
+    - text: Graph (legacy)
+      why: That name belongs to an older Grafana. Time series replaced it.
+    - text: Time series
+      why: Grafana's documentation calls Time series the default and main graph visualization.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/visualizations/
+
+- id: q-m05-012
+  tags: [ dashboard-panels ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: You change a panel in the panel editor and click Back. What state is the dashboard in?
+  options:
+    - text: Saved, with a new version in the history
+      why: Back does not save. A version is written only by Save.
+    - text: Changed on screen but not saved yet
+      why: Back returns to the dashboard with the change applied but not saved.
+    - text: Unchanged, because Back discards the edit
+      why: Discard throws edits away. Back keeps them on the open dashboard.
+    - text: The panel is saved, but the dashboard is not
+      why: A panel is saved as part of its dashboard. Back saves neither.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/panel-editor-overview/
+
+# dashboard-variables
+- id: q-m05-013
+  tags: [ dashboard-variables ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: A variable service should list every value of the label service_name that the metric traces_spanmetrics_calls_total has. Which query type fits?
+  options:
+    - text: Metrics, with the metric name as a regular expression
+      why: Metrics returns metric names, not values of a label.
+    - text: Label names, with the metric traces_spanmetrics_calls_total
+      why: Label names returns names such as service_name, not their values.
+    - text: Label values, with the label service_name and that metric
+      why: Label values returns the values of one label, here limited to one metric.
+    - text: Classic query, because only it can name a label
+      why: Label values names a label too, and Classic query is marked as deprecated.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/datasources/prometheus/template-variables/
+
+- id: q-m05-014
+  tags: [ dashboard-variables ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: A variable env holds prod. The query needs the metric prod_requests_total, with the variable glued to the rest of the name. Which form works?
+  options:
+    - text: <code>${env}_requests_total</code>
+      why: The braces mark where the variable name ends, so Grafana replaces env and keeps the rest.
+    - text: <code>$env_requests_total</code>
+      why: Without braces Grafana reads the whole word as one variable name, env_requests_total, which does not exist.
+    - text: <code>[[env]]_requests_total</code>
+      why: The double-bracket form is deprecated and will be removed.
+    - text: <code>{{env}}_requests_total</code>
+      why: Double braces are for legend templates of label values, not for dashboard variables.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/variables/variable-syntax/
+
+- id: q-m05-015
+  tags: [ dashboard-variables ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: You want one Error share panel per selected service, drawn side by side, without building each by hand. What do you set?
+  options:
+    - text: A transformation that splits the series by service
+      why: A transformation reshapes data inside one panel. It does not create panels.
+    - text: A second variable with the same values
+      why: Two variables do not create panels. Repeating does.
+    - text: Thresholds, one per service
+      why: Thresholds colour values. They do not create panels.
+    - text: A multi-value variable and Repeat options
+      why: Grafana repeats a panel once per selected value of a multi-value variable.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/configure-panel-options/
+
+- id: q-m05-016
+  tags: [ dashboard-variables ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: A variable has no default value. Which value is selected when someone opens the dashboard for the first time?
+  options:
+    - text: The topmost value in the drop-down list
+      why: Without a default, Grafana preselects the first value in the list.
+    - text: No value, so the panels stay empty until one is chosen
+      why: Grafana does not leave the variable empty. It picks the first value.
+    - text: All, because every variable has that option
+      why: All exists only when Include All value is turned on.
+    - text: The value used most often in the last week
+      why: Grafana keeps no usage statistics for variable values.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/variables/add-template-variables/
+
+# dashboard-design
+- id: q-m05-017
+  tags: [ dashboard-design ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: According to Grafana's best practices, why should alerts be built on RED dashboards rather than USE dashboards?
+  options:
+    - text: RED metrics are cheaper to store than USE metrics
+      why: The reason given is about what the signals mean, not their cost.
+    - text: USE dashboards cannot hold alert rules
+      why: Any time series panel can be the base for an alert. The method is the point.
+    - text: RED shows the symptoms that users feel first
+      why: RED reports user experience, and the best practice is to alert on symptoms, not causes.
+    - text: RED panels refresh faster than USE panels
+      why: Refresh speed is a dashboard setting, the same for both methods.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/best-practices/
+
+- id: q-m05-018
+  tags: [ dashboard-design ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: A latency panel shows only the mean. Users still complain about slow pages that the panel does not show. What should the panel add?
+  options:
+    - text: Percentiles such as p95 and p99
+      why: A high percentile shows the slow tail that a mean hides.
+    - text: A shorter refresh interval
+      why: Refreshing more often shows the same mean sooner. It still hides the tail.
+    - text: A logarithmic y-axis
+      why: A log scale changes how the line is drawn, not which value is plotted.
+    - text: The request rate on the same axis
+      why: Rate is a different signal. It does not show slow requests.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/best-practices/
+
+- id: q-m05-019
+  tags: [ dashboard-design ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: A dashboard's data changes once an hour, but its refresh is set to 30 seconds. What does Grafana's advice say about this?
+  options:
+    - text: It is fine, because Grafana caches every query
+      why: The advice is to avoid needless refreshing because it loads the network and the backend.
+    - text: It is required, so that alerts stay accurate
+      why: Alert rules are evaluated on their own schedule, not by dashboard refresh.
+    - text: It only matters for dashboards with variables
+      why: Every refresh runs every panel's queries, with or without variables.
+    - text: Avoid it, since it loads the backend for nothing
+      why: The best practices say not to refresh more often than the data changes.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/best-practices/
+
+# dashboard-transformations
+- id: q-m05-020
+  tags: [ dashboard-transformations ]
+  exam: { cert: none }
+  q: A table panel gets nine time series and shows one at a time. You want one row per series with its last value. Which transformation does that?
+  options:
+    - text: Organize fields by name
+      why: Organize renames, orders and hides fields. It does not turn series into rows.
+    - text: Reduce, in the mode Series to rows
+      why: Reduce with Series to rows makes one row per series with the calculation you pick.
+    - text: Filter data by values
+      why: This keeps or drops rows. It does not merge series into one table.
+    - text: Sort by, on the series name
+      why: Sorting orders rows that already exist.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/query-transform-data/transform-data/
+
+- id: q-m05-021
+  tags: [ dashboard-transformations ]
+  exam: { cert: none }
+  q: You need the ratio of a Loki log count to a Prometheus request rate in one alert rule. Where is the calculation done?
+  options:
+    - text: In a PromQL query, by naming the Loki data source inside it
+      why: PromQL cannot read from Loki. The inputs come from two data sources.
+    - text: In a transformation on the alert's panel
+      why: Transformations are a panel feature. Alert rules use server-side expressions.
+    - text: In a Math expression such as $A / $B
+      why: Expressions run on the server, combine queries from different data sources and work in alert rules.
+    - text: In a Grafana variable that holds the result
+      why: Variables hold values for queries. They do not compute across queries.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/query-transform-data/expression-queries/
+
+- id: q-m05-022
+  tags: [ dashboard-transformations ]
+  exam: { cert: none }
+  q: Both inputs of a ratio come from the same Prometheus. Where does Grafana advise doing the division?
+  options:
+    - text: In the PromQL query, inside the data source
+      why: Grafana advises processing data in the data source where possible.
+    - text: In a Math expression, on the Grafana server
+      why: Expressions copy data to Grafana first. They are meant for light work and mixed sources.
+    - text: In an Add field from calculation transformation
+      why: This works, but it moves the work out of the data source, which is the slower path.
+    - text: In a value mapping on the panel
+      why: Value mappings turn values into text. They do not divide.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/query-transform-data/expression-queries/
+
+# dashboard-schema
+- id: q-m05-023
+  tags: [ dashboard-schema ]
+  exam: { cert: none }
+  q: A team upgrades to Grafana 13 and opens a dashboard that was built in Grafana 11. What happens to it?
+  options:
+    - text: It stays in the old form until someone migrates it by hand
+      why: No manual step is needed. Grafana 13 migrates it when it is opened.
+    - text: It opens read only, because the old schema is no longer supported
+      why: Old dashboards keep working. They move to the new schema when opened.
+    - text: It is moved to the new schema when it is opened
+      why: With dynamic dashboards on by default, existing dashboards migrate to the new schema when opened.
+    - text: It must be exported and imported again
+      why: Export and import are not needed. The migration happens when the dashboard opens.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/whatsnew/whats-new-in-v13/whats-new-in-v13-0/
+
+- id: q-m05-024
+  tags: [ dashboard-schema ]
+  exam: { cert: none }
+  q: You want a panel to disappear when its query returns no data. What does the panel need?
+  options:
+    - text: A Custom layout and a panel height of 0
+      why: Custom layouts do not support show/hide rules, and a zero height is not a rule.
+    - text: A threshold whose colour is transparent
+      why: A threshold colours values. An empty panel would still take its place.
+    - text: A value mapping that turns no data into a blank
+      why: A mapping changes the text shown, not whether the panel is shown.
+    - text: An Auto grid layout and a show/hide rule
+      why: Show/hide rules work for panels in an auto grid layout, and one rule type checks the query result.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/create-dashboard/
+
+- id: q-m05-025
+  tags: [ dashboard-schema ]
+  exam: { cert: none }
+  q: An exported dashboard starts with apiVersion, kind and metadata, and its spec holds the classic dashboard fields such as panels and templating. Which model is it?
+  options:
+    - text: V1 Resource
+      why: The V1 Resource wraps the classic dashboard in a Kubernetes-style envelope, with the classic model in spec.
+    - text: V2 Resource
+      why: V2 describes every element as a kind of its own, not the classic panels list.
+    - text: Classic
+      why: The classic model has no apiVersion, kind or metadata at the top.
+    - text: A provisioning file
+      why: Provisioning files name where dashboards come from. They are not a dashboard model.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/view-dashboard-json-model/
+
+# dashboard-links
+- id: q-m05-026
+  tags: [ dashboard-links ]
+  exam: { cert: none }
+  q: A click on one line of a latency graph should open a detail dashboard for that line's operation. Which kind of link do you use?
+  options:
+    - text: A dashboard link, shown at the top of the dashboard
+      why: A dashboard link does not know which line was clicked.
+    - text: A panel link, shown next to the panel title
+      why: A panel link belongs to the whole panel, not to one series.
+    - text: A data link on the series that was clicked
+      why: Data links sit on series and values and can put their labels into the URL.
+    - text: An annotation with the operation name as a tag
+      why: Annotations mark events on the time axis. They are not links.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/manage-dashboard-links/
+
+- id: q-m05-027
+  tags: [ dashboard-links ]
+  exam: { cert: none }
+  q: You press Ctrl and click on a graph to add an annotation, but the dialog does not open. The dashboard is new and has never been saved. What is the likely cause?
+  options:
+    - text: Annotations need the Loki data source
+      why: Annotations added by hand use the built-in Grafana data source, not Loki.
+    - text: Annotations work only in the Stat visualization
+      why: Annotations are supported in time series, state timeline and candlestick panels.
+    - text: Annotations are stored in the data source, which is read only
+      why: Annotations added by hand are stored in Grafana itself.
+    - text: The dashboard must be saved before annotations can be added
+      why: Adding annotations in a panel needs a saved dashboard and the built-in query.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/annotate-visualizations/
+
+- id: q-m05-028
+  tags: [ dashboard-links ]
+  exam: { cert: none }
+  q: A dashboard link of the type Dashboards should open the linked dashboard with the same service and the same hour. Which two options do you turn on? (Choose two.)
+  options:
+    - text: Include current time range
+      why: This adds the time range to the link.
+    - text: Include current template variable values
+      why: This adds the current variable values, such as the service, to the link.
+    - text: Show as dropdown
+      why: This changes how the links are listed, not what they carry.
+    - text: Open link in new tab
+      why: This decides where the link opens, not what context it keeps.
+    - text: Show in controls menu
+      why: This moves the link into the controls menu. It carries nothing extra.
+  answer: [ 0, 1 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/manage-dashboard-links/
+
+# grafana-access
+- id: q-m05-029
+  tags: [ grafana-access ]
+  exam: { cert: none }
+  q: Five people in the payments team need to edit only the dashboards in the folder Payments. What is the cleanest setup?
+  options:
+    - text: Give each of the five the Editor role in the organization
+      why: Editor applies to all dashboards in the organization, not one folder.
+    - text: Create a team with the five and give it Edit on the folder
+      why: A team gets permissions as a group, and folder permissions pass to every dashboard in it.
+    - text: Give each of the five Edit on every dashboard in the folder
+      why: That works until a new dashboard is added. A folder permission covers new ones too.
+    - text: Make the five server administrators
+      why: Server administrators manage the whole Grafana, which is far more than needed.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/grafana/v13.3/administration/roles-and-permissions/folder-access-control/
+
+- id: q-m05-030
+  tags: [ grafana-access ]
+  exam: { cert: none }
+  q: A user has the Viewer role and no access to the folder Finance. Can they still query the data source those dashboards use?
+  options:
+    - text: No, because folder permissions also cover data sources
+      why: Folder permissions cover what is inside the folder, not data sources.
+    - text: No, because Viewers cannot query data sources at all
+      why: The Viewer role includes querying data sources.
+    - text: Yes, by default any user may query any data source
+      why: By default every user of the organization can query its data sources.
+    - text: Only through Explore, which ignores roles
+      why: Explore needs the Editor or Admin role, or the data sources explore permission.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/administration/data-source-management/
+
+- id: q-m05-031
+  tags: [ grafana-access ]
+  exam: { cert: none }
+  q: Why do service accounts keep working when the engineer who created them leaves?
+  options:
+    - text: Their tokens are tied to the organization's Admin role
+      why: Tokens belong to the service account, not to a role or to a person.
+    - text: Grafana renews their tokens every day by itself
+      why: Grafana does not renew tokens. They keep their expiry date or never expire.
+    - text: They borrow the role of the oldest admin
+      why: A service account has its own role.
+    - text: They belong to no user, so no departure affects them
+      why: Service account tokens are not tied to any user.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/administration/service-accounts/
+
+- id: q-m05-032
+  tags: [ grafana-access ]
+  exam: { cert: none }
+  q: A new service account token gets no expiration date. How long is it valid?
+  options:
+    - text: Until the token is deleted
+      why: By default tokens have no expiry, so they stay valid until removed.
+    - text: 30 days, the default expiry
+      why: There is no default expiry. The admin can set a limit in the configuration.
+    - text: Until the user who created it signs out
+      why: Tokens are not tied to any user's session. Without an expiry they stay valid until deleted.
+    - text: One hour, after which it must be refreshed
+      why: Service account tokens are not refreshed like a session.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/administration/service-accounts/
+
+# dashboard-sharing
+- id: q-m05-033
+  tags: [ dashboard-sharing ]
+  exam: { cert: none }
+  q: You export a dashboard for a team that runs its own Grafana, with other data source names. Which option helps them import it?
+  options:
+    - text: Lock time range on the export
+      why: This belongs to internal links. It does not change data sources.
+    - text: Share with another instance
+      why: It removes details of your instance and turns data sources into inputs chosen on import.
+    - text: Shorten link
+      why: Shorter links are for internal sharing, not for files.
+    - text: Publish a snapshot first
+      why: A snapshot holds data, not the queries the other team needs.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/share-dashboards-panels/
+
+- id: q-m05-034
+  tags: [ dashboard-sharing ]
+  exam: { cert: none }
+  q: An externally shared dashboard is posted on a busy forum. What should its owner expect?
+  options:
+    - text: Nothing, because it shows a stored copy of the data
+      why: That describes a snapshot. An external share stays live.
+    - text: Visitors must sign in before they see anything
+      why: Anyone with the URL can open it without signing in.
+    - text: Many queries to the dashboard's data sources
+      why: Every visit runs the dashboard's queries, so wide sharing can mean many queries.
+    - text: Visitors can edit the panels and save copies
+      why: Externally shared dashboards are read only.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/share-dashboards-panels/shared-dashboards/
+
+- id: q-m05-035
+  tags: [ dashboard-sharing ]
+  exam: { cert: none }
+  q: To publish your dashboard in the community catalog on grafana.com, which model must the export use?
+  options:
+    - text: V2 Resource, because it is the current schema
+      why: The catalog asks for the Classic model.
+    - text: V1 Resource, in YAML format
+      why: YAML is offered for the V2 Resource only, and the catalog asks for Classic.
+    - text: Any model, because the catalog converts it
+      why: The documentation names one model for the catalog.
+    - text: Classic
+      why: Grafana's documentation says to export in the Classic model to publish a community dashboard.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/share-dashboards-panels/
