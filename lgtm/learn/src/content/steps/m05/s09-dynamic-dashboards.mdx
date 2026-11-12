@@ -76,10 +76,10 @@ Panels in an auto grid layout can have show/hide rules. A rule can hide a panel 
 
 ## Reading and moving the JSON
 
-The JSON model of any dashboard is one click away in the dashboard settings, and you can edit it there. When you export a dashboard, Grafana asks which model to write. Choose Classic if the dashboard must load in Grafana 12.4 or older. To provision a dynamic dashboard from files, it must be in the Kubernetes resource format.
+The JSON model of any dashboard is one click away. In the lab's Grafana 13.3 it sits in the dashboard's sidebar in edit mode, under **Edit as code**, where you can read it as JSON or YAML and edit it. The old **JSON Model** tab in the settings now only points there. When you export a dashboard, Grafana asks which model to write. Choose Classic if the dashboard must load in Grafana 12.4 or older. To provision a dynamic dashboard from files, it must be in the Kubernetes resource format.
 
 <InLab>
-The lab's Grafana is 13.3, so the dashboard you built is stored in the V2 Resource model. The lab's provisioned dashboards in the folders Shop and Kubernetes are written in the Classic model and still load.
+The lab's Grafana is 13.3, so the dashboard you built is stored in the V2 Resource model, and a new dashboard there starts with the Auto grid layout. The lab's provisioned dashboards in the folders Shop and Kubernetes are written in the Classic model and still load.
 </InLab>
 
 <Trap>
@@ -91,12 +91,12 @@ Grafana 13 stores dashboards as V2 Resources and still reads and writes the Clas
 </Remember>
 
 <Do>
-1. Open your dashboard `Shop service (m05)` and click **Edit**. Open the dashboard options in the sidebar and click **View all settings**.
-2. Open the **JSON Model** tab. Read the first lines: `apiVersion`, `kind`, `metadata` and `spec`.
-3. In `spec`, find `elements`: each panel is an object with `"kind": "Panel"`. Find `layout` and the row Checks inside it.
-4. Close the settings. Select the row Checks and look at its layout options: switch it between **Custom** and **Auto grid** and watch how the two beacon panels move.
-5. In auto grid, select the panel Beacon slots of m05 and add a show/hide rule that hides it when its query returns no data. Save the dashboard.
-6. Copy the value of `apiVersion` from the JSON model and paste it in the lab check below.
+1. Open your dashboard `Shop service (m05)` and click **Edit**. In the toolbar on the right, click **Edit as code** (the icon with braces). A panel opens with the dashboard's JSON.
+2. Read the first lines: `apiVersion`, `kind`, `metadata` and `spec`. Under `spec`, `annotations` comes first.
+3. Scroll to `elements`: each panel is an entry such as `panel-1` with `"kind": "Panel"`. Further down, `layout` is a `RowsLayout` whose rows RED and Checks each hold an `AutoGridLayout`. Close the panel without applying anything.
+4. Click the title of the row Checks to select it. In its sidebar, under **Layout**, see the choice between **Custom** and **Auto**; keep **Auto**.
+5. Expand Checks and select the panel Beacon slots of m05. Under **Show / hide rules**, click **Add rule** and choose **Query result**; the other two kinds are **Template variable** and **Time range less than**. Set the rule to **No data** and **Panel visibility** to **Hide**. Save the dashboard.
+6. Copy the value of `apiVersion` from the code view and paste it in the lab check below.
 </Do>
 
 <Done>
