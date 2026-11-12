@@ -1,920 +1,699 @@
-/* Colours: the Software Mansion design-system palette the owner picked (Dribbble, "Design System Color Palette -
-   Dark Mode"): shades of a blue-tinted black and white, and five hues in a 100/80/60 step (blue, green, yellow, purple,
-   red; orange derived to the same steps). Primary blue for every interactive element, the main button and progress.
-   Dark mode uses the palette as published; light mode uses its white shades and darker shades of the same hues, each
-   checked for 4.5:1 or more on white. The blueprint grid and drawings stay, faintly, in the page's own ink. */
-:root{
-  --bp:#E1E5EA;--bp-deep:#EFF1F5;--chalk:#0B0E16;--chalk-dim:rgba(11,14,22,.68);
-  --grid-minor:rgba(11,14,22,.045);--grid-major:rgba(11,14,22,.085);
-  --card:#FFFFFF;--text:#0B0E16;--head:#0B0E16;--muted:#4E5768;--line:#D1D7E0;--hover:#EFF1F5;--field:#EFF1F5;
-  --accent:#2E5FBF;--accent-ink:#FFFFFF;
-  --done:#13786A;--done-soft:#E2F2EF;--warn:#806300;--warn-soft:#FAF3D7;--bad:#AE3845;--bad-soft:#FAE8EA;
-  --watch:#2E5FBF;--play:#7442C2;--prep:#A8521A;--build:#806300;--check:#4E5768;--setup:#AE3845;
-  --quiz:#13786A;--quiz-soft:#E2F2EF;
-  --tip-bg:#0B0E16;--tip-ink:#FFFFFF;
-  --chart:#2E5FBF;   /* the one series hue of the overview charts: dataviz validator passes on #FFFFFF, and #5C8BD7 on the dark card #202531 */
-  --shadow:0 1px 2px rgba(11,14,22,.06),0 8px 24px rgba(11,14,22,.1);
-  --display:"Barlow Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
-  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  color-scheme:light dark;   /* the browser's own parts (date pickers, selects, scroll bars) follow the theme */
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){--bp:#0B0E16;--bp-deep:#0B0E16;--chalk:#E1E5EA;--chalk-dim:rgba(225,229,234,.72);--grid-minor:rgba(225,229,234,.035);--grid-major:rgba(225,229,234,.07);--card:#202531;--text:#E1E5EA;--head:#FFFFFF;--muted:#C0C6D4;--line:#37404F;--hover:#2A303D;--field:#161A24;--accent:#5C8BD7;--accent-ink:#0B0E16;--done:#66CDBE;--done-soft:color-mix(in srgb,#66CDBE 16%,#202531);--warn:#E4C542;--warn-soft:color-mix(in srgb,#E4C542 14%,#202531);--bad:#D1757D;--bad-soft:color-mix(in srgb,#D1757D 16%,#202531);--watch:#77A1E3;--play:#CC9DF1;--prep:#EEAF7E;--build:#EDD162;--check:#C0C6D4;--setup:#DF9099;--quiz:#99E1D7;--quiz-soft:color-mix(in srgb,#99E1D7 14%,#202531);--tip-bg:#E1E5EA;--tip-ink:#0B0E16;--shadow:0 10px 28px rgba(0,0,0,.5);--chart:#5C8BD7;}
-}
-/* the theme chosen in Settings (this browser only) wins over the system one */
-:root[data-theme="dark"]{color-scheme:dark;--bp:#0B0E16;--bp-deep:#0B0E16;--chalk:#E1E5EA;--chalk-dim:rgba(225,229,234,.72);--grid-minor:rgba(225,229,234,.035);--grid-major:rgba(225,229,234,.07);--card:#202531;--text:#E1E5EA;--head:#FFFFFF;--muted:#C0C6D4;--line:#37404F;--hover:#2A303D;--field:#161A24;--accent:#5C8BD7;--accent-ink:#0B0E16;--done:#66CDBE;--done-soft:color-mix(in srgb,#66CDBE 16%,#202531);--warn:#E4C542;--warn-soft:color-mix(in srgb,#E4C542 14%,#202531);--bad:#D1757D;--bad-soft:color-mix(in srgb,#D1757D 16%,#202531);--watch:#77A1E3;--play:#CC9DF1;--prep:#EEAF7E;--build:#EDD162;--check:#C0C6D4;--setup:#DF9099;--quiz:#99E1D7;--quiz-soft:color-mix(in srgb,#99E1D7 14%,#202531);--tip-bg:#E1E5EA;--tip-ink:#0B0E16;--shadow:0 10px 28px rgba(0,0,0,.5);--chart:#5C8BD7;}
-:root[data-theme="light"]{color-scheme:light}
+/* SAA-C03 plan in the Field Manual design system: a learning app as a mission console and its printed manual.
+   Tokens (colour, space, stroke, cut, type) come from fm/tokens.css, the components from fm/bundle.css; this file maps
+   the app's own markup onto them. Carbon (dark) and Paper (light) follow the system unless Settings picks one.
+   The rules: black, white and one live signal (acid lime); alert only for what needs attention; square corners or
+   45-degree cuts; lines, not depth (no shadows, glows, gradients or blur); sans for reading, mono for facts and labels;
+   motion in steps at constant speed. The quiz, the mock, the drill, results, badges and the celebrations are in fx.css. */
 
+/* ---------- ground ---------- */
+:root{color-scheme:dark;--wrap:1240px;--gut:var(--space-8);--rail:var(--space-12)}
+@media (prefers-color-scheme:light){:root:not([data-theme]){color-scheme:light}}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html{background:var(--bp-deep);scrollbar-gutter:stable}   /* the card doesn't jump sideways when one step is long enough to scroll and the next isn't */
-body{
-  margin:0;min-height:100vh;color:var(--text);font:16px/1.5 var(--body);
-  background-color:var(--bp);
-  background-image:
-    radial-gradient(ellipse at 50% 0%,transparent 40%,color-mix(in srgb,var(--bp-deep) 70%,transparent) 100%),
-    linear-gradient(var(--grid-major) 1px,transparent 1px),
-    linear-gradient(90deg,var(--grid-major) 1px,transparent 1px),
-    linear-gradient(var(--grid-minor) 1px,transparent 1px),
-    linear-gradient(90deg,var(--grid-minor) 1px,transparent 1px);
-  background-size:100% 100%,96px 96px,96px 96px,16px 16px,16px 16px;
-  background-attachment:fixed;
-}
-.bp-art{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;color:var(--chalk)}
-.bp-art .ink{fill:none;stroke:currentColor;stroke-width:1.3;opacity:.26}
-.bp-art .dash{stroke-dasharray:6 5}
-.bp-art text{fill:currentColor;stroke:none;font:600 15px var(--display);letter-spacing:.02em}
-.bp-art text.sm{font-size:13px;font-weight:500}
-.bp-art text.xs{font-size:11px;font-weight:500}
-@media (max-width:1300px){.bp-art{opacity:.55}}
-body.in-flow .bp-art{opacity:.35}   /* dimmer while you study a step, so the margins don't pull the eye from the card */
+html{background:var(--paper);scrollbar-gutter:stable}   /* the card doesn't jump sideways when one step scrolls and the next doesn't */
+body{margin:0;min-height:100vh;background:var(--paper);color:var(--ink);font:400 16px/1.55 var(--font-sans);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+::selection{background:var(--signal);color:var(--on-signal)}
+:focus-visible{outline:var(--stroke-bold) solid var(--ink);outline-offset:var(--stroke-bold)}
+a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--ink-3);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--ink);background:var(--signal);color:var(--on-signal)}
+b,strong{font-weight:600;color:var(--ink)}
+.muted{color:var(--ink-3);font-weight:400}
+code,kbd{font:500 .86em var(--font-mono);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule);padding:0 4px}
+mark{background:var(--signal);color:var(--on-signal);padding:0 2px}
+input,select,textarea{accent-color:var(--ink);caret-color:var(--ink)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-.wrap{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:22px 16px 140px}
-a{color:var(--watch)}
-.muted{color:var(--muted);font-weight:400}
-code,kbd{font:13px var(--mono);background:var(--hover);padding:1px 5px;border-radius:4px}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* the backdrop: generated geometry fixed behind the page (app.js bdDraw), never information */
+.bd-host{position:fixed;inset:0;z-index:0;pointer-events:none;isolation:isolate}
+.bd-host .fm-backdrop{position:absolute;inset:0;z-index:0}
+.wrap{position:relative;z-index:1;max-width:calc(var(--wrap) + 2 * var(--gut));margin:0 auto;padding:var(--space-8) var(--gut) 140px}
 
-button,.btn{font:500 14px/1.2 var(--body);padding:7px 12px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:7px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
-button:hover,.btn:hover{border-color:var(--muted)}
-button.primary,.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
-button.primary:hover,.btn.primary:hover{filter:brightness(1.06)}
-button.danger{color:var(--bad)}
-button.ghost{background:color-mix(in srgb,var(--chalk) 6%,transparent);border-color:color-mix(in srgb,var(--chalk) 35%,transparent);color:var(--chalk)}
-button.ghost:hover{background:color-mix(in srgb,var(--chalk) 14%,transparent);border-color:var(--chalk)}
-button.ghost[aria-pressed="false"]{opacity:.6}
+/* the labels: uppercase mono, one to three words */
+.tb-k,.fm-label,.nx-k,.c-meta,.box-h,.side-t,.sub-h,.ov-h,.fl-count,.fl-blk,.week,.rd-nk,.ch-n,.sr-k{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 
-/* ---------- title block (the one loud thing) ---------- */
-.tb{display:grid;grid-template-columns:1fr repeat(3,minmax(96px,auto));border:1.5px solid color-mix(in srgb,var(--chalk) 75%,transparent);color:var(--chalk);margin-bottom:10px;position:relative}
-.tb>*{padding:10px 14px;border-left:1px solid color-mix(in srgb,var(--chalk) 45%,transparent)}
-.tb>*:first-child{border-left:0}
-.tb-title{grid-row:span 2}
-.tb-k{display:block;font:500 13px var(--display);color:var(--chalk-dim);letter-spacing:.04em}
-.tb h1{font:700 clamp(30px,4.6vw,46px)/1 var(--display);margin:4px 0 6px;letter-spacing:.005em}
-.tb-sub{font:500 17px var(--display);color:var(--chalk-dim)}
-.tb-cell b{display:block;font:600 22px/1.15 var(--display);margin-top:2px;white-space:nowrap}
-.tb-tools{grid-column:2/5;border-top:1px solid color-mix(in srgb,var(--chalk) 45%,transparent);display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
-.tb-tools button{font-size:13px;padding:5px 10px}
-
-.pill{font-size:13px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid transparent}
-.pill.ok{background:var(--done-soft);color:var(--done)}
-.pill.warn{background:var(--warn-soft);color:var(--warn)}
-.pill.bad{background:var(--bad-soft);color:var(--bad)}
-
-/* ---------- overview: numbers in title-block cells, overall bar ---------- */
-.stats{margin:0 0 14px}
-.st-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));color:var(--chalk);border:solid color-mix(in srgb,var(--chalk) 75%,transparent);border-width:1.5px 0 0 1.5px}
-.st{padding:8px 14px;border:solid color-mix(in srgb,var(--chalk) 45%,transparent);border-width:0 1px 1px 0}
-.st b{display:block;font:600 22px/1.15 var(--display);margin-top:2px;white-space:nowrap}
-.st small{font:500 15px var(--display);color:var(--chalk-dim)}
-/* the level: a cell like the others that opens badges and level; the bar is the way to the next level */
-button.st-lv{display:block;text-align:left;font:inherit;color:inherit;background:none;border-radius:0;cursor:pointer}
-button.st-lv:hover{background:color-mix(in srgb,var(--chalk) 8%,transparent)}
-.st{min-width:0}
-.st-lv b{overflow:hidden;text-overflow:ellipsis}
-.xpbar{display:block;height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:5px}
-.xpbar>span{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--watch),var(--play));transition:width .4s}
-.st-lv .xpbar{background:color-mix(in srgb,var(--chalk) 16%,transparent);height:5px}
-.bar{height:8px;background:color-mix(in srgb,var(--chalk) 16%,transparent);border-radius:4px;overflow:hidden}
-.stats .bar{margin-top:10px}
-.bar>div{height:100%;width:0;background:var(--accent);transition:width .4s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 12px color-mix(in srgb,var(--accent) 60%,transparent)}
-.pbar{display:block;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
-.pbar>span{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .4s cubic-bezier(.2,.8,.2,1)}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px}
+/* ---------- buttons: outline mono, primary filled with the action colour and cut bottom-right, ghost bracketed ---------- */
+button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:36px;padding:0 var(--space-4);font:500 12px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;text-align:center;
+  color:var(--ink);background:linear-gradient(var(--ink),var(--ink)) left/0 100% no-repeat var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-radius:0;cursor:pointer;
+  transition:background-size var(--fm-step) steps(4,end),color var(--fm-tick) steps(1,end)}
+@media (hover:hover){button:not(:disabled):hover,.btn:hover{background-size:100% 100%;color:var(--on-ink)}}
+button:not(:disabled):active,.btn:active{transform:translate(1px,1px)}
+button.primary,.btn.primary{border-color:transparent;color:var(--on-action);font-weight:600;
+  background:border-box no-repeat linear-gradient(315deg,transparent calc(var(--chamfer) * .7071),var(--action) calc(var(--chamfer) * .7071 + .5px))}
+button.primary:not(:disabled):hover,.btn.primary:hover{color:var(--on-action);text-decoration:underline;text-underline-offset:4px;background:border-box no-repeat linear-gradient(315deg,transparent calc(var(--chamfer) * .7071),var(--action) calc(var(--chamfer) * .7071 + .5px))}
+button.ghost{border-color:transparent;background-color:transparent;padding:0 var(--space-1);gap:var(--space-1)}
+button.ghost::before{content:"[";color:var(--ink-3)}
+button.ghost::after{content:"]";color:var(--ink-3)}
+button.ghost:not(:disabled):hover{background-size:0 100%;color:var(--ink);text-decoration:underline;text-underline-offset:4px}
+button.ghost[aria-pressed="false"]{color:var(--ink-3)}
+button.ghost[aria-pressed="true"]{color:var(--ink)}
+button.danger{color:var(--alert-text);border-color:var(--alert)}
+button.danger:not(:disabled):hover{background-image:linear-gradient(var(--alert),var(--alert));color:var(--on-alert)}
+button:disabled{color:var(--ink-3);border-color:var(--ink-3);cursor:not-allowed;padding-right:calc(var(--space-4) + var(--space-6));
+  background:no-repeat right/var(--space-6) 100% repeating-linear-gradient(135deg,var(--ink-3) 0 var(--stroke-hair),transparent var(--stroke-hair) 6px) var(--paper-raised)}
+button.primary:disabled{background:no-repeat right/var(--space-6) 100% repeating-linear-gradient(135deg,var(--ink-3) 0 var(--stroke-hair),transparent var(--stroke-hair) 6px) var(--paper-raised);color:var(--ink-3);border-color:var(--ink-3)}
+button.ghost:disabled{background:none;padding-right:var(--space-1)}
+button.sm,.btn.sm{min-height:28px;padding:0 var(--space-3);font-size:11px}
+.big{min-height:48px;padding:0 var(--space-6);font-size:13px}
+button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:inherit;letter-spacing:0;text-transform:none;text-align:left;color:var(--ink);text-decoration:underline;text-decoration-color:var(--ink-3);text-underline-offset:3px}
+@media (hover:hover){button.link:not(:disabled):hover{background:var(--signal);color:var(--on-signal)}}
+.row{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;margin-top:var(--space-3)}
 .row.end{justify-content:flex-end}
 
-/* ---------- quick links ---------- */
-.links{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
-.links a{font-size:14px;padding:5px 12px;border:1px solid color-mix(in srgb,var(--chalk) 35%,transparent);border-radius:999px;background:color-mix(in srgb,var(--chalk) 6%,transparent);text-decoration:none;color:var(--chalk)}
-.links a:hover{background:color-mix(in srgb,var(--chalk) 16%,transparent);border-color:var(--chalk)}
+/* status words: a tag whose fill is the status */
+.pill,.tag,.today-badge{display:inline-flex;align-items:center;gap:6px;min-height:20px;padding:0 var(--space-2);font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border:var(--stroke-hair) solid var(--ink);color:var(--ink);background:var(--paper-raised)}
+.pill.ok{background:var(--ink);color:var(--on-ink)}
+.pill.warn{border-color:var(--alert);color:var(--alert-text)}
+.pill.bad{background:var(--alert);border-color:var(--alert);color:var(--on-alert)}
+.today-badge{background:var(--signal);border-color:var(--signal-edge);color:var(--on-signal)}
+.tag::before{content:"";width:6px;height:6px;background:currentColor}
+.t-quiz::before{background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
 
-/* ---------- paper sheets ---------- */
-.next,.panel,.dt,.card,dialog,.fx-banner{background:var(--card);color:var(--text);box-shadow:var(--shadow)}
+/* ---------- the rail: code block, where you are, the sync notice, the day, the focus timer ---------- */
+.timer{position:sticky;top:0;z-index:25;height:var(--rail);background:var(--paper);border-bottom:var(--stroke-hair) solid var(--ink)}
+.tm-bar{position:absolute;left:0;right:0;bottom:-1px;height:var(--stroke-bold);pointer-events:none}
+.tm-fill{display:block;height:100%;width:0;background:var(--signal-edge);transition:width .9s linear}
+.timer.break .tm-fill{background:var(--ink)}
+.timer.over .tm-fill{background:var(--alert);animation:tm-over var(--fm-beat) steps(2,jump-none) infinite}
+.timer:not(.running) .tm-fill{background:var(--ink-3)}
+.tm-row{position:relative;height:100%;display:flex;align-items:stretch;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+.tm-row>*{display:flex;align-items:center}
+.tm-row>*+*{border-left:var(--stroke-hair) solid var(--rule)}
+.rl-code{padding:0 var(--space-6);background:var(--action);color:var(--on-action);font-weight:600;text-decoration:none;white-space:nowrap}
+.rl-code:hover{background:var(--action);color:var(--on-action);text-decoration:underline;text-underline-offset:4px}
+.rl-nav{gap:var(--space-3);padding:0 var(--space-4);color:var(--ink-3);white-space:nowrap}
+.rl-nav a{color:var(--ink-2);text-decoration:none;border-bottom:var(--stroke-bold) solid transparent;padding:var(--space-1) 0}
+.rl-nav a:hover{background:none;color:var(--ink);border-bottom-color:var(--ink)}
+.rl-nav [aria-current]{color:var(--ink);border-bottom:var(--stroke-bold) solid var(--signal-edge);padding:var(--space-1) 0}
+.sync-w{flex:1;min-width:0;padding:0 var(--space-3)}
+.sync-w:empty,.sync-w:has(>[hidden]:only-child){border-left:0}
+.rl-pos{gap:var(--space-3);padding:0 var(--space-4);white-space:nowrap}
+.rl-pos .fm-data{font-size:11px;letter-spacing:.08em}
+.tm-chip{display:flex;align-items:stretch}
+.tm-chip button{min-height:0;height:100%;border:0;padding:0 var(--space-4);background-color:var(--paper);font-size:11px}
+.tm-go{width:48px;border-right:var(--stroke-hair) solid var(--rule)!important;font-size:12px!important}
+.tm-face{gap:var(--space-3)}
+.tm-mode{color:var(--ink-3)}
+.tm-time{font:600 15px/1 var(--font-mono);letter-spacing:.02em;color:var(--ink)}
+.tm-caret{color:var(--ink-3)}
+.timer.running .tm-mode{color:var(--ink)}
+.timer.running .tm-go{background-color:var(--signal);color:var(--on-signal)}
+.timer.break.running .tm-go{background-color:var(--ink);color:var(--on-ink)}
+.timer.over .tm-mode,.timer.over .tm-time{color:var(--alert-text)}
+.timer.away .tm-mode{color:var(--alert-text)}
+.tm-pop{position:absolute;right:0;top:calc(100% + 1px);width:300px;display:block!important;background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-top:var(--stroke-bar) solid var(--ink);padding:var(--space-4);z-index:26;text-transform:none;letter-spacing:0}
+.tm-pop[hidden]{display:none!important}
+.tm-btns{display:flex;gap:var(--space-2)}
+.tm-btns button{flex:1}
+.tm-info{margin:var(--space-3) 0 0;font:400 13px/20px var(--font-mono);color:var(--ink-2)}
+.tm-perm{margin-top:var(--space-3);width:100%}
+@keyframes tm-over{50%{opacity:.35}}
+/* changes that can't reach the server: offline, signed out, no answer (app.js netSaw); the short word on narrow screens */
+.sync-st{min-height:28px;gap:var(--space-2);max-width:100%;border-color:var(--alert);color:var(--alert-text);background:var(--paper-raised)}
+.sync-st[data-k="auth"]{background:var(--alert);color:var(--on-alert)}
+.sync-st .ss-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sync-st .ss-i{white-space:nowrap}
+.sync-st .ss-s{display:none}
+@media (max-width:900px){.sync-st .ss-l{display:none}.sync-st .ss-s{display:inline}}
 
-/* Today first: the day to work on and, beside it, its next step with the one big button that starts or continues it.
-   The head has today's date and where the plan stands; one column on narrower screens. */
-.next{border-radius:10px;padding:16px 22px 22px;margin:0 0 16px;border-top:4px solid var(--accent)}
-.nx-h{font-size:14.5px;color:var(--muted);display:flex;gap:6px 12px;align-items:baseline;flex-wrap:wrap}
-.nx-k{font:700 24px/1 var(--display);color:var(--text)}
-.nx-d{font-size:15px}
-.nx-st{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;margin-left:auto}
-.nx-st b{font-weight:600;color:var(--text)}
-.nx-cal{margin:6px 0 0;font-size:14.5px;color:var(--muted)}
-.nx-body{display:grid;gap:18px 30px;margin-top:16px}
-/* side by side: the day's progress at the foot of its column, level with the button */
-@media (min-width:900px){
-  .nx-body{grid-template-columns:minmax(0,1.2fr) minmax(320px,1fr)}
-  .nx-day{display:flex;flex-direction:column}
-  .nx-day .hero-p{margin-top:auto;padding-top:20px}
-}
-.hero{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start}
-.hero-n{font:700 88px/.82 var(--display);text-align:center;padding-right:18px;border-right:1px solid var(--line);font-variant-numeric:tabular-nums}
-.hero-n small{display:block;font:500 14px var(--display);color:var(--muted);letter-spacing:.05em;margin-bottom:8px}
-.hero-t{font:700 34px/1.1 var(--display);margin:0}
-.hero .goal{margin:8px 0 0;font-size:15.5px}
-.hero-p{display:grid;gap:8px;margin-top:20px;font-size:14.5px}
-/* one segment per card of the day, grouped like its blocks: done ones orange, the next one outlined */
-.segs{display:flex;gap:7px;align-items:center}
-.segs>span{display:flex;gap:2px;min-width:0}
-.segs i{flex:1 1 0;min-width:3px;height:12px;border-radius:2px;background:var(--line)}
-.segs i.on{background:var(--accent)}
-.segs i.nx{background:color-mix(in srgb,var(--accent) 22%,var(--card));box-shadow:inset 0 0 0 2px var(--accent)}
-.segs i.q{border-radius:6px}
-/* the next step: a tinted box in its block's colour, the big button at its foot */
-.next .nx-go{margin:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px 18px 18px}
-.nx-gk{align-self:stretch;display:flex;justify-content:space-between;gap:8px;font:700 17px var(--display);color:color-mix(in srgb,var(--edge) 55%,var(--text))}
-.nx-gk .muted{font:400 13.5px var(--body)}
-.nx-step{margin:0;font-size:17.5px;line-height:1.45;max-width:62ch}
-.nx-step b{font-weight:600}
-.nx-where{margin:0;font-size:14px;color:var(--muted)}
-.nx-a{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
-.nx-go .nx-a{align-self:stretch;margin-top:auto;padding-top:8px}
-.big{font-size:17px;padding:11px 24px}
-.nx-go .big{flex:1 1 100%;justify-content:center;font:700 23px/1.1 var(--display);letter-spacing:.01em;padding:16px 24px;border-radius:9px;box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 55%,#000)}
-.nx-go .big:active{transform:translateY(2px);box-shadow:0 1px 0 color-mix(in srgb,var(--accent) 55%,#000)}
-.next.all-done{border-top-color:var(--done)}
-.nx-fin{text-align:center;font:600 26px var(--display);margin:18px 0 0}
-/* the overview takes more of a wide window */
-@media (min-width:1300px){body:not(.in-flow) .wrap{max-width:1240px}}
+/* ---------- the title bar: label, the one display title, the plan's numbers, the header buttons ---------- */
+.tb{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-4) var(--space-8);align-items:end;margin:0 0 var(--space-8)}
+.tb-title{display:grid;gap:var(--space-2);min-width:0}
+.tb-title .tb-k{color:var(--ink-3);justify-self:start}
+.tb-title .tb-k,.tb-tools>button{background-color:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}   /* plates: no text bare on the backdrop */
+.tb h1{margin:0;font:800 clamp(40px,5.4vw,64px)/.9 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:0;color:var(--ink);text-wrap:balance}
+.tb-cells{display:grid;grid-template-columns:repeat(3,auto);margin:0;border:var(--stroke-hair) solid var(--ink);background:var(--paper)}
+.tb-cell{padding:var(--space-2) var(--space-4);border-top:var(--stroke-bar) solid var(--ink)}
+.tb-cell+.tb-cell{border-left:var(--stroke-hair) solid var(--ink)}
+.tb-cell dt{color:var(--ink-3)}
+.tb-cell dd{margin:2px 0 0;font:600 20px/1.1 var(--font-display);white-space:nowrap}
+.tb-tools{grid-column:1/-1;display:flex;gap:var(--space-2) var(--space-4);flex-wrap:wrap;justify-content:flex-end;border-top:var(--stroke-hair) solid var(--rule);padding-top:var(--space-2)}
+body.in-flow .tb{display:none}
 
-.panel{border-radius:10px;margin:0 0 12px}
-.panel>summary{padding:12px 16px;cursor:pointer;font:600 19px var(--display);list-style:none;display:flex;gap:8px;align-items:baseline}
+/* section headers: an index chip, a mono title, a rule (bundle.css); the overview's own headings and panels count up */
+#home{counter-reset:sec}
+.fm-section{margin:0}
+.fm-section__title{font-size:11px}
+.fm-section .fm-data{font-size:13px;color:var(--ink-2);background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov-h,.panel>summary{counter-increment:sec;display:flex;align-items:center;gap:var(--space-3);margin:var(--space-12) 0 var(--space-6);color:var(--ink)}
+.ov-h::before,.panel>summary::before{content:"/" counter(sec,decimal-leading-zero);font:600 11px/16px var(--font-mono);letter-spacing:.08em;padding:0 var(--space-1);background:var(--signal);color:var(--on-signal)}
+.ov-h::after{content:"";flex:1;border-top:var(--stroke-hair) solid var(--rule)}
+.ov-h{font-size:11px}
+.ov-h,.nx-cal,.nx-fin{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}   /* a plate: no text bare on the backdrop */
+.nx-cal,.nx-fin{width:fit-content;max-width:100%}
+
+/* ---------- today first: the hero frame (the day as a dot-matrix readout) beside the next step ---------- */
+.next{margin:0 0 var(--space-8)}
+.nx-h{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
+.nx-h>*{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
+.nx-k{color:var(--ink);padding:0 var(--space-1);background:var(--signal)!important;color:var(--on-signal);box-shadow:none!important}
+.nx-st{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-left:auto}
+.nx-st b{color:var(--ink)}
+.nx-cal{margin:0 0 var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
+.nx-body{display:grid;gap:var(--space-6) var(--space-8)}
+@media (min-width:900px){.nx-body{grid-template-columns:minmax(0,2fr) minmax(320px,1fr);align-items:stretch}}
+.nx-day.fm-frame{--tab:150px;--foot:120px;display:flex;flex-direction:column;gap:var(--space-6);padding:calc(var(--notch) + var(--space-6)) var(--space-6) calc(var(--space-6) + var(--space-6))}
+.hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-6);align-items:start}
+.hero-n{min-width:200px;gap:var(--space-3)!important}
+.hero-n .fm-dotnum{width:auto;height:auto;max-height:104px}
+.hero-x{display:grid;gap:var(--space-3);min-width:0}
+.hero-t{margin:0;font:600 30px/1.1 var(--font-sans);color:var(--ink);text-wrap:balance}
+.goal{margin:0;color:var(--ink-2);font-size:16px;line-height:1.55;max-width:68ch}
+.hero .fm-meta{max-width:440px}
+.hero-p{display:grid;gap:var(--space-2);margin-top:auto}
+.hero-p>.muted{font:400 13px/20px var(--font-mono);color:var(--ink-3)}
+/* one segment per card of the day, grouped like its blocks: done filled ink, the next one signal and standing proud */
+.segs{display:flex;gap:var(--space-2);align-items:center;height:var(--space-3);margin:var(--space-1) 0}
+.segs>span{display:flex;gap:var(--stroke-bold);min-width:0;height:100%}
+.segs i{flex:1 1 0;min-width:4px;height:100%;border:var(--stroke-hair) solid var(--ink-3)}
+.segs i.on{background:var(--ink);border-color:var(--ink)}
+.segs i.nx{background:var(--signal);border-color:var(--signal-edge);height:calc(100% + 2 * var(--space-1));margin:calc(var(--space-1) * -1) 0}
+.segs i.q{border-style:dashed}
+.segs i.q.on{border-style:solid}
+/* the next step: the current panel (ink outline, live triangle in its cut), the big button at its foot */
+.nx-go.fm-cut{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-3);padding:var(--space-6)}
+.nx-gk{align-self:stretch;display:flex;justify-content:space-between;gap:var(--space-3);padding-right:var(--space-6);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.nx-gk .muted{color:var(--ink-3)}
+.nx-step{margin:0;font-size:19px;line-height:1.45;max-width:62ch;color:var(--ink)}
+.nx-where{margin:0;font:400 13px/20px var(--font-mono);color:var(--ink-2)}
+.nx-where::before{content:"> ";color:var(--ink-3)}
+.nx-a{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;align-self:stretch;margin-top:auto;padding-top:var(--space-4)}
+.nx-go .big{flex:1 1 100%;min-height:56px;font-size:14px;justify-content:space-between}
+.next.all-done .nx-fin{margin:var(--space-6) 0;font-size:18px;color:var(--ink-2)}
+.next.all-done .fm-bracketed{display:block;font:800 clamp(36px,6vw,64px)/.95 var(--font-display);font-stretch:62%;text-transform:uppercase;color:var(--ink);margin-bottom:var(--space-3)}
+.next.all-done .nx-a{max-width:420px}
+/* warm-up / review: a notice above the hero */
+.nx-warm{display:flex;gap:var(--space-2) var(--space-4);align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 var(--space-4);padding:var(--space-2) var(--space-3) var(--space-2) calc(var(--space-6) + var(--space-3));
+  background:linear-gradient(var(--signal-edge),var(--signal-edge)) var(--space-6) 0/1px 100% no-repeat,linear-gradient(var(--signal),var(--signal)) left/var(--space-6) 100% no-repeat var(--paper-raised);border:var(--stroke-hair) solid var(--ink);font-size:15px}
+.nx-warm>span:first-child::before{content:"> ";font-family:var(--font-mono);color:var(--ink-3)}
+.nx-wb{display:flex;gap:var(--space-2);align-items:center}
+
+/* ---------- slip guard: an alert notice ---------- */
+.slip{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin:0 0 var(--space-6);padding:var(--space-3) var(--space-4) var(--space-3) calc(var(--space-6) + var(--space-4));font-size:15px;border:var(--stroke-hair) solid var(--alert);
+  background:repeating-linear-gradient(135deg,var(--alert) 0 var(--stroke-bar),transparent var(--stroke-bar) calc(var(--stroke-bar) * 2)) left/var(--space-6) 100% no-repeat,var(--paper-raised)}
+.slip .muted{flex-basis:100%;font:400 13px/20px var(--font-mono)}
+
+/* ---------- where you stand: stat tiles sharing borders ---------- */
+.stats{margin:0 0 var(--space-6)}
+.st-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:var(--paper);border:var(--stroke-hair) solid var(--ink);border-top:0}
+.st.fm-stat{min-width:0;border-left:0}
+.st.fm-stat+.st.fm-stat{border-left:var(--stroke-hair) solid var(--ink)}
+.st .tb-k{color:var(--ink-3)}
+.st .fm-stat__num{font-size:clamp(28px,2.6vw,40px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st .fm-stat__num small{font-size:12px}
+button.st-lv{display:grid;justify-content:stretch;align-items:start;text-align:left;min-height:0;padding:var(--space-3) var(--space-4) var(--space-4);font:inherit;letter-spacing:0;text-transform:none;background:var(--paper);background-image:none;border:0;border-top:var(--stroke-bar) solid var(--ink-3)}
+button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink)}
+.st-lv .fm-stat__num small{display:block;margin:var(--space-1) 0 0;font-size:11px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xpbar{display:block;height:var(--space-1);background:var(--rule)}
+.xpbar>span{display:block;height:100%;background:var(--ink);transition:width var(--fm-boot) steps(8,end)}
+.bar{height:var(--space-1);background:var(--rule)}
+.stats .bar{margin-top:var(--space-2)}
+.bar>div{height:100%;width:0;background:var(--ink);transition:width var(--fm-boot) steps(10,end)}
+.pbar{display:block;height:var(--space-1);background:var(--rule);margin-top:var(--space-2)}
+.pbar>span{display:block;height:100%;background:var(--ink)}
+
+/* ---------- panels: an outlined sheet under its section header ---------- */
+.panel{margin:0}
+.panel>summary{cursor:pointer;list-style:none;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 .panel>summary::-webkit-details-marker{display:none}
-.panel>summary::after{content:"＋";margin-left:auto;color:var(--muted);font:400 16px var(--body)}
-.panel[open]>summary::after{content:"－"}
-.panel>summary .muted{font:400 14px var(--body)}
-.panel>*:not(summary){margin-left:16px;margin-right:16px}
-.panel[open]{padding-bottom:16px}
-.p-intro{font-size:15px;margin-top:0;max-width:68ch}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
-.place{border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:14px;background:var(--field)}
-.place h3{font:700 18px var(--display);margin:0 0 2px}
-.place .url{font:12.5px var(--mono);color:var(--muted);margin-bottom:6px;display:block}
-.place ul{padding-left:18px;margin:0}
-.place li{margin:2px 0}
-.rules{font-size:14px;margin-bottom:0;color:var(--muted);max-width:75ch}
+.panel>summary .sm-t,.panel>summary .muted{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
+.panel>summary .muted{text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink-2)}
+.panel>summary::after{content:"[ + ]";margin-left:auto;padding-left:var(--space-3);color:var(--ink-3);border-left:0;background:linear-gradient(var(--rule),var(--rule)) left center/calc(100% - 3.6em) 1px no-repeat;flex:1;text-align:right;white-space:nowrap}
+.panel[open]>summary::after{content:"[ – ]"}
+.panel>summary:hover::after{color:var(--ink)}
+.panel>:not(summary){margin-left:0;margin-right:0}
+/* text never sits on the bare backdrop: the open panel's body is one paper plate, outlined in rule */
+.panel>.p-intro,.panel>.rules,.panel>.grid+.rules{background:var(--paper);box-shadow:0 0 0 var(--space-2) var(--paper)}
+#progress>.pg-grid,#scores>:not(summary):not(.verdict):not(:empty){background:var(--paper);padding:var(--space-4);border:var(--stroke-hair) solid var(--rule)}
+#scores>:not(summary)+:not(summary){border-top:0}
+#scores>.verdict{margin:0}
+.p-intro{margin:0 0 var(--space-4);max-width:68ch;color:var(--ink-2);font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));background:var(--paper);border-top:var(--stroke-hair) solid var(--ink);border-left:var(--stroke-hair) solid var(--ink)}
+.place{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-4);font-size:14.5px;background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--ink);border-bottom:var(--stroke-hair) solid var(--ink);color:var(--ink-2)}
+.place h3{display:flex;align-items:center;gap:var(--space-2);margin:0;font:600 17px/1.25 var(--font-sans);color:var(--ink)}
+.place .url{font:400 12px/16px var(--font-mono);color:var(--ink-3)}
+.place ul{list-style:none;padding:0;margin:0;display:grid;gap:var(--space-1)}
+.place li{padding-left:var(--space-4);position:relative}
+.place li::before{content:"+";position:absolute;left:0;font-family:var(--font-mono);color:var(--ink-3)}
+.place.pr p{margin:0;flex:1}
+.place.pr>button,.place.pr .dr-modes{align-self:stretch}
+.rules{margin:var(--space-4) 0 0;max-width:75ch;font-size:14px;color:var(--ink-2)}
+.sub-h{margin:var(--space-6) 0 var(--space-3);color:var(--ink);display:flex;align-items:center;gap:var(--space-3)}
+.sub-h::after{content:"";flex:1;border-top:var(--stroke-hair) solid var(--rule)}
 
-/* scores */
-.scores-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:6px 18px}
-.scores-grid label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14.5px;border-bottom:1px dashed var(--line);padding:5px 0}
-.scores-grid .in{white-space:nowrap;color:var(--muted)}
-.scores-grid input{width:76px;font:600 15px var(--body);padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--text);text-align:right}
-.dom-bars{margin-top:14px;display:grid;gap:6px}
-.db{display:grid;grid-template-columns:160px 1fr 46px;gap:10px;align-items:center;font-size:14px}
-.db .tr{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
-.db .fi{height:100%;background:var(--watch);border-radius:4px}
-.db.weak .fi{background:var(--accent)}
-.db.weak span:first-child{font-weight:700}
-.verdict{margin-top:14px;border-radius:8px;padding:11px 13px;font-size:15px;background:var(--hover)}
-.verdict.go{background:var(--done-soft);color:var(--done)}
-.verdict.mid{background:var(--warn-soft);color:var(--warn)}
-.verdict.no{background:var(--bad-soft);color:var(--bad)}
-.verdict b{font-weight:700}
+/* scores: mono fields in rows */
+.scores-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0 var(--space-8)}
+.scores-grid label{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;border-bottom:var(--stroke-hair) solid var(--rule);font-size:14.5px;color:var(--ink-2)}
+.scores-grid .in{white-space:nowrap;font:400 13px var(--font-mono);color:var(--ink-3)}
+.scores-grid input,.field input,.field select,.s-disp select,.cost-add select,.cost-add input,#sr-q,.qz-note input{height:40px;padding:0 var(--space-3);font:400 14px var(--font-mono);color:var(--ink);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--ink);border-radius:0}
+.scores-grid input{width:84px;text-align:right}
+.dom-bars{margin-top:var(--space-4);display:grid;gap:var(--space-2)}
+/* bars: ink magnitudes on one scale, each ending in a 45-degree cut; the figure beside them in mono */
+.db{display:grid;grid-template-columns:170px minmax(0,1fr) 64px;gap:var(--space-3);align-items:center;font:400 13px/20px var(--font-mono);color:var(--ink-2)}
+.db>span:last-child{text-align:right;color:var(--ink)}
+.db .tr,.wk .tr,.c-tags .tr{display:block;height:var(--space-3);background:linear-gradient(var(--rule),var(--rule)) left bottom/100% 1px no-repeat}
+.db .fi,.wk .fi,.c-tags .fi{display:block;height:100%;background:var(--ink);clip-path:polygon(0 0,calc(100% - var(--space-3)) 0,100% 100%,0 100%)}
+.db.weak .fi,.wk .fi.low,.c-tags .fi.low{background:var(--alert)}
+.db.weak span:first-child{color:var(--alert-text);font-weight:600}
+.verdict{margin-top:var(--space-4);padding:var(--space-3) var(--space-4) var(--space-3) calc(var(--space-6) + var(--space-4));font-size:15px;color:var(--ink);border:var(--stroke-hair) solid var(--ink);
+  background:linear-gradient(var(--ink),var(--ink)) left/var(--space-6) 100% no-repeat var(--paper-raised)}
+.verdict:empty{display:none}
+.verdict.go{background-image:linear-gradient(var(--signal-edge),var(--signal-edge)),linear-gradient(var(--signal),var(--signal));background-position:var(--space-6) 0,left;background-size:1px 100%,var(--space-6) 100%;border-color:var(--ink)}
+.verdict.mid{border-color:var(--alert);background-image:repeating-linear-gradient(135deg,var(--alert) 0 var(--stroke-bar),transparent var(--stroke-bar) calc(var(--stroke-bar) * 2))}
+.verdict.no{border-color:var(--alert);background-image:linear-gradient(var(--alert),var(--alert))}
+.verdict b{font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+.time-log .db.tl,.db.tl{grid-template-columns:80px minmax(0,1fr) 140px}
 
-/* ---------- overview: the days as tiles; a week's heading (and "Where you stand") as a dimension line ---------- */
-.week,.ov-h{display:flex;align-items:center;gap:12px;color:var(--chalk);font:600 18px var(--display);margin:26px 0 14px}
-.ov-h{font-size:20px;margin-top:30px}
-.week::before,.week::after,.ov-h::before,.ov-h::after{content:"";flex:1;height:9px;border:solid color-mix(in srgb,var(--chalk) 55%,transparent);border-width:0 1px;background:linear-gradient(color-mix(in srgb,var(--chalk) 55%,transparent),color-mix(in srgb,var(--chalk) 55%,transparent)) center/100% 1px no-repeat}
-.week::before,.ov-h::before{flex:0 0 28px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:12px}
-@media (min-width:1300px){.tiles{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}}
-.dt{position:relative;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto 1fr auto;column-gap:10px;padding:10px 12px 12px;border-radius:8px;text-decoration:none;border:2px solid transparent;transition:border-color .2s,transform .15s}
-@media (hover:hover){.dt:hover{border-color:var(--muted);transform:translateY(-1px)}}
-.dt[data-done="1"]{border-color:color-mix(in srgb,var(--done) 70%,transparent)}
-.dt[data-today="1"]{border-color:var(--accent)}
-.dt-n{grid-row:span 2;align-self:start;font:700 34px/1 var(--display);text-align:center;font-variant-numeric:tabular-nums;padding-right:10px;border-right:1px solid var(--line)}
-.dt-n small{display:block;font:500 11px var(--display);color:var(--muted);letter-spacing:.05em}
-.dt[data-done="1"] .dt-n{color:var(--done)}
-.dt-t{font:600 17px/1.2 var(--display)}
-.dt-d{font-size:12.5px;color:var(--muted);margin-top:2px}
-.dt-s{grid-column:1/-1;align-self:end;font-size:13px;color:var(--muted);margin-top:8px}
-.dt[data-done="1"] .dt-s{color:var(--done);font-weight:600}
-.dt[data-quiz="1"] .dt-s{color:var(--warn);font-weight:600}
-.dt .pbar{grid-column:1/-1;height:5px;margin-top:5px}
-.dt[data-done="1"] .pbar>span{background:var(--done)}
-.today-badge{font-size:12px;font-weight:700;background:var(--accent);color:var(--accent-ink);padding:1px 8px;border-radius:4px;white-space:nowrap}
-.dt .today-badge{position:absolute;top:-10px;right:10px}
+/* ---------- the plan as a lattice: one cell per day, a week per row ---------- */
+.map{margin-top:var(--space-12)}
+.week{margin:var(--space-8) 0 var(--space-4)}
+.week .fm-section__idx{background:var(--paper);color:var(--ink);outline:var(--stroke-hair) solid var(--ink);outline-offset:-1px}
+.tiles{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));border-top:var(--stroke-hair) solid var(--ink);border-left:var(--stroke-hair) solid var(--ink);background:var(--paper-raised)}
+.dt.fm-cell{position:relative;min-width:0;min-height:148px;gap:var(--space-2);background-color:var(--paper-raised);transition:background-color var(--fm-tick) steps(1,end)}
+@media (hover:hover){
+  .dt.fm-cell:hover{background:var(--paper);color:var(--ink)}
+  .dt.fm-cell.is-done:hover{background:var(--ink-2);color:var(--on-ink)}
+  .dt.fm-cell.is-now:hover{background:var(--signal);color:var(--on-signal)}
+}
+a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hide the ring */
+.dt-top{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-1)}
+.dt-n{display:grid;gap:2px;font-size:30px}
+.dt-n small{font:500 10px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;font-stretch:100%;opacity:.75}
+.dt .today-badge{position:static;background:var(--on-signal);color:var(--signal);border-color:var(--on-signal);min-height:18px;font-size:10px;padding:0 var(--space-1)}
+.dt-t{font-weight:500;overflow-wrap:anywhere}
+.dt-d{margin-top:var(--space-1)}
+.dt-s{margin-top:0}
+.dt[data-quiz="1"] .dt-s{color:var(--ink);font-weight:600}
+.dt .pbar{height:var(--space-1);background:color-mix(in srgb,currentColor 25%,transparent)}
+.dt .pbar>span{background:currentColor}
+.dt.is-done .pbar{display:none}
+.fm-cell--empty{display:grid;min-height:148px;background:var(--paper);border-right:var(--stroke-hair) solid var(--ink);border-bottom:var(--stroke-hair) solid var(--ink)}
 
-.goal{color:var(--muted);font-size:15px;margin:12px 0 4px;max-width:72ch}
-.tag{display:inline-flex;align-items:center;gap:6px;font:700 15px/1.3 var(--display);letter-spacing:.01em;padding:1px 9px 1px 8px;border-radius:4px;background:color-mix(in srgb,currentColor 10%,transparent);border-left:3px solid currentColor}
-.where{font-size:13.5px;color:var(--muted);margin:5px 0 3px}
-.t-watch{color:var(--watch)}.t-play{color:var(--play)}.t-prep{color:var(--prep)}.t-build{color:var(--build)}.t-check{color:var(--check)}.t-setup{color:var(--setup)}
-.n{display:block;color:var(--muted);font-size:14px}
-.notes-l{display:block;margin-top:14px;font:600 16px var(--display);color:var(--muted)}
-.notes-l textarea,.b-notes textarea{display:block;width:100%;margin-top:4px;min-height:68px;resize:vertical;font:15px/1.5 var(--body);padding:9px 11px;border:1px solid var(--line);border-radius:6px;color:var(--text);
-  background:var(--field) repeating-linear-gradient(transparent 0 23.5px,var(--line) 23.5px 24.5px);background-attachment:local;line-height:24.5px}
-.saved{font:400 13px var(--body);opacity:0;transition:opacity .3s;margin-left:6px;color:var(--done)}
-.saved.show{opacity:1}
-.foot{color:var(--chalk-dim);font-size:13.5px;margin-top:28px;max-width:75ch}
+/* quick links: mono links in a row of rail cells */
+.links{display:flex;flex-wrap:wrap;margin:var(--space-8) 0 0;border-top:var(--stroke-hair) solid var(--ink);border-left:var(--stroke-hair) solid var(--ink)}
+.links a{display:inline-flex;align-items:center;min-height:36px;padding:0 var(--space-4);font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:var(--ink);background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--ink);border-bottom:var(--stroke-hair) solid var(--ink)}
+@media (hover:hover){.links a:hover{background:var(--ink);color:var(--on-ink)}}
+.foot{max-width:75ch;margin:var(--space-12) 0 0;padding:var(--space-3) var(--space-4);font:400 12px/18px var(--font-mono);color:var(--ink-3);background:var(--paper);border-top:var(--stroke-hair) solid var(--rule)}
+.foot::before{content:"> ";color:var(--ink-3)}
+.n{display:block;color:var(--ink-3);font-size:14px}
+.where{font:400 13px/20px var(--font-mono);color:var(--ink-2)}
+
+/* ---------- today's goal (a dial) and this week's challenges ---------- */
+.today,.running{display:grid;gap:var(--space-4) var(--space-8);margin:0 0 var(--space-6);padding:var(--space-4) var(--space-6);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
+.today{grid-template-columns:minmax(280px,1fr) 2fr}
+.today h3,.running h3{margin:0 0 var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.today h3 .muted,.running h3 .muted{text-transform:none;letter-spacing:0;font-size:12px}
+.td-goal{display:grid;grid-template-columns:88px 1fr;gap:var(--space-1) var(--space-4);align-items:center}
+.td-goal .fm-dial__ring,.ring-v{grid-area:1/1}
+.td-goal .fm-dial__ring{width:88px;height:88px}
+.td-goal.hit .fm-tick-live{stroke:var(--signal-edge)}
+.ring-v{display:grid;justify-items:center;align-self:center;line-height:1.05}
+.ring-v b{font:600 22px/1 var(--font-display)}
+.ring-v small{font:400 10px/1.2 var(--font-mono);color:var(--ink-3)}
+.td-x p{margin:0;font-size:14.5px}
+.td-x .muted{font-size:13px;margin-top:var(--space-1)}
+.td-ch ul{list-style:none;margin:0;padding:0;display:grid}
+.td-ch li{display:grid;grid-template-columns:minmax(0,1fr) minmax(160px,240px);gap:var(--space-3);align-items:center;padding:var(--space-2) 0;border-top:var(--stroke-hair) solid var(--rule);font-size:14.5px}
+.ch-i{display:none}
+.td-ch li.done .ch-t{color:var(--ink-3);text-decoration:line-through}
+.ch-m{display:grid;grid-template-columns:1fr auto;gap:var(--space-3);align-items:center}
+.ch-n{min-width:72px;text-align:right;color:var(--ink-3);text-transform:none;letter-spacing:.02em;font-size:12px}
+.td-ch li.done .ch-n{color:var(--ink);font-weight:600}
+/* a meter: one hairline track, the fill in ink, cut at the end */
+.mt{position:relative;display:block;height:var(--space-2);background:linear-gradient(var(--rule),var(--rule)) left bottom/100% 1px no-repeat}
+.mt>span{display:block;height:100%;background:var(--ink);clip-path:polygon(0 0,calc(100% - var(--space-2)) 0,100% 100%,0 100%)}
+
+/* ---------- readiness by domain, why you miss, day-by-day charts ---------- */
+.pg-grid{display:grid;gap:var(--space-8)}
+.rd-head{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-6);align-items:baseline;margin-bottom:var(--space-4)}
+.rd-all{display:flex;gap:var(--space-3);align-items:baseline}
+.rd-all b{font:600 48px/1 var(--font-display)}
+.rd-how{margin:0;font-size:13.5px}
+.rd-list{list-style:none;margin:0;padding:0;display:grid}
+.rd-list li{display:grid;grid-template-columns:170px minmax(120px,1fr) 52px 130px 180px;gap:var(--space-3);align-items:center;padding:var(--space-2) 0;border-top:var(--stroke-hair) solid var(--rule);font-size:14.5px}
+.rd-n{font-weight:600}
+.rd-v{font:600 15px var(--font-mono);text-align:right}
+.rd-s{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+.rd-c{font-size:13px}
+.rd-list .mt{height:var(--space-3);overflow:visible}
+.rd-list .bad .mt>span,.rd-list .warn .mt>span{background:var(--alert)}
+.rd-list .bad .rd-s,.rd-list .warn .rd-s{color:var(--alert-text)}
+.rd-list .few .mt>span{background:var(--ink-3)}
+.rd-list .few .rd-s{color:var(--ink-3)}
+.rd-list .mt>i{position:absolute;top:-4px;bottom:-4px;width:var(--stroke-bold);margin-left:-1px;background:var(--ink)}
+.rd-next{margin-top:var(--space-6);padding:var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
+.rd-nk{display:inline-block;padding:0 var(--space-1);background:var(--signal);color:var(--on-signal)}
+.rd-next p{margin:var(--space-2) 0 var(--space-3);font-size:15px}
+.why-bars{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);max-width:680px}
+.why-bars li{display:grid;grid-template-columns:240px minmax(80px,1fr) 32px;gap:var(--space-3);align-items:center;font-size:14px}
+.wb-t{display:block;height:var(--space-3)}
+.wb-t>span{display:block;height:100%;background:var(--ink);clip-path:polygon(0 0,calc(100% - var(--space-3)) 0,100% 100%,0 100%)}
+.wb-n{font-family:var(--font-mono);color:var(--ink-2);text-align:right}
+.why-tip{margin:var(--space-3) 0 0;max-width:760px;font-size:14px;color:var(--ink-2)}
+/* charts: dots and stepped hairlines, square columns; a tooltip and a hairline on hover or with the arrow keys */
+.tr-ctl{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:0 0 var(--space-4)}
+.tr-ctl button[aria-pressed="true"],.dg-rel button[aria-pressed="true"],.la-nav button.on,.seg-p button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+.tr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--paper);border-top:var(--stroke-hair) solid var(--ink);border-left:var(--stroke-hair) solid var(--ink)}
+.tr-fig{position:relative;margin:0;padding:var(--space-3) var(--space-3) var(--space-2);background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--ink);border-bottom:var(--stroke-hair) solid var(--ink)}
+.tr-fig:focus-visible{outline:var(--stroke-bold) solid var(--ink);outline-offset:calc(var(--stroke-bold) * -2)}
+.tr-fig figcaption{margin:0 0 var(--space-1);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.ch{display:block;width:100%;height:auto;overflow:visible}
+.ch .gl{stroke:var(--rule);stroke-width:1}
+.ch .ax{fill:var(--ink-3);font:10px var(--font-mono)}
+.ch .ref{stroke:var(--ink);stroke-width:1;stroke-dasharray:2 3}
+.ch .ref-t{fill:var(--ink-2);font:9.5px var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+.ch .mk{fill:var(--ink-2)}
+.ch .mk.now{fill:var(--signal-edge)}
+.ch .ln{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-linejoin:miter}
+.ch .dot{fill:var(--ink);stroke:var(--paper-raised);stroke-width:1.5}
+.ch .lab{fill:var(--ink);font:600 10.5px var(--font-mono)}
+.ch .xh{stroke:var(--signal-edge);stroke-width:1}
+.ch .hit{fill:transparent}
+.tt{position:absolute;top:var(--space-8);z-index:2;pointer-events:none;display:grid;gap:1px;padding:var(--space-2) var(--space-3);font:400 12px/16px var(--font-mono);background:var(--paper-sunk);color:var(--ink);border:var(--stroke-hair) solid var(--ink);white-space:nowrap}
+.tt b{font-size:15px}
+.tr-tw{overflow-x:auto}
+.tr-tab{border-collapse:collapse;min-width:440px;font:400 13px var(--font-mono)}
+.tr-tab th,.tr-tab td{padding:var(--space-1) var(--space-4) var(--space-1) 0;text-align:right;border-bottom:var(--stroke-hair) solid var(--rule)}
+.tr-tab th:first-child{text-align:left;font-weight:400}
+.tr-tab thead th{font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;border-bottom-color:var(--ink)}
+
+/* ---------- cost guard: still running in your own AWS account (an alert panel) ---------- */
+.running{display:block;border-color:var(--alert);border-top:var(--stroke-bar) solid var(--alert)}
+.running>p{margin:0 0 var(--space-3);font-size:14px;color:var(--ink-2)}
+.running .row{align-items:flex-start}
+.cost-l{list-style:none;margin:0;padding:0;display:grid;border-top:var(--stroke-hair) solid var(--rule)}
+.cost-l li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px var(--space-3);align-items:center;padding:var(--space-2) 0;border-bottom:var(--stroke-hair) solid var(--rule)}
+.cost-l .ci-n{font-size:14.5px}
+.cost-l .ci-n .muted{font-size:13px}
+.cost-l .ci-d{grid-column:1;font:400 12px var(--font-mono);color:var(--ink-3)}
+.cost-l li>button{grid-row:1/span 2;grid-column:2}
+.cost-l li.gone .ci-n b{text-decoration:line-through;color:var(--ink-3)}
+.cost-add{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin-top:var(--space-3)}
+.cost-add select,.cost-add input{width:auto;min-width:0;flex:1 1 160px}
+.cost-add button{flex:0 0 auto}
+.cost-more>summary{list-style:none;cursor:pointer;display:inline-flex}
+.cost-more>summary::-webkit-details-marker{display:none}
+.cost-more[open]{flex:1 1 100%}
+.b-cost .cost-h{margin:var(--space-2) 0 0;font-size:13.5px}
+.cl-run{margin:0 0 var(--space-4);padding:var(--space-3) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--alert);border-top:var(--stroke-bar) solid var(--alert)}
+.cl-run h3{margin:0 0 var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 
 /* ---------- day flow: one step on one card, Back / Mark complete / Next under it ---------- */
-body.in-flow .tb{display:none}
 body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long card clear of the buttons */
-.fl-top{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;color:var(--chalk);margin-bottom:14px}
-.fl-top button{font-size:13px;padding:5px 10px}
-.fl-day{display:flex;gap:4px 10px;align-items:baseline;flex-wrap:wrap;flex:1 1 300px;min-width:0}
-.fl-dn{font:700 26px/1 var(--display)}
-.fl-tt{font:600 20px/1.2 var(--display)}
-.fl-dd{font-size:13.5px;color:var(--chalk-dim)}
-.fl-tools{display:flex;gap:6px;flex-wrap:wrap}
-/* the dots in the middle over the card, the count at the card's right edge */
-.fl-prog{display:flex;gap:8px 16px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
-.fl-strip{display:flex;gap:2px 10px;flex-wrap:wrap;justify-content:center;min-width:0}
-.fl-g.cur{box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--chalk) 45%,transparent);border-radius:1px}   /* the block you are in */
-.fl-blk{flex-basis:100%;text-align:center;font:500 14px var(--display);color:var(--chalk-dim);margin-top:-4px}
+.fl-top{display:flex;gap:var(--space-3) var(--space-4);align-items:flex-end;flex-wrap:wrap;margin-bottom:var(--space-6)}
+.fl-day{display:flex;gap:var(--space-1) var(--space-4);align-items:baseline;flex-wrap:wrap;flex:1 1 360px;min-width:0}
+.fl-day>:not(.today-badge){background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
+.fl-dn{font:800 44px/.9 var(--font-display);font-stretch:125%;text-transform:uppercase;letter-spacing:-.01em}
+.fl-tt{font:600 20px/1.25 var(--font-sans);color:var(--ink)}
+.fl-dd{font:400 13px/20px var(--font-mono);color:var(--ink-2)}
+.fl-tools{display:flex;gap:var(--space-1) var(--space-3);flex-wrap:wrap;background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
+.fl-tools [aria-pressed="true"]{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
+/* the strip: one square per card, grouped like the day's blocks; the count at the card's right edge */
+.fl-prog{display:flex;gap:var(--space-2) var(--space-4);align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:var(--space-4)}
+.fl-prog>*{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
+.fl-strip{display:flex;gap:var(--space-1) var(--space-3);flex-wrap:wrap;justify-content:center;min-width:0}
+.fl-g{display:inline-flex;gap:0;padding-bottom:var(--space-1);border-bottom:var(--stroke-bold) solid transparent}
+.fl-g.cur{border-bottom-color:var(--ink)}   /* the block you are in */
+.fl-blk{flex-basis:100%;text-align:center;color:var(--ink-2)}
 .fl-blk:empty{display:none}
 @media (min-width:761px){
-  .fl-prog{display:grid;grid-template-columns:minmax(110px,1fr) auto minmax(110px,1fr);row-gap:4px}
+  .fl-prog{display:grid;grid-template-columns:minmax(110px,1fr) auto minmax(110px,1fr);row-gap:var(--space-2)}
   .fl-strip{grid-column:2;grid-row:1}
   .fl-count{grid-column:3;grid-row:1;justify-self:end}
-  .fl-blk{grid-column:2;grid-row:2;margin-top:0}
+  .fl-blk{grid-column:2;grid-row:2}
 }
-.fl-g{display:inline-flex;gap:1px}
-.dot{width:22px;height:22px;padding:0;border:0;background:none;display:inline-grid;place-items:center;border-radius:50%}
-.dot::before{content:"";width:12px;height:12px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--chalk) 60%,transparent);transition:background .2s,border-color .2s}
-@media (hover:hover){.dot:hover::before{border-color:var(--chalk);background:color-mix(in srgb,var(--chalk) 25%,transparent)}}
-.dot.on::before{background:var(--done);border-color:var(--done)}
-.dot.qd::before{border-radius:3px}
-.dot[aria-current]::before{box-shadow:0 0 0 2px var(--bp),0 0 0 4px var(--accent)}
-.fl-count{font:600 16px var(--display);color:var(--chalk);white-space:nowrap}
+.dot{display:inline-grid;place-items:center;width:22px;height:22px;min-height:0;padding:0;border:0;background:none}
+.dot::before{content:"";width:12px;height:12px;border:var(--stroke-hair) solid var(--ink-3);background:var(--paper-raised)}
+.dot:not(:disabled):hover{background:none}
+@media (hover:hover){.dot:hover::before{border-color:var(--ink);background:var(--paper)}}
+.dot.on::before{background:var(--ink);border-color:var(--ink)}
+.dot.qd::before{transform:rotate(45deg) scale(.82)}
+.dot[aria-current]::before{width:14px;height:18px;background:var(--signal);border-color:var(--signal-edge)}
+.dot.on[aria-current]::before{background:var(--signal);outline:var(--stroke-hair) solid var(--ink);outline-offset:1px}
+.fl-count{color:var(--ink);white-space:nowrap}
 
-.card{border-radius:10px;border-top:4px solid var(--accent);padding:18px 22px 22px}
-.card.in{animation:card-in .2s ease-out}
-@keyframes card-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.c-h{display:flex;gap:6px 12px;align-items:center;flex-wrap:wrap;min-height:26px}
-.c-meta{font-size:14px;color:var(--muted)}
+/* the card: an article panel with one cut corner; the step's label, its headline, where to do it, then the boxes */
+.card{position:relative;padding:var(--space-6) var(--space-6) var(--space-8);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);
+  clip-path:polygon(0 0,calc(100% - var(--chamfer-l)) 0,100% var(--chamfer-l),100% 100%,0 100%)}
+.card::after{content:"";position:absolute;top:0;right:0;width:var(--chamfer-l);height:var(--chamfer-l);background:linear-gradient(to bottom left,transparent calc(50% - .75px),var(--ink) calc(50% - .75px),var(--ink) calc(50% + .75px),transparent calc(50% + .75px))}
+.card.in,.side.in{animation:fm-flick var(--fm-boot) steps(4,end)}
+@keyframes fm-flick{0%,25%{opacity:1}50%{opacity:.3}75%,100%{opacity:1}}   /* one dip from visible: never hidden */
+.c-h{display:flex;gap:var(--space-2) var(--space-3);align-items:center;flex-wrap:wrap;min-height:24px}
+.c-meta{color:var(--ink-3)}
 .c-h .pill{margin-left:auto}
-.c-t{font:400 22px/1.4 var(--body);margin:12px 0 8px;outline:0}
+.c-t{margin:var(--space-4) 0 var(--space-3);font:400 22px/1.4 var(--font-sans);color:var(--ink);outline:0}
 .c-t b{font-weight:600}
-.c-n{color:var(--muted);font-size:16px;margin:6px 0 0}
-/* the article's head: course, headline, where to do it, the lessons */
-.c-kick{margin:16px 0 0;font:600 17px/1.3 var(--display);color:color-mix(in srgb,var(--watch) 75%,var(--text))}
-.c-hl{font:700 36px/1.12 var(--display);margin:4px 0 14px;color:var(--head)}
-.c-kick+.c-hl{margin-top:2px}
-.c-where{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;margin:4px 0 0;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
-.c-where .where{flex:1 1 0;min-width:0;font-size:14.5px;line-height:1.45}
-.c-les{margin:10px 0 0;color:var(--muted);font-size:15px}
-.c-head{margin-bottom:6px}
-@media (min-width:761px){
-  .card{padding:24px 40px 34px}
-  .card .box{padding:12px 18px 14px}
-}
-@media (max-width:640px){.c-t.c-hl{font-size:27px}}
-.c-score{margin-top:12px}
-.c-st{font-size:16px;margin:14px 0 4px;max-width:72ch}
-.c-st.ok{color:var(--done);font-weight:600}
-.c-open{margin:6px 0 0;padding-left:20px;display:grid;gap:5px;font-size:15px}
-.c-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0 0}
-.c-facts div{border:1px solid var(--line);border-radius:6px;padding:8px 12px;background:var(--field)}
-.c-facts dt{font:500 13px var(--display);color:var(--muted);letter-spacing:.04em}
-.c-facts dd{margin:2px 0 0;font:600 20px/1.2 var(--display)}
-button.link{border:0;background:none;padding:0;color:var(--watch);text-decoration:underline;font:inherit;text-align:left;display:inline;border-radius:2px}
+.c-n{margin:var(--space-2) 0 0;color:var(--ink-2);font-size:16px}
+.c-kick{margin:var(--space-6) 0 0;font:500 12px/18px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.c-kick b{color:var(--ink-2);font-weight:500}
+.c-hl{margin:var(--space-2) 0 var(--space-4);font:800 clamp(32px,4vw,52px)/.95 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:0;color:var(--ink);text-wrap:balance}
+.c-where{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin:var(--space-2) 0 0;padding:var(--space-2) var(--space-2) var(--space-2) var(--space-3);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule)}
+.c-where .bi{display:none}
+.c-where .where{flex:1 1 0;min-width:0;font-size:13px;line-height:20px}
+.c-where .where::before{content:"> ";color:var(--ink-3)}
+.c-les{margin:var(--space-3) 0 0;color:var(--ink-2);font-size:15px}
+.c-head{margin-bottom:var(--space-2)}
+@media (min-width:761px){.card{padding:var(--space-8) var(--space-12) var(--space-12)}}
+.c-score{margin-top:var(--space-4)}
+.c-st{margin:var(--space-4) 0 var(--space-1);max-width:72ch;font-size:16px}
+.c-st.ok{font-weight:600}
+.c-st.ok::before{content:"[ ✓ ] ";font-family:var(--font-mono);font-size:13px}
+.c-open{margin:var(--space-2) 0 0;padding:0;list-style:none;display:grid;gap:var(--space-1)}
+.c-open li::before{content:"□ ";font-family:var(--font-mono);color:var(--ink-3)}
+.c-w{margin-top:var(--space-3)}
+.c-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:var(--space-6) 0 0;border:var(--stroke-hair) solid var(--ink);border-top:0}
+.c-facts div{padding:var(--space-3) var(--space-4) var(--space-4);border-top:var(--stroke-bar) solid var(--ink)}
+.c-facts div+div{border-left:var(--stroke-hair) solid var(--ink)}
+.c-facts dt{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.c-facts dd{margin:var(--space-1) 0 0;font:600 22px/1.2 var(--font-display)}
 
-/* ---------- the step: each part in a tinted box with an icon; the edge colour says what the box holds ---------- */
-.box{--edge:var(--line);display:block;margin-top:12px;padding:10px 14px 12px;border:1px solid color-mix(in srgb,var(--edge) 28%,var(--line));border-left:4px solid var(--edge);border-radius:8px;background:color-mix(in srgb,var(--edge) 7%,var(--card))}
-.box-h{display:flex;gap:8px;align-items:center;font:700 16px var(--display);margin:0 0 6px;color:color-mix(in srgb,var(--edge) 55%,var(--text))}
-.box-h .bi{font-size:15px;line-height:1}
+/* the parts of a step: an outlined panel under a mono label; the marker says what it holds */
+.box{display:block;margin-top:var(--space-4);padding:var(--space-4);background:var(--paper);border:var(--stroke-hair) solid var(--rule)}
+.box-h{display:flex;gap:var(--space-2);align-items:center;margin:0 0 var(--space-3);color:var(--ink)}
+.box-h .bi{flex:none;width:8px;height:8px;background:var(--ink)}
 .box>p{margin:0}
-.b-why{--edge:var(--accent)}
-.b-why p{font-size:18px;line-height:1.6}
-.b-why p+p{margin-top:10px}   /* the problem, then the idea that answers it */
-.b-do{--edge:var(--build)}
-.c-do{margin:0;padding-left:24px;display:grid;gap:8px;font-size:17px;line-height:1.55}
-.c-do li::marker{font-weight:700;color:color-mix(in srgb,var(--build) 70%,var(--text))}
-.b-do .c-done{margin:12px 0 0;padding-top:10px;border-top:1px dashed color-mix(in srgb,var(--build) 40%,var(--line));font-size:16.5px;line-height:1.55}
-.b-know{--edge:var(--watch)}
-.b-trap{--edge:var(--warn)}
+.txt{text-wrap:pretty}
+.b-why{border-color:var(--ink)}
+.b-why .bi{width:10px;height:10px;background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
+.b-why p{font-size:19px;line-height:1.6;color:var(--ink);max-width:68ch}
+.b-why p+p{margin-top:var(--space-3);padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule)}   /* the problem, then the idea that answers it */
+.b-do{border-color:var(--ink)}
+.c-do{margin:0;padding:0;list-style:none;counter-reset:do;display:grid;gap:var(--space-3);font-size:17px;line-height:1.55}
+.c-do li{counter-increment:do;display:grid;grid-template-columns:36px 1fr;gap:var(--space-2)}
+.c-do li::before{content:counter(do,decimal-leading-zero);font:600 12px/26px var(--font-mono);color:var(--ink-3)}
+.b-do .c-done{margin:var(--space-4) 0 0;padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule);font-size:16.5px;line-height:1.55}
+.b-trap{border-color:var(--alert)}
+.b-trap .bi{width:24px;height:10px;background:repeating-linear-gradient(135deg,var(--alert) 0 3px,transparent 3px 6px)}
+.b-trap .box-h{color:var(--alert-text)}
 .b-trap p{font-size:16.5px;line-height:1.55}
-.card .c-notes{margin-top:18px}
-/* the knowledge check after the reading (one question): the quiz's own options and feedback, inside a box of the quiz colour */
-.b-q{--edge:var(--quiz)}
-.cq-q{margin:0 0 10px;font-size:17px;line-height:1.55}
-.c-q .qz-o{font-size:16px}
-.cq-a{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:14px}
-.cq-v{margin:0 0 10px;font:700 17px var(--display)}
-.cq-v.ok{color:var(--done)}
-.cq-v.bad{color:var(--bad)}
-.b-check{--edge:var(--check)}
-.b-check>p{font-size:14.5px;margin:0 0 8px}
-.b-exam{--edge:var(--quiz)}
-.b-cues{--edge:var(--play)}
-.b-docs,.b-terms{--edge:var(--check)}
-.b-notes{background:var(--card)}
-.b-notes textarea{margin-top:2px;min-height:96px;font-size:14.5px}
+.b-q{border-color:var(--ink)}
+.b-q .bi{background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
+.cq-q{margin:0 0 var(--space-3);font-size:17px;line-height:1.55}
+.cq-a{display:flex;gap:var(--space-3) var(--space-4);align-items:center;flex-wrap:wrap;margin-top:var(--space-3);font-size:14px}
+.cq-v{margin:0 0 var(--space-3);font:600 13px/20px var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+.cq-v.bad{color:var(--alert-text)}
+.b-check>p{margin:0 0 var(--space-3);font-size:14.5px}
+.b-exam .bi,.b-look .bi,.b-cues .bi{background:none;outline:var(--stroke-hair) solid var(--ink);outline-offset:-1px}
+.b-docs .bi,.b-terms .bi{background:var(--ink-3)}
+.b-notes{background:var(--paper-sunk)}
+.notes-l{display:block;margin-top:var(--space-4);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.notes-l textarea,.b-notes textarea{display:block;width:100%;margin-top:var(--space-1);min-height:96px;resize:vertical;padding:var(--space-2) var(--space-3);font:400 15px/24px var(--font-sans);color:var(--ink);
+  background:var(--paper-sunk) repeating-linear-gradient(transparent 0 23px,var(--rule) 23px 24px);background-attachment:local;border:var(--stroke-hair) solid var(--ink);border-radius:0;text-transform:none;letter-spacing:0}
+.card .c-notes{margin-top:var(--space-8)}
+.saved{margin-left:var(--space-2);opacity:0;color:var(--ink);text-transform:uppercase;transition:opacity var(--fm-step) steps(2,end)}
+.saved.show{opacity:1}
+.saved::before{content:"[ ✓ ";color:var(--ink-3)}
+.saved::after{content:" ]";color:var(--ink-3)}
 /* what to know: labelled points, so the list can be scanned */
-.c-key ul{margin:0;padding-left:20px;display:grid;gap:7px;font-size:16.5px;line-height:1.55}
-.c-key b{font-weight:600}
-.c-key ul.k-list{list-style:none;padding:0;gap:0}
-.k-list li{display:grid;grid-template-columns:minmax(130px,220px) 1fr;gap:2px 20px;padding:10px 0;border-top:1px solid color-mix(in srgb,var(--watch) 18%,var(--line))}
-.k-list li:first-child{border-top:0;padding-top:2px}
-.k-list .k-l{font-weight:700}
-/* the panels: docs, terms, exam topics, practice, exam wording, notes */
-.c-docs{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14.5px}
-.c-tags{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:14px}
-.c-tags li{display:grid;grid-template-columns:minmax(0,1fr) 60px 36px;gap:8px;align-items:center}
-.c-tags .tr{height:8px;background:var(--line);border-radius:4px;overflow:hidden;display:block}
-.c-tags .fi{display:block;height:100%;background:var(--watch);border-radius:4px}
-.c-tags .fi.low{background:var(--accent)}
-.c-hint{font-size:12.5px;margin:6px 0 0}
+.c-key ul{margin:0;padding:0;list-style:none;display:grid;gap:var(--space-2);font-size:16.5px;line-height:1.55}
+.c-key ul:not(.k-list) li{padding-left:var(--space-4);position:relative}
+.c-key ul:not(.k-list) li::before{content:"+";position:absolute;left:0;font-family:var(--font-mono);color:var(--ink-3)}
+.c-key ul.k-list{gap:0}
+.k-list{list-style:none;margin:0;padding:0}
+.k-list li{display:grid;grid-template-columns:minmax(130px,220px) 1fr;gap:2px var(--space-6);padding:var(--space-3) 0;border-top:var(--stroke-hair) solid var(--rule)}
+.k-list li:first-child{border-top:0;padding-top:0}
+.k-list .k-l{font:600 15px/1.45 var(--font-sans);color:var(--ink)}   /* a label here is a short sentence: read, not scanned as a code */
+/* the panels beside the card: docs, terms, exam topics, practice, exam wording */
+.c-docs{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);font-size:14.5px}
+.c-tags{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);font-size:14px}
+.c-tags li{display:grid;grid-template-columns:minmax(0,1fr) 64px 44px;gap:var(--space-2);align-items:center}
+.c-tags .wk-n,.wk-n{text-align:right;font:400 12px var(--font-mono);color:var(--ink-2)}
+.c-hint{margin:var(--space-2) 0 0;font-size:12.5px}
 .c-fold summary{cursor:pointer;list-style:none;margin:0}
 .c-fold summary::-webkit-details-marker{display:none}
-.c-fold summary::after{content:"＋";margin-left:auto;color:var(--muted);font:400 14px var(--body)}
-.c-fold[open] summary::after{content:"－"}
-.c-fold summary .muted{font:400 13.5px var(--body)}
-.c-fold[open] summary{margin-bottom:8px}
-.c-terms{margin:0;display:grid;gap:8px;font-size:14px}
+.c-fold summary::after{content:"[ + ]";margin-left:auto;color:var(--ink-3)}
+.c-fold[open] summary::after{content:"[ – ]"}
+.c-fold summary .muted{text-transform:none;letter-spacing:0}
+.c-fold[open] summary{margin-bottom:var(--space-3)}
+.c-terms{margin:0;display:grid;gap:var(--space-3);font-size:14px}
 .c-terms div{display:grid;gap:1px}
 .c-terms dt{font-weight:600}
-.c-terms dd{margin:0;color:var(--muted)}
-.cue-l{list-style:none;margin:0;padding:0;display:grid;gap:9px;font-size:14px}
+.c-terms dd{margin:0;color:var(--ink-2)}
+.cue-l{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3);font-size:14px}
 .cue-l li{display:grid;gap:1px}
 .cue-l .muted{font-size:13px}
-.c-prac{display:flex;gap:8px 12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed color-mix(in srgb,var(--quiz) 35%,var(--line));font-size:14px}
-.side{background:var(--card);color:var(--text);box-shadow:var(--shadow);border-radius:10px;padding:10px 14px 14px;border-top:4px solid var(--check)}
-.side-r{border-top-color:var(--quiz)}
-.side-t{font:700 18px var(--display);margin:0}
-.side.in{animation:card-in .2s ease-out}
+.c-prac{display:flex;gap:var(--space-2) var(--space-3);align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:var(--space-3);padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule);font-size:14px}
+.c-la{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);font-size:14.5px}
+.side{padding:var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-top:var(--stroke-bar) solid var(--ink)}
+.side .box{background:var(--paper)}
+.side-t{margin:0;color:var(--ink)}
+.in-note{margin:var(--space-1) 0 0;font-size:14.5px;white-space:pre-wrap;color:var(--ink-2)}
 /* Where they go: an article and the sidebar beside it, like a post on DEV. Only the page scrolls: no panel has a scroll
    bar of its own, everything shows in full. Under 1300 px the sidebar's panels follow the article; phones get one column. */
-.fl-body{display:grid;gap:14px;align-items:start;grid-template-areas:"card" "right" "left"}
+.fl-body{display:grid;gap:var(--space-4);align-items:start;grid-template-areas:"card" "right" "left"}
 #card{grid-area:card;min-width:0}
 #side-r{grid-area:right;min-width:0}
 #side-l{grid-area:left;min-width:0}
-.side-cols{display:grid;gap:0 14px;align-items:start}
+.side-cols{display:grid;gap:0 var(--space-4);align-items:start}
 @media (min-width:761px){
-  body.in-flow .wrap{max-width:1032px}   /* the article at up to 1000 px */
+  body.in-flow{--wrap:1000px}
   .side-cols{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-/* the article (up to 1000 px) and the sidebar (360 px) side by side and centred together; the dots and the buttons
-   line up with the article */
+/* the article (up to 1000 px) and the sidebar (360 px) side by side and centred together; the strip and the buttons line up with the article */
 @media (min-width:1300px){
-  body.in-flow .wrap{max-width:1416px}   /* 1000 + 24 gap + 360, plus 2 × 16 page */
+  body.in-flow{--wrap:1384px}
   .fl-prog{width:min(1000px,100% - 384px);margin-inline:0 auto}
-  .fl-body{grid-template-columns:minmax(0,1000px) 360px;grid-template-rows:auto 1fr;grid-template-areas:"card right" "card left";gap:16px 24px}
+  .fl-body{grid-template-columns:minmax(0,1000px) 360px;grid-template-rows:auto 1fr;grid-template-areas:"card right" "card left";gap:var(--space-4) var(--space-6)}
   .fl-body.no-r{grid-template-areas:"card left" "card ."}
   .side-cols{grid-template-columns:minmax(0,1fr)}
 }
-.in-note{margin:4px 0 0;font-size:14.5px;white-space:pre-wrap;color:var(--muted)}
-
-/* the three buttons stay at the bottom of the window */
-.fl-nav{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:12px max(16px,calc((100% - 1000px)/2));
-  background:color-mix(in srgb,var(--bp-deep) 90%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid color-mix(in srgb,var(--chalk) 22%,transparent)}
+/* the three buttons stay at the bottom of the window, on a rail of their own */
+.fl-nav{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:1fr auto 1fr;gap:var(--space-3);align-items:center;padding:var(--space-3) max(var(--space-4),calc((100% - 1000px)/2));background:var(--paper);border-top:var(--stroke-hair) solid var(--ink)}
 .fl-b{justify-self:start}
 .fl-n{justify-self:end}
-.fl-nav>button{font-size:16px;padding:10px 16px}
-.fl-mid{display:flex;gap:12px;align-items:center}
-.fl-ok{color:var(--done);font:700 19px var(--display);white-space:nowrap}
-.fl-nav button.link{color:var(--chalk);font-size:14px}
+.fl-nav>button{min-height:44px}
+.fl-mid{display:flex;gap:var(--space-3);align-items:center}
+.fl-mid .big{min-width:260px}
+.fl-ok{font:600 13px/20px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.fl-ok::before{content:"[ ";color:var(--ink-3)}
+.fl-ok::after{content:" ]";color:var(--ink-3)}
 /* key caps for ← → and Enter; on touch screens and phones the arrows are plain arrows and Enter goes */
-.kh{display:inline-block;min-width:1.55em;padding:0 .3em;background:none;color:inherit;border:1px solid currentColor;border-bottom-width:2px;border-radius:4px;font:600 .8em/1.4 var(--body);text-align:center;opacity:.8;vertical-align:.08em}
-.kh-w{margin-left:.55em;font-size:.68em;padding:0 .4em}
+.kh{display:inline-block;min-width:1.6em;padding:0 .35em;background:none;color:inherit;border:var(--stroke-hair) solid currentColor;font:500 .9em/1.5 var(--font-mono);text-align:center;opacity:.75;vertical-align:.04em}
+.kh-w{margin-left:.6em;font-size:.8em}
 @media (hover:none),(max-width:640px){.kh{border:0;padding:0;min-width:0;font:inherit;opacity:1;vertical-align:baseline}.kh-w{display:none}}
-/* Back and Next line up with the article's edges: left of it the page margin, right of it the sidebar (360 + 24 gap + 16 page) */
-@media (min-width:1300px){.fl-nav{padding-left:max(16px,calc((100% - 1384px)/2));padding-right:max(400px,calc((100% - 616px)/2))}}
+@media (min-width:1300px){.fl-nav{padding-left:max(var(--space-4),calc((100% - 1384px)/2));padding-right:max(400px,calc((100% - 616px)/2))}}
 
 /* glossary: a definition over the term on hover, Tab or a click; a tap on a touch screen toggles it (no sticky hover there) */
-.g{border-bottom:1px dotted currentColor;cursor:help;position:relative}
-.g::after{position:absolute;left:0;bottom:calc(100% + 6px);width:max-content;max-width:min(290px,80vw);background:var(--tip-bg);color:var(--tip-ink);padding:8px 10px;border-radius:6px;font:400 13.5px/1.4 var(--body);z-index:30;white-space:normal;box-shadow:0 8px 20px rgba(0,0,0,.25);pointer-events:none;text-decoration:none}
+.g{border-bottom:var(--stroke-hair) dotted currentColor;cursor:help;position:relative}
+.g::after{position:absolute;left:0;bottom:calc(100% + 6px);width:max-content;max-width:min(300px,80vw);padding:var(--space-2) var(--space-3);background:var(--ink);color:var(--on-ink);font:400 13px/1.45 var(--font-sans);z-index:30;white-space:normal;pointer-events:none;text-decoration:none;text-transform:none;letter-spacing:0}
 .g.show::after,.g:focus-visible::after{content:attr(data-tip)}
 @media (hover:hover){.g:hover::after{content:attr(data-tip)}}
-/* a phone: the definition sits across the screen above the buttons, so a term near the edge can't push it off screen */
-@media (max-width:640px){.g::after{position:fixed;left:12px;right:12px;bottom:86px;width:auto;max-width:none;font-size:15px;padding:10px 12px}}
+@media (max-width:640px){.g::after{position:fixed;left:12px;right:12px;bottom:86px;width:auto;max-width:none;font-size:15px;padding:var(--space-3)}}
 
-/* ---------- timer: a strip along the top; it fills as the block runs, the chip at its end holds the controls ---------- */
-.timer{position:sticky;top:0;z-index:25;height:34px;background:color-mix(in srgb,var(--bp-deep) 88%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-bottom:1px solid color-mix(in srgb,var(--chalk) 16%,transparent)}
-.tm-bar{position:absolute;left:0;right:0;top:0;height:4px;background:color-mix(in srgb,var(--chalk) 10%,transparent)}
-.tm-fill{display:block;height:100%;width:0;background:var(--accent);box-shadow:0 0 10px color-mix(in srgb,var(--accent) 60%,transparent);transition:width .9s linear}
-.timer.break .tm-fill{background:var(--done);box-shadow:0 0 10px color-mix(in srgb,var(--done) 50%,transparent)}
-.timer.over .tm-fill{background:var(--bad);animation:tm-over 1.6s ease-in-out infinite}
-.timer:not(.running) .tm-fill{opacity:.55}
-.tm-row{position:relative;max-width:1480px;margin:0 auto;height:100%;display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:4px 16px 0}
-.tm-chip{display:flex;align-items:stretch;border:1px solid color-mix(in srgb,var(--chalk) 35%,transparent);border-radius:999px;overflow:hidden;background:color-mix(in srgb,var(--chalk) 6%,transparent)}
-.tm-chip button{border:0;border-radius:0;background:none;color:var(--chalk);font:600 14px var(--display);padding:2px 10px;min-height:24px}
-.tm-chip button:hover{background:color-mix(in srgb,var(--chalk) 14%,transparent)}
-.tm-go{border-right:1px solid color-mix(in srgb,var(--chalk) 25%,transparent)!important;font-size:12px!important;width:34px}
-.tm-face{display:flex;gap:8px;align-items:center}
-.tm-mode{color:var(--chalk);opacity:.8;font-weight:500;font-size:13px}
-.tm-time{font-variant-numeric:tabular-nums;letter-spacing:.02em;font-size:15px}
-.tm-caret{font-size:10px;opacity:.7}
-.timer.running .tm-chip{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}
-.timer.break.running .tm-chip{border-color:var(--done);box-shadow:0 0 0 2px color-mix(in srgb,var(--done) 18%,transparent)}
-.timer.over .tm-chip{border-color:var(--bad);box-shadow:0 0 0 2px color-mix(in srgb,var(--bad) 30%,transparent)}
-.timer.over .tm-mode,.timer.over .tm-time{color:var(--bad)}
-.timer.away .tm-mode{color:var(--warn)}
-.tm-pop{position:absolute;right:16px;top:36px;width:270px;background:var(--card);color:var(--text);box-shadow:var(--shadow);border-radius:10px;border-top:4px solid var(--accent);padding:10px 12px 12px;z-index:26}
-.tm-btns{display:flex;gap:6px}
-.tm-btns button{flex:1;font-size:13px;padding:6px 8px}
-.tm-info{margin:8px 0 0;font-size:13px;color:var(--muted)}
-.tm-perm{margin-top:8px;width:100%;font-size:13px;padding:6px 8px}
-@keyframes tm-over{50%{opacity:.45}}
-/* changes that can't reach the server: offline, signed out, no answer (app.js netSaw); the short word on narrow screens */
-.sync-w{margin-right:auto;display:flex;min-width:0}
-.sync-st{min-width:0;max-width:100%;gap:6px;font:600 13px var(--body);padding:2px 10px;min-height:24px;border-radius:999px;border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
-.sync-st[data-k="auth"]{border-color:var(--bad);background:var(--bad-soft);color:var(--bad)}
-.sync-st .ss-l{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sync-st .ss-s{display:none}
-@media (max-width:900px){.sync-st .ss-l{display:none}.sync-st .ss-s{display:inline}}
-/* the pop-up when a focus block ends, and when the break has run past 10 minutes */
-dialog.brk{border-top-color:var(--done);width:min(460px,94vw)}
-dialog.brk[data-kind="over"]{border-top-color:var(--bad)}
-dialog.brk p{font-size:15.5px;margin:6px 0}
+/* ---------- dialogs (the quiz, sheet and search shells are in fx.css) ---------- */
+dialog{max-width:min(560px,94vw);padding:var(--space-6);color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-top:var(--stroke-bar) solid var(--ink);border-radius:0;overscroll-behavior:contain}   /* scrolling a long dialog to its end doesn't scroll the page under it */
+dialog::backdrop{background:color-mix(in srgb,var(--paper-sunk) 82%,transparent)}
+dialog h2{margin:0 0 var(--space-3);font:800 32px/.95 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:0;color:var(--ink)}
+dialog h2 .muted{font:400 13px var(--font-mono);text-transform:none}
+.field{display:block;margin:var(--space-4) 0;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.field input,.field select{display:block;width:100%;margin-top:var(--space-1);text-transform:none;letter-spacing:0}
+.field small{display:block;margin-top:var(--space-1);font:400 12px/18px var(--font-sans);text-transform:none;letter-spacing:0;color:var(--ink-3)}
+.chk{display:flex;gap:var(--space-3);align-items:center;margin:var(--space-2) 0;font-size:15px}
+.chk input,.cl input{appearance:none;flex:none;width:18px;height:18px;margin:0;border:var(--stroke-hair) solid var(--ink);background:var(--paper-sunk);display:grid;place-items:center;cursor:pointer}
+.chk input:checked,.cl input:checked{background:var(--ink)}
+.chk input:checked::after,.cl input:checked::after{content:"";width:8px;height:8px;background:var(--paper)}
+.cl{list-style:none;padding:0;margin:var(--space-2) 0;border-top:var(--stroke-hair) solid var(--rule)}
+.cl label{display:flex;gap:var(--space-3);align-items:flex-start;padding:var(--space-2) var(--space-1);border-bottom:var(--stroke-hair) solid var(--rule);font-size:15px;cursor:pointer}
+.cl label:hover{background:var(--paper)}
+.cl input{margin-top:3px}
+.cl input:checked+span{color:var(--ink-3);text-decoration:line-through}
+.cl-ok{font:600 13px/20px var(--font-mono);letter-spacing:.04em}
+.s-disp{display:grid;grid-template-columns:1fr 1fr;gap:0 var(--space-4)}
+.s-disp select{display:block;width:100%;margin-top:var(--space-1)}
+dialog.brk{width:min(480px,94vw)}
+dialog.brk[data-kind="over"]{border-top-color:var(--alert)}
+dialog.brk p{margin:var(--space-2) 0;font-size:15.5px}
+dialog.costnag{width:min(580px,94vw);border-color:var(--alert);border-top-color:var(--alert)}
+dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
+/* search results (the dialog itself is a quiz shell) */
+#sr-q{display:block;width:100%;height:48px;font-size:16px}
+.sr-list{list-style:none;margin:var(--space-3) 0 0;padding:0;display:grid;max-height:60vh;max-height:60dvh;overflow:auto;border-top:var(--stroke-hair) solid var(--rule)}
+.sr-it{display:grid;gap:1px;padding:var(--space-2) var(--space-3);border-bottom:var(--stroke-hair) solid var(--rule);cursor:pointer}
+.sr-it:hover{background:var(--paper)}
+.sr-it.on{background:var(--signal);color:var(--on-signal)}
+.sr-it.on :is(.sr-h,.sr-k,.sr-s){color:var(--on-signal)}
+.sr-h{display:flex;gap:var(--space-2);align-items:baseline;font:400 12px var(--font-mono);color:var(--ink-3)}
+.sr-k{color:var(--ink)}
+.sr-t{font-weight:600;font-size:15px}
+.sr-s{font-size:13.5px;color:var(--ink-2)}
+.sr-none{padding:var(--space-2) var(--space-1)}
+.sr-hint{margin:var(--space-3) 0 0;font:400 12px var(--font-mono)}
 
-/* ---------- dialogs ---------- */
-dialog{border:0;border-top:4px solid var(--accent);border-radius:10px;padding:18px 22px;max-width:min(540px,94vw);overscroll-behavior:contain}   /* scrolling a long dialog to its end doesn't scroll the page under it */
-dialog::backdrop{background:rgba(11,14,22,.6);backdrop-filter:blur(2px)}
-dialog h2{font:700 24px var(--display);margin:0 0 8px}
-.field{display:block;margin:12px 0;font-size:14.5px;font-weight:600}
-.field input{display:block;width:100%;margin-top:4px;font:400 15px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--text)}
-.field small{display:block;font-weight:400;color:var(--muted);margin-top:3px}
-.chk{display:flex;gap:9px;align-items:center;margin:8px 0;font-size:15px}
-.cl{list-style:none;padding:0;margin:8px 0}
-.cl label{display:flex;gap:10px;padding:7px 6px;border-radius:6px;cursor:pointer;align-items:flex-start;font-size:15px}
-.cl label:hover{background:var(--hover)}
-.cl input{margin-top:3px;width:18px;height:18px;flex:none;accent-color:var(--done)}
-.cl input:checked + span{opacity:.55;text-decoration:line-through}
-.cl-ok{color:var(--done);font-weight:600}
-
-/* ---------- fx ---------- */
-.fx-canvas{position:fixed;inset:0;pointer-events:none;z-index:50}
-.fx-banner{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.6) rotate(-2deg);opacity:0;z-index:60;pointer-events:none;border-radius:10px;padding:18px 34px 20px;text-align:center;border-top:6px solid var(--accent);transition:opacity .25s,transform .4s cubic-bezier(.2,1.6,.4,1)}
-.fx-banner.show{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}
-.fx-banner{width:max-content;max-width:92vw}   /* left:50% alone would leave it half the screen to wrap in */
-.fx-banner .b-t{font:700 38px/1.05 var(--display)}
-.fx-banner .b-s{font-size:15px;color:var(--muted);margin-top:6px}
-/* the top rungs: a day, a week, everything. Much bigger, a big icon that stamps in, a shine, a longer stay (fx.js) */
-.fx-banner.k-day,.fx-banner.k-week,.fx-banner.k-all{overflow:hidden;padding:18px 52px 26px;border-top-width:8px;transition:opacity .3s,transform .75s cubic-bezier(.2,1.7,.4,1)}
-.fx-banner.k-day:not(.show),.fx-banner.k-week:not(.show),.fx-banner.k-all:not(.show){transform:translate(-50%,-50%) scale(.3) rotate(-6deg)}
-.fx-banner .b-i{font-size:64px;line-height:1.1}
-.fx-banner.show .b-i{animation:b-stamp .8s .2s cubic-bezier(.2,1.8,.4,1) both}
-.fx-banner.k-day .b-t{font-size:clamp(36px,7vw,60px)}
-.fx-banner.k-week .b-t{font-size:clamp(40px,8.5vw,74px)}
-.fx-banner.k-all .b-t{font-size:clamp(44px,10vw,88px)}
-.fx-banner.k-day .b-s{font-size:17px}
-.fx-banner.k-week .b-s,.fx-banner.k-all .b-s{font-size:19px}
-.fx-banner.k-week .b-i{font-size:84px}
-.fx-banner.k-all .b-i{font-size:104px}
-.fx-banner.k-week{border-top-color:#ffc61a;box-shadow:0 0 0 2px #ffc61a,0 0 46px rgba(255,198,26,.55),var(--shadow)}
-.fx-banner.k-all{border-top-color:#8a3ffc;box-shadow:0 0 0 2px #b58cff,0 0 60px rgba(181,140,255,.7),var(--shadow)}
-.fx-banner.k-day::after,.fx-banner.k-week::after,.fx-banner.k-all::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.55) 48%,transparent 66%);transform:translateX(-130%);pointer-events:none}
-.fx-banner.show.k-day::after{animation:bd-shine 1.2s .7s ease-out both}
-.fx-banner.show.k-week::after{animation:bd-shine 1.3s .7s ease-out 3 both}
-.fx-banner.show.k-all::after{animation:bd-shine 1.3s .7s ease-out 5 both}
-:root:not(.fx-off) .fx-banner.show.k-week,:root:not(.fx-off) .fx-banner.show.k-all{animation:b-glow 1.4s .9s ease-in-out infinite alternate}
-@keyframes b-stamp{0%{opacity:0;transform:scale(3.2) rotate(-24deg)}55%{opacity:1;transform:scale(.88) rotate(5deg)}100%{transform:none}}
-@keyframes b-glow{to{box-shadow:0 0 0 3px #ffe066,0 0 90px 10px rgba(255,198,26,.75),var(--shadow)}}
-/* the page dims round a top rung's banner (only with effects and motion), under the confetti */
-.fx-veil{position:fixed;inset:0;z-index:49;pointer-events:none;opacity:0;transition:opacity .6s;background:radial-gradient(ellipse at 50% 38%,rgba(11,14,22,0) 0,rgba(11,14,22,.18) 40%,rgba(11,14,22,.58) 100%)}
-.fx-veil.show{opacity:1}
-.fx-veil.k-week{background:radial-gradient(ellipse at 50% 38%,rgba(255,198,26,.2) 0,rgba(11,14,22,.28) 45%,rgba(11,14,22,.66) 100%)}
-.fx-veil.k-all{background:radial-gradient(ellipse at 50% 38%,rgba(181,140,255,.24) 0,rgba(11,14,22,.32) 45%,rgba(11,14,22,.72) 100%)}
-/* a long run of right answers lights up the quiz's edge (fx.js glow(); a box-shadow, so nothing inside it moves) */
-dialog.fx-glow{animation:fx-glow 1.2s ease-out}
-@keyframes fx-glow{0%{box-shadow:0 0 0 0 var(--fx-glow),0 0 0 0 var(--fx-glow)}25%{box-shadow:0 0 0 5px var(--fx-glow),0 0 70px 14px var(--fx-glow)}100%{box-shadow:0 0 0 0 transparent,0 0 0 0 transparent}}
-.fx-banner.k-info{border-top-color:var(--watch)}
-.fx-banner.k-info .b-t{font-size:26px}
-.fx-banner.k-block{border-top-color:var(--done)}
-.fx-banner.k-block .b-t{font-size:30px}
-/* a short line above the buttons: what was just finished and what is left */
-.fx-toast{position:fixed;left:50%;bottom:104px;transform:translate(-50%,14px) scale(.96);opacity:0;z-index:61;pointer-events:none;background:var(--card);color:var(--text);box-shadow:var(--shadow);border:1px solid var(--line);border-radius:999px;padding:8px 20px;font-size:15.5px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;transition:opacity .18s,transform .24s cubic-bezier(.2,.9,.3,1.4)}
-@media (max-width:640px){.fx-toast{white-space:normal;width:max-content;text-align:center;border-radius:16px;bottom:86px}}   /* a phone: the whole line, on two if need be */
-.fx-toast.show{opacity:1;transform:translate(-50%,0) scale(1)}
-.fx-toast.k-combo,.fx-toast.k-half{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent),var(--shadow)}
-dialog .fx-toast{bottom:26px}
-/* badges drop in at the top of the screen: right answers in a row, records, levels, badges earned */
-.fx-badges{position:fixed;top:42px;left:50%;transform:translateX(-50%);z-index:62;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;width:max-content;max-width:94vw}
-dialog .fx-badges{top:14px}   /* a modal covers the timer strip */
-.fx-badge{--bd:var(--accent);position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:7px 22px 7px 8px;border-radius:999px;background:var(--card);color:var(--text);
-  box-shadow:0 0 0 2px var(--bd),0 0 22px color-mix(in srgb,var(--bd) 55%,transparent),0 12px 30px rgba(11,14,22,.45);animation:bd-in .65s cubic-bezier(.2,1.5,.35,1) both}
-.fx-badge.out{animation:bd-out .5s ease-in both}
-.fx-badge::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.6) 48%,transparent 66%);transform:translateX(-130%);animation:bd-shine 1.1s .5s ease-out both;pointer-events:none}
-.bd-i{flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:25px;background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.55) 0,transparent 52%),var(--bd);box-shadow:0 0 0 3px color-mix(in srgb,var(--bd) 35%,transparent);animation:bd-pop .7s .15s cubic-bezier(.2,1.8,.4,1) both}
-.bd-x{display:grid;line-height:1.15;min-width:0}
-.bd-t{font:700 22px var(--display)}
-.bd-s{font-size:13.5px;color:var(--muted)}
-.fx-badge.k-bronze{--bd:#c8793a}
-.fx-badge.k-silver{--bd:#9fb3c8}
-.fx-badge.k-gold{--bd:#ffc61a}
-.fx-badge.k-level{--bd:var(--watch)}
-.fx-badge.k-epic{--bd:#8a3ffc}
-.fx-badge.k-epic .bd-i{background:conic-gradient(from 0deg,#ff5c8a,#ffc61a,#5fd37a,#5aa9ff,#b58cff,#ff5c8a);animation:bd-pop .7s .15s cubic-bezier(.2,1.8,.4,1) both,bd-spin 2.4s .8s linear infinite}
-@keyframes bd-in{0%{opacity:0;transform:translateY(-110px) scale(.5) rotate(-8deg)}55%{opacity:1;transform:translateY(8px) scale(1.07) rotate(1.5deg)}78%{transform:translateY(-3px) scale(.98)}100%{transform:none}}
-@keyframes bd-out{to{opacity:0;transform:translateY(-46px) scale(.82)}}
-@keyframes bd-shine{to{transform:translateX(130%)}}
-@keyframes bd-pop{0%{transform:scale(0) rotate(-120deg)}100%{transform:none}}
-@keyframes bd-spin{to{filter:hue-rotate(360deg)}}
-/* the strip: the dot of the step just finished pops, the dots of a finished block bounce one after another */
-.dot.pop::before{animation:dot-pop .65s cubic-bezier(.2,.9,.3,1.4)}
-@keyframes dot-pop{0%{transform:scale(1)}35%{transform:scale(2.1);box-shadow:0 0 0 7px color-mix(in srgb,var(--done) 35%,transparent)}100%{transform:scale(1);box-shadow:0 0 0 0 transparent}}
-.fl-g.wave .dot::before{animation:dot-wave .6s ease-out both}
-.fl-g.wave .dot:nth-child(2)::before{animation-delay:.06s}
-.fl-g.wave .dot:nth-child(3)::before{animation-delay:.12s}
-.fl-g.wave .dot:nth-child(4)::before{animation-delay:.18s}
-.fl-g.wave .dot:nth-child(5)::before{animation-delay:.24s}
-.fl-g.wave .dot:nth-child(n+6)::before{animation-delay:.3s}
-@keyframes dot-wave{0%{transform:none}40%{transform:translateY(-8px) scale(1.3)}100%{transform:none}}
-
-/* ---------- small screens ---------- */
-@media (max-width:640px){
-  .tb{grid-template-columns:repeat(3,1fr)}
-  .tb-title{grid-column:1/-1;grid-row:auto;border-bottom:1px solid color-mix(in srgb,var(--chalk) 45%,transparent)}
-  .tb-cell:nth-child(2){border-left:0}
-  .tb-cell b{font-size:18px}
-  .tb-tools{grid-column:1/-1;justify-content:flex-start}
-  .st-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .st{padding:7px 10px}
-  .st b{font-size:18px}
-  .next{padding:12px 14px 16px}
-  .nx-k{font-size:21px}
-  .nx-st{margin-left:0;flex-basis:100%}
-  .hero{gap:12px}
-  .hero-n{font-size:54px;padding-right:12px}
-  .hero-t{font-size:24px}
-  .hero-p{margin-top:14px}
-  .next .nx-go{padding:12px 14px 14px}
-  .nx-step{font-size:16.5px}
-  .nx-where{display:none}   /* the card says where; here the button comes first */
-  .nx-a .big{flex:1 1 100%;justify-content:center}
-  .nx-go .big{font-size:21px;padding:14px 18px}
-  .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .dt-n{font-size:28px}
-  .dt-t{font-size:15.5px}
-  .card{padding:14px 14px 18px}
-  .c-t{font-size:19px}
-  .c-terms div{grid-template-columns:1fr;gap:0}
-  .k-list li{grid-template-columns:1fr}
-  .fl-nav{gap:6px;padding:10px 10px}
-  .fl-nav>button{font-size:15px;padding:10px 11px}
-  .fl-nav .big{font-size:16px;padding:10px 14px}
-  .db{grid-template-columns:110px 1fr 42px}
-  .tm-row{padding:4px 10px 0}
-  .tm-pop{right:10px}
-}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
-
-/* ---------- touch screens: a finger, not a mouse ---------- */
-/* hints that name keys go where there is no keyboard; .touch says it the touch way */
-.touch{display:none}
-@media (hover:none) and (pointer:coarse){.kbd{display:none}.touch{display:inline}}
-@media (pointer:coarse){
-  /* iOS zooms into a field under 16px when it gets the focus, and stays zoomed */
-  :is(.scores-grid,.field,.notes-l,.b-notes,.qz-note,.cost-add,.s-disp) :is(input,select,textarea){font-size:16px}
-  /* targets a fingertip can hit */
-  .dot{width:30px;height:30px}
-  .qz-map{gap:5px}
-  .qz-map button{width:22px;height:22px}
-  .tm-chip button{min-height:28px;padding:2px 12px}
-  .tm-go{width:42px}
-  button.sm,.btn.sm{padding:7px 11px}
-}
-
-/* ---------- quizzes, mock exam, practice ---------- */
-.t-quiz{color:var(--quiz)}
-button.sm,.btn.sm{font-size:13px;padding:4px 9px}
-button:disabled{opacity:.5;cursor:not-allowed}
-button:disabled:hover{border-color:var(--line)}
-
-/* model answers on self-check cards */
-.flip.shaky{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}
-.card-a{margin:10px 0 0;padding:10px 12px;border-left:3px solid var(--check);background:var(--field);border-radius:0 6px 6px 0;font-size:15px;max-width:74ch}
-.card-b{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
-.card-b button{font-size:13px;padding:4px 10px}
-
-/* slip guard */
-.slip{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;background:var(--card);color:var(--text);box-shadow:var(--shadow);border-radius:10px;border-top:4px solid var(--warn);padding:10px 14px;margin:0 0 12px;font-size:15px}
-.slip .muted{flex-basis:100%;font-size:13.5px}
-
-/* next up: warm-up / review strip */
-.nx-warm{display:flex;gap:8px 12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--quiz-soft);border-radius:8px;padding:9px 12px;margin:-2px 0 12px;font-size:15px;text-align:left;font-family:var(--body);font-weight:400}
-.nx-wb{display:flex;gap:6px}
-.nx-wb button{font-size:13px;padding:5px 10px}
-.nx-wb .nx-wgo{border-color:var(--quiz);color:var(--quiz);font-weight:600}
-.nx-a.center{justify-content:center}
-
-/* practice panel */
-.place.pr{display:flex;flex-direction:column;gap:6px}
-.place.pr p{margin:0;flex:1}
-.place.pr button{align-self:flex-start}
-.sub-h{font:700 18px var(--display);margin:18px 0 6px}
-.time-log .db.tl,.db.tl{grid-template-columns:70px 1fr 120px}
-
-/* dialogs for quizzes and sheets */
-dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;padding:0;overflow:auto;border-top-color:var(--quiz)}   /* dvh: the part of a phone's screen not under its address bar */
-.qz-h{position:sticky;top:0;z-index:2;background:var(--card);display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;padding:14px 52px 10px 22px;border-bottom:1px solid var(--line)}
-.qz-h h2{margin:0}
-.qz-meta{display:flex;gap:4px 14px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
-.qz-meta .ok{color:var(--done);font-weight:600}.qz-meta .bad{color:var(--bad);font-weight:600}
-.qz-x{position:absolute;top:10px;right:12px;border:0;background:none;font-size:18px;color:var(--muted);padding:4px 8px}
-.qz-bar{position:sticky;top:var(--qzh,58px);height:4px;background:var(--line)}
-.qz-bar>div{height:100%;width:0;background:var(--quiz);transition:width .3s}
-.qz-body{padding:16px 22px 20px}
-.qz-body>*{scroll-margin-top:76px}
-.qz-q{font-size:17px;line-height:1.5;margin:0 0 14px;max-width:70ch}
-.qz-opts{display:grid;gap:8px}
-.qz-o{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;padding:10px 12px;font:400 15.5px/1.45 var(--body);border-radius:8px;background:var(--field)}
-@media (hover:hover){.qz-o:hover{border-color:var(--quiz)}}   /* a touch screen keeps "hover" where the finger was: the next question's option there would look picked */
-.qz-o.on{border-color:var(--quiz);background:var(--quiz-soft);box-shadow:0 0 0 1px var(--quiz) inset}
-.qz-l{flex:none;width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font:700 14px var(--display);background:var(--card);border:1px solid var(--line);color:var(--muted)}
-.qz-o.on .qz-l{background:var(--quiz);border-color:var(--quiz);color:var(--card)}
-.qz-a{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
-.qz-a .muted{margin-right:auto;font-size:13.5px}
-.qz-verdict{font:700 20px var(--display);margin:0 0 10px;padding:8px 12px;border-radius:8px}
-.qz-verdict.ok{background:var(--done-soft);color:var(--done)}
-.qz-verdict.bad{background:var(--bad-soft);color:var(--bad)}
-.qz-fb{list-style:none;padding:0;margin:0;display:grid;gap:8px}
-.qz-fb li{display:flex;gap:12px;align-items:flex-start;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px}
-.qz-fb li.right{border-color:var(--done);background:var(--done-soft)}
-.qz-fb li.right .qz-l{background:var(--done);border-color:var(--done);color:var(--card)}
-.qz-fb li.wrong{border-color:var(--bad);background:var(--bad-soft)}
-.qz-fb li.wrong .qz-l{background:var(--bad);border-color:var(--bad);color:var(--card)}
-.qz-why{font-size:14px;color:var(--muted);margin-top:3px}
-.qz-fb li.right .qz-why{color:var(--text)}
-.mine{font-size:12px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--card);border:1px solid currentColor;margin-left:4px;white-space:nowrap}
-.qz-study{margin-top:14px;padding:10px 12px;border-radius:8px;background:var(--field);border:1px dashed var(--line)}
-.qz-sh{font:700 16px var(--display);margin-bottom:4px}
-.qz-refs{list-style:none;padding:0;margin:0;display:grid;gap:8px}
-.qz-refs>li{padding:6px 0;border-bottom:1px dashed var(--line)}
-.qz-refs>li:last-child{border-bottom:0}
-.ref-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
-.ref-h .tag{font-size:13px}
-.ref-t{font-size:15px;margin:3px 0 0}
-.ref-a{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
-.qz-doc{font-size:14px;margin-top:8px}
-/* Wide screens: after an answer, "Where to study this" leaves the card for the free space to its left, top edge level
-   with the card's (--qzdh = the card's height, set in app.js), so the answers and Next fit without scrolling.
-   The card is 780px wide and centred; the panel keeps a 16px gap to it and to the screen edge. */
-@media (min-width:1360px){
-  #quiz .qz-side{position:fixed;top:max(4vh,calc(50vh - var(--qzdh,92vh) / 2));right:calc(50% + 406px);width:min(380px,calc(50% - 422px));max-height:92vh;overflow:auto;margin:0;padding:12px 16px 14px;background:var(--card);border:0;border-top:4px solid var(--quiz);border-radius:10px;box-shadow:var(--shadow);animation:qz-side .25s ease-out}
-}
-@keyframes qz-side{from{opacity:0;transform:translateX(18px)}}
-.qz-note{display:block;margin-top:12px;font-size:14px;font-weight:600}
-.qz-note input{display:block;width:100%;margin-top:4px;font:400 15px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--text)}
-.qz-lead{font-size:17px;margin-top:0}
-.qz-facts{padding-left:20px;font-size:15.5px}
-.qz-facts li{margin:5px 0}
-.qz-res{border-radius:10px;padding:14px 16px;background:var(--hover);margin-bottom:6px}
-.qz-res.ok{background:var(--done-soft);color:var(--done)}
-.qz-res.mid{background:var(--warn-soft);color:var(--warn)}
-.qz-res.bad{background:var(--bad-soft);color:var(--bad)}
-.qz-score{font:700 44px/1 var(--display);margin-bottom:6px}
-.qz-score small{font:500 18px var(--display)}
-.qz-missed{padding-left:24px;margin:6px 0 0}
-.qz-missed>li{margin:6px 0;font-size:15px}
-.qz-missed>li.wrong::marker{color:var(--bad)}
-.qz-missed>li.right::marker{color:var(--done)}
-.qz-missed summary{cursor:pointer}
-.qz-missed details[open]>summary{margin-bottom:8px}
-.qz-ans{list-style:none;padding:0;margin:4px 0}
-.qz-ans li{margin:4px 0}
-.nb-m{display:block;font-size:13px;color:var(--muted)}
-.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
-.seg button[aria-pressed="true"]{border-color:var(--quiz);background:var(--quiz-soft);font-weight:600}
-.seg .nb-exp{margin-left:auto}
-.mk-a{justify-content:space-between}
-.flagb[aria-pressed="true"]{color:var(--warn);border-color:var(--warn);font-weight:600}
-.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;margin:10px 0}
-.mk-grid button{justify-content:center;padding:8px 0;font-variant-numeric:tabular-nums;position:relative}
-.mk-grid button.ans{background:var(--quiz-soft);border-color:var(--quiz)}
-.mk-grid button.flag::after{content:"⚑";position:absolute;top:-4px;right:2px;font-size:12px;color:var(--warn)}
-.mk-key{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
-.mk-key span::before{content:"";display:inline-block;width:12px;height:12px;border:1px solid var(--line);border-radius:3px;margin-right:5px;vertical-align:-2px}
-.mk-key .ans::before{background:var(--quiz-soft);border-color:var(--quiz)}
-.mk-key .flag::before{content:"⚑";border:0;width:auto;height:auto;color:var(--warn)}
-.mk-rev-h{display:flex;gap:10px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
-.dr-req{font:600 22px/1.3 var(--display);margin:6px 0 16px}
-.dr-opts .qz-o.right{border-color:var(--done);background:var(--done-soft)}
-.dr-opts .qz-o.wrong{border-color:var(--bad);background:var(--bad-soft)}
-.dr-missed{padding-left:20px;font-size:14.5px}
-.dr-missed li{margin:8px 0}
-.wk{list-style:none;padding:0;margin:0}
-.wk>li{border-bottom:1px dashed var(--line)}
-.wk summary{display:grid;grid-template-columns:minmax(120px,220px) 1fr 54px;gap:10px;align-items:center;padding:7px 0;cursor:pointer;font-size:14.5px}
-.wk .tr,.db .tr{height:8px;background:var(--line);border-radius:4px;overflow:hidden;display:block}
-.wk .fi{display:block;height:100%;background:var(--watch);border-radius:4px}
-.wk .fi.low{background:var(--accent)}
-.wk-n{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+/* ---------- notebook, weak spots, exam wording (sheets) ---------- */
+.wk{list-style:none;padding:0;margin:0;border-top:var(--stroke-hair) solid var(--rule)}
+.wk>li{border-bottom:var(--stroke-hair) solid var(--rule)}
+.wk summary{display:grid;grid-template-columns:minmax(120px,240px) 1fr 60px;gap:var(--space-3);align-items:center;padding:var(--space-2) 0;cursor:pointer;font-size:14.5px}
 .cues{width:100%;border-collapse:collapse;font-size:14.5px}
-.cues th{text-align:left;font:700 15px var(--display);border-bottom:2px solid var(--line);padding:6px 8px}
-.cues td{border-bottom:1px dashed var(--line);padding:7px 8px;vertical-align:top}
-@media (max-width:640px){
-  .qz-h{padding:12px 46px 8px 14px}
-  .qz-body{padding:14px 14px 18px}
-  .qz-q{font-size:16px}
-  .wk summary{grid-template-columns:1fr 70px 46px}
-  .cues thead{display:none}
-  .cues tr{display:block;border-bottom:1px dashed var(--line);padding:6px 0}
-  .cues td{display:block;border:0;padding:2px 0}
-  .mk-a button{flex:1 1 40%}
-  .db.tl{grid-template-columns:52px 1fr 104px}
-}
+.cues th{text-align:left;padding:var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;border-bottom:var(--stroke-hair) solid var(--ink)}
+.cues td{padding:var(--space-2);vertical-align:top;border-bottom:var(--stroke-hair) solid var(--rule)}
 
-/* ---------- quiz: the squares, Previous and Next, the run of right answers ---------- */
-.qz-map{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 14px}
-.qz-map button{width:16px;height:16px;padding:0;border-radius:4px;border:1.5px solid var(--line);background:var(--field);min-width:0}
-@media (hover:hover){.qz-map button:hover{border-color:var(--quiz)}}
-.qz-map button.ok{background:var(--done);border-color:var(--done)}
-.qz-map button.bad{background:var(--bad);border-color:var(--bad)}
-.qz-map button.cur{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--quiz)}
-.qz-hint{font-size:13.5px;margin:12px 0 0}
-.qz-nav{justify-content:flex-start}
-.qz-nav .primary{margin-left:auto}
-.qz-map button.just{animation:sq-pop .5s cubic-bezier(.2,1.8,.4,1)}
-.qz-map button.just.ok{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--quiz),0 0 12px 3px color-mix(in srgb,var(--done) 80%,transparent)}
-@keyframes sq-pop{0%{transform:scale(.4)}50%{transform:scale(1.7)}100%{transform:none}}
-.qz-meta .bump{display:inline-block;animation:cb-up .45s cubic-bezier(.2,1.8,.4,1)}
-/* the combo meter (app.js comboHTML): right answers in a row and a bar to the next streak badge. It heats up as the run
-   grows (h0–h4), bursts at each mark (boom), drains with a shake on a miss (broke). Not in the mock exam. */
-.qz-cb{--cb:#e8890c;display:inline-flex;align-items:center;gap:6px;font:700 15px/1 var(--display);padding:3px 10px 3px 6px;border-radius:999px;color:#fff;background:var(--cb);white-space:nowrap}
-.qz-cb .cb-f{display:inline-block;width:1.25em;text-align:center;font-size:17px;line-height:1;transform-origin:50% 90%}
-.qz-cb .cb-n b{display:inline-block;font-size:17px}
-.qz-cb .cb-n small{font:600 12.5px var(--display);opacity:.85}
-.qz-cb .cb-m{display:block;width:64px;height:7px;border-radius:999px;background:rgba(255,255,255,.3);overflow:hidden}
-.qz-cb .cb-m i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#fff3b0,#fff)}
-.qz-cb .cb-to{font:700 12.5px var(--display);opacity:.9;min-width:1.2em;text-align:center}
-.qz-cb.h0{--cb:var(--field);color:var(--muted);box-shadow:0 0 0 1px var(--line) inset}
-.qz-cb.h0 .cb-f{filter:grayscale(.8);opacity:.75}
-.qz-cb.h0 .cb-m{background:var(--line)}
-.qz-cb.h0 .cb-m i{background:var(--accent)}
-.qz-cb.h2{background:linear-gradient(90deg,#ff7a00,#e5383b)}
-.qz-cb.h2 .cb-f{font-size:19px}
-.qz-cb.h3{background:linear-gradient(90deg,#e5383b,#8a3ffc);box-shadow:0 0 12px rgba(138,63,252,.55)}
-.qz-cb.h3 .cb-f{font-size:21px}
-.qz-cb.h4{background:linear-gradient(90deg,#ff5c8a,#ffc61a,#5fd37a,#5aa9ff,#b58cff,#ff5c8a);background-size:200% 100%;box-shadow:0 0 16px rgba(181,140,255,.85)}
-.qz-cb.h4 .cb-f{font-size:23px}
-.qz-cb.h4 .cb-n,.qz-cb.h4 .cb-to{text-shadow:0 1px 2px rgba(0,0,0,.5)}
-.qz-cb.broke{background:var(--bad-soft);color:var(--bad);animation:v-shake .45s}
-.qz-cb.broke .cb-m{background:color-mix(in srgb,var(--bad) 22%,transparent)}
-.qz-cb.broke .cb-m i{background:var(--bad)}
-.qz-cb.miss{animation:v-shake .4s}
-.qz-cb.up .cb-m i,.qz-cb.boom .cb-m i,.qz-cb.broke .cb-m i,.qz-cb.miss .cb-m i{animation:cb-fill .45s ease-out both}
-.qz-cb.up .cb-n b{animation:cb-up .45s cubic-bezier(.2,1.8,.4,1)}
-:root:not(.fx-off) .qz-cb.h3 .cb-f,:root:not(.fx-off) .qz-cb.h4 .cb-f{animation:cb-flick .5s ease-in-out infinite alternate}
-:root:not(.fx-off) .qz-cb.h4{animation:cb-rainbow 2.4s linear infinite}
-.qz-cb.boom{animation:cb-boom .75s cubic-bezier(.2,1.6,.4,1)}
-:root:not(.fx-off) .qz-cb.h4.boom{animation:cb-boom .75s cubic-bezier(.2,1.6,.4,1),cb-rainbow 2.4s linear infinite}
-.qz-cb.boom .cb-f,:root:not(.fx-off) .qz-cb.boom .cb-f{animation:cb-jump .75s cubic-bezier(.2,1.8,.4,1)}
-@keyframes cb-fill{from{width:var(--from,0%)}}
-@keyframes cb-up{0%{transform:scale(1)}40%{transform:scale(1.5) rotate(-6deg)}100%{transform:none}}
-@keyframes cb-boom{0%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,198,26,.95)}35%{transform:scale(1.35) rotate(-3deg)}100%{transform:none;box-shadow:0 0 0 18px rgba(255,198,26,0)}}
-@keyframes cb-jump{0%{transform:none}35%{transform:translateY(-6px) scale(1.9) rotate(-10deg)}100%{transform:none}}
-@keyframes cb-flick{from{transform:scale(1) rotate(-5deg)}to{transform:scale(1.15) rotate(5deg)}}
-@keyframes cb-rainbow{to{background-position:200% 0}}
-/* a fresh answer: a right one pops and glows, a wrong one shakes */
-.qz-verdict{position:relative}
-.qz-verdict.fresh.ok{animation:v-pop .45s cubic-bezier(.2,1.6,.4,1)}
-.qz-verdict.fresh.bad{animation:v-shake .45s}
-.qz-fb.fresh li.right{animation:v-glow 1.1s ease-out}
-.qz-fb.fresh li.wrong{animation:v-shake .45s}
-.xp-up{display:inline-block;margin-left:10px;font:700 16px var(--display);color:var(--accent);animation:xp-up .8s .1s cubic-bezier(.2,1.6,.4,1) both}
-@keyframes v-pop{0%{transform:scale(.9)}60%{transform:scale(1.03)}100%{transform:none}}
-@keyframes v-shake{0%,100%{transform:none}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
-@keyframes v-glow{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--done) 65%,transparent)}100%{box-shadow:0 0 0 12px transparent}}
-@keyframes xp-up{from{opacity:0;transform:translateY(10px) scale(.6)}to{opacity:1;transform:none}}
-
-/* ---------- quiz results: the GIF, stars, level ---------- */
-.qz-res.has-gif{display:grid;grid-template-columns:1fr auto;gap:12px 18px;align-items:center}
-.qz-gif{margin:0;display:grid;gap:3px;justify-items:end}
-.qz-gif img{display:block;height:170px;width:min(260px,80vw);object-fit:cover;border-radius:8px;box-shadow:0 6px 18px rgba(11,14,22,.35);background:var(--hover);animation:gif-in .5s cubic-bezier(.2,1.5,.4,1)}
-.qz-gif figcaption{font-size:11px;color:var(--muted)}
-@keyframes gif-in{from{opacity:0;transform:scale(.7) rotate(3deg)}}
-.qz-rw{display:flex;gap:10px 18px;align-items:center;flex-wrap:wrap;margin:10px 0 4px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
-.stars{display:flex;gap:2px;font-size:34px;line-height:1}
-.stars span{color:color-mix(in srgb,var(--muted) 40%,transparent);animation:star-in .5s cubic-bezier(.2,1.8,.4,1) both}
-.stars span.on{color:#ffc61a;text-shadow:0 0 12px rgba(255,198,26,.6)}
-@keyframes star-in{0%{transform:scale(0) rotate(-180deg)}100%{transform:none}}
-.rw-x{flex:1 1 220px;display:grid;gap:3px;font-size:14px}
-.rw-l{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
-.rw-l b{font:700 18px var(--display)}
-.rw-l .xp-up{margin-left:auto}
-.qz-rw .xpbar>span{animation:xp-fill 1.1s .3s cubic-bezier(.2,.8,.2,1) both}
-@keyframes xp-fill{from{width:var(--from,0%)}}
-
-/* ---------- badges and level ---------- */
-.lv{display:flex;gap:16px;align-items:center;padding:12px 14px;border-radius:10px;background:var(--field);border:1px solid var(--line)}
-.lv-n{font:700 58px/.9 var(--display);text-align:center;color:var(--watch);padding-right:16px;border-right:1px solid var(--line)}
-.lv-n small{display:block;font:500 13px var(--display);color:var(--muted);margin-bottom:4px}
-.lv-x{flex:1;display:grid;gap:4px;font-size:14.5px}
-.lv-x b{font:700 22px var(--display)}
-.lv-x .xpbar{height:9px}
-.ach{list-style:none;padding:0;margin:12px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
-.ach li{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--field)}
-.ach li:not(.on){opacity:.55}
-.ach li:not(.on) .ach-i{filter:grayscale(1)}
-.ach li.on{border-color:color-mix(in srgb,#ffc61a 70%,transparent);background:color-mix(in srgb,#ffc61a 9%,var(--field))}
-.ach-i{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:20px;background:var(--card);border:1px solid var(--line)}
-.ach li.on .ach-i{border-color:#ffc61a;box-shadow:0 0 10px rgba(255,198,26,.45)}
-.ach-x{display:grid;gap:1px}
-.ach-x b{font:700 16px var(--display)}
-.ach-x .muted{font-size:12.5px}
-@media (max-width:640px){
-  .fx-banner.k-day,.fx-banner.k-week,.fx-banner.k-all{padding:14px 22px 18px}
-  .fx-banner .b-i{font-size:52px}
-  .fx-banner.k-week .b-i,.fx-banner.k-all .b-i{font-size:64px}
-  .fx-badges{top:40px;gap:5px}
-  dialog .fx-badges{top:8px}
-  .fx-badge{gap:9px;padding:4px 16px 4px 5px}
-  .bd-t{font-size:17px}
-  .bd-s{font-size:12px}
-  .bd-i{width:32px;height:32px;font-size:17px}
-  .qz-res.has-gif{grid-template-columns:1fr}
-  .qz-gif{justify-items:center}
-  .qz-gif img{height:150px}
-  .lv-n{font-size:46px}
-}
-
-/* ---------- course diagrams (site/diagram.js): navy ink on paper, areas dashed or tinted by kind ---------- */
-.dg{display:block;width:100%;height:auto;font-family:var(--display)}
-.dg text{fill:var(--text);font-size:12.5px}
-.dg-area rect{fill:none;stroke:color-mix(in srgb,var(--text) 45%,transparent);stroke-width:1.3}
-.dg-area.dash rect{stroke-dasharray:6 4}
-.dg-area text{font-size:12px;font-weight:600;fill:var(--muted)}
-.dg-area.k-public rect{fill:color-mix(in srgb,var(--done) 9%,transparent)}
-.dg-area.k-private rect{fill:color-mix(in srgb,var(--watch) 8%,transparent)}
-.dg-area.k-onprem rect{fill:color-mix(in srgb,var(--prep) 9%,transparent)}
-.dg-area.k-edge rect{fill:color-mix(in srgb,var(--play) 7%,transparent)}
-.dg-node rect{fill:var(--card);stroke:var(--text);stroke-width:1.4}
-.dg-link line{stroke:color-mix(in srgb,var(--text) 70%,transparent);stroke-width:1.4}
-.dg marker path{fill:color-mix(in srgb,var(--text) 70%,transparent)}
-.dg-link text{font-size:11px;fill:var(--muted);paint-order:stroke;stroke:var(--card);stroke-width:3px}
+/* ---------- course diagrams (site/diagram.js): ink lines on the sunk well, cut-corner nodes, mono labels ---------- */
+.dg{display:block;width:100%;height:auto;font-family:var(--font-mono)}
+.dg text{fill:var(--ink);font-size:11.5px;letter-spacing:.02em}
+.dg-area rect{fill:none;stroke:var(--ink-3);stroke-width:1}
+.dg-area.dash rect{stroke-dasharray:4 4}
+.dg-area text{font-size:10.5px;font-weight:500;fill:var(--ink-3);text-transform:uppercase;letter-spacing:.08em}
+.dg-area.k-public rect{fill:color-mix(in srgb,var(--ink) 4%,transparent)}
+.dg-area.k-private rect{fill:color-mix(in srgb,var(--ink) 7%,transparent)}
+.dg-area.k-onprem rect{fill:none;stroke-dasharray:1 3}
+.dg-area.k-edge rect{fill:color-mix(in srgb,var(--ink) 2%,transparent);stroke-dasharray:8 3}
+.dg-node rect{fill:var(--paper-raised);stroke:var(--ink);stroke-width:1}
+.dg-link line{stroke:var(--ink-2);stroke-width:1}
+.dg marker path{fill:var(--ink-2)}
+.dg-link text{font-size:10px;fill:var(--ink-2);paint-order:stroke;stroke:var(--paper-sunk);stroke-width:3px}
 .dg .hot{cursor:pointer}
-.dg .hot:hover rect,.dg .hot:focus rect,.dg .hot.on rect{stroke:var(--accent);stroke-width:2.4}
-.dg .dg-node.hot.on rect{fill:color-mix(in srgb,var(--accent) 12%,var(--card))}
+.dg .hot:hover rect,.dg .hot:focus rect{stroke:var(--ink);stroke-width:2}
 .dg .hot:focus{outline:none}
-.dg .hot:focus-visible rect{stroke:var(--accent);stroke-width:3}
-.dg .hot.rel rect{stroke:var(--watch);stroke-width:2.2}
-.dg .hot.on rect{stroke:var(--accent);stroke-width:2.6}
-/* on the card: the picture, the step's parts as buttons, and the open part explained under it */
-.b-map{--edge:var(--build)}
-.b-map>.dg-t{margin:2px 0;font-size:15.5px}
-.b-map>.dg-why{font-size:14.5px;color:var(--muted);margin:0 0 8px}
-.dg-rel{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 8px;font-size:14px}
+.dg .hot:focus-visible rect{stroke:var(--ink);stroke-width:3}
+.dg .hot.rel rect{stroke:var(--ink);stroke-width:2;stroke-dasharray:none}
+.dg .hot.on rect{stroke:var(--signal-edge);stroke-width:2.5}
+.dg .dg-node.hot.on rect{fill:var(--signal)}
+.dg .dg-node.hot.on text{fill:var(--on-signal)}
+.b-map>.dg-t{margin:var(--space-1) 0;font-size:15.5px}
+.b-map>.dg-why{margin:0 0 var(--space-3);font-size:14.5px;color:var(--ink-2)}
+.dg-rel{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin:0 0 var(--space-3);font-size:14px}
 .dg-pic{position:relative}
-.dg-big{position:absolute;top:8px;right:8px}
-.dg-rel button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--card))}
-.dg-wrap{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px;overflow-x:auto}
+.dg-big{position:absolute;top:var(--space-2);right:var(--space-2)}
+.dg-wrap{padding:var(--space-2);overflow-x:auto;background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule)}
 @media (max-width:760px){.dg-wrap .dg{min-width:680px}}   /* readable on a phone: the picture scrolls sideways */
-/* the larger view (a sheet): the picture with the open part beside it */
 #sheet[data-kind="dg"]{width:min(1440px,98vw)}
-#sheet[data-kind="dg"] .dg-why{margin:0 0 10px}
+#sheet[data-kind="dg"] .dg-why{margin:0 0 var(--space-3)}
 @media (min-width:1000px){
-  #sheet[data-kind="dg"] .dg-box{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+  #sheet[data-kind="dg"] .dg-box{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:var(--space-4);align-items:start}
   #sheet[data-kind="dg"] .dg-rel{grid-column:1/-1}
   #sheet[data-kind="dg"] .dg-part{margin-top:0;position:sticky;top:0;max-height:calc(92vh - 90px);overflow:auto}
   #sheet[data-kind="dg"] .dg-part .k-list li{grid-template-columns:1fr}
 }
-.dg-part{margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--card);border:1px solid var(--line)}
-.dg-pn{font:700 16px var(--display);margin:0 0 4px}
-.dg-pw{margin:0 0 6px;font-size:15px}
-.dg-part .k-list{list-style:none;margin:0;padding:0;font-size:14.5px}
-.dg-trap{margin:8px 0 0;font-size:14.5px;padding:8px 10px;border-radius:6px;background:color-mix(in srgb,var(--warn) 10%,var(--card))}
+.dg-part{margin-top:var(--space-3);padding:var(--space-3) var(--space-4);background:var(--paper);border:var(--stroke-hair) solid var(--ink)}
+.dg-pn{margin:0 0 var(--space-1);font:600 17px/1.3 var(--font-sans)}
+.dg-pw{margin:0 0 var(--space-2);font-size:15px}
+.dg-part .k-list{font-size:14.5px}
+.dg-trap{margin:var(--space-3) 0 0;padding:var(--space-2) var(--space-3);font-size:14.5px;border:var(--stroke-hair) solid var(--alert)}
+.dg-trap b{color:var(--alert-text);font:600 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;margin-right:var(--space-1)}
 .dg-hint{margin:0;font-size:14px}
 
 /* ---------- look-alikes (lookalikes.js): the sheet, and the links from misses, panels and weak spots ---------- */
-.b-look{--edge:var(--play)}
-.c-la{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14.5px}
-.qz-la{margin-top:8px;font-size:14px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
 #sheet[data-kind="look"]{width:min(1100px,96vw)}
-.la-nav{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
-.la-nav button{font-size:13.5px}
-.la-nav button.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--card))}
-.la{margin-top:18px;padding-top:6px;border-top:1px solid var(--line);scroll-margin-top:70px}
-.la.on>h3{color:var(--accent)}
-.la.on .la-t{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 45%,transparent)}
-.la-why{font-size:14.5px;color:var(--muted);margin:2px 0 8px}
-.la-t{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed;border-radius:6px}
-.la-t th,.la-t td{border:1px solid var(--line);padding:7px 9px;vertical-align:top;text-align:left}
-.la-t thead th{background:var(--field);font:700 15px var(--display)}
-.la-t thead th:first-child{width:118px}
-.la-t tbody th{font-weight:700;font-size:13.5px;color:var(--muted);background:var(--field)}
-.la-t .la-cue td{background:color-mix(in srgb,var(--accent) 8%,var(--card))}
-.la-docs{font-size:13.5px;margin:6px 0 0}
+.la-nav{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:var(--space-3) 0 var(--space-1)}
+.la{margin-top:var(--space-6);padding-top:var(--space-1);scroll-margin-top:70px}
+.la.on>h3::after{border-top-color:var(--signal-edge);border-top-width:var(--stroke-bold)}
+.la-why{margin:var(--space-1) 0 var(--space-3);font-size:14.5px;color:var(--ink-2)}
+.la-t{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px}
+.la-t th,.la-t td{padding:var(--space-2) var(--space-3);vertical-align:top;text-align:left;border:var(--stroke-hair) solid var(--rule)}
+.la-t thead th{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;background:var(--paper);border-bottom-color:var(--ink)}
+.la-t thead th:first-child{width:120px}
+.la-t tbody th{font:500 11px/16px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--paper)}
+.la-t .la-cue td{background:var(--paper);border-top:var(--stroke-hair) solid var(--ink)}
+.la-t .la-cue th{color:var(--on-signal);background:var(--signal)}
+.la-docs{margin:var(--space-2) 0 0;font-size:13.5px}
 @media (max-width:760px){
   .la-t,.la-t tbody,.la-t tr,.la-t th,.la-t td{display:block;width:auto}
   .la-t thead{display:none}
-  .la-t tr{margin:8px 0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .la-t tr{margin:var(--space-2) 0;border:var(--stroke-hair) solid var(--ink)}
   .la-t th,.la-t td{border:0}
-  .la-t td{border-top:1px solid var(--line)}
-  .la-t td::before{content:attr(data-col);display:block;font-weight:700;font-size:13px;color:var(--text)}
+  .la-t td{border-top:var(--stroke-hair) solid var(--rule)}
+  .la-t td::before{content:attr(data-col);display:block;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
 }
 
 /* text size (Settings, this browser only): the reading parts grow, the frame around them stays */
@@ -924,179 +703,108 @@ dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;
 /* ---------- focus view: the card alone, a little larger ---------- */
 body.focus-view #side-l,body.focus-view #side-r{display:none!important}
 body.focus-view .fl-body{grid-template-columns:minmax(0,980px)!important;grid-template-rows:auto!important;grid-template-areas:"card"!important;justify-content:center}
-@media (min-width:1300px){body.focus-view .fl-nav{padding-inline:max(16px,calc((100% - 980px)/2))}body.focus-view .fl-prog{width:min(980px,100%);margin-inline:auto}}
+@media (min-width:1300px){body.focus-view .fl-nav{padding-inline:max(var(--space-4),calc((100% - 980px)/2))}body.focus-view .fl-prog{width:min(980px,100%);margin-inline:auto}}
 body.focus-view #card{zoom:1.06}
 :root[data-size="l"] body.focus-view #card{zoom:1.17}
 :root[data-size="xl"] body.focus-view #card{zoom:1.3}
-.fl-tools [aria-pressed="true"]{background:color-mix(in srgb,var(--chalk) 18%,transparent);border-color:var(--chalk)}
 
-
-/* ---------- search ---------- */
-dialog.srch{width:min(720px,96vw);border-top-color:var(--watch)}
-#sr-q{display:block;width:100%;font:400 17px var(--body);padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--text)}
-#sr-q:focus{outline:2px solid var(--watch);outline-offset:1px}
-.sr-list{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:4px;max-height:60vh;max-height:60dvh;overflow:auto}
-.sr-it{display:grid;gap:1px;padding:8px 10px;border-radius:8px;border:1px solid transparent;cursor:pointer}
-.sr-it:hover{background:var(--hover)}
-.sr-it.on{background:color-mix(in srgb,var(--watch) 10%,var(--card));border-color:color-mix(in srgb,var(--watch) 45%,var(--line))}
-.sr-h{display:flex;gap:8px;align-items:baseline;font-size:12.5px}
-.sr-k{font:700 12.5px var(--display);color:var(--watch)}
-.sr-t{font-weight:600;font-size:15px}
-.sr-s{font-size:13.5px;color:var(--muted)}
-.sr-it mark{background:color-mix(in srgb,var(--accent) 35%,transparent);color:inherit;border-radius:2px;padding:0 1px}
-.sr-none{padding:8px 4px}
-.sr-hint{font-size:12.5px;margin:10px 0 0}
-.s-disp{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
-.s-disp select{display:block;width:100%;margin-top:4px;font:400 15px var(--body);padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--text)}
-
-/* ---------- today's goal (a ring meter) and this week's challenges ---------- */
-.today{display:grid;grid-template-columns:minmax(260px,1fr) 2fr;gap:14px 26px;background:var(--card);color:var(--text);box-shadow:var(--shadow);border-radius:10px;padding:14px 18px;margin:0 0 14px;border-top:4px solid var(--chart)}
-.today h3{font:700 17px var(--display);margin:0 0 4px}
-.today h3 .muted{font:400 13.5px var(--body)}
-.td-goal{display:grid;grid-template-columns:84px 1fr;gap:4px 14px;align-items:center}
-.ring,.ring-v{grid-area:1/1}
-.ring{width:84px;height:84px}
-.ring-t{fill:none;stroke:color-mix(in srgb,var(--accent) 20%,var(--card));stroke-width:8}
-.ring-f{fill:none;stroke:var(--accent);stroke-width:8;stroke-linecap:round;transition:stroke-dasharray .6s ease}
-.td-goal.hit .ring-f{stroke:var(--done)}
-.td-goal.hit .ring-t{stroke:color-mix(in srgb,var(--done) 20%,var(--card))}
-.ring-v{display:grid;justify-items:center;line-height:1.05}
-.ring-v b{font:600 21px var(--body)}
-.ring-v small{font-size:11px;color:var(--muted)}
-.td-x p{margin:0;font-size:14.5px}
-.td-x .muted{font-size:13px;margin-top:2px}
-.td-ch ul{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:7px}
-.td-ch li{display:grid;grid-template-columns:22px minmax(0,1fr) minmax(150px,220px);gap:10px;align-items:center;font-size:14.5px}
-.td-ch li.done .ch-t{color:var(--muted);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--muted) 60%,transparent)}
-.ch-m{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
-.ch-n{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:62px;text-align:right}
-.td-ch li.done .ch-n{color:var(--text);font-weight:600}
-/* a meter: the fill on a lighter step of the same colour */
-.mt{position:relative;display:block;height:8px;border-radius:4px;background:color-mix(in srgb,var(--chart) 16%,var(--card));overflow:hidden}
-.mt>span{display:block;height:100%;border-radius:4px;background:var(--chart)}
-.td-ch li.done .mt>span{background:var(--done)}
-@media (max-width:760px){
-  .today{grid-template-columns:1fr;padding:12px 14px}
-  .td-ch li{grid-template-columns:22px minmax(0,1fr);}
-  .td-ch .ch-m{grid-column:2}
+/* ---------- narrower screens: everything stacks, the rail keeps the code block, the day and the timer ---------- */
+@media (max-width:1100px){
+  .tiles,.st-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .st-grid .st:nth-child(4n+1){border-left:0}
+  .st-grid .st:nth-child(n+5){border-top-width:var(--stroke-bar)}
+  .rd-list li{grid-template-columns:150px minmax(100px,1fr) 52px 120px}
+  .rd-c{display:none}
 }
-
-/* ---------- readiness by domain, why you miss, day-by-day charts ---------- */
-.pg-grid{display:grid;gap:8px}
-.rd-head{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:baseline;margin-bottom:8px}
-.rd-all{display:flex;gap:10px;align-items:baseline}
-.rd-all b{font:600 34px var(--body)}
-.rd-how{margin:0;font-size:13.5px}
-.rd-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.rd-list li{display:grid;grid-template-columns:150px minmax(120px,1fr) 46px 120px 170px;gap:10px;align-items:center;font-size:14.5px}
-.rd-n{font-weight:600}
-.rd-v{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
-.rd-c{font-size:13px}
-.rd-list .mt{height:10px;overflow:visible}
-.rd-list .mt>span{background:var(--muted)}
-.rd-list .ok .mt>span{background:var(--done)}.rd-list .ok .rd-s{color:var(--done)}
-.rd-list .warn .mt>span{background:var(--warn)}.rd-list .warn .rd-s{color:var(--warn)}
-.rd-list .bad .mt>span{background:var(--bad)}.rd-list .bad .rd-s{color:var(--bad)}
-.rd-list .few .rd-s{color:var(--muted);font-size:13px}
-.rd-list .mt>i{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--text);border-radius:1px}
-.rd-next{margin-top:12px;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--accent) 9%,var(--card));border-left:4px solid var(--accent)}
-.rd-nk{font:700 15px var(--display)}
-.rd-next p{margin:2px 0 8px;font-size:14.5px}
-.rd-next .row{display:flex;flex-wrap:wrap;gap:6px}
-.why-bars{list-style:none;margin:0;padding:0;display:grid;gap:6px;max-width:640px}
-.why-bars li{display:grid;grid-template-columns:230px minmax(80px,1fr) 32px;gap:10px;align-items:center;font-size:14px}
-.wb-t{display:block;height:12px}
-.wb-t>span{display:block;height:100%;background:var(--chart);border-radius:0 4px 4px 0}
-.wb-n{font-variant-numeric:tabular-nums;color:var(--muted)}
-.why-tip{font-size:14px;margin:8px 0 0;max-width:760px}
-@media (max-width:760px){
-  .rd-list li{grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
+@media (max-width:860px){
+  :root{--gut:var(--space-4)}
+  .wrap{padding-top:var(--space-6)}
+  .rl-nav{display:none}
+  .tb{grid-template-columns:1fr;margin-bottom:var(--space-6)}
+  .tb-cells{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tb-tools{justify-content:flex-start}
+  .hero{grid-template-columns:1fr}
+  .hero-n{min-width:0;max-width:260px}
+  .today{grid-template-columns:1fr}
+  .tr-grid{grid-template-columns:1fr}
+  .ov-h,.panel>summary{margin:var(--space-8) 0 var(--space-4)}
+}
+@media (max-width:640px){
+  .rl-code{padding:0 var(--space-3)}
+  .rl-pos .fm-seg--mini,.tm-mode,.tm-caret{display:none}   /* a phone's rail: code block, the day, the time */
+  .rl-pos{padding:0 var(--space-3)}
+  .sync-w{padding:0 var(--space-1)}
+  .tm-chip button{padding:0 var(--space-3)}
+  .tm-go{width:40px}
+  .tm-pop{width:min(300px,100vw)}
+  .tb-cell{padding:var(--space-2) var(--space-3)}
+  .tb-cell dd{font-size:16px}
+  .st-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .st-grid .st:nth-child(4n+1){border-left:var(--stroke-hair) solid var(--ink)}
+  .st-grid .st:nth-child(odd){border-left:0}
+  .st-grid .st:nth-child(n+3){border-top-width:var(--stroke-bar)}
+  .nx-day.fm-frame{--tab:128px;--foot:96px;padding:calc(var(--notch) + var(--space-4)) var(--space-4) calc(var(--space-6) + var(--space-4))}
+  .nx-go.fm-cut{padding:var(--space-4)}
+  .hero-t{font-size:24px}
+  .nx-step{font-size:17px}
+  .nx-where{display:none}   /* the card says where; here the button comes first */
+  .nx-st{margin-left:0;flex-basis:100%}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dt.fm-cell,.fm-cell--empty{min-height:120px}
+  .fm-cell--empty{display:none}
+  .fl-dn{font-size:34px}
+  .card{padding:var(--space-4) var(--space-4) var(--space-6)}
+  .c-t{font-size:19px}
+  .c-terms div{grid-template-columns:1fr;gap:0}
+  .k-list li{grid-template-columns:1fr}
+  .fl-nav{gap:var(--space-2);padding:var(--space-2)}
+  .fl-nav>button{padding:0 var(--space-3)}
+  .fl-mid .big{min-width:0;padding:0 var(--space-3)}
+  .db{grid-template-columns:110px minmax(0,1fr) 52px}
+  .db.tl{grid-template-columns:52px minmax(0,1fr) 110px}
+  .rd-list li{grid-template-columns:minmax(0,1fr) auto;gap:var(--space-1) var(--space-3)}
   .rd-list .mt{grid-column:1/-1;grid-row:2}
-  .rd-list .rd-s{grid-row:3}.rd-list .rd-c{grid-row:3;text-align:right}
+  .rd-list .rd-s{grid-row:3}
   .why-bars li{grid-template-columns:minmax(0,1fr) 80px 28px}
+  .td-ch li{grid-template-columns:1fr}
+  .wk summary{grid-template-columns:1fr 70px 46px}
+  .cues thead{display:none}
+  .cues tr{display:block;padding:var(--space-2) 0;border-bottom:var(--stroke-hair) solid var(--rule)}
+  .cues td{display:block;border:0;padding:2px 0}
+  .s-disp{grid-template-columns:1fr}
+  .week .fm-section{flex-wrap:wrap}
+  .week .fm-section .fm-data{max-width:none;white-space:normal;flex-basis:100%}
+  .sync-st .ss-i{display:none}
 }
-/* the reasons under a wrong answer */
-.why-r{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 4px}
-.why-k{font-size:14px;font-weight:600;margin-right:2px}
-.why-r button{font-size:13.5px}
-.why-r button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--card));font-weight:600}
-/* charts: one series each, hairline grid, thin marks; a tooltip and a hairline on hover or with the arrow keys */
-.tr-ctl{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
-.tr-ctl button[aria-pressed="true"]{border-color:var(--chart);background:color-mix(in srgb,var(--chart) 12%,var(--card))}
-.tr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
-.tr-fig{position:relative;margin:0;padding:8px 8px 4px;border:1px solid var(--line);border-radius:8px}
-.tr-fig:focus-visible{outline:2px solid var(--chart);outline-offset:2px}
-.tr-fig figcaption{font:600 15px var(--display);margin:0 0 2px}
-.ch{display:block;width:100%;height:auto;overflow:visible}
-.ch .gl{stroke:var(--line);stroke-width:1}
-.ch .ax{fill:var(--muted);font:10px var(--body);font-variant-numeric:tabular-nums}
-.ch .ref{stroke:var(--muted);stroke-width:1}
-.ch .ref-t{fill:var(--muted);font:9.5px var(--body)}
-.ch .mk{fill:var(--chart)}
-.ch .ln{fill:none;stroke:var(--chart);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.ch .dot{fill:var(--chart);stroke:var(--card);stroke-width:2}
-.ch .lab{fill:var(--text);font:600 10.5px var(--body)}
-.ch .xh{stroke:var(--muted);stroke-width:1}
-.ch .hit{fill:transparent}
-.tt{position:absolute;top:30px;z-index:2;pointer-events:none;display:grid;gap:1px;padding:6px 9px;font-size:12.5px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 14px rgba(11,14,22,.18);white-space:nowrap}
-.tt b{font-size:15px}
-.tr-tw{overflow-x:auto}
-.tr-tab{border-collapse:collapse;font-size:14px;min-width:420px}
-.tr-tab th,.tr-tab td{padding:4px 12px 4px 0;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
-.tr-tab th:first-child{text-align:left;font-weight:500}
-.tr-tab thead th{font-weight:700}
-@media (max-width:900px){.tr-grid{grid-template-columns:1fr}}
 
-/* ---------- the mock exam screen: strike-outs, highlights, the clock ---------- */
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.mk-tools{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:0 0 10px}
-.mk-hint{font-size:13px}
-.mk-q{user-select:text;cursor:text}
-.mk-q .w{border-radius:2px;cursor:pointer}
-.mk-q .w.hl{background:#ffe27a;color:#1d1a05;box-shadow:0 0 0 1px #ffe27a}
-.mk-opts{display:grid;gap:8px}
-.mk-row{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px;align-items:stretch}
-.mk-row .qz-o{margin:0}
-.mk-x{padding:0;font-size:18px;color:var(--muted)}
-.mk-x[aria-pressed="true"]{color:var(--bad);border-color:var(--bad)}
-.mk-row.x .qz-t{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--bad)}
-.mk-row.x .qz-o{opacity:.55}
-.mk-time{font-variant-numeric:tabular-nums}
-.mk-time.low{color:var(--bad);font-weight:700}
-.mk-f{margin:6px 0 4px}
+/* ---------- touch screens: a finger, not a mouse ---------- */
+/* hints that name keys go where there is no keyboard; .touch says it the touch way */
+.touch{display:none}
+@media (hover:none) and (pointer:coarse){.kbd{display:none}.touch{display:inline}}
+@media (pointer:coarse) and (min-width:641px){.tm-chip button{padding:0 var(--space-4)}.tm-go{width:48px}}
+@media (pointer:coarse){
+  /* iOS zooms into a field under 16px when it gets the focus, and stays zoomed */
+  :is(.scores-grid,.field,.notes-l,.b-notes,.qz-note,.cost-add,.s-disp) :is(input,select,textarea){font-size:16px}
+  /* targets a fingertip can hit */
+  .dot{width:30px;height:30px}
+  button,.btn{min-height:44px}
+  button.link{min-height:0;padding:var(--space-2) 0}
+  .panel>summary,.c-fold summary{min-height:44px}
+  .chk{min-height:44px}
+  .chk input{width:22px;height:22px}
+  button.sm,.btn.sm{min-height:36px;padding:0 var(--space-3)}
+}
 
-/* ---------- drill modes ---------- */
-.dr-modes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.dr-modes button{font-size:13.5px;padding:6px 8px}
-.dr-modes small{color:var(--muted);font-weight:400}
-.dr-lives span{color:var(--bad);font-size:16px;letter-spacing:2px}
-.dr-lives span:not(.on){color:var(--muted)}
-.dr-svc{display:grid;gap:2px;font-size:26px}
-.dr-svc .muted{font:400 14px var(--body)}
-.dr-long .qz-t{font-size:15px;line-height:1.35}
+/* ---------- motion: boot once, in steps; the effects switch and the system setting both stop it ---------- */
+@media (prefers-reduced-motion:no-preference){
+  /* the frame, the current panel, stat tiles and cells boot themselves (bundle.css); only the live segment pulses here */
+  :root:not(.fx-off) .segs i.nx{animation:fm-pulse var(--fm-beat) steps(2,jump-none) infinite}
+}
+@keyframes fm-pulse{50%{background:var(--paper-raised)}}
+/* the motion levels (Settings, or effects off): calm stops the loops, off holds everything still */
+:root[data-fm-motion="calm"] :is(.timer.over .tm-fill,.segs i.nx){animation:none!important}
+:root[data-fm-motion="off"] *,:root[data-fm-motion="off"] *::before,:root[data-fm-motion="off"] *::after{animation:none!important;transition:none!important}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 
-/* ---------- cost guard: still running in your own AWS account ---------- */
-.running{background:var(--card);color:var(--text);box-shadow:var(--shadow);border-radius:10px;padding:12px 18px 14px;margin:0 0 14px;border-top:4px solid var(--warn)}
-.running h3{font:700 18px var(--display);margin:0 0 2px}
-.running h3 .muted{font:400 14px var(--body)}
-.running>p{margin:0 0 8px;font-size:14px}
-.running .row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;margin-top:10px}
-.cost-l{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.cost-l li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
-.cost-l .ci-n{font-size:14.5px}
-.cost-l .ci-n .muted{font-size:13px}
-.cost-l .ci-d{grid-column:1;font-size:13px}
-.cost-l li>button{grid-row:1/span 2;grid-column:2}
-.cost-l li.gone .ci-n b{text-decoration:line-through;color:var(--muted)}
-.cost-add{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
-.cost-add select,.cost-add input{width:auto;min-width:0;flex:1 1 160px;font-size:14px;padding:6px 8px}
-.cost-add button{flex:0 0 auto}
-.cost-more>summary{list-style:none;cursor:pointer;display:inline-block}
-.cost-more>summary::-webkit-details-marker{display:none}
-.cost-more[open]{flex:1 1 100%}
-.b-cost{--edge:var(--warn)}
-.b-cost .cost-h{margin:8px 0 0;font-size:13.5px}
-.cl-run{margin:0 0 12px;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--warn) 9%,var(--card));border-left:4px solid var(--warn)}
-.cl-run h3{font:700 15px var(--display);margin:0 0 6px}
-dialog.costnag{border-top-color:var(--warn);width:min(560px,94vw)}
-dialog.costnag p{font-size:15px;margin:6px 0}
+/* print: ink on white, no backdrop, no buttons */
+@media print{.bd-host,.timer,.fl-nav,.tb-tools,.fl-tools{display:none!important}.card{clip-path:none}}
