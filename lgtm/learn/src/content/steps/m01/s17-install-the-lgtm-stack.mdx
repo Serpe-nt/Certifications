@@ -101,7 +101,7 @@ helm history loki -n loki`}</Cmd>
 
 <Trap practice>
 If one release fails, the playbook stops there. Read its pods (`kubectl get pods -n <namespace>`), fix the cause, and run `make lab` again: finished releases are skipped. `lgtm/lab/docs/runbook.md` lists the faults seen so far.
-</Trap practice>
+</Trap>
 
 <Question id="q-m01-s17" answer="a">
 You changed one value in `lgtm/lab/helm/grafana/values.yaml`. Which command applies it and leaves every other release alone?

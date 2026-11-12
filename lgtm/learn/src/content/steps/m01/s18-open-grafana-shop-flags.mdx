@@ -83,7 +83,7 @@ You are signed in to Grafana, a Shop dashboard shows data, and the flag screen l
 
 <Trap practice>
 If the browser cannot find `grafana.lab.k8s.local`, check the name rule in PowerShell: `Resolve-DnsName grafana.lab.k8s.local` must answer 10.10.0.5. If it does not, `lab-vms.ps1 create -ConfigureDns` adds the rule again.
-</Trap practice>
+</Trap>
 
 <Question id="q-m01-s18" answer="b">
 In WSL, `curl http://grafana.lab.k8s.local` fails with `Could not resolve host`, while the same address works in a Windows browser. Why?
