@@ -50,7 +50,7 @@ A profile records where a program spends its resources, down to the function. It
 
 ## The question only a profile answers
 
-Each signal answers its own question. A profile is the one that points at a line of code.
+Each signal answers its own question. A profile is the one that points at a function in the code.
 
 <Layers caption="Each signal and its question">
   <Layer title="Logs">What happened?</Layer>
@@ -63,7 +63,7 @@ A profiler looks at the call stack again and again, for example on a timer, and 
 
 ## Watching from the kernel with eBPF
 
-eBPF runs small, safe programs inside the Linux kernel. A profiler can use it to sample the stacks of any process, with no change to the code. It works on Linux only and needs root access on the host.
+eBPF runs small, safe programs inside the Linux kernel. A profiler can use it to sample the stacks of processes written in a supported language, with no change to the code. It works on Linux only and needs root access on the host.
 
 eBPF does more than profiles. OBI, OpenTelemetry eBPF Instrumentation, uses it to create traces and rate, error and duration metrics without code changes. Grafana Beyla is Grafana's distribution of OBI.
 
@@ -71,7 +71,7 @@ eBPF does more than profiles. OBI, OpenTelemetry eBPF Instrumentation, uses it t
 
 Grafana Pyroscope is a profile database built like Loki, Mimir and Tempo. Alloy can collect CPU profiles with eBPF and send them to it.
 
-In OpenTelemetry, profiles are still young. OpenTelemetry marks the profiles signal as Alpha. Traces, metrics and logs are further along: their protocol, OTLP, is stable.
+In OpenTelemetry, profiles are still young. OpenTelemetry's page on profiles marks the signal as Alpha. Traces, metrics and logs are further along: their protocol, OTLP, is stable.
 
 <InLab>
 This lab runs neither Pyroscope nor OBI. Profiles get only this step in the course.

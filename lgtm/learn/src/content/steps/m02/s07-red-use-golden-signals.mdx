@@ -21,7 +21,7 @@ terms:
   - term: Golden signals
     def: Latency, traffic, errors and saturation, from Google's SRE book.
   - term: Saturation
-    def: How much work waits because a resource is full, such as a queue.
+    def: How full a resource is, often shown by work waiting in a queue.
   - term: Tail latency
     def: The time taken by the slowest requests, such as the slowest 1%.
 sources:
@@ -56,7 +56,7 @@ USE is for resources: CPU, memory, disks and network devices. Utilization is how
 
 ## The four golden signals join both
 
-Google's SRE book names four golden signals: latency, traffic, errors and saturation. Its advice: if you can measure only four metrics of a user-facing system, measure these. They are RED plus saturation, so they cover what users feel and add the first warning that a resource is filling up.
+Google's SRE book names four golden signals: latency, traffic, errors and saturation. Its advice: if you can measure only four metrics of a user-facing system, measure these. They are RED plus saturation, so they cover what users feel and add a warning that a resource is filling up.
 
 <Compare caption="Three checklists, three uses">
   <Col title="RED" hot>For services. Rate, errors, duration. Shows what users feel; alert on it.</Col>

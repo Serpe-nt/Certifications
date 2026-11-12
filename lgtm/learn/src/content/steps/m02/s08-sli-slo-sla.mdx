@@ -46,7 +46,7 @@ Developers want to ship new features every day. Operations want fewer changes, b
 The way out is to agree on one number, a target for it, and what happens when the target is missed.
 
 <Idea>
-An SLI measures how good the service is for users. An SLO is the target for that measure. An SLA is a contract that says what happens when the target is missed. The error budget is the failure the SLO still allows, and it decides when to slow down releases.
+An SLI measures how good the service is for users. An SLO is the target for that measure. An SLA is a contract that says what happens when the target is missed. The error budget is the failure the SLO still allows, and it decides when releases stop.
 </Idea>
 
 ## SLI: a number about the user's experience
@@ -57,7 +57,7 @@ A service level indicator is a carefully defined number about the service, such 
 
 A service level objective is a target for an SLI over a time window. Example: 99.9% of checkout requests succeed over four weeks.
 
-A service level agreement is a contract with users that includes consequences, often money back, when an SLO is missed. To tell them apart, ask "what happens if we miss it?". If nothing happens, it is an SLO, not an SLA.
+A service level agreement is a contract with users that includes consequences, often money back, when an SLO is missed. To tell them apart, ask "what happens if we miss it?". If nothing happens, it is almost certainly an SLO and not part of an SLA.
 
 <Layers caption="From a measure to a contract">
   <Layer title="SLI">The measure: the share of checkout requests that succeed.</Layer>
@@ -85,7 +85,7 @@ People often say "SLA" when they mean SLO. An internal target with no penalty is
 </Trap>
 
 <Remember>
-The SLI is the measure, the SLO the target, the SLA the contract with a penalty. The error budget is 100% minus the SLO, and when it is spent, releases slow down.
+The SLI is the measure, the SLO the target, the SLA the contract with a penalty. The error budget is 100% minus the SLO, and when it is spent, releases stop, except urgent fixes.
 </Remember>
 
 <Question id="q-m02-s08" answer="b">

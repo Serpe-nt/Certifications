@@ -23,7 +23,7 @@ terms:
   - term: Service discovery
     def: Finding the targets to scrape automatically, for example from the Kubernetes API.
   - term: Pushgateway
-    def: A Prometheus component that keeps the last results of short batch jobs until Prometheus scrapes them.
+    def: A Prometheus component that keeps what batch jobs push to it, for Prometheus to scrape, until someone deletes it.
 sources:
   - title: Prometheus FAQ (Why do you pull rather than push?)
     url: https://prometheus.io/docs/introduction/faq/
@@ -67,7 +67,7 @@ Prometheus collects metrics by pulling them over HTTP from each target at a fixe
 
 The work moves to the other side: a puller must know its targets. Prometheus finds them through service discovery or from a static list. Kubernetes service discovery reads targets from the Kubernetes API and stays in step as pods come and go. Module m03 shows how.
 
-In return, pull gives you some things for free. For every scrape Prometheus records `up`: 1 if the target answered, 0 if not, so a dead target is easy to see. You can also open a target's page in a browser, or start a second Prometheus on your laptop that scrapes the same targets.
+In return, pull gives you some things for free. For every scrape Prometheus records `up`: 1 if the scrape worked, 0 if it failed, so a dead target is easy to see. You can also open a target's page in a browser, or start a second Prometheus on your laptop that scrapes the same targets.
 
 ## Push: the source sends
 
@@ -80,9 +80,9 @@ With OTLP, the client sends export requests to a server, such as a collector or 
 
 ## A short job and the Pushgateway
 
-Pull has one weak spot: a short job may end before any scrape finds it. For that case Prometheus has the Pushgateway. The job pushes its last results there, and Prometheus scrapes them from it.
+One weak spot of pull is a short job: it may end before any scrape finds it. For that case Prometheus has the Pushgateway. The job pushes its last results there, and Prometheus scrapes them from it.
 
-Use it only for service-level batch jobs, jobs that do not belong to one machine or instance. It costs you three things: it is a single point of failure, you lose `up` for the job, and it keeps every pushed series until you delete it.
+Use it only for service-level batch jobs, jobs that do not belong to one machine or instance. It costs you three things: it can become a single point of failure, you lose `up` for the job, and it keeps every pushed series until you delete it.
 
 <InLab>
 The shop pushes OTLP to the collector gateway `otel-gateway`. Prometheus pulls metrics from exporters, then pushes them on to Mimir with remote write.
@@ -93,7 +93,7 @@ Do not pick a monitoring system only for push or pull. The Prometheus team says 
 </Trap>
 
 <Remember>
-Pull means the store knows its targets and sees a dead one at once. Push means the source knows the store. The Pushgateway is only for short, service-level batch jobs.
+Pull means the store knows its targets and sees a dead one at the next scrape. Push means the source knows the store. The Pushgateway is only for short, service-level batch jobs.
 </Remember>
 
 <Question id="q-m02-s09" answer="d">
