@@ -96,12 +96,12 @@ Shape in transformations, maths in the query, and an expression when the inputs 
 </Remember>
 
 <Do>
-1. Open your dashboard `Shop service (m05)`, click **Edit**, and add a new visualization with the data source **Mimir**.
-2. Enter this query and set **Legend** to **Custom** with `{{slot}}`: <Query lang="promql">{`lab_beacon_value{slot=~"metric-m05-.*"}`}</Query>
-3. Choose the visualization **Table** and title it `Beacon slots of m05`. The table shows one series at a time, with a selector at the bottom to switch between them.
-4. Open the **Transformations** tab and add **Reduce**. Set **Mode** to **Series to rows** and **Calculations** to **Last \***. The table now has one row per slot, with the columns Field and Last \*.
-5. Add **Organize fields by name**. Rename **Field** to `Slot` and **Last \*** to `Token`.
-6. Add **Sort by** on the field `Slot`. The rows run from metric-m05-1 to metric-m05-9.
+1. Open your dashboard `Shop service (m05)`, click **Edit**, click **Add panel** and then **Configure visualization**. Keep the data source **Mimir**.
+2. Enter this query, and in the query's **Options** set **Legend** to **Custom** with `{{slot}}`. Click **Run queries**: <Query lang="promql">{`lab_beacon_value{slot=~"metric-m05-.*"}`}</Query>
+3. Under **All visualizations**, pick **Table** and title the panel `Beacon slots of m05`. The table shows one series at a time, with a selector at its foot to switch between the nine slots.
+4. Open the **Transformations** tab, click **Add transformation**, search for `Reduce` and pick it. Its **Mode** is already **Series to rows**; replace the calculation **Max** with **Last \***. The table now has one row per slot, with the columns Field and Last \*. Note the name Grafana gave the step's output in its header, `reduce-A-A-...`: it is built from the input RefIDs.
+5. Click **Add another transformation** and pick **Organize fields by name**. Rename **Field** to `Slot` and **Last \*** to `Token`.
+6. Add **Sort by** and set **Field** to `Slot`. The rows run from metric-m05-1 to metric-m05-9.
 7. Turn **Table view** on and off above the preview to compare the raw data with the result. Save the dashboard.
 8. Paste the value of the row metric-m05-2 in the lab check below.
 </Do>
@@ -111,7 +111,7 @@ The panel Beacon slots of m05 is a table with nine rows, one per slot, with read
 </Done>
 
 <Trap practice>
-If the table shows a long name such as `lab_beacon_value{...}` instead of the slot, the legend was not set before the Reduce: set **Legend** to `{{slot}}` in the query. If Token shows a shortened number, set its unit to a plain number with no decimals, as in step 5.
+If the table shows a long name such as `lab_beacon_value{...}` instead of the slot, the legend was not set before the Reduce: set **Legend** to `{{slot}}` in the query. Typing into a search box that already holds text adds to it: clear the transformation search before you type a new name.
 </Trap>
 
 <Question id="q-m05-s07" answer="b">
