@@ -95,8 +95,7 @@ storage, computed from what is *scheduled* on each disk, not from what is writte
 Usable Storage"). `make platform` creates RustFS's 25 GiB volume before Kafka's, and its two
 replicas went to worker1 and worker4. When the Kafka volumes came, worker1 and worker4 already had
 25 GiB scheduled, so all six Kafka replicas went to worker2 and worker3. RustFS has written only
-about 5.5 GiB of its 25 GiB, so the score does not see the space worker1 and worker4 really
-have free. A
+about 5.5 GiB of its 25 GiB, so the score sees space worker1 and worker4 really have free. A
 rebuilt lab would do the same.
 
 What does not help: Replica Auto Balance (setting `replica-auto-balance`, or
@@ -105,53 +104,29 @@ What does not help: Replica Auto Balance (setting `replica-auto-balance`, or
 already has its two replicas on two different nodes, so it would move nothing. Its "disk pressure
 threshold" moves replicas between disks of the same node, and each worker has one disk.
 
-Decision (the planner's, 2026-11-12): the smallest thing that covers the risk, no redesign.
+What does: data locality. Longhorn's page names this case: for distributed applications "in
+which high availability is achieved at the application level", "each volume should be scheduled
+on the same node as the pod that uses it", and with `best-effort` Longhorn "will try to keep a
+replica on the same node as the attached volume"
+(https://longhorn.io/docs/1.13.0/high-availability/data-locality/). The three brokers run on
+three different workers (worker4, worker1, worker3 today, by the pod anti-affinity of the
+KafkaNodePool), so each Kafka volume keeps one replica there and the second wherever the balance
+score puts it.
 
-1. A one-time move on the live lab, one Kafka volume at a time, with two healthy replicas all the
-   time: raise the volume's replica count to 3, wait until it is healthy, set the count back to
-   2, then delete the replica on worker2 or worker3. Longhorn's volume page says that when the
-   healthy replicas outnumber the count "Longhorn will do nothing", and deleting an extra healthy
-   replica starts no rebuild (https://longhorn.io/docs/0.8.0/users-guide/volume, an old version;
-   the 1.13 pages read for this card do not say it either way, so the procedure checks the
-   counts at every step). The lab has replica
-   auto-balance off, so nothing moves back. The procedure is in `runbook.md`, "Kafka's replicas
-   all sit on two workers".
-2. A check in `make lab-check` (check 9, `tests/lab/longhorn-disks.sh`) that fails when a
-   Longhorn disk has less than 25% free; Longhorn stops scheduling at 15%. A rebuilt lab may
-   place the replicas the same way again; the check tells the owner, and the runbook says what
-   to do.
+Decision: the role `platform_kafka` sets `dataLocality: best-effort` on each Kafka volume in turn
+after the cluster is Ready (real cluster only), and waits until that volume has two running
+replicas, one on its broker's node, before it moves to the next. A rebuilt lab gets it from the
+same run of `make platform`. It does not touch the StorageClass or Longhorn's global settings, so
+no other volume changes. A server-side dry run of the patch was accepted on 2026-11-12.
 
-Two durable options, not chosen now:
-
-- **(a) A StorageClass for Kafka with node or disk tags.** Longhorn schedules a volume only on
-  nodes and disks whose tags match the volume's selectors (scheduling page above, "Node Tag
-  Matching" and "Disk Tag Matching"); a StorageClass sets them with `nodeSelector` or
-  `diskSelector`. Cost: the tags have to be put on the Longhorn nodes and kept right when workers
-  change; Kafka's replicas are then pinned to the tagged workers, which only moves the crowding
-  unless the tags are chosen per volume. And the class of an existing Kafka cluster cannot just
-  be changed: Strimzi changes a storage class by adding a new node pool and moving the data,
-  "currently ... only possible for broker-only node pools", and this lab's pool is dual-role
-  (https://strimzi.io/docs/operators/latest/deploying, "Managing storage using node pools"). It
-  would mean rebuilding Kafka.
-- **(b) One Longhorn replica per Kafka volume, with data locality.** Kafka already keeps three
-  copies of every partition, one per broker. Longhorn's data locality page names this case:
-  "data locality can also be useful for distributed applications (e.g. databases), in which high
-  availability is achieved at the application level instead of the volume level. In that case,
-  only one volume is needed for each pod, so each volume should be scheduled on the same node as
-  the pod that uses it" (https://longhorn.io/docs/1.13.0/high-availability/data-locality/;
-  `best-effort` keeps the replica local when it can, `strict-local` always). Cost: losing a worker
-  loses that broker's disk; Kafka keeps writing with two brokers (`min.insync.replicas: 2`) and
-  copies the partitions back when the broker returns, which is network and disk work. Gain:
-  three Kafka replicas on Longhorn instead of six, one per broker's worker, about half the
-  Longhorn space. It needs a StorageClass with `numberOfReplicas: "1"` and `dataLocality`, so
-  the same Strimzi limit as (a) applies to an existing cluster.
-
-If the lab is rebuilt for another reason, (b) is the one to take: it follows Longhorn's own
-advice for applications that replicate themselves, it halves Kafka's share of the Longhorn
-disks, and it needs no tags to keep up.
+Expected on today's lab: the volume of broker 0 gets a replica on worker4 and the volume of
+broker 1 one on worker1, each losing one on worker2 or worker3; the volume of broker 2 already
+has one on worker3. Longhorn's page does not say whether it builds the local replica before it
+removes another; the role's wait checks the end state (two running, one local), and the commands
+in the pull request watch that each volume stays `healthy` in between.
 
 ## Not done
 
 My session's permission rules blocked `make platform TAGS=s3` as a change to the shared
 cluster, and the replica moves are changes to the cluster too. Both wait for the owner to run
-them or to allow them; the pull request lists the commands in order.
+them or to allow them.

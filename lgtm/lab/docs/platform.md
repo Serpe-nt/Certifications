@@ -165,11 +165,10 @@ set by the KafkaNodePool's `template.persistentVolumeClaim`. It does not stop or
 List what it covers with
 `kubectl -n longhorn-system get volumes.longhorn.io -l recurring-job-group.longhorn.io/kafka=enabled`.
 
-Longhorn places a new replica by what is already scheduled on each disk, so RustFS's 25 GiB
-volume, created first, pushed all six Kafka replicas onto the two workers without it.
-`make lab-check` fails when a Longhorn disk has less than 25% free, and `runbook.md`, "Kafka's
-replicas all sit on two workers", moves replicas one volume at a time
-(`lgtm/docs/adr/l5b-rustfs-memory.md`).
+The same role sets `dataLocality: best-effort` on the three Kafka volumes, one at a time, so that
+each keeps a replica on the worker of the broker that uses it. Longhorn places a new replica by
+what is already scheduled on each disk, and RustFS's 25 GiB volume, created first, had pushed all
+six Kafka replicas onto the two workers without it (`lgtm/docs/adr/l5b-rustfs-memory.md`).
 
 Longhorn keeps 30% of each disk in reserve (its default for a node's default disk), so with
 over-provisioning at 100% only about 117 GiB of replicas fit on four workers, less than the
