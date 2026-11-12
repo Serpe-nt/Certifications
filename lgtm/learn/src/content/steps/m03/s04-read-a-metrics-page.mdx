@@ -1,0 +1,127 @@
+---
+id: m03-s04
+title: "The exposition format: read a /metrics page"
+kind: lab
+minutes: 18
+order: 4
+exam:
+  - cert: pca
+    domain: P2
+    competency: Exposition Format
+tags: [prom-exposition-format, prom-metric-types]
+check:
+  kind: exact
+  prompt: Paste the largest finite bucket bound (the last le value before +Inf) of prometheus_http_request_duration_seconds.
+  answers: ["120"]
+outcome: You can read a /metrics page line by line and find a counter, a gauge, a histogram and a summary in it.
+terms:
+  - term: Exposition format
+    def: The text a target serves on /metrics so that Prometheus can read its metrics.
+  - term: HELP line
+    def: A comment line that gives a metric's description.
+  - term: TYPE line
+    def: A comment line that gives a metric's type; without it the metric is untyped.
+  - term: OpenMetrics
+    def: A standard text format built from the Prometheus format; it ends with "# EOF".
+sources:
+  - title: Exposition formats (Prometheus)
+    url: https://prometheus.io/docs/instrumenting/exposition_formats/
+    checked: 2026-11-12
+  - title: Metric types (Prometheus)
+    url: https://prometheus.io/docs/concepts/metric_types/
+    checked: 2026-11-12
+  - title: Prometheus 3.0 migration guide, scrape protocols (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/migration/
+    checked: 2026-11-12
+---
+
+<Problem>
+A new exporter is deployed and its dashboard shows nothing. Someone opens its `/metrics` page in a browser and sees two thousand lines of names, braces and numbers. Is the metric there? Does it have the labels the dashboard expects? You can only answer if you can read the page.
+</Problem>
+
+<Idea>
+A `/metrics` page is plain text that Prometheus reads line by line. Comment lines give each metric's description and type, and every other line is one sample: a series in the notation of step 2, then its value. Once you can read it, any target can tell you directly what it exposes.
+</Idea>
+
+## Lines and their order
+
+The Prometheus text format is made of lines. A line that starts with `#` is a comment, and two kinds of comment carry meaning. `# HELP` is followed by the metric name and its description. `# TYPE` is followed by the metric name and one of `counter`, `gauge`, `histogram`, `summary` or `untyped`. A metric without a `# TYPE` line is untyped.
+
+Every other line is a sample: the series, a space, the value, and an optional timestamp in milliseconds since 1970. Targets seldom send the timestamp; Prometheus then uses the time of the scrape.
+
+```text
+# HELP http_requests_total The total number of HTTP requests.
+# TYPE http_requests_total counter
+http_requests_total{method="post",code="200"} 1027
+http_requests_total{method="post",code="400"} 3
+```
+
+All lines of one metric come together in one group, with HELP and TYPE first. Each combination of name and labels may appear only once. Values can also be `NaN`, `+Inf` or `-Inf`.
+
+## Histograms and summaries on the page
+
+Step 3 named the series of a histogram and a summary. On the page they look like this. A histogram named `x` has lines `x_bucket{le="..."}`, in increasing order of `le`, ending with `le="+Inf"`, and then `x_sum` and `x_count`. The `+Inf` bucket and `x_count` must hold the same number. A summary named `x` has lines `x{quantile="..."}`, then `x_sum` and `x_count`.
+
+When you look for a type on a page, read the TYPE line, then check that the lines below it match: buckets for a histogram, quantiles for a summary.
+
+## Formats and the Content-Type header
+
+The target tells Prometheus which format it sends in the HTTP header `Content-Type`. The classic text format is `text/plain` with a version. OpenMetrics is a standard built from it, sent as `application/openmetrics-text`; it ends with a `# EOF` line and adds features such as exemplars. A protobuf format exists as well.
+
+Prometheus 3 is stricter about that header than Prometheus 2 was. If a target sends no `Content-Type`, or one Prometheus does not know, the scrape fails. Prometheus 2 guessed the classic text format instead, so older targets can break after an upgrade until they are fixed or the scrape job names a fallback format.
+
+<Flow caption="How Prometheus reads one page">
+  <Stage title="HTTP response" kicker="Header">Content-Type names the format.</Stage>
+  <Stage title="Comment lines" kicker="Metadata">HELP and TYPE for each metric.</Stage>
+  <Stage title="Sample lines" kicker="Data">Series, value, optional timestamp.</Stage>
+</Flow>
+
+<InLab>
+Prometheus exposes its own metrics in this format at <LabLink to="prometheus" path="/metrics">/metrics</LabLink>. The page has counters, gauges, histograms and summaries, so it is a good place to practise. The node exporters of the lab serve the same format on port 9100 of each node, but they have no histogram.
+</InLab>
+
+<Trap>
+A metric name on the page is not always the name of one series. `prometheus_http_request_duration_seconds` appears only in the HELP and TYPE lines; the series themselves end in `_bucket`, `_sum` and `_count`.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/metrics">/metrics of the lab's Prometheus</LabLink> in your browser. Use the browser's search (Ctrl+F) for each of the next steps.
+2. Find a counter: search for `# TYPE prometheus_http_requests_total`. The lines below it carry the labels `code` and `handler`, one line per combination.
+3. Find a gauge: search for `# TYPE prometheus_tsdb_head_series`. This is the number of series in memory right now, and it can go down.
+4. Find a summary: search for `# TYPE go_gc_duration_seconds`. Its lines carry a `quantile` label, then come `_sum` and `_count`.
+5. Find a histogram: search for `# TYPE prometheus_http_request_duration_seconds`. Below it, look at the lines with `handler="/metrics"`.
+6. Read those bucket lines in order. Check that the values never get smaller from one bucket to the next, and that the `+Inf` bucket equals `prometheus_http_request_duration_seconds_count{handler="/metrics"}`.
+7. Note the last `le` value before `+Inf` and paste it in the check below.
+</Do>
+
+<Done>
+You found one metric of each type by its TYPE line, and you saw that the histogram's buckets are cumulative and end in a `+Inf` bucket equal to the count.
+</Done>
+
+<Trap practice>
+Search for the TYPE line, not the bare name: the name alone matches the HELP line and dozens of sample lines. And copy the bound as the page shows it, without quotes.
+</Trap practice>
+
+<Remember>
+HELP and TYPE lines describe a metric; every other line is one sample. A classic histogram shows cumulative `_bucket` lines ending in `+Inf`, then `_sum` and `_count`.
+</Remember>
+
+<Question id="q-m03-s04" answer="a">
+A page shows `# TYPE queue_wait_seconds summary`. Which line could follow it on a valid page?
+
+- `queue_wait_seconds{quantile="0.9"} 0.42`
+
+  A summary exposes each quantile as a line with the base name and a quantile label.
+
+- `queue_wait_seconds_bucket{le="0.5"} 17`
+
+  Lines with a le label and a _bucket suffix belong to a histogram, not a summary.
+
+- `queue_wait_seconds_total 912`
+
+  The _total suffix is the convention for counters. A summary has _sum and _count.
+
+- `queue_wait_seconds{le="+Inf"} 30`
+
+  The le label belongs to histogram buckets, and those lines end in _bucket.
+</Question>
