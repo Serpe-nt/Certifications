@@ -93,9 +93,9 @@ Grafana keeps connections, not data. To change what is stored or for how long, g
 <Do>
 1. Open <LabLink to="grafana" path="/connections/datasources">Connections > Data sources</LabLink> in the lab's Grafana. If Grafana asks you to sign in, sign in as `admin`; the lab reference, section "Secrets you need", shows how to read the password.
 2. Read the list. It shows six data sources with their type and address. One of them carries the label **default**.
-3. Open **Loki**. Grafana says that the data source was added by configuration and cannot be modified. At the foot of the page there is **Test** and no **Save & test**.
-4. Click **Test**. Grafana asks Loki whether it answers and reports the result.
-5. Go back to the list and open **Mimir (tenant prom)**. Under the HTTP headers, find the header name `X-Scope-OrgID`. Its value is a secret field, so the screen shows it as configured, not as text.
+3. Open **Loki**. A box headed **Provisioned data source** says that it was added by config and cannot be modified using the UI. At the foot of the page there is **Test** and no **Save & test**.
+4. Click **Test**. Grafana asks Loki whether it answers and reports **Data source successfully connected**.
+5. Go back to the list and open **Mimir (tenant prom)**. Under **HTTP headers**, find the header `X-Scope-OrgID`. Its value is stored as a secret, so the field shows `configured`, not the value. The tab **Permissions** only advertises data source permissions: they need Grafana Enterprise or Grafana Cloud.
 6. Paste the name of the default data source in the lab check below.
 </Do>
 

@@ -74,7 +74,7 @@ Metrics Drilldown opens on a grid of metrics from the data source you pick, each
 
 ## Logs Drilldown: volume, labels, fields and patterns
 
-Logs Drilldown starts with one panel per service, ordered by log volume, each with a few recent lines. **Show logs** opens a service on four tabs. **Logs** lists the lines. **Labels** draws the log volume for each value of a stream label. **Fields** does the same for values taken from inside the lines, such as JSON keys and structured metadata. **Patterns** groups lines with the same shape, so you can hide the noise and keep what is unusual.
+Logs Drilldown starts with one panel per service, ordered by log volume, each with a few recent lines. **Show logs** opens a service on its tabs. **Logs** lists the lines. **Labels** draws the log volume for each value of a stream label. **Fields** does the same for values taken from inside the lines, such as JSON keys and structured metadata. Where Loki detects patterns, a **Patterns** tab groups lines with the same shape, so you can hide the noise and keep what is unusual.
 
 Every value can become a filter with one click, and every panel has a menu that opens its query in Explore. That is the hand-over: the app finds the place, and Explore lets you refine the query by hand.
 
@@ -88,7 +88,7 @@ Every value can become a filter with one click, and every panel has a menu that 
 Traces Drilldown builds rate, errors and duration from the spans themselves and lets you filter by attributes without TraceQL. It needs a Tempo with TraceQL metrics. Profiles Drilldown reads Pyroscope, which this lab does not run, so its app has no data source to show. Module m02 already showed how traces, logs and metrics link to each other; the later modules on Tempo come back to Traces Drilldown.
 
 <InLab>
-The beacon in `lab-tools` writes one JSON log line a minute for every check slot. In Loki, the slot is structured metadata, not a stream label, so Logs Drilldown shows it under **Fields**.
+The beacon in `lab-tools` writes one JSON log line a minute for every check slot. In Loki, the slot is structured metadata, not a stream label, so Logs Drilldown shows it under **Fields**. The lab's Loki runs without pattern detection, so its services have no Patterns tab.
 </InLab>
 
 <Trap>
@@ -101,12 +101,12 @@ Use a Drilldown app when you do not know what to ask yet, and Explore once you d
 
 <Do>
 1. In the main menu open **Drilldown**, then **Metrics**. Pick the data source **Prometheus** and type `kube_node` in the search box.
-2. On the panel of `kube_node_info`, click **Select**. On the **Breakdown** tab, read the graph for each node.
-3. Now open **Drilldown** > **Logs**. Keep the data source **Loki** and set the time range to the last 15 minutes. Find the service **beacon** with the service search field and click **Show logs**.
-4. Open the **Fields** tab. Find the field `slot` and click **Select**. Each slot of the course has its own graph.
-5. Add the value `log-m05-1` as a filter (**Include**). Go back to the **Logs** tab: only the lines of that slot are left.
+2. On the panel of `kube_node_info`, click **Select**. The **Breakdown** tab lists the metric's labels with their values; the label `node` has seven. Click **Select** on `node` to get one graph per node.
+3. Now open **Drilldown** > **Logs**. Keep the data source **Loki** and set the time range to **Last 15 minutes**. Type `beacon` in the service search field and pick it from the list. Logs Drilldown opens the service on its **Logs** tab.
+4. Open the **Fields** tab. Find the field `slot` and click **Select**. Each slot of the course has its own graph, 171 in all. (The field `slot_extracted` is the same value read from the JSON body.)
+5. Type `log-m05-1` in **Search for value** and click **Include** on its graph. The filter `slot = log-m05-1` appears under **Fields** at the top. Go back to the **Logs** tab: only the lines of that slot are left, one a minute.
 6. Click one line to open its details. Find the token in the line's JSON, under `payload` (`token`).
-7. Open the menu (three dots) of the logs panel and choose **Explore**. Explore opens with a LogQL query that does the same filtering. Read it: this is the query you did not have to write.
+7. Open the menu (three dots) of the **Log volume** panel and choose **Explore**. Explore opens with a LogQL query that counts these lines, with `| json` and `| slot="log-m05-1"` in it. Read it: this is the query you did not have to write.
 8. Paste the token in the lab check below.
 </Do>
 

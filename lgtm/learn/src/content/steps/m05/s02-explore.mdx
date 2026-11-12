@@ -42,7 +42,7 @@ During a meeting someone asks: "How many nodes does the cluster have right now, 
 Most questions you ask Grafana are like that one: asked once, answered, forgotten. Grafana has a page made for them.
 
 <Idea>
-Explore runs one or more queries against a data source and shows the result as a graph and a table, without a dashboard. You choose the data source, write or build the query, and pick whether you want the value now or its history. When the query is good, you can add it to a dashboard from the same page.
+Explore runs one or more queries against a data source and shows the result as a graph and as raw data, without a dashboard. You choose the data source, write or build the query, and pick whether you want the value now or its history. When the query is good, you can add it to a dashboard from the same page.
 </Idea>
 
 ## The parts of the Explore page
@@ -90,11 +90,11 @@ Explore is for questions, dashboards are for questions you ask again. Use an ins
 <Do>
 1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>. In the data source picker at the top left, choose **Prometheus**.
 2. Switch the query editor from **Builder** to **Code** and type this query: <Query lang="promql">count(kube_node_info)</Query>
-3. Click **Run query**. With the default type **Both**, Explore shows a graph with one flat line and a table with the current value.
-4. Open **Options** under the query and set **Type** to **Instant**. Run the query again. The graph goes away and the table holds one number: the nodes in the cluster.
+3. Click **Run query**, the blue button at the top right. With the default type **Both**, Explore shows a **Graph** with one flat line and, under **Raw**, the current value.
+4. Open **Options** under the query and set **Type** to **Instant**. Run the query again. The graph goes away, and **Raw** holds one number: the nodes in the cluster.
 5. Set **Type** to **Range** and the time picker to **Last 24 hours**. The line stays flat if no node joined or left today.
 6. Click **Split**. In the new right-hand pane choose **Mimir (tenant prom)** and run the same query. Set the time picker of both panes to **Last 1 hour** and compare them: the two roads give the same count.
-7. Click **Query history** at the bottom of the page and find your query. Star it, then close the split view with **Close**.
+7. Click **Query history** at the bottom of the page and find your query. Star it, then close one of the panes with its **Close split pane** button (an X at the top right of the pane).
 8. Paste the number of nodes in the lab check below.
 </Do>
 
