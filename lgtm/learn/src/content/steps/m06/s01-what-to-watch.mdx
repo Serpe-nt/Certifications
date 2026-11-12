@@ -1,0 +1,113 @@
+---
+id: m06-s01
+title: "What to watch in a cluster, and who reports it"
+kind: concept
+minutes: 12
+order: 1
+exam:
+  - cert: none
+tags: [k8s-what-to-watch]
+outcome: You can name, for nodes, pods, workloads, the control plane, logs and events, the component that reports on them in a Kubernetes cluster.
+terms:
+  - term: cAdvisor
+    def: A container monitor built into the kubelet that measures the CPU, memory, disk and network use of each container.
+  - term: metrics-server
+    def: A cluster add-on that collects current CPU and memory use from every kubelet for autoscaling and kubectl top.
+  - term: Cluster-level logging
+    def: Logs stored apart from nodes, pods and containers, so they survive a crash, an eviction or a lost node.
+  - term: Event
+    def: A Kubernetes API object that records something that happened to another object, such as a failed probe.
+sources:
+  - title: Metrics for Kubernetes system components (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/cluster-administration/system-metrics/
+    checked: 2026-11-12
+  - title: Resource metrics pipeline (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/
+    checked: 2026-11-12
+  - title: Metrics for Kubernetes object states (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/cluster-administration/kube-state-metrics/
+    checked: 2026-11-12
+  - title: kube-state-metrics README (GitHub)
+    url: https://github.com/kubernetes/kube-state-metrics
+    checked: 2026-11-12
+  - title: node_exporter README (GitHub)
+    url: https://github.com/prometheus/node_exporter
+    checked: 2026-11-12
+  - title: Logging architecture (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/cluster-administration/logging/
+    checked: 2026-11-12
+  - title: kube-apiserver reference, --event-ttl (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+    checked: 2026-11-12
+---
+
+<Problem>
+At 10:40 a developer writes: "checkout is slow, is it the cluster?" You open a dashboard full of panels named kubelet, kube-state-metrics and node. Each one shows a different number of pods, and you cannot say which panel answers the question, because you do not know where any of the numbers come from.
+</Problem>
+
+A cluster has no single source of truth for monitoring. Several components each see one part of it, and each reports only what it can see.
+
+<Idea>
+Ask four questions about a cluster: how are the machines, how are the containers, are the Kubernetes objects in the state they should be, and is the control plane healthy. A different component answers each one, and logs and events come by a fifth path. Once you know which component reports which fact, you know which metric to trust for a question.
+</Idea>
+
+## Four layers, four reporters
+
+Start from the bottom. A node is a Linux machine, and node exporter reports on it: CPU, memory, disks, file systems and network, for the whole machine. It knows nothing about pods.
+
+On each node, the kubelet runs the pods. It has a container monitor built in, cAdvisor, that reads how much CPU, memory, disk and network each container uses. The kubelet serves these numbers as Prometheus metrics, next to its own metrics and the results of the probes it runs.
+
+Above the pods are the objects you write: Deployments, StatefulSets, Jobs, nodes as the API sees them. kube-state-metrics listens to the API server and turns the state of each object into metrics, such as how many replicas a Deployment wants and how many are available. It does not measure usage.
+
+At the top is the control plane. The API server, the scheduler, the controller manager and etcd each serve their own metrics on a `/metrics` endpoint, in the Prometheus format.
+
+<Layers caption="What answers which question">
+  <Layer title="Control plane">API server, scheduler, controller manager and etcd report on themselves.</Layer>
+  <Layer title="Objects and workloads">kube-state-metrics reports what the API says about each object.</Layer>
+  <Layer title="Pods and containers">The kubelet and its cAdvisor report usage and probe results.</Layer>
+  <Layer title="Nodes" hot>Node exporter reports on the whole machine.</Layer>
+</Layers>
+
+## Logs and events take another path
+
+Metrics are numbers. When you need the words, you need logs and events, and Kubernetes keeps neither for long.
+
+A container writes its log to standard output and standard error. The node keeps these lines in files under `/var/log/pods`, and the kubelet rotates them. `kubectl logs` reads only the newest file, and the files go away with the pod. Kubernetes has no storage for logs of its own: the documentation calls for cluster-level logging, and one of the ways it describes is an agent on every node that sends the lines to a log store.
+
+Events are API objects that say what happened to another object: a pod was scheduled, an image was pulled, a probe failed. The API server keeps them for one hour by default (`--event-ttl`). To read yesterday's events, something must copy them to a store while they exist.
+
+## metrics-server is not monitoring
+
+Most clusters run metrics-server, and `kubectl top` works through it. It collects the current CPU and memory of nodes and pods from each kubelet, for the Horizontal Pod Autoscaler and for `kubectl top`. The Kubernetes documentation says it offers only the minimum needed for autoscaling, and the kube-state-metrics documentation adds that it keeps only the latest values. There is no history to graph and nothing to alert on. A monitoring setup scrapes the kubelet, kube-state-metrics, node exporter and the control plane itself.
+
+<InLab>
+The lab's Prometheus in `prom` scrapes node exporter on all seven nodes, the kubelet on three paths (`/metrics`, `/metrics/cadvisor`, `/metrics/probes`), kube-state-metrics, the API server and CoreDNS. Alloy in `alloy` sends pod logs and Kubernetes events to Loki. Each of the next steps opens one of these boxes.
+</InLab>
+
+<Trap>
+Pod counts differ between panels for a reason. kube-state-metrics counts every pod the API knows about, pending ones included, while the kubelet's `kubelet_running_pods` counts only pods with a running sandbox on its own node. Before you compare two numbers, check which component each one came from.
+</Trap>
+
+<Remember>
+Node exporter for machines, the kubelet with cAdvisor for containers, kube-state-metrics for objects, each control plane component for itself, and an agent for logs and events.
+</Remember>
+
+<Question id="q-m06-s01" answer="b">
+`kubectl top pods` works in a cluster, so a colleague says the team needs no other metrics pipeline. What does metrics-server not give the team?
+
+- The CPU and memory that each pod uses right now
+
+  This is what metrics-server collects from every kubelet, and what kubectl top shows.
+
+- A history of usage to graph and alert on
+
+  metrics-server keeps only the latest values, so there is nothing to graph over time or to alert on.
+
+- The numbers the Horizontal Pod Autoscaler needs
+
+  Feeding the autoscalers is the main job of the Metrics API that metrics-server serves.
+
+- The CPU and memory that each node uses right now
+
+  metrics-server reports nodes as well as pods; kubectl top nodes reads it.
+</Question>

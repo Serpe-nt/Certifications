@@ -27,11 +27,15 @@ storageclass:
   dataStorageSize: 25Gi
 ingress:
   enabled: false
-# Measured on the lab cluster after 30 minutes of load: 449 MiB (docs/budget.md).
+# Measured on the lab cluster: 449 MiB after 30 minutes of load (2026-11-10); a working
+# set of 530 to 670 MiB through a whole day (2026-11-11 to 12, page cache included). A burst
+# of chunk reads by Loki took it to 918 MiB (RSS 772 MiB), the memory stayed taken, and the
+# 1Gi limit killed it (2026-11-12, 12:06). RustFS documents no setting that caps its memory,
+# so the limit leaves room for such a burst (lgtm/docs/adr/l5b-rustfs-memory.md).
 resources:
   requests:
     cpu: 100m
-    memory: 512Mi
+    memory: 768Mi
   limits:
     cpu: "1"
-    memory: 1Gi
+    memory: 1536Mi

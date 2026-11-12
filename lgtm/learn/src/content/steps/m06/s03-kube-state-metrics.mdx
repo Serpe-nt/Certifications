@@ -1,0 +1,123 @@
+---
+id: m06-s03
+title: "kube-state-metrics: what the API says about each object"
+kind: lab
+minutes: 20
+order: 3
+exam:
+  - cert: pca
+    domain: P4
+    competency: Exporters
+tags: [k8s-kube-state-metrics, exporter-standard]
+check:
+  kind: exact
+  prompt: Paste the memory limit of the cart container, in bytes, as kube-state-metrics reports it.
+  answers: ["167772160"]
+outcome: You can find a Deployment's wanted and available replicas, a container's limits and its restarts in kube-state-metrics, and say what it cannot tell you.
+terms:
+  - term: Desired state
+    def: What an object's spec asks for, such as three replicas or a 160Mi memory limit.
+  - term: Info metric
+    def: A metric whose value is always 1 and whose labels carry the facts, such as kube_pod_info with the pod's node and IP.
+  - term: Labels allowlist
+    def: The kube-state-metrics flag that decides which Kubernetes labels appear on its *_labels metrics; empty by default.
+sources:
+  - title: kube-state-metrics README, v2.20.0 (GitHub)
+    url: https://github.com/kubernetes/kube-state-metrics/blob/v2.20.0/README.md
+    checked: 2026-11-12
+  - title: kube-state-metrics pod metrics, v2.20.0 (GitHub)
+    url: https://github.com/kubernetes/kube-state-metrics/blob/v2.20.0/docs/metrics/workload/pod-metrics.md
+    checked: 2026-11-12
+  - title: kube-state-metrics Deployment metrics (GitHub)
+    url: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/workload/deployment-metrics.md
+    checked: 2026-11-12
+  - title: kube-state-metrics command-line arguments, v2.20.0 (GitHub)
+    url: https://github.com/kubernetes/kube-state-metrics/blob/v2.20.0/docs/developer/cli-arguments.md
+    checked: 2026-11-12
+  - title: Metrics for Kubernetes object states (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/cluster-administration/kube-state-metrics/
+    checked: 2026-11-12
+---
+
+<Problem>
+A rollout of `cart` hangs at 2 of 3 replicas. The CPU and memory panels look fine, because the third pod never started and so uses nothing. The question is not "how much does it use" but "is the object in the state we asked for", and no usage metric can answer that.
+</Problem>
+
+Module m03 met kube-state-metrics as one of three common exporters. Here you look at what it puts on its page, and at its limits.
+
+<Idea>
+kube-state-metrics watches the API server and writes one set of metrics per object: what the spec asks for, what the status says, and facts such as owner, node and image. It copies the API without changing it. It knows nothing about usage, so it pairs with cAdvisor: one tells you what should be, the other what is.
+</Idea>
+
+## Spec, status and info
+
+Most kube-state-metrics metrics fall into three kinds, and the name usually tells you which.
+
+<Compare caption="Three kinds of kube-state-metrics metrics">
+  <Col title="Spec">What you asked for: kube_deployment_spec_replicas, kube_pod_container_resource_limits.</Col>
+  <Col title="Status" hot>What the API reports now: kube_deployment_status_replicas_available, kube_pod_status_ready, kube_pod_container_status_restarts_total.</Col>
+  <Col title="Info">Facts as labels, value 1: kube_pod_info carries the node, the pod IP and the owner.</Col>
+</Compare>
+
+A hung rollout shows as spec above status: `kube_deployment_spec_replicas` is 3 while `kube_deployment_status_replicas_available` is 2. A crash loop shows as a growing `kube_pod_container_status_restarts_total`, and the reason sits in a label of `kube_pod_container_status_waiting_reason` or `kube_pod_container_status_last_terminated_reason`. Requests and limits come from the pod spec as `kube_pod_container_resource_requests` and `kube_pod_container_resource_limits`, with a `resource` label (`cpu`, `memory`) and a `unit` label (`core`, `byte`).
+
+## Raw, and only while the object exists
+
+kube-state-metrics turns API objects into metrics without changing them. `kubectl` applies its own rules to make its output readable, so the two can differ; the metrics give you the raw fields and leave the rules to your queries. When an object is deleted, its series leave the page. A pod that was replaced an hour ago has no series now, so a question about it needs a range query, not an instant one.
+
+Each metric has a stability level in the documentation. Most pod and Deployment metrics are `STABLE`. Some, such as `kube_pod_container_status_last_terminated_reason`, are `EXPERIMENTAL` and may change in a later release, so an alert built on them needs a check after each upgrade.
+
+## Labels you do not get by default
+
+Kubernetes labels such as `app` or `team` are not on the metrics. They appear only on `*_labels` metrics such as `kube_pod_labels`, and only for the label keys you list with `--metric-labels-allowlist`. The list is empty by default, because every allowed label adds series.
+
+Two labels on a kube-state-metrics series can also mislead you. For metrics about a pod, `pod` and `namespace` are the object's. For metrics about a Deployment, which have no `pod` of their own, Prometheus adds the target's labels, so `pod` names the kube-state-metrics pod itself.
+
+<InLab>
+The lab runs kube-state-metrics v2.20.0 as one pod in `prom`, with no labels allowlist, so `kube_pod_labels` returns nothing. Its ServiceMonitor keeps the object's own `pod` and `namespace` labels (`honorLabels: true`).
+</InLab>
+
+<Trap>
+A missing series does not mean zero. The documentation says `kube_pod_status_reason` exists only for a reason that is set, and a waiting reason such as `CrashLoopBackOff` comes and goes between restarts. The stack's crash-loop alert reads it with `max_over_time()` over five minutes for that reason.
+</Trap>
+
+<Do>
+1. On <LabLink to="prometheus" path="/query">the query page</LabLink>, compare what the shop's Deployments want with what they have: <Query lang="promql">{`kube_deployment_spec_replicas{namespace="shop"} - kube_deployment_status_replicas_available{namespace="shop"}`}</Query> On a healthy shop every value is 0. Look at the `pod` label: it names the kube-state-metrics pod, not a pod of the shop.
+2. Read the limits written in the cart container's spec: <Query lang="promql">{`kube_pod_container_resource_limits{namespace="shop", container="cart"}`}</Query> You get two series, one with `resource="cpu"` and `unit="core"`, one with `resource="memory"` and `unit="byte"`.
+3. Read how often the cart container restarted since its pod was created: <Query lang="promql">{`kube_pod_container_status_restarts_total{namespace="shop", container="cart"}`}</Query>
+4. Ask kube-state-metrics for usage, which it does not have: <Query lang="promql">{`{job="kube-state-metrics", __name__=~"container_.*"}`}</Query> The result is empty. Usage comes from the kubelet, as in step 2.
+5. Ask for the pod's Kubernetes labels: <Query lang="promql">{`kube_pod_labels{namespace="shop"}`}</Query> Also empty: no allowlist is set.
+6. Paste the memory limit of action 2, in bytes, in the check below.
+</Do>
+
+<Done>
+You read the desired state of a Deployment and a container from kube-state-metrics, and saw that it holds no usage.
+</Done>
+
+<Trap practice>
+In action 2 the value is in bytes, not in the `Mi` of the chart. Paste the number as Prometheus shows it, without converting it.
+</Trap>
+
+<Remember>
+kube-state-metrics: spec, status and info of each object, raw from the API, only while the object exists. Usage is somebody else's job.
+</Remember>
+
+<Question id="q-m06-s03" answer="a">
+A Deployment's rollout seems stuck. Which pair of kube-state-metrics series shows it, without looking at any usage metric?
+
+- kube_deployment_spec_replicas above kube_deployment_status_replicas_available
+
+  The spec asks for more replicas than the status reports as available, which is what a stuck rollout looks like.
+
+- kube_pod_container_resource_requests above kube_pod_container_resource_limits
+
+  Requests and limits are written in the pod spec. They say nothing about how many replicas run.
+
+- kube_pod_info with a node label and kube_node_status_condition for that node
+
+  These tell you where pods run and how nodes are, not whether a Deployment has its replicas.
+
+- kube_pod_labels with app="cart" and kube_deployment_spec_replicas
+
+  kube_pod_labels needs an allowlist, and a spec alone cannot show what is missing.
+</Question>

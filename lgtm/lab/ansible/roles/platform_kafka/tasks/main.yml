@@ -25,3 +25,26 @@
       type: Ready
       status: "True"
     wait_timeout: 900
+
+# Longhorn places a new replica by what is scheduled on each disk, so the Kafka volumes, created
+# after RustFS's thin 25 GiB volume, all landed on the two workers without it. Data locality
+# best-effort keeps one replica of each volume on the node of the broker that uses it, and the
+# brokers run on different workers (lgtm/docs/adr/l5b-rustfs-memory.md). One volume at a time:
+# Longhorn adds the local replica before it removes one, and the next volume waits until this one
+# has two running replicas again, one of them local.
+- name: Find the Longhorn volumes of the Kafka nodes
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: PersistentVolumeClaim
+    namespace: "{{ platform_kafka_namespace }}"
+    label_selectors:
+      - "strimzi.io/cluster={{ platform_kafka_cluster }}"
+  register: platform_kafka_pvcs
+  when: lab_profile == 'full'
+
+- name: Keep one replica of each Kafka volume on its broker's node
+  ansible.builtin.include_tasks: data_locality.yml
+  loop: "{{ platform_kafka_pvcs.resources | map(attribute='spec.volumeName') | list }}"
+  loop_control:
+    loop_var: platform_kafka_volume
+  when: lab_profile == 'full'

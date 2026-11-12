@@ -1,0 +1,135 @@
+---
+id: m06-s02
+title: "The kubelet and cAdvisor: what each container really uses"
+kind: lab
+minutes: 20
+order: 2
+exam:
+  - cert: pca
+    domain: P2
+    competency: Configuration and Scraping
+tags: [k8s-kubelet-cadvisor]
+check:
+  kind: exact
+  prompt: Paste the value of the metrics_path label on the working set series of the kube-state-metrics container.
+  answers: ["/metrics/cadvisor"]
+outcome: You can say which kubelet endpoint a container metric comes from, how the lab's Prometheus scrapes it, and what the kubelet cannot tell you.
+terms:
+  - term: Working set
+    def: The memory in use that the system cannot easily free; the memory number Kubernetes reports for a container.
+  - term: Pod sandbox
+    def: The environment the runtime creates for a pod before its containers; it shows up in cAdvisor as the pause container.
+  - term: metrics_path
+    def: A label the lab's kubelet ServiceMonitor adds, so you can tell the kubelet's three endpoints apart.
+sources:
+  - title: Metrics for Kubernetes system components (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/cluster-administration/system-metrics/
+    checked: 2026-11-12
+  - title: Resource metrics pipeline (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/
+    checked: 2026-11-12
+  - title: Node metrics data (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/reference/instrumentation/node-metrics/
+    checked: 2026-11-12
+  - title: Ports and protocols (Kubernetes)
+    url: https://kubernetes.io/docs/reference/networking/ports-and-protocols/
+    checked: 2026-11-12
+  - title: Monitoring cAdvisor with Prometheus (GitHub)
+    url: https://github.com/google/cadvisor/blob/master/docs/storage/prometheus.md
+    checked: 2026-11-12
+  - title: kube-prometheus README, prerequisites (GitHub)
+    url: https://github.com/prometheus-operator/kube-prometheus
+    checked: 2026-11-12
+  - title: Prometheus Operator command-line flags, -kubelet-service
+    url: https://prometheus-operator.dev/docs/platform/operator/
+    checked: 2026-11-12
+  - title: kube-prometheus-stack values, kubelet (GitHub)
+    url: https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.1.1/charts/kube-prometheus-stack/values.yaml
+    checked: 2026-11-12
+---
+
+<Problem>
+A pod's memory grows every hour until it is killed. `kubectl top` shows the number right now, but you need the curve of the last day, per container, next to the limit. Nothing in the pod measures itself, and the application has no metrics at all.
+</Problem>
+
+Someone already measures every container on the node: the kubelet that runs it.
+
+<Idea>
+The kubelet serves metrics about itself and, through its built-in cAdvisor, about every container on its node: CPU time, working set memory, disk and network. Prometheus scrapes these from the kubelet's HTTPS port. They tell you what a container uses, never what it was meant to use or why it is unhappy.
+</Idea>
+
+## One kubelet, several endpoints
+
+The kubelet listens on port 10250 on every node. Besides its own `/metrics`, it serves three more paths, and they hold different things.
+
+<Compare caption="The kubelet's metric endpoints">
+  <Col title="/metrics">The kubelet's own health: pods it runs, how long its operations take, volume usage.</Col>
+  <Col title="/metrics/cadvisor" hot>Usage of every container from cAdvisor: CPU time, working set, throttling, out-of-memory events, network.</Col>
+  <Col title="/metrics/probes">One counter per liveness, readiness and startup probe result.</Col>
+</Compare>
+
+A fourth path, `/metrics/resource`, holds a small set of CPU and memory numbers for nodes, pods and containers. metrics-server reads it for `kubectl top` and the autoscalers. The kube-prometheus-stack chart does not scrape it by default, because cAdvisor already has the same container numbers.
+
+## How cAdvisor counts a container
+
+cAdvisor reads the Linux control groups (cgroups) that the container runtime creates. For one pod you get more than one series:
+
+- one with `container=""`, the total of the whole pod;
+- one with the `pause` image, the pod sandbox;
+- one per container you wrote, with `container` set to its name.
+
+So `sum by (pod) (container_memory_working_set_bytes)` counts every container twice. Filter on `container!=""`, or name the container, before you add anything up.
+
+Memory comes as the working set, `container_memory_working_set_bytes`: the memory a container uses that the system cannot easily take back. The Kubernetes documentation calls it the number the resource pipeline reports for memory. CPU comes as a counter of seconds, `container_cpu_usage_seconds_total`, so you take `rate()` of it to get cores.
+
+## How Prometheus gets in
+
+The kubelet does not let anyone read its metrics. kube-prometheus expects the kubelet to accept service account tokens and to ask the API server whether the caller may read `/metrics`. Prometheus then scrapes it over HTTPS with its own token. A ServiceMonitor needs a Service, and the kubelet has none, so the Prometheus Operator creates one (`prom-kubelet` in `kube-system` in this lab) and writes the nodes into it. A ServiceMonitor scrapes that Service on three paths.
+
+<InLab>
+The ServiceMonitor `prom-kubelet` in `prom` scrapes `/metrics`, `/metrics/cadvisor` every 10 seconds, and `/metrics/probes`, with a label `metrics_path` on every series. It drops some cAdvisor metrics to save series, among them all `container_spec_*` metrics and `container_cpu_cfs_throttled_seconds_total`.
+</InLab>
+
+<Trap>
+cAdvisor knows nothing about Deployments, requests as you wrote them, or why a pod is not ready. A container that never started has no usage at all. For the desired state, you need step 3.
+</Trap>
+
+<Do>
+1. In WSL, with `KUBECONFIG` pointing at the lab, read worker1's cAdvisor page through the API server, and keep only the node exporter pod's working set: <Cmd>{`kubectl get --raw "/api/v1/nodes/worker1/proxy/metrics/cadvisor" | grep '^container_memory_working_set_bytes' | grep node-exporter`}</Cmd> You get three lines: one with `container=""`, one with the `pause` image, and one with `container="node-exporter"`.
+2. On <LabLink to="prometheus" path="/query">the query page</LabLink>, run <Query lang="promql">{`container_memory_working_set_bytes{namespace="prom", container="kube-state-metrics"}`}</Query> Read the labels: `job` is `kubelet`, `instance` is a node address on port 10250, `node` is the node, and `metrics_path` tells you the endpoint.
+3. Turn CPU seconds into cores for the same container: <Query lang="promql">{`rate(container_cpu_usage_seconds_total{namespace="prom", container="kube-state-metrics"}[5m])`}</Query> A few thousandths of a core is normal for it.
+4. Ask the kubelet for something it cannot know, a Deployment's wanted replicas: <Query lang="promql">{`{job="kubelet", __name__=~"kube_deployment.*"}`}</Query> The result is empty.
+5. Paste the value of `metrics_path` from action 2 in the check below.
+</Do>
+
+<Done>
+You saw the same container's memory in the kubelet's raw page and in Prometheus, labelled with the node and the kubelet endpoint it came from.
+</Done>
+
+<Trap practice>
+In action 2, a query on the pod name alone also returns the pod total and the pause container. If you see three series, you filtered on `pod`, not on `container`.
+</Trap>
+
+<Remember>
+Usage comes from the kubelet's cAdvisor endpoint, one series per container plus the pod total and the sandbox. It never tells you the desired state.
+</Remember>
+
+<Question id="q-m06-s02" answer="c">
+A dashboard panel shows `sum by (pod) (container_memory_working_set_bytes{namespace="shop"})`. Every pod looks about twice as large as `kubectl top pods` says. What is the most likely cause?
+
+- The kubelet counts memory in kibibytes and the panel in bytes
+
+  Both report bytes; the size of the error would not be near two.
+
+- The working set includes the page cache of the whole node
+
+  The working set is counted per cgroup, not for the whole node.
+
+- The sum adds the pod total series to the series of each container
+
+  cAdvisor also exports a series with an empty container label for the whole pod, so the sum counts each container twice.
+
+- Prometheus keeps scraping the containers of pods that were deleted
+
+  Series of deleted containers go stale; they do not double the current value.
+</Question>

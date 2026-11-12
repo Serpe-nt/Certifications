@@ -1,0 +1,107 @@
+---
+id: m04-s08
+title: Native histograms
+kind: concept
+minutes: 15
+order: 8
+exam:
+  - cert: pca
+    domain: P3
+    competency: Histograms
+tags: [promql-histograms]
+outcome: You can say what a native histogram stores, write the same percentile, average and share queries for it as for a classic one, and name the settings that make Prometheus ingest it.
+terms:
+  - term: Native histogram
+    def: A histogram stored as one series whose samples hold the count, the sum and all buckets.
+  - term: Schema
+    def: A number that sets how bucket bounds are computed; a higher standard schema means narrower buckets.
+  - term: Zero bucket
+    def: The bucket of a native histogram that counts observations at or very close to zero.
+  - term: NHCB
+    def: Native histogram with custom bucket boundaries; a classic histogram stored in the native form.
+  - term: histogram_fraction()
+    def: A function that estimates the share of observations between two values.
+sources:
+  - title: Native histograms (Prometheus specification)
+    url: https://prometheus.io/docs/specs/native_histograms/
+    checked: 2026-11-12
+  - title: Histograms and summaries (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/histograms/
+    checked: 2026-11-12
+  - title: Query functions, histogram functions (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+---
+
+<Problem>
+Step 7 showed a 90th percentile of 0.09 seconds for requests that take half a millisecond, because the first bucket ended at 0.1. Narrower buckets would help, but each bound of a classic histogram costs one more series, and changing the bounds later breaks every query that crosses the change.
+</Problem>
+
+<Idea>
+A native histogram keeps a whole histogram in one series: each sample holds the count, the sum and the populated buckets. Its buckets follow an exponential schema, so you choose a resolution instead of bounds. The Prometheus guidance is to use native histograms whenever you can, ahead of classic histograms and summaries.
+</Idea>
+
+## One series, many buckets
+
+A classic histogram becomes many float series when Prometheus ingests it: one per bucket, plus `_sum` and `_count`. A native histogram becomes one series under the metric's own name, whose samples are composite. Each sample holds the count of observations, their sum, a schema, the buckets that have any observations, and a zero bucket for values at or near zero. Empty buckets are left out, which is why the buckets are called sparse.
+
+The schema decides where bucket bounds lie. The standard schemas run from -4 to 8. Each step up doubles the resolution, so a histogram of one schema can be turned into the next lower one by merging neighbouring buckets. That is what makes native histograms with different resolutions safe to add up: PromQL reduces them to a common resolution first. A separate schema, -53, holds custom bounds; it is used for NHCB, a classic histogram stored in the native form.
+
+<Compare caption="Classic and native histograms in storage">
+  <Col title="Classic histogram">A series per bucket, plus _sum and _count. Bounds fixed in the code. Error up to the width of a bucket.</Col>
+  <Col title="Native histogram" hot>One series of composite samples. Resolution chosen instead of bounds. Many narrow buckets at a low cost.</Col>
+</Compare>
+
+## The same questions, shorter queries
+
+PromQL reads the native form directly. `rate()` of a native histogram returns a histogram whose count, sum and buckets are all rates, and the bucket label `le` is no longer needed:
+
+- 90th percentile for a whole service: `histogram_quantile(0.9, sum(rate(http_request_duration_seconds[5m])))`. There is no `_bucket` suffix and no `by (le)`.
+- Requests per second: `histogram_count(rate(http_request_duration_seconds[5m]))`.
+- Average duration: `histogram_avg(rate(http_request_duration_seconds[5m]))`, the same as `histogram_sum(...)` divided by `histogram_count(...)`.
+- Share of requests up to 0.3 seconds: `histogram_fraction(0, 0.3, sum(rate(http_request_duration_seconds[5m])))`. A classic histogram gives an exact share only if it has a bucket at 0.3. Without one, `histogram_fraction()` on the `_bucket` series with `sum by (le)` estimates the share, with an error up to the width of the classic bucket around 0.3. A native histogram's many narrow buckets make the same estimate much tighter.
+
+Native histograms also know whether they behave as a counter or a gauge. When you apply `rate()` to a gauge histogram, the result carries a warning based on the data itself. For a float series, Prometheus can only guess from the metric's name.
+
+## Getting them into Prometheus
+
+Native histograms were added as an experiment in Prometheus 2.40 and became a stable feature in 3.8.0. Scraping them is still switched off by default in version 3. You turn it on with `scrape_native_histograms: true`, globally or per scrape job. It makes Prometheus ask targets for the protobuf format, which is the only scrape format that carries native histograms today. Sending them on through remote write needs `send_native_histograms` as well. From version 4 on, both settings are meant to default to true.
+
+The instrumented program must expose them too. Library support is still limited: the specification lists three official Prometheus instrumentation libraries with native histograms as of 2026-06-15, for Go, Java and Rust. Two other paths exist:
+
+- `convert_classic_histograms_to_nhcb` makes Prometheus store existing classic histograms as NHCB. Storage gets cheaper, the queries above work, and the error stays that of the classic buckets.
+- An OpenTelemetry exponential histogram arrives as a native histogram with standard buckets.
+
+`always_scrape_classic_histograms: true` keeps the classic series as well when a target exposes both forms, which helps during a migration.
+
+<InLab>
+The lab's Prometheus 3.13.5 has `scrape_native_histograms: false` and `always_scrape_classic_histograms: true`, so it stores only classic histograms today, and every histogram query in this module uses `_bucket` and `le`.
+</InLab>
+
+<Trap>
+Native histograms are stable since Prometheus 3.8.0, but stable does not mean on. Without `scrape_native_histograms: true`, Prometheus ignores the native part of a scrape and stores only the classic buckets.
+</Trap>
+
+<Remember>
+A native histogram is one series of composite samples with exponential buckets. Query it without `_bucket` and `le`, and switch it on with `scrape_native_histograms: true`.
+</Remember>
+
+<Question id="q-m04-s08" answer="d">
+A service exposes `rpc_duration_seconds` as a native histogram, and Prometheus ingests it. Which query gives the 99th percentile over all instances?
+
+- `histogram_quantile(0.99, sum by (le) (rate(rpc_duration_seconds_bucket[5m])))`
+
+  That is the query for a classic histogram. A native histogram has no _bucket series and no le label.
+
+- `quantile(0.99, rate(rpc_duration_seconds[5m]))`
+
+  quantile ranks float values across series. It ignores histogram samples.
+
+- `histogram_quantile(0.99, rate(rpc_duration_seconds[5m]))`
+
+  This gives one percentile per instance. The instances are not added up first.
+
+- `histogram_quantile(0.99, sum(rate(rpc_duration_seconds[5m])))`
+
+  sum adds the native histograms of all instances into one, and the function estimates the percentile from it.
+</Question>

@@ -1,0 +1,142 @@
+---
+id: m06-s10
+title: "The control plane and etcd: what kubeadm lets you scrape"
+kind: lab
+minutes: 20
+order: 10
+exam:
+  - cert: none
+tags: [k8s-control-plane]
+check:
+  kind: exact
+  prompt: Paste the address that kube-scheduler on master1 binds its metrics port to.
+  answers: ["127.0.0.1"]
+outcome: You can say which control plane components a kubeadm cluster lets Prometheus scrape, why the others are missing, and what would open them.
+terms:
+  - term: Static pod
+    def: A pod the kubelet starts from a file on its node, as kubeadm does for the API server, scheduler, controller manager and etcd.
+  - term: --bind-address
+    def: The flag that sets which address the scheduler and the controller manager listen on for their secure port, metrics included.
+  - term: Loopback
+    def: The address 127.0.0.1, which only programs on the same machine can reach.
+  - term: extraArgs
+    def: The field of kubeadm's ClusterConfiguration that adds or overrides flags of a control plane component.
+sources:
+  - title: Metrics for Kubernetes system components (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/cluster-administration/system-metrics/
+    checked: 2026-11-12
+  - title: Ports and protocols (Kubernetes)
+    url: https://kubernetes.io/docs/reference/networking/ports-and-protocols/
+    checked: 2026-11-12
+  - title: Customizing components with the kubeadm API (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/control-plane-flags/
+    checked: 2026-11-12
+  - title: kube-proxy configuration, metricsBindAddress (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/reference/config-api/kube-proxy-config.v1alpha1/
+    checked: 2026-11-12
+  - title: Kubernetes metrics reference (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/reference/instrumentation/metrics/
+    checked: 2026-11-12
+  - title: kubeadm etcd static pod flags, release-1.35 (GitHub)
+    url: https://github.com/kubernetes/kubernetes/blob/release-1.35/cmd/kubeadm/app/phases/etcd/local.go
+    checked: 2026-11-12
+  - title: kube-prometheus-stack 93.1.1, scheduler alert rules (GitHub)
+    url: https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.1.1/charts/kube-prometheus-stack/templates/prometheus/rules-1.14/kubernetes-system-scheduler.yaml
+    checked: 2026-11-12
+  - title: kube-prometheus-stack 93.1.1, general rules with TargetDown (GitHub)
+    url: https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.1.1/charts/kube-prometheus-stack/templates/prometheus/rules-1.14/general.rules.yaml
+    checked: 2026-11-12
+  - title: Monitoring etcd (etcd v3.6)
+    url: https://etcd.io/docs/v3.6/op-guide/monitoring/
+    checked: 2026-11-12
+  - title: kubeadm constants, EtcdMetricsPort, release-1.35 (GitHub)
+    url: https://github.com/kubernetes/kubernetes/blob/release-1.35/cmd/kubeadm/app/constants/constants.go
+    checked: 2026-11-12
+  - title: etcd metrics (etcd v3.6)
+    url: https://etcd.io/docs/v3.6/metrics/
+    checked: 2026-11-12
+---
+
+<Problem>
+A team installs kube-prometheus-stack on a fresh kubeadm cluster with every switch on. Ten minutes later `TargetDown` fires for the jobs `kube-scheduler` and `kube-controller-manager`, and the scheduler's dashboard is empty. Yet `kubectl get pods -n kube-system` shows both running, and new pods get scheduled. Nothing is wrong with the scheduler; something is wrong with how it is reached.
+</Problem>
+
+Every control plane component serves `/metrics`. Whether Prometheus can reach it is a choice made when the cluster was built.
+
+<Idea>
+kubeadm runs the API server, the scheduler, the controller manager and etcd as static pods on the control plane nodes. The API server listens on the node's address, so Prometheus scrapes it. The scheduler, the controller manager and kube-proxy serve their metrics only on loopback, and so does etcd's plain metrics port. etcd's client port listens on the node's address too, but only for callers with a client certificate signed by etcd's CA. So, as kubeadm leaves them, a Prometheus pod can scrape only the API server. You either open them in the cluster's configuration or leave them out on purpose, as this lab does.
+</Idea>
+
+## Who listens where
+
+<Compare caption="Control plane metrics on this kubeadm cluster">
+  <Col title="Reachable" hot>kube-apiserver: port 6443 on each master's address, scraped as job apiserver.</Col>
+  <Col title="Loopback only">kube-scheduler (port 10259) and kube-controller-manager (10257) with --bind-address=127.0.0.1; etcd's plain metrics port, http://127.0.0.1:2381; kube-proxy on 127.0.0.1:10249 by default.</Col>
+  <Col title="Certificate needed">etcd's client port 2379 on each master's address, which also serves /metrics, to a caller with a client certificate signed by etcd's CA.</Col>
+</Compare>
+
+## Down or missing: two different alerts
+
+The kube-prometheus-stack chart has a ServiceMonitor ready for each of these four components. With their `enabled` switch on, Prometheus discovers the targets on the masters' addresses but cannot connect, so their `up` is 0. Two kinds of alert react to that: `TargetDown`, when more than 10% of a job's targets are down for 10 minutes, and `KubeSchedulerInstanceUnreachable` (and its controller manager twin), when `up` is 0 for 15 minutes.
+
+`KubeSchedulerDown` does not fire then. Its expression is `absent(up{job="kube-scheduler"})`: it fires when Prometheus has found no scheduler target at all for 15 minutes, for example because the Service that the ServiceMonitor selects matches no pod. A target that exists and fails has `up` at 0, and 0 is not absent. So `...Down` means "nothing to scrape", while `TargetDown` and `...InstanceUnreachable` mean "something to scrape that does not answer".
+
+With the switches off, as in this lab, the jobs and their alert rules do not exist at all, so nothing tells you the scheduler is unwatched.
+
+## Seeing the control plane through the API server
+
+You still see a great deal through the API server, because every other component talks to it. `apiserver_request_total` counts its requests by verb, resource and response code, so a rise in `5xx` codes shows trouble for every client at once. `etcd_request_duration_seconds` is the API server's own measure of how long etcd takes to answer, per operation. It does not replace etcd's metrics: etcd's `etcd_server_has_leader` and `etcd_disk_wal_fsync_duration_seconds` say whether the store has a leader and whether its disk is fast enough, and only etcd knows them.
+
+## What would open them
+
+On a kubeadm cluster, the flags of the control plane components come from the `ClusterConfiguration`. Its `extraArgs` for `scheduler` and `controllerManager` can set `bind-address` to the node's address or `0.0.0.0`, and the `etcd` section can set `listen-metrics-urls` to a reachable address; for etcd the other way is to give Prometheus a client certificate signed by etcd's CA and scrape port 2379. kube-proxy's `metricsBindAddress` in its own configuration does the same for kube-proxy. After that change, turn on `kubeScheduler`, `kubeControllerManager`, `kubeEtcd` and `kubeProxy` in the chart's values. An open metrics port can be reached by more than Prometheus, so decide who else may connect to the masters before you open it.
+
+<InLab>
+The lab's values file leaves the four switches off and says why: kubeadm binds them to localhost. Prometheus scrapes three API server targets, one per master, and nothing from the scheduler, the controller manager, etcd or kube-proxy. A later module opens them.
+</InLab>
+
+<Trap>
+Read an alert's expression before you act on its name. On a kubeadm cluster with the switch on, `TargetDown` and `KubeSchedulerInstanceUnreachable` mean "Prometheus cannot connect", not "the scheduler is down": check `--bind-address` before you restart anything. `KubeSchedulerDown` means something else: Prometheus found no target to try.
+</Trap>
+
+<Do>
+1. In WSL, read the scheduler's flags on master1: <Cmd>kubectl -n kube-system get pod kube-scheduler-master1 -o yaml | grep -- --bind-address</Cmd>
+2. The controller manager and etcd: <Cmd>kubectl -n kube-system get pod kube-controller-manager-master1 -o yaml | grep -- --bind-address</Cmd> <Cmd>kubectl -n kube-system get pod etcd-master1 -o yaml | grep -- --listen-metrics-urls</Cmd>
+3. kube-proxy's setting; an empty value means its default, 127.0.0.1:10249: <Cmd>kubectl -n kube-system get configmap kube-proxy -o yaml | grep metricsBindAddress</Cmd>
+4. On <LabLink to="prometheus" path="/query">the query page</LabLink>, list the jobs Prometheus scrapes: <Query lang="promql">{`count by (job) (up)`}</Query> `apiserver` is there with 3 targets; no job for the scheduler, the controller manager, etcd or kube-proxy.
+5. The API server's view of its clients, by response code: <Query lang="promql">{`sum by (code) (rate(apiserver_request_total[5m]))`}</Query>
+6. The API server's view of etcd, the 99th percentile per operation: <Query lang="promql">{`histogram_quantile(0.99, sum by (le, operation) (rate(etcd_request_duration_seconds_bucket[5m])))`}</Query>
+7. Paste the address from action 1 in the check below.
+</Do>
+
+<Done>
+You found the loopback flags of three control plane components, and the API server metrics that still tell you how the control plane is doing.
+</Done>
+
+<Trap practice>
+`grep -- --bind-address` needs the `--` before the pattern; without it, grep reads `--bind-address` as one of its own options and stops with an error about an unknown option.
+</Trap>
+
+<Remember>
+On kubeadm only the API server is reachable without changes. The scheduler, the controller manager, kube-proxy and etcd's plain metrics port listen on loopback, and etcd's client port asks for a certificate. A target that does not answer has `up` 0; `absent(up)` means there is no target.
+</Remember>
+
+<Question id="q-m06-s10" answer="c">
+On a kubeadm cluster, `up{job="kube-scheduler"}` is 0 on all three masters, while the scheduler pods are Running and new pods get scheduled. What is the most likely cause?
+
+- The scheduler has crashed and its static pods only look Running
+
+  New pods still get scheduled, so the scheduler works.
+
+- Prometheus lacks the RBAC permission to read the scheduler's metrics
+
+  A missing permission gives an HTTP 403 from a reachable port; the cause comes first here.
+
+- The scheduler listens on 127.0.0.1, out of Prometheus's reach
+
+  kubeadm sets --bind-address=127.0.0.1, so a scrape from another pod cannot connect.
+
+- The scheduler serves no metrics on kubeadm clusters
+
+  Every control plane component serves /metrics; the question is only where it listens.
+</Question>

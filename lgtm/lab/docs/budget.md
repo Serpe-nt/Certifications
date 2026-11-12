@@ -176,12 +176,94 @@ lessons on replication, ring health and ingest need them. Or give the workers 7 
 Volumes on Longhorn, two replicas each. Requested: Mimir ingesters 3 x 3 GiB, store-gateway
 2 GiB, compactor 3 GiB, alertmanager 1 GiB; Loki ingesters 3 x 3 GiB, compactor 2 GiB,
 index-gateway 2 GiB, ruler 1 GiB; Prometheus 4 GiB; Grafana 1 GiB; the shop's Kafka 2 GiB,
-PostgreSQL 1 GiB, Valkey 256 MiB; the platform's RustFS 25 GiB and Kafka 3 x 5 GiB. About
-77 GiB, 155 GiB with both replicas, which is why Longhorn may over-provision its disks to 200%
-(`platform.md`).
+PostgreSQL 1 GiB, Valkey 256 MiB; the platform's RustFS 25 GiB and Kafka 3 x 10 GiB (5 GiB until
+2026-11-12). About 92 GiB, 185 GiB with both replicas, which is why Longhorn may over-provision
+its disks to 200% (`platform.md`).
 
 Written so far, after 30 minutes: 1.8 to 4.0 GiB on each worker's Longhorn disk (`df`), 11.7 GiB
 together. The largest volumes: the three Kafka nodes about 1 GB each (24 hours of ingest), RustFS
 780 MB, Prometheus 230 MB, each Mimir ingester 207 MB, each Loki ingester about 170 MB. They will
 grow until retention holds them: 24 hours in Kafka, 48 hours of logs and traces and 7 days of
 metrics in the S3 store, one day in Prometheus.
+
+That was the first day. On 2026-11-11 the three Kafka volumes filled and Kafka stopped
+(`runbook.md`, "Kafka's disks are full"): they held 24 hours of everything, and nothing limited
+them by size.
+
+### Volumes and buckets, 2026-11-12
+
+Measured at 12:20 UTC, after the Kafka repair. "Full" is `kubelet_volume_stats_used_bytes /
+kubelet_volume_stats_capacity_bytes` in the lab's Prometheus (what `make lab-check` shows);
+growth per day is the change over the 20 hours before, scaled to 24, unless the row says
+otherwise; the buckets are `du` inside the RustFS pod. Times in Mimir and Tempo are short of a
+normal day, because nothing reached them from 2026-11-11 17:57 to 2026-11-12 12:02.
+
+| Volume or bucket | Size | In use | Growth per day | What stops it | Could it fill? |
+|---|---:|---:|---:|---|---|
+| `kafka/data-0-telemetry-dual-role-0`, `-1`, `-2` | 10 GiB each | 2.9 GiB (29%) | Kafka writes about 680 MiB per hour on each node (16 GiB a day) | Size: 640 MiB per partition plus the open segment, at most 5.6 GiB (57%); time: 24 hours | No, while the size limit holds. More partitions or a larger limit need the arithmetic in `platform.md` again. |
+| `s3/rustfs-data` (all buckets) | 25 GiB | 5.3 GiB (22%) | about 3.9 GiB while the stores fill up (sum of the three below) | Time only: Loki and Tempo 48 hours, Mimir 7 days | Not at today's rate: about 14.5 GiB (60%) once Mimir holds 7 days. It is the volume to watch: more series or a longer retention fills it. |
+| bucket `loki-chunks` | | 4.1 GiB | about 2.3 GiB (4.1 GiB in 44 hours since `make lab`) | Loki's retention, 48 hours | Levels off near 5 GiB. |
+| bucket `mimir-blocks` | | 0.6 GiB | about 1.2 GiB, estimated from Prometheus's own growth: tenant `prom` takes the same samples | Mimir's retention, 7 days | Levels off near 8.5 GiB, an estimate to check after a week. |
+| bucket `tempo-traces` | | 0.5 GiB | about 0.4 GiB (0.5 GiB in 27 hours of traces); 224 MiB in the 77 minutes after the repair, while Tempo caught up and compacted | Tempo's retention, 48 hours | Levels off near 0.9 GiB. |
+| buckets `loki-ruler`, `mimir-ruler`, `mimir-alertmanager` | | 0 | 0 | | No. |
+| `prom/prometheus-prom-prometheus-db-...-0` | 4 GiB | 1.4 GiB (37%) | 1.1 GiB | Size: `retentionSize: 3GB` (about 72%); time: one day | No. |
+| `mimir/storage-mimir-ingester-0`, `-1`, `-2` | 3 GiB each | 58 MiB (2%) | at most 551 MiB on 2026-11-11, before the outage | None by size: blocks leave once uploaded to S3 | Only if the S3 store is unreachable for long, or the series grow a lot. |
+| `loki/data-loki-ingester-0`, `-1`, `-2` | 3 GiB each | 24 to 45 MiB (1 to 2%) | at most 604 MiB in 20 hours | None by size: chunks leave once flushed to S3, the WAL is checkpointed | Only if the S3 store is unreachable for long. |
+| `mimir/storage-mimir-compactor-0` | 3 GiB | 0 | scratch space while it compacts | | No. |
+| `mimir/storage-mimir-store-gateway-0` | 2 GiB | 4 MiB | grows with the number of blocks | Mimir's retention | No. |
+| `loki/data-loki-compactor-0`, `-index-gateway-0`, `-ruler-0`, `mimir/storage-mimir-alertmanager-0` | 1 to 2 GiB | 0 | 0 | | No. |
+| `grafana/grafana` | 1 GiB | 57 MiB (6%) | 0 | | No. |
+| `shop/data-kafka-0`, `data-astronomy-db-0`, `data-valkey-cart-0` | 2 GiB, 1 GiB, 256 MiB | 5 MiB, 63 MiB, 0 | 4 MiB, 0, 0 | | No. |
+
+Every volume is watched: `make lab-check` fails when one is more than 85% full, and the alert
+`LabVolumeFillingUp` (chart `lab-glue`) fires in the lab's Prometheus at the same threshold. A
+bucket is not a volume: RustFS's own volume is what fills.
+
+Longhorn's disks are a second place to watch. Kafka deletes old segments all the time, and
+Longhorn keeps every block a volume has written until the filesystem is trimmed, so a Kafka
+replica would grow to its whole 10 GiB plus snapshots. All six Kafka replicas sit on worker2 and
+worker3. The role `platform_kafka` therefore installs a Longhorn RecurringJob `kafka-trim` that
+trims the three Kafka volumes every hour. Its first run (12:19) took each Kafka replica from
+6.1 GB to 3.9 GB and the free space on the Longhorn disks of worker2 and worker3 from 11.5 and
+9.8 GiB to 16.1 and 14.5 GiB; after the second run (13:07) the replicas were 3.7 to 4.2 GB and
+the two disks had 17.2 and 15.6 GiB free. `kubectl -n longhorn-system get nodes.longhorn.io`
+with the columns in `runbook.md`, "Free disk", shows it.
+
+What the Kafka replicas cost on worker2 and worker3, which hold all six of them (three each,
+one replica of each volume). "Replica" is the volume's `actualSize` in Longhorn; "free" is the
+Longhorn disk's `storageAvailable` (39.1 GiB disks).
+
+| Moment (2026-11-12, UTC) | One Kafka replica | Three replicas on one worker | Free on worker2 | Free on worker3 |
+|---|---:|---:|---:|---:|
+| 11:40, before the repair: 5 GiB volumes, full | 5.66 to 5.73 GB | about 17.1 GB | 12.9 GiB | 11.1 GiB |
+| 12:14, volumes grown to 10 GiB, not trimmed yet | 6.02 to 6.14 GB, plus a 4.4 GiB `expand-...` snapshot inside that size | about 18.2 GB | 11.5 GiB | 9.8 GiB |
+| 12:20, after the first trim (by hand) | 3.90 to 3.95 GB | about 11.8 GB | 16.1 GiB | 14.5 GiB |
+| 13:19, after the second trim (hourly job) | 3.75 to 4.20 GB | about 11.9 GB | 17.2 GiB | 15.6 GiB |
+| Without the trim, at worst | 10 GiB plus what the snapshots keep | about 30 GiB or more, close to the whole 39.1 GiB disk | about 0 | about 0 |
+| With the trim, at worst | what Kafka keeps (5.6 GiB) plus an hour of writes (0.7 GiB), plus the slack seen so far (a replica stayed about 0.8 GB above what its filesystem uses) | about 19 to 22 GiB | about 6 to 9 GiB | about 5 to 8 GiB |
+
+The last row assumes nothing else on these disks grows. Worker3 would then come close to
+Longhorn's own floor (`storageMinimalAvailablePercentage: 15`, 5.9 GiB), below which Longhorn
+schedules no new replica there; it does not stop the replicas it already holds. Moving one
+replica of each Kafka volume to worker1 or worker4 (23 and 27 GiB free) would halve the Kafka
+share on worker2 and worker3. Longhorn's replica auto-balance would not do it: it balances the
+replicas of one volume across nodes, and each Kafka volume already has its two on two nodes.
+
+Card L5b sets data locality on the Kafka volumes (`platform.md`), which keeps one replica of each
+on its broker's worker (worker4, worker1, worker3). Applied on 2026-11-12 at 21:05 to 21:09 UTC;
+free space on the Longhorn disks (GiB of 39.1) and Kafka replicas per worker:
+
+| | worker1 | worker2 | worker3 | worker4 |
+|---|---:|---:|---:|---:|
+| Before, 21:01 | 19.2 (49%), 0 replicas | 16.0 (41%), 3 | 15.1 (39%), 3 | 23.8 (61%), 0 |
+| After, 21:09 | 16.1 (41%), 1 | 17.4 (44%), 3 | 22.7 (58%), 1 | 20.7 (53%), 1 |
+
+Longhorn removed the worker3 copies, so worker2 still holds three Kafka replicas and, since the
+same day, RustFS's pod: it is the worker to watch. `make lab-check` check 9 fails when a Longhorn
+disk has less than 25% free.
+
+RustFS: its memory request is 768Mi and its limit 1536Mi since card L5b (was 512Mi and 1Gi). It
+used 530 to 670 MiB through a day, and one heavy Loki query added about 300 MiB that it kept; at
+1Gi that was enough to kill it three times on 2026-11-12 (`lgtm/docs/adr/l5b-rustfs-memory.md`).
+Since 21:04 that day it runs on worker2, which then had 90% of its memory requested (5266Mi),
+the owner's ceiling; worker4, where it ran before, went from 88% to 80%.

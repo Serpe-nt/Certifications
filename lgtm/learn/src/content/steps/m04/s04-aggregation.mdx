@@ -1,0 +1,128 @@
+---
+id: m04-s04
+title: "Aggregation: sum, avg, max, by and without"
+kind: lab
+minutes: 20
+order: 4
+exam:
+  - cert: pca
+    domain: P3
+    competency: Aggregating over dimensions
+tags: [promql-aggregation]
+check:
+  kind: exact
+  prompt: How many series does the query of action 4 return?
+  answers: ["10"]
+outcome: You can collapse many series into the few you need with sum, avg, max, count and topk, and choose with by or without which labels survive.
+terms:
+  - term: Aggregation operator
+    def: An operator such as sum or max that combines the series of one instant vector into fewer series.
+  - term: by
+    def: A clause that keeps only the listed labels; one result series per combination of their values.
+  - term: without
+    def: A clause that removes the listed labels and keeps all the others.
+  - term: topk
+    def: An operator that returns the k series with the largest values, with their own labels.
+  - term: count_values
+    def: An operator that counts how many series have each distinct value, putting the value in a new label.
+sources:
+  - title: Operators, aggregation operators (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/operators/
+    checked: 2026-11-12
+  - title: Query examples (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/examples/
+    checked: 2026-11-12
+---
+
+<Problem>
+`rate(node_cpu_seconds_total[5m])` returns one series per node, per CPU and per mode: 176 lines for the lab's seven machines. Your manager asks a simpler question: which node is the busiest right now? The answer is in those lines, but only once they are added up per node.
+</Problem>
+
+<Idea>
+Aggregation operators combine the series of one instant vector into fewer series. `by` names the labels to keep, `without` names the labels to drop, and every combination of the kept labels becomes one result series. Most of them compute a new value, while `topk` and `bottomk` pick whole series out.
+</Idea>
+
+## Adding up, and choosing what survives
+
+`sum(x)` adds all series of `x` into a single series with no labels. That answers "how much in total", but often you want one total per something: per node, per job, per namespace. You say which labels to keep with `by`:
+
+<Query lang="promql">{`sum by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m]))`}</Query>
+
+This adds the busy CPU seconds of every CPU and mode, and keeps one series per `instance`. The result is how many CPUs' worth of work each node is doing.
+
+`without` does the opposite: it drops the labels you name and keeps all the others, along with any label you did not think of. `sum without (cpu, mode) (...)` gives the same per-node total and keeps `job`, `namespace` and the rest. The Prometheus guidelines for recording rules prefer `without` for this reason.
+
+The clause may stand before or after the brackets: `sum by (job) (up)` and `sum(up) by (job)` are the same query. In both, the metric name is gone from the result, because a sum of many series is no longer any one of them.
+
+<Compare caption="Two ways to say which labels stay">
+  <Col title="by (instance)">Keeps only instance. Every other label is dropped, even one that has the same value on all series.</Col>
+  <Col title="without (cpu, mode)" hot>Drops only cpu and mode. Every other label stays, so job and namespace are still there for later steps.</Col>
+</Compare>
+
+## The other operators
+
+The same `by` and `without` work with every aggregation operator:
+
+- `avg`, `min` and `max` give the average, the smallest and the largest value per group.
+- `count` gives the number of series per group. `count by (job) (up)` tells you how many targets each job has.
+- `group` gives 1 for every group, which is handy when only the label values matter.
+- `stddev` and `stdvar` give the spread of the values, and `quantile(0.9, x)` the 90th percentile of the values across series.
+- `count_values("cpus", x)` counts how many series have each distinct value, and writes the value into a new label `cpus`.
+
+## topk and bottomk keep whole series
+
+`topk(3, x)` returns the three series with the largest values, and `bottomk` the three smallest. Unlike `sum` or `max`, they do not compute a new value. They return the original series with all their labels. With `by` or `without`, the ranking happens inside each group. An instant query returns them sorted, `topk` from the largest down. A range query is not sorted, and in a graph the set of top series can change from step to step, because each step is ranked on its own.
+
+<Query lang="promql">{`topk(3, sum by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m])))`}</Query>
+
+This is the answer to the manager: the three busiest nodes, busiest first.
+
+<InLab>
+Three of the lab's nodes have 2 CPUs and four have 4. `count_values("cpus", instance:node_num_cpu:sum)` shows it in two lines, using a series that a recording rule of the lab already computes per node.
+</InLab>
+
+<Trap>
+`by` drops every label you do not list, including `job` and `namespace`. If a later query needs to match the result with another series on those labels, it finds nothing. When in doubt, use `without` and list what you want to remove.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. Count the targets per job: <Query lang="promql">{`count by (job) (up)`}</Query> Eight rows, kubelet with 21.
+2. Find the busy CPU time per node: <Query lang="promql">{`sum by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m]))`}</Query> Seven rows, one per node exporter.
+3. Wrap it in `topk` to keep the three busiest: <Query lang="promql">{`topk(3, sum by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m])))`}</Query>
+4. Group the targets by two labels: <Query lang="promql">{`sum by (job, metrics_path) (up)`}</Query> Count the rows. The kubelet appears three times, once per metrics path, and the jobs without that label appear once.
+5. Compare `without` with `by`: <Query lang="promql">{`sum without (instance, pod) (up{job="node-exporter"})`}</Query> One row, value 7, and the labels `job`, `namespace`, `service` and others are still there.
+6. Count the nodes by their number of CPUs: <Query lang="promql">{`count_values("cpus", instance:node_num_cpu:sum)`}</Query>
+7. Paste the number of rows from action 4 in the check below.
+</Do>
+
+<Done>
+You reduced CPU seconds to one value per node and picked the top three, grouped targets by two labels, and saw `without` keep labels that `by` would have dropped.
+</Done>
+
+<Trap practice>
+A series that lacks a label still forms a group: its value for that label is empty. That is why `metrics_path` gives three kubelet rows plus one row for every other job.
+</Trap>
+
+<Remember>
+An aggregation combines series of one vector. `by` keeps the labels you list, `without` drops the ones you list, and `topk` and `bottomk` return original series instead of new values.
+</Remember>
+
+<Question id="q-m04-s04" answer="b">
+`kube_pod_info` has one series per pod, with the labels `namespace`, `pod` and `node`, among others. Which query gives the number of pods on each node?
+
+- `sum(kube_pod_info) by (pod)`
+
+  Grouping by pod gives one series per pod, each with the value 1. It does not count per node.
+
+- `count by (node) (kube_pod_info)`
+
+  count returns the number of series in each group, and grouping by node gives one group per node.
+
+- `topk(1, kube_pod_info) by (node)`
+
+  topk returns original series, one per node here. It picks pods; it does not count them.
+
+- `count without (node) (kube_pod_info)`
+
+  without drops node and keeps pod, so every pod forms its own group with a count of 1.
+</Question>

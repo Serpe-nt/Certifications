@@ -1,0 +1,34 @@
+{{- /*
+The lab's own alert rules, loaded by the lab's Prometheus (kube-prometheus-stack
+selects every PrometheusRule in the cluster). LabVolumeFillingUp fires when a
+volume of the lab is more than 85% full; `make lab-check` fails at the same
+threshold. Kafka's volumes filled on 2026-11-11 with nobody told
+(lgtm/docs/adr/l5-kafka-disk.md).
+*/ -}}
+{{- if .Values.alerts.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lab-glue-volumes
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "lab-glue.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: lab-volumes
+      rules:
+        - alert: LabVolumeFillingUp
+          expr: |
+            max by (namespace, persistentvolumeclaim) (
+              kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes
+            ) > {{ .Values.alerts.volumeFullRatio }}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Volume {{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.persistentvolumeclaim {{ "}}" }} is {{ "{{" }} $value | humanizePercentage {{ "}}" }} full."
+            description: >-
+              A volume of the lab is above {{ mulf .Values.alerts.volumeFullRatio 100 }}% of its size.
+              Find what grows (lgtm/lab/docs/budget.md, "Volumes and buckets") and
+              free or grow it before it fills (lgtm/lab/docs/runbook.md).
+{{- end }}

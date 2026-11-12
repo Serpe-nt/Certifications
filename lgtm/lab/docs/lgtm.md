@@ -84,7 +84,7 @@ From `lgtm/lab` in WSL, after `make venv` once:
 | `make lab` | Install or upgrade every release, in dependency order. Creates the Grafana password and the lab seed the first time, and prints the addresses, the seed and where the password is. |
 | `make lab TAGS=loki` | Install or upgrade one release (tags: `prometheus`, `mimir`, `loki`, `tempo`, `otel-gateway`, `alloy`, `grafana`, `glue`, `shop`). |
 | `make status` | Helm releases, pods that are not running, the addresses and the seed. |
-| `make reset` | Uninstall the releases, delete their volumes and empty the six buckets. Keeps the cluster, the platform, the Grafana password and the lab seed. Kafka still holds up to a day of not yet expired records, which Mimir and Tempo read again after the next `make lab`. |
+| `make reset` | Uninstall the releases, delete their volumes and empty the six buckets. Keeps the cluster, the platform, the Grafana password and the lab seed. Kafka still holds what its retention keeps (a day, or 640 MiB per partition, whichever comes first), which Mimir and Tempo read again after the next `make lab`. |
 | `make lab-check` | The smoke test, `tests/lab/smoke.sh`: every signal arrives, and one shop request can be followed from a metric to a trace to a log. |
 | `make lab-lint` | yamllint, helm lint, and every release rendered for both profiles, checked against the Kubernetes 1.35 and CRD schemas, with requests and limits on every container. |
 | `make demo-<target>` | The shop's own targets (`demo-build`, `demo-smoke`, `demo-chart-lint`, `demo-kind-test`, ...), forwarded to `demo/Makefile`. |

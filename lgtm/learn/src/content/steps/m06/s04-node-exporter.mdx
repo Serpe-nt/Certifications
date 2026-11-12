@@ -1,0 +1,120 @@
+---
+id: m06-s04
+title: "Node exporter: the machine under the pods"
+kind: lab
+minutes: 18
+order: 4
+exam:
+  - cert: pca
+    domain: P4
+    competency: Exporters
+tags: [k8s-node-exporter, exporter-standard]
+check:
+  kind: exact
+  prompt: Paste the number of CPUs that node exporter reports for worker1.
+  answers: ["4"]
+outcome: You can explain how node exporter in a pod still measures the host, find a node's series by its name, and tell its numbers apart from what the API says about the node.
+terms:
+  - term: Host network
+    def: A pod setting that puts the pod in the node's own network, so it listens on the node's address.
+  - term: path.rootfs
+    def: The node exporter flag that names where the host's root file system is mounted inside the container.
+  - term: Pressure stall information
+    def: Linux counters of the time tasks waited for CPU, memory or I/O; node exporter reads them from /proc/pressure.
+  - term: Allocatable
+    def: The part of a node's capacity that Kubernetes offers to pods, after reserves and the eviction threshold.
+sources:
+  - title: node_exporter README, v1.12.1 (GitHub)
+    url: https://github.com/prometheus/node_exporter/blob/v1.12.1/README.md
+    checked: 2026-11-12
+  - title: kube-state-metrics node metrics (GitHub)
+    url: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/cluster/node-metrics.md
+    checked: 2026-11-12
+  - title: Reserve compute resources for system daemons (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/
+    checked: 2026-11-12
+  - title: Node metrics data, PSI (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/reference/instrumentation/node-metrics/
+    checked: 2026-11-12
+---
+
+<Problem>
+A node turns `NotReady` at night, and the pods on it are evicted. Kubernetes says "DiskPressure", but nothing in the cluster shows when the disk began to fill, or which file system it was. The container metrics from step 2 do not show the node's own file systems.
+</Problem>
+
+The machine itself needs a reporter that sees all of it, not only the part Kubernetes uses.
+
+<Idea>
+Node exporter reads the Linux kernel's own statistics for the whole machine: CPU, memory, file systems, disks, network, load and pressure. In Kubernetes it runs as one pod per node, but with the host's view: the host network, the host's process table and the host's files mounted inside. It reports machines, never pods.
+</Idea>
+
+## A pod that looks at the host
+
+The node exporter README warns that in a container it would measure the container itself unless you take care. So the DaemonSet in kube-prometheus-stack gives each pod three things: the host network, so it listens on the node's own address on port 9100; the host's process IDs; and the host's `/proc`, `/sys` and root file system mounted under `/host`. Flags such as `--path.procfs=/host/proc` and `--path.rootfs=/host/root` tell node exporter where to read. Mount points of containers and of the kubelet are excluded, so the file system list shows the node's own disks.
+
+## What it reports
+
+Node exporter is built from collectors, most of them on by default. The ones you use every day on a Kubernetes node:
+
+- `cpu`: seconds spent in each mode, per CPU (`node_cpu_seconds_total`).
+- `meminfo`: the kernel's memory figures (`node_memory_MemTotal_bytes`, `node_memory_MemAvailable_bytes`).
+- `filesystem`: size and free space per mount point (`node_filesystem_avail_bytes`).
+- `diskstats` and `netdev`: I/O and network traffic per device.
+- `loadavg` and `pressure`: load average, and pressure stall information, the time tasks waited for CPU, memory or I/O (`node_pressure_cpu_waiting_seconds_total`).
+
+## Two views of one node
+
+The API also knows each node, and kube-state-metrics reports what it says: `kube_node_status_capacity`, `kube_node_status_allocatable` and `kube_node_status_condition`. Allocatable is smaller than capacity, because the kubelet keeps some of the machine back: any reserve for Kubernetes and system daemons, and the hard eviction threshold, by default 100Mi of memory. On this lab's workers the gap is that 100Mi. Node exporter knows nothing about allocatable or conditions; kube-state-metrics knows nothing about how full a disk is.
+
+<Compare caption="Which view answers which question">
+  <Col title="node exporter" hot>How busy is the CPU? How much memory is free? Which file system fills up?</Col>
+  <Col title="kube-state-metrics">How much may pods request here? Is the node Ready? Is it under DiskPressure?</Col>
+</Compare>
+
+<InLab>
+The lab's node exporter 1.12.1 runs on all seven nodes. Its series carry `instance` set to the node's IP and port 9100, and a `pod` label naming the node exporter pod, but no node name. `node_uname_info` has the name in its `nodename` label.
+</InLab>
+
+<Trap>
+Do not read the `pod` label of a node exporter series as a workload on that node. It is the exporter's own pod. To join node exporter data with Kubernetes data, go through the node's name or address.
+</Trap>
+
+<Do>
+1. On <LabLink to="prometheus" path="/query">the query page</LabLink>, find worker1's node exporter address: <Query lang="promql">{`node_uname_info{nodename="worker1"}`}</Query> Note the `instance` label, an address on port 9100.
+2. Count worker1's CPUs. Put the address from action 1 in place of `ADDRESS`: <Query lang="promql">{`count(node_cpu_seconds_total{instance="ADDRESS", mode="idle"})`}</Query> There is one `idle` series per CPU.
+3. Read the free space of each of worker1's file systems, in GiB: <Query lang="promql">{`node_filesystem_avail_bytes{instance="ADDRESS"} / 2^30`}</Query> You see `/`, `/boot`, `/boot/efi`, two small `tmpfs` mounts under `/run`, and `/var/lib/longhorn`, the disk Longhorn keeps volumes on. No container file system is in the list.
+4. Compare the machine's memory with what the API offers to pods, both in GiB: <Query lang="promql">{`node_memory_MemTotal_bytes{instance="ADDRESS"} / 2^30`}</Query> <Query lang="promql">{`kube_node_status_allocatable{node="worker1", resource="memory"} / 2^30`}</Query> The second is a little smaller.
+5. Paste the number from action 2 in the check below.
+</Do>
+
+<Done>
+You found a node's series by its name, read its CPUs, disks and memory from node exporter, and set them beside the API's allocatable.
+</Done>
+
+<Trap practice>
+If action 2 returns nothing, the address has a typo or lacks `:9100`. Copy the whole `instance` value from action 1.
+</Trap>
+
+<Remember>
+Node exporter is the machine's view, read from the host's kernel by a pod with the host's network and files. Join it to Kubernetes through the node's name or address, never through its `pod` label.
+</Remember>
+
+<Question id="q-m06-s04" answer="d">
+A node exporter pod runs without the host's root file system mounted and without `--path.rootfs`. What does its `node_filesystem_avail_bytes` show?
+
+- Nothing, because the filesystem collector is off by default
+
+  The filesystem collector is enabled by default.
+
+- The free space of every disk the node has
+
+  To see the host's disks, the container needs the host's root mounted and the flag pointing at it.
+
+- The free space of each persistent volume that pods use
+
+  Node exporter does not report Kubernetes volumes; the kubelet does that.
+
+- The file systems of the node exporter container itself
+
+  Without the host's root, node exporter reads the mounts it can see, which are its own container's.
+</Question>

@@ -1,0 +1,115 @@
+---
+id: m04-s11
+title: Subqueries
+kind: lab
+minutes: 15
+order: 11
+exam:
+  - cert: pca
+    domain: P3
+    competency: Aggregating over time
+tags: [promql-over-time]
+check:
+  kind: exact
+  prompt: What does the query of action 4 return on a healthy lab?
+  answers: ["7"]
+outcome: You can apply an _over_time function to the result of a rate or an aggregation with a subquery, choose its range and resolution, and say when a recording rule is the better tool.
+terms:
+  - term: Subquery
+    def: An instant query evaluated at regular steps over a range, which returns a range vector.
+  - term: Resolution
+    def: The step between the evaluations of a subquery, written after the colon.
+sources:
+  - title: Querying basics, subquery (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/basics/
+    checked: 2026-11-12
+  - title: Query examples, subquery (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/examples/
+    checked: 2026-11-12
+  - title: Query functions, aggregation over time (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+---
+
+<Problem>
+You know the request rate of the server right now. The capacity review asks for something else: the highest request rate of the last hour. `max_over_time()` needs a range vector, but `sum(rate(...))` is an instant vector, and the brackets of step 1 only follow a selector. Writing `sum(rate(...))[1h]` is refused.
+</Problem>
+
+<Idea>
+A subquery evaluates an instant query again and again over a range, at a step you choose, and returns the results as a range vector. That range vector can go into any `_over_time` function. The syntax is the range and the step in square brackets, separated by a colon: `[1h:1m]`.
+</Idea>
+
+## From an expression to a range vector
+
+Step 5 applied `_over_time` functions to raw samples, such as `node_load1[1h]`. A subquery lets you do the same with any expression:
+
+<Query lang="promql">{`max_over_time(sum(rate(prometheus_http_requests_total[5m]))[1h:1m])`}</Query>
+
+Read it from the inside. `sum(rate(...[5m]))` is the server's request rate at one moment. `[1h:1m]` evaluates it every minute over the last hour, which gives 60 values. `max_over_time` returns the largest of them. Without the colon, `[1h]` would mean a range selector, and Prometheus refuses it after an expression with "ranges only allowed for vector selectors".
+
+You can also run a subquery on its own in the Table tab. `sum(rate(prometheus_http_requests_total[5m]))[30m:5m]` lists six values, one every five minutes.
+
+## Range and resolution
+
+The part before the colon is the range: how far back. The part after it is the resolution: the step between evaluations. The resolution may be left out, as in `[1h:]`. Prometheus then uses the global evaluation interval, which is 30 seconds in the lab.
+
+The resolution decides both the cost and the detail. `[1h:1m]` evaluates the inner query 60 times; `[1h:10s]` evaluates it 360 times and catches shorter peaks. The inner query keeps its own window: `rate(...[5m])` inside `[1h:1m]` still averages over five minutes at every step.
+
+<Flow caption="How a subquery is evaluated">
+  <Stage title="Inner query" kicker="Instant vector">sum(rate(x[5m])) at one moment.</Stage>
+  <Stage title="[1h:1m]" kicker="Range vector">Evaluated every minute for an hour: 60 values.</Stage>
+  <Stage title="max_over_time()" kicker="Instant vector">The largest of the 60 values.</Stage>
+</Flow>
+
+## When not to use one
+
+Subqueries are convenient but can be costly: the inner query runs once per step, and a dashboard runs the whole query again at every refresh. The query examples say that using subqueries unnecessarily is unwise. When a dashboard or an alert needs the same subquery all the time, record the inner expression with a recording rule, as step 12 shows, and apply `max_over_time` to the stored series instead. That is a plain range selector again, with no subquery.
+
+<InLab>
+The lab's Prometheus has `evaluation_interval: 30s`, so a subquery without a resolution, such as `[1h:]`, evaluates its inner query every 30 seconds.
+</InLab>
+
+<Trap>
+`[5m]` after a selector and `[5m:]` after an expression look alike but do different things. The first fetches stored samples; the second evaluates a query at steps. Use the colon only when the inner part is not a plain selector.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. Try the form without a colon and read the error: <Query lang="promql">{`max_over_time(sum(rate(prometheus_http_requests_total[5m]))[1h])`}</Query>
+2. Add the resolution: <Query lang="promql">{`max_over_time(sum(rate(prometheus_http_requests_total[5m]))[1h:1m])`}</Query> This is the highest request rate of the last hour.
+3. Look at a subquery on its own: <Query lang="promql">{`sum(rate(prometheus_http_requests_total[5m]))[30m:5m]`}</Query> One series with six values, five minutes apart.
+4. Find the lowest number of healthy node exporters at any minute of the last hour: <Query lang="promql">{`min_over_time(count(up{job="node-exporter"} == 1)[1h:1m])`}</Query>
+5. Find each node's busiest minute of the hour: <Query lang="promql">{`max_over_time(sum by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m]))[1h:1m])`}</Query>
+6. Paste the result of action 4 in the check below.
+</Do>
+
+<Done>
+You turned an aggregated rate into a range vector with a subquery, took its maximum over an hour, and checked that all node exporters stayed up the whole hour.
+</Done>
+
+<Trap practice>
+If action 4 returns seven rows of 1, you wrote `min_over_time(up{job="node-exporter"}[1h])`. That is each target's own lowest value, not a count of healthy targets. `count(...)` must sit inside the subquery.
+</Trap>
+
+<Remember>
+`expression[range:resolution]` evaluates any instant query over a range and gives a range vector for the `_over_time` functions. Leave out the resolution and the evaluation interval is used.
+</Remember>
+
+<Question id="q-m04-s11" answer="b">
+How many times is the inner query evaluated in `max_over_time(rate(errors_total[5m])[2h:10m])`?
+
+- 24 times, one for every 5 minutes of the 2 hours
+
+  5m is the window of rate() inside the subquery. It does not set the step.
+
+- 12 times, one for every 10 minutes of the 2 hours
+
+  The resolution after the colon sets the step, so two hours at ten minutes give 12 evaluations.
+
+- Once, because max_over_time() takes one value
+
+  max_over_time() needs a range of values. The subquery produces them by evaluating many times.
+
+- 120 times, one for every minute of the 2 hours
+
+  The step is the resolution of 10m, not one minute.
+</Question>

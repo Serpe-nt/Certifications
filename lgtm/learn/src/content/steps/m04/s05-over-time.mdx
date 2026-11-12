@@ -1,0 +1,123 @@
+---
+id: m04-s05
+title: "Aggregating over time: the _over_time functions"
+kind: lab
+minutes: 15
+order: 5
+exam:
+  - cert: pca
+    domain: P3
+    competency: Aggregating over time
+tags: [promql-over-time]
+check:
+  kind: range
+  prompt: What does the count_over_time() query of action 5 return for each node?
+  min: 29
+  max: 31
+outcome: You can sum up each series over a window with the _over_time functions, and tell them apart from the aggregation operators, which combine series with each other.
+terms:
+  - term: _over_time function
+    def: A function that turns each series' window of samples into one value, such as its maximum or average.
+  - term: max_over_time()
+    def: The largest sample of each series in the window.
+  - term: count_over_time()
+    def: The number of samples of each series in the window.
+  - term: quantile_over_time()
+    def: A quantile of the samples of each series in the window, for example its 95th percentile.
+sources:
+  - title: Query functions, aggregation over time (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+  - title: Operators, aggregation operators (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/operators/
+    checked: 2026-11-12
+---
+
+<Problem>
+The load of worker1 reads 0.37 right now, and an alert about a load spike fired twenty minutes ago. The instant value says nothing about those twenty minutes. You need the highest load of the last hour, and its average, for each node, without going through a graph point by point.
+</Problem>
+
+<Idea>
+The `_over_time` functions take a range vector and reduce the window of each series to one value: the maximum, the minimum, the average, the sum, a count or a quantile. They work on each series alone, along the time axis. The aggregation operators of step 4 work across series, at one moment.
+</Idea>
+
+## One value per series, from its window
+
+Each function takes a range vector, such as `node_load1[1h]`, and returns an instant vector with one value per series:
+
+- `max_over_time` and `min_over_time`: the largest and the smallest sample.
+- `avg_over_time` and `sum_over_time`: the average and the sum of the samples.
+- `count_over_time`: how many samples there are.
+- `quantile_over_time(0.95, ...)`: the 95th percentile of the samples.
+- `stddev_over_time` and `stdvar_over_time`: how widely the samples spread.
+- `last_over_time` and `first_over_time`: the newest and the oldest sample.
+- `present_over_time`: the value 1 for every series that has any sample in the window.
+
+So `max_over_time(node_load1[1h])` answers "the highest load of each node in the last hour". The series keep their labels, except the metric name.
+
+All samples in the window count the same, even when they are not evenly spaced. `count_over_time` therefore tells you how often a series was written. For a target that answers every scrape, that is the window divided by the scrape interval.
+
+## Across series or along time
+
+The two families answer different questions, and the names tell you which is which. `max(node_load1)` is the highest load among all nodes right now. `max_over_time(node_load1[1h])` is the highest load of each node during the hour.
+
+<Compare caption="Two directions to aggregate">
+  <Col title="max(node_load1)">Across series, at one moment. One value: the busiest node now.</Col>
+  <Col title="max_over_time(node_load1[1h])" hot>Along time, per series. Seven values: each node's peak in the hour.</Col>
+</Compare>
+
+You can combine them. `max(max_over_time(node_load1[1h]))` is the highest load any node had in the hour. When this step was written, that gave 4.16 in the lab, while `max(node_load1)` at the same moment was 1.35.
+
+## Gauges, not counters
+
+The `_over_time` functions treat samples as plain numbers. That suits gauges, such as load, memory in use or queue length. On a counter, `max_over_time` usually returns just the latest total, and `avg_over_time` an average of totals, which has no meaning. A counter is turned into a rate first, with the functions of step 3. Step 11 shows how to take the maximum of a rate over time.
+
+<InLab>
+The kubelet target for `/metrics/cadvisor` is scraped every 10 seconds in the lab, while the other targets are scraped every 30 seconds. `count_over_time` makes the difference visible without opening the configuration.
+</InLab>
+
+<Trap>
+`max_over_time(x[1h])` and `max(x)` both say "max", but one looks back an hour per series and the other looks across series at one instant. Read which axis the question is about before you pick the function.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. Read worker1's load now: <Query lang="promql">{`node_load1{instance="10.10.0.30:9100"}`}</Query>
+2. Find its peak in the last hour: <Query lang="promql">{`max_over_time(node_load1{instance="10.10.0.30:9100"}[1h])`}</Query> Then change `max_over_time` to `avg_over_time` and compare the two values.
+3. Ask for the 95th percentile of the same hour: <Query lang="promql">{`quantile_over_time(0.95, node_load1{instance="10.10.0.30:9100"}[1h])`}</Query> It lies between the average and the peak.
+4. Compare the two directions. Run `max(node_load1)`, then <Query lang="promql">{`max(max_over_time(node_load1[1h]))`}</Query> The second is the highest load of any node during the hour.
+5. Count the samples of the cadvisor targets in five minutes: <Query lang="promql">{`count_over_time(up{job="kubelet", metrics_path="/metrics/cadvisor"}[5m])`}</Query> Seven rows, one per node.
+6. Run the same count for the node exporters, with `up{job="node-exporter"}[5m]`. Each row shows 10.
+7. Paste the count from action 5 in the check below.
+</Do>
+
+<Done>
+You read a node's peak, average and 95th percentile of the last hour, and counted samples to see that two jobs are scraped at different intervals.
+</Done>
+
+<Trap practice>
+If action 5 returns 1 for every node, you wrote `count(...)` instead of `count_over_time(...)`, or you left out the window `[5m]`.
+</Trap>
+
+<Remember>
+`_over_time` functions summarize each series along time, from a range vector. Aggregation operators combine series at one moment. Use the first family on gauges; turn counters into rates first.
+</Remember>
+
+<Question id="q-m04-s05" answer="c">
+`queue_depth` is a gauge with one series per worker. You want, for each worker, the average queue depth over the last 30 minutes. Which query fits?
+
+- `avg(queue_depth)`
+
+  avg combines the workers with each other at one moment. It does not look back 30 minutes.
+
+- `avg by (worker) (queue_depth)`
+
+  Grouping by worker keeps one series per worker, but each value is still only the current depth.
+
+- `avg_over_time(queue_depth[30m])`
+
+  avg_over_time averages the samples of each series in its window, so every worker gets its own 30-minute average.
+
+- `rate(queue_depth[30m])`
+
+  rate() is for counters. On a gauge it reads every fall as a reset and returns a meaningless rate.
+</Question>

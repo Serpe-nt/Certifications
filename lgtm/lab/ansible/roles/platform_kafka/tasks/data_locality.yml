@@ -1,0 +1,39 @@
+---
+# One Kafka volume: data locality best-effort, then wait until it has two running replicas, one
+# of them on the node the volume is attached to (its broker's node). On a later run the wait is
+# already met and returns at once.
+- name: Set data locality best-effort on {{ platform_kafka_volume }}
+  kubernetes.core.k8s:
+    state: patched
+    api_version: longhorn.io/v1beta2
+    kind: Volume
+    name: "{{ platform_kafka_volume }}"
+    namespace: longhorn-system
+    definition:
+      spec:
+        dataLocality: best-effort
+
+- name: Read the node that has the volume attached, {{ platform_kafka_volume }}
+  kubernetes.core.k8s_info:
+    api_version: longhorn.io/v1beta2
+    kind: Volume
+    name: "{{ platform_kafka_volume }}"
+    namespace: longhorn-system
+  register: platform_kafka_volume_info
+
+- name: Wait for two running replicas, one on that node, of {{ platform_kafka_volume }}
+  kubernetes.core.k8s_info:
+    api_version: longhorn.io/v1beta2
+    kind: Replica
+    namespace: longhorn-system
+    label_selectors:
+      - "longhornvolume={{ platform_kafka_volume }}"
+  register: platform_kafka_replicas
+  until: >-
+    (platform_kafka_replicas.resources | selectattr('status.currentState', 'defined')
+     | selectattr('status.currentState', 'equalto', 'running') | list | length) == 2
+    and platform_kafka_volume_info.resources[0].status.currentNodeID in
+    (platform_kafka_replicas.resources | selectattr('status.currentState', 'defined')
+     | selectattr('status.currentState', 'equalto', 'running') | map(attribute='spec.nodeID') | list)
+  retries: 90
+  delay: 20
