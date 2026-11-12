@@ -49,7 +49,7 @@ At 02:00 the pager says `KubeCPUOvercommit`. Nobody on the team wrote that alert
 The stack came with more than a hundred alerts and two dozen dashboards. They were written once, upstream, for every cluster.
 
 <Idea>
-A mixin is a package of dashboards, recording rules and alerts for one system, kept in its own repository and written in jsonnet. kube-prometheus-stack ships the rules and dashboards of the Kubernetes and node mixins as PrometheusRule objects and ConfigMaps. Each alert reads recording rules, and each recording rule reads raw metrics, so you can always trace an alert back to the component that reported it.
+A mixin is a package of dashboards, recording rules and alerts for one system, kept in its own repository and written in jsonnet. kube-prometheus-stack ships the rules and dashboards of the Kubernetes and node mixins as PrometheusRule objects and ConfigMaps. Many alerts read recording rules, and each recording rule reads raw metrics, so you can trace any alert back to the component that reported it.
 </Idea>
 
 ## Where they come from

@@ -56,7 +56,7 @@ A CPU limit never kills: the kernel throttles the container, so it runs slower a
 
 The kernel enforces a CPU limit in short scheduling periods. When a container has used its share of a period, it waits until the next one. cAdvisor counts both: `container_cpu_cfs_periods_total` for the periods that passed and `container_cpu_cfs_throttled_periods_total` for those in which the container hit the limit. Their ratio is the share of time a container was held back. The stack's `CPUThrottlingHigh` alert fires when it is above 25% for 15 minutes.
 
-The usage graph shows a straight line at the limit, which looks calm. A flat line exactly at the limit is the sign, not the absence of one.
+The usage graph shows a straight line at the limit, which looks calm. That flat line exactly at the limit is itself the sign of throttling.
 
 ## Memory: killed, restarted, then backing off
 
