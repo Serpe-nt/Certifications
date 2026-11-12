@@ -1,0 +1,93 @@
+---
+id: m01-s05
+title: "See before you apply: helm template, dry runs, rendered manifests"
+kind: concept
+minutes: 12
+order: 5
+exam:
+  - cert: none
+tags: [helm-render]
+outcome: You can render a chart into plain manifests before installing it, read what a release really applied, and say what a dry run does not prove.
+terms:
+  - term: Render
+    def: Turn a chart's templates and values into plain Kubernetes YAML.
+  - term: Dry run
+    def: An install or upgrade that renders and reports but changes nothing in the cluster.
+  - term: Manifest of a release
+    def: The rendered YAML Helm applied for one revision; helm get manifest prints it.
+sources:
+  - title: helm template
+    url: https://helm.sh/docs/helm/helm_template/
+    checked: 2026-11-12
+  - title: Debugging templates
+    url: https://helm.sh/docs/chart_template_guide/debugging/
+    checked: 2026-11-12
+  - title: helm install
+    url: https://helm.sh/docs/helm/helm_install/
+    checked: 2026-11-12
+  - title: helm get manifest
+    url: https://helm.sh/docs/helm/helm_get_manifest/
+    checked: 2026-11-12
+---
+
+<Problem>
+A chart has 15 templates and 400 lines of default values. You are about to install it into production with your own values file. You would never `kubectl apply` 15 files without reading them, but here you cannot even see the YAML: it only exists once Helm has rendered it.
+</Problem>
+
+<Idea>
+`helm template` renders a chart on your machine and prints the plain manifests, without touching the cluster. `--dry-run` does the same inside install or upgrade and reports what would happen. After an install, `helm get manifest` prints exactly what Helm applied.
+</Idea>
+
+## helm template renders locally
+
+`helm template <name> <chart> -f my.yaml` prints every object the chart would create with your values. It needs no cluster. Anything a template would look up in the cluster is faked, and nothing is checked against the API server. `--show-only templates/service.yaml` prints one template's output, which is handy in a large chart. Pipe the output into `grep` or a diff tool, or save it and read it like any manifest.
+
+## Dry runs inside install and upgrade
+
+`helm install --dry-run` and `helm upgrade --dry-run` render the chart with the same values and print the result, together with the hooks and notes, and change nothing. `--dry-run=client` stays on your machine. `--dry-run=server` also connects to the cluster, so templates that look up existing objects get real answers.
+
+<Compare caption="Three ways to see YAML">
+  <Col title="helm template">Before install, no cluster needed.</Col>
+  <Col title="--dry-run">Before install or upgrade, with the release's context.</Col>
+  <Col title="helm get manifest" hot>After install: what Helm really applied for a revision.</Col>
+</Compare>
+
+## What a dry run does not prove
+
+A dry run proves that the chart renders. It does not prove that the API server accepts the objects. On this lab, with Helm 4.3.1, an install with a Service `type: Bogus` passed `--dry-run=server` and printed `DESCRIPTION: Dry run complete`. The real install then failed: the API server rejected the Service and the release was left `failed`. Render, read, then install where a failure is cheap.
+
+## Reading what was applied
+
+`helm get manifest <release>` prints the rendered YAML of the current revision; `--revision 2` prints an older one. It shows only the objects of the release, without hooks and tests: for the podinfo release it lists a Service and a Deployment, while `helm template` of the same chart also prints three test pods. `helm get hooks` shows those.
+
+<InLab>
+`make lab-lint` renders every lab release for both profiles and checks the result against the Kubernetes 1.35 schemas. It is the lab's own version of reading before applying.
+</InLab>
+
+<Trap>
+Secrets appear in plain text in `helm template` and dry-run output. Do not paste that output into a ticket or a chat. `--hide-secret` hides them in a dry run.
+</Trap>
+
+<Remember>
+`helm template` before, `helm get manifest` after. A dry run proves rendering, not acceptance by the API server.
+</Remember>
+
+<Question id="q-m01-s05" answer="c">
+`helm upgrade web ./chart -f prod.yaml --dry-run=server` succeeds. The real upgrade then fails with `spec.type: Unsupported value`. What does that show?
+
+- The dry run used other values than the real upgrade
+
+  Both runs used the same flags and the same values file.
+
+- The cluster changed in the seconds between the two commands
+
+  An unsupported field value is a property of the object, not of the moment.
+
+- The dry run rendered the chart, but the API server only checked the objects in the real upgrade
+
+  A dry run proves the templates render. The API server's validation can still reject an object.
+
+- `--dry-run=server` cannot reach the cluster
+
+  The server mode does connect, for example to answer lookups in templates.
+</Question>
