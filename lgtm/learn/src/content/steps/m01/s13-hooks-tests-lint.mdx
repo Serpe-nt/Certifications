@@ -1,0 +1,94 @@
+---
+id: m01-s13
+title: Hooks, chart tests and helm lint
+kind: concept
+minutes: 15
+order: 13
+exam:
+  - cert: none
+tags: [helm-hooks-tests]
+outcome: You can say when each hook runs, what a failing hook does to a release, how hook objects are cleaned up, and how helm test and helm lint fit around an install.
+terms:
+  - term: Hook
+    def: An object a chart marks with helm.sh/hook; Helm creates it at a set point of install, upgrade, rollback or delete.
+  - term: Hook delete policy
+    def: The annotation that says when Helm deletes a hook object; before-hook-creation by default.
+  - term: Chart test
+    def: A pod or job marked with the test hook; helm test runs it and expects exit code 0.
+sources:
+  - title: Chart hooks
+    url: https://helm.sh/docs/topics/charts_hooks/
+    checked: 2026-11-12
+  - title: Chart tests
+    url: https://helm.sh/docs/topics/chart_tests/
+    checked: 2026-11-12
+  - title: helm test
+    url: https://helm.sh/docs/helm/helm_test/
+    checked: 2026-11-12
+  - title: helm lint
+    url: https://helm.sh/docs/helm/helm_lint/
+    checked: 2026-11-12
+---
+
+<Problem>
+Before a new version of an app starts, its database schema must be migrated. After it starts, someone should check that it answers. And before any of that, someone should catch the typo in the chart. Kubernetes objects alone cannot say "run this once, before the upgrade".
+</Problem>
+
+<Idea>
+A hook is an ordinary object, usually a Job, with the annotation `helm.sh/hook`. Helm creates it at a set moment, such as before an upgrade, and waits for a Job to finish; if it fails, the release fails. A chart test is a hook that runs only when you call `helm test`. `helm lint` checks the chart before any of this.
+</Idea>
+
+## When hooks run
+
+<Timeline caption="An upgrade with hooks">
+  <Event at="1" title="Render">Helm renders the templates and the hooks.</Event>
+  <Event at="2" title="pre-upgrade">Hook Jobs run; Helm waits until they finish.</Event>
+  <Event at="3" title="Upgrade">The release's objects are updated.</Event>
+  <Event at="4" title="post-upgrade">Hooks after the change, for example a smoke check.</Event>
+</Timeline>
+
+There are pairs for each operation: `pre-install` and `post-install`, `pre-upgrade` and `post-upgrade`, `pre-rollback` and `post-rollback`, `pre-delete` and `post-delete`, plus `test`. One object can serve several, as in `post-install,post-upgrade`. `helm.sh/hook-weight` orders hooks of the same kind, lowest first. For a Job, Helm waits until it has run to completion. If it fails, the release fails. Step 14 shows that on the lab.
+
+## Hooks live outside the release
+
+Hook objects are not part of the release. `helm uninstall` does not remove them, and `helm get manifest` does not list them; `helm get hooks` does. The annotation `helm.sh/hook-delete-policy` says when Helm deletes them: `before-hook-creation` deletes the old one before a new one starts, and it is the default; `hook-succeeded` and `hook-failed` delete it after it succeeds or fails. The podinfo chart's hook Jobs use `hook-succeeded,hook-failed`, so after a run `kubectl get jobs` shows nothing.
+
+## Chart tests
+
+A test is a pod or Job in the chart with `helm.sh/hook: test`; Helm 3 and later also accept the older `test-success`. It runs a command that checks the release and must exit with 0. `helm test <release>` creates the tests, waits for them and prints each one's phase. The podinfo chart has three tests; on the lab all three ended `Phase: Succeeded`.
+
+## helm lint, before everything
+
+`helm lint ./chart` reports `[ERROR]` for things that would break an install and `[WARNING]` for broken conventions, with the file and line. A chart with `version: one` fails, because the version must be SemVer. A template with an open `{{` fails with `unclosed action`. Add `--strict` to fail on warnings too, which suits a pipeline.
+
+<InLab>
+`make lab-lint` runs `helm lint` on the lab's charts and renders every release, so the lab's own pipeline does what this step describes.
+</InLab>
+
+<Trap>
+`helm uninstall` leaves hook objects behind. A hook Job without a delete policy that removes it after it runs stays in the namespace when the release is gone; delete it with kubectl.
+</Trap>
+
+<Remember>
+Hooks run at fixed points, a failed hook fails the release, and hook objects live outside it. `helm test` runs the test hooks; `helm lint` runs first.
+</Remember>
+
+<Question id="q-m01-s13" answer="d">
+A chart has a `pre-upgrade` Job that runs a database migration. The Job exits with code 1 during `helm upgrade`. What happens?
+
+- Helm skips the hook and upgrades the objects anyway
+
+  Helm waits for a hook Job and does not go on when it fails.
+
+- Helm upgrades the objects first, then reports the failed Job
+
+  A pre-upgrade hook runs before the objects are updated.
+
+- The release stays deployed and the failed Job is retried at the next upgrade
+
+  The upgrade is recorded as a new revision with the status failed.
+
+- The upgrade fails and the new revision is marked failed
+
+  A failing hook fails the release; the objects of the old revision stay as they were.
+</Question>
