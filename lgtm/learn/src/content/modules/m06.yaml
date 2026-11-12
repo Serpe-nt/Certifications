@@ -1,0 +1,6 @@
+id: m06
+title: Kubernetes monitoring
+goal: Know which component reports each cluster metric and log, and use them to explain a sick pod.
+order: 6
+quiz: true
+exams: [pca]
