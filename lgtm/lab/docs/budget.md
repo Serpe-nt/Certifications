@@ -250,13 +250,20 @@ share on worker2 and worker3. Longhorn's replica auto-balance would not do it: i
 replicas of one volume across nodes, and each Kafka volume already has its two on two nodes.
 
 Card L5b sets data locality on the Kafka volumes (`platform.md`), which keeps one replica of each
-on its broker's worker (worker4, worker1, worker3 today): expected two Kafka replicas fewer on
-worker2 and worker3 and one more on worker1 and worker4. Before, on 2026-11-12 at 15:55 UTC:
-worker1 21.8, worker2 16.6, worker3 15.1, worker4 25.9 GiB free of 39.1 (56, 42, 39 and 66%).
-The numbers after are added when it has run (pull request of card L5b). `make lab-check` check 9 fails when a
-Longhorn disk has less than 25% free.
+on its broker's worker (worker4, worker1, worker3). Applied on 2026-11-12 at 21:05 to 21:09 UTC;
+free space on the Longhorn disks (GiB of 39.1) and Kafka replicas per worker:
+
+| | worker1 | worker2 | worker3 | worker4 |
+|---|---:|---:|---:|---:|
+| Before, 21:01 | 19.2 (49%), 0 replicas | 16.0 (41%), 3 | 15.1 (39%), 3 | 23.8 (61%), 0 |
+| After, 21:09 | 16.1 (41%), 1 | 17.4 (44%), 3 | 22.7 (58%), 1 | 20.7 (53%), 1 |
+
+Longhorn removed the worker3 copies, so worker2 still holds three Kafka replicas and, since the
+same day, RustFS's pod: it is the worker to watch. `make lab-check` check 9 fails when a Longhorn
+disk has less than 25% free.
 
 RustFS: its memory request is 768Mi and its limit 1536Mi since card L5b (was 512Mi and 1Gi). It
 used 530 to 670 MiB through a day, and one heavy Loki query added about 300 MiB that it kept; at
-1Gi that was enough to kill it on 2026-11-12 (`lgtm/docs/adr/l5b-rustfs-memory.md`). The 256 MiB
-more of requests lands on the worker that runs it.
+1Gi that was enough to kill it three times on 2026-11-12 (`lgtm/docs/adr/l5b-rustfs-memory.md`).
+Since 21:04 that day it runs on worker2, which then had 90% of its memory requested (5266Mi),
+the owner's ceiling; worker4, where it ran before, went from 88% to 80%.

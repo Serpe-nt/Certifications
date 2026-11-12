@@ -1,7 +1,7 @@
 # L5b: RustFS gets the memory it uses; Kafka's replicas and Longhorn
 
-Status: proposed by worker L5 on 2026-11-12. The changes are in the lab's files; they are not
-applied to the lab yet (see "Not done").
+Status: accepted by worker L5 and the planner on 2026-11-12; applied to the lab the same day,
+21:02 to 21:14 UTC, with the owner's go-ahead (see "Applied").
 
 ## RustFS memory
 
@@ -19,6 +19,8 @@ Loki (tenant `lab`, `{namespace="s3"}` and the Kubernetes events of
    restarted`, and RustFS logged `RustFS Received SIGTERM signal`. The chart's probe allows 3
    failures 5 seconds apart with a 3-second timeout.
 2. 2026-11-12 12:06:20 UTC, `OOMKilled` (exit 137) at the 1Gi limit.
+3. 2026-11-12 about 19:42 and 20:30:15 UTC, exit 137 twice more, with RSS at 1007 to 1014 MiB
+   (30-minute maxima), against the same 1Gi limit, before the new limit was applied.
 
 The memory, from the lab's Prometheus (`container_memory_rss` and
 `container_memory_working_set_bytes`, container `rustfs`, 30-minute steps):
@@ -30,6 +32,8 @@ The memory, from the lab's Prometheus (`container_memory_rss` and
 | 2026-11-12 11:40 | 772 MiB | 918 MiB |
 | 2026-11-12 12:02 | | 993 MiB |
 | 2026-11-12 12:10 to 13:10, after the restart | 365 to 430 MiB | 480 to 620 MiB |
+| 2026-11-12 16:00 to 19:30 | 565 to 640 MiB | 733 to 885 MiB |
+| 2026-11-12 20:00 to 21:00 | 1007 to 1014 MiB | 1023 MiB, at the limit |
 
 The jump started at 11:13, 30 minutes before the Kafka repair changed anything, with a burst of
 reads from Loki: 40 warnings `GetObject streaming body dropped before expected length` on
@@ -57,10 +61,10 @@ what grows it: RustFS's traffic stays under 0.3 MiB/s.
 `helm/platform/rustfs/values.yaml`: memory request 768Mi (was 512Mi; covers the working set of a
 whole day, at most 668 MiB), limit 1536Mi (was 1Gi). One heavy query added about 300 MiB of RSS
 that stayed; the limit holds the steady state, the page cache and two such queries in a row (668
-+ 2 x 300 = about 1270 MiB) before the kernel has to reclaim cache. That adds 256 MiB of requests on the worker that runs RustFS. On
-2026-11-12 the workers had 77 to 88% of their memory requested; worker4, where RustFS runs, would
-go from 88% to 93%, over the 90% the owner accepts, so after the restart RustFS should land on
-worker2 (77%) or worker3 (79%); the default scheduler scores less requested nodes higher, but this is not certain. Check it after the apply.
++ 2 x 300 = about 1270 MiB) before the kernel has to reclaim cache. That adds 256 MiB of requests on the worker that runs RustFS. On 2026-11-12 the workers had 77
+to 88% of their memory requested. After the apply RustFS runs on worker2, which went to 90%
+(5266Mi), exactly the owner's ceiling; worker4, where it ran before, went to 80%. If worker2 must
+take more, moving RustFS back to worker4 or lowering a request on worker2 is the next step.
 
 ### Would Loki's limits be the better place?
 
@@ -120,11 +124,12 @@ replicas, one on its broker's node, before it moves to the next. A rebuilt lab g
 same run of `make platform`. It does not touch the StorageClass or Longhorn's global settings, so
 no other volume changes. A server-side dry run of the patch was accepted on 2026-11-12.
 
-Expected on today's lab: the volume of broker 0 gets a replica on worker4 and the volume of
-broker 1 one on worker1, each losing one on worker2 or worker3; the volume of broker 2 already
-has one on worker3. Longhorn's page does not say whether it builds the local replica before it
-removes another; the role's wait checks the end state (two running, one local), and the commands
-in the pull request watch that each volume stays `healthy` in between.
+What happened on the lab (21:05:46 to 21:08:58 UTC): the volume of broker 0 got a replica on
+worker4 and the volume of broker 1 one on worker1; the volume of broker 2 already had one on
+worker3. For each volume Longhorn built the local replica first (three running for about half a
+minute) and then removed one, both times the replica on worker3. Every volume stayed `healthy`,
+each move took about a minute (the hourly trim keeps the replicas near 4 GB), and the Kafka pods
+did not restart.
 
 A check backs it up, whatever places the replicas: `make lab-check` check 9
 (`tests/lab/longhorn-disks.sh`) fails when a Longhorn disk has less than 25% free; Longhorn stops
@@ -144,8 +149,30 @@ Options not chosen:
   `numberOfReplicas: "1"`, so the same Strimzi limit applies. The first choice if the lab is ever
   rebuilt for another reason.
 
-## Not done
+## Applied
 
-My session's permission rules blocked `make platform TAGS=s3` as a change to the shared
-cluster, and the replica moves are changes to the cluster too. Both wait for the owner to run
-them or to allow them.
+The worker's session first could not change the shared cluster; the owner then said "go ahead"
+in it. In order, on 2026-11-12 (UTC):
+
+1. `make platform TAGS=s3`, 21:02:08 to 21:05:07, `changed=1`. RustFS was down for about a
+   minute and back at about 21:04:20 on worker2, request 768Mi and limit 1536Mi, no restart. No
+   upload, flush or error lines in the Mimir and Loki ingesters or the Tempo block-builders in
+   the ten minutes after. Worker2 then had 90% of its memory requested (5266Mi), the owner's
+   ceiling; worker4, where RustFS ran before, went from 88% to 80%.
+2. `make lab-check`, 21:05: `LAB CHECK PASSED`, checks 8 and 9 included.
+3. `make platform TAGS=kafka`, 21:05:46 to 21:08:58, `changed=3` (the three volumes).
+4. `make platform TAGS=s3` and `make platform TAGS=kafka` again, 21:09 to 21:14: both
+   `changed=0`. `make lab-check`, 21:13:53: `LAB CHECK PASSED`.
+
+Longhorn's disks, free space (`storageAvailable`, GiB of 39.1):
+
+| | worker1 | worker2 | worker3 | worker4 |
+|---|---:|---:|---:|---:|
+| Kafka replicas before | 0 | 3 | 3 | 0 |
+| Free before, 21:01 | 19.2 (49%) | 16.0 (41%) | 15.1 (39%) | 23.8 (61%) |
+| Kafka replicas after | 1 | 3 | 1 | 1 |
+| Free after, 21:09 | 16.1 (41%) | 17.4 (44%) | 22.7 (58%) | 20.7 (53%) |
+
+The lowest disk went from 39% to 41% free, and the spread from 22 to 17 points. Worker2 kept its
+three Kafka replicas because Longhorn removed the worker3 copies both times; it is the disk and
+the node to watch.
