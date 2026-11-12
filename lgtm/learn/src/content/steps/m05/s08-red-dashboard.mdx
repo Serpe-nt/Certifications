@@ -1,0 +1,125 @@
+---
+id: m05-s08
+title: A RED dashboard for one service
+kind: lab
+minutes: 25
+order: 8
+exam:
+  - cert: pca
+    domain: P5
+    competency: Dashboarding basics
+tags: [dashboard-design]
+check:
+  kind: token
+  slot: metric-m05-3
+  prompt: Paste the token that your duplicated stat panel shows for the slot metric-m05-3.
+outcome: You can lay out a RED dashboard so it answers "are users suffering?" at a glance, and explain why RED fits services and USE fits machines.
+terms:
+  - term: RED method
+    def: Rate, errors and duration of the requests a service handles.
+  - term: USE method
+    def: Utilization, saturation and errors of a resource such as a CPU or a disk.
+  - term: Golden signals
+    def: Latency, traffic, errors and saturation, the four signals Google's SRE book names for a user-facing system.
+  - term: Row
+    def: A grouping that holds panels under a title and can be collapsed.
+  - term: Percentile
+    def: The value below which a given share of observations fall, such as p95 for 95%.
+sources:
+  - title: Grafana dashboard best practices (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/best-practices/
+    checked: 2026-11-12
+  - title: Dashboard panel groupings (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/create-dashboard/dashboard-groupings/
+    checked: 2026-11-12
+  - title: Monitoring distributed systems, the four golden signals (Google SRE book)
+    url: https://sre.google/sre-book/monitoring-distributed-systems/
+    checked: 2026-11-12
+---
+
+<Problem>
+An alert fires for the checkout service. The on-call engineer opens its dashboard and finds 24 panels: CPU, memory, garbage collection, threads, queue sizes, and somewhere among them the request rate. Two minutes later they still cannot say whether customers are affected.
+</Problem>
+
+A dashboard that shows everything answers nothing quickly. A good one starts from the question its reader brings.
+
+<Idea>
+A RED dashboard answers one question about a service: are its users being served well? It shows three things side by side: how many requests arrive (rate), how many fail (errors) and how long they take (duration). Everything else goes lower down or on another dashboard.
+</Idea>
+
+## RED for services, USE for machines
+
+Grafana's best practices name two methods for choosing what to show. RED looks at the requests a service handles: rate, errors and duration. It reports what users feel, so it often shows the symptom of a problem, and Grafana advises alerting on these symptoms. USE looks at a resource such as a CPU, a disk or a network card: utilization, saturation and errors. It points at causes. The four golden signals from Google's SRE book add saturation to RED's three.
+
+<Compare caption="Two methods, two kinds of thing to watch">
+  <Col title="RED" hot>Rate, errors, duration. For services, especially microservices. Shows what users feel.</Col>
+  <Col title="USE">Utilization, saturation, errors. For machines and resources. Points at causes.</Col>
+</Compare>
+
+## A layout that reads at a glance
+
+A dashboard should tell one story, from general to specific. The best practices show RED with rate and errors on the left and duration on the right, one row per service. Keep each graph simple, give it a unit and a title that says what it shows, and use colour with a meaning: thresholds make red mean bad. When services differ a lot in size, compare like with like, so a large service does not drown a small one.
+
+Duration needs more than an average. A percentile such as p95 is the value that 95% of requests stay under, so p50, p95 and p99 together show both the typical request and the slow tail. The lab's span metrics are histograms, so `histogram_quantile()` from module m04 gives these percentiles.
+
+<Layers caption="A RED dashboard from top to bottom">
+  <Layer title="Variable">Service, so one dashboard serves every service.</Layer>
+  <Layer title="Rate and errors">Requests per second and the error share, side by side.</Layer>
+  <Layer title="Duration">p50, p95 and p99 latency, in seconds.</Layer>
+  <Layer title="Details" hot>Rows for what helps the diagnosis, collapsed until needed.</Layer>
+</Layers>
+
+## Rows keep the rest out of the way
+
+Rows and tabs group panels under a title. A collapsed row costs nothing until someone opens it, so diagnostic panels can wait there without crowding the first screen. Grafana's maturity model also counts the habits around a dashboard: a meaningful name, an owner people can find, no lasting copies, and refresh only as often as the data changes.
+
+<InLab>
+The lab's folder **Shop** holds a provisioned RED dashboard per service, such as **Shop / checkout (RED)**, built on the same span metrics you use. Compare yours with it when you are done.
+</InLab>
+
+<Trap>
+An average latency hides the slow requests that users complain about. One request in a hundred taking ten seconds barely moves the mean, but it is the whole p99. Show percentiles, not only the average.
+</Trap>
+
+<Remember>
+RED for services, USE for resources. Rate and errors first, duration next to them, and the details collapsed below.
+</Remember>
+
+<Do>
+1. Open your dashboard `Shop service (m05)` and click **Edit**. Check that the Service variable is set to **checkout**.
+2. Add a visualization with the data source **Mimir**, title it `Duration: $service`, and add three queries, A, B and C, for p50, p95 and p99. Query A is this one; for B and C change 0.50 to 0.95 and 0.99: <Query lang="promql">{`histogram_quantile(0.50, sum by (le) (rate(traces_spanmetrics_latency_bucket{service_name=~"$service", span_kind="SPAN_KIND_SERVER"}[$__rate_interval])))`}</Query> Set the legend of each query to `p50`, `p95` and `p99`.
+3. Keep **Time series**, set **Unit** to **seconds (s)**, and click **Back to dashboard**.
+4. Arrange the panels: Requests per second and Error share in the top line, Duration next to them or right below. Resize them by their corners.
+5. Add a row titled `Checks` below the RED panels and move the panels Beacon token and Beacon slots of m05 into it. Collapse the row.
+6. Inside the row, duplicate the panel Beacon token from its menu. In the copy, change the slot in the query to `metric-m05-3` and the title to `Beacon token 3`.
+7. Save the dashboard, exit edit mode and reload the page. Switch the Service variable to another service and back.
+8. Expand the row Checks and paste the token of Beacon token 3 in the lab check below.
+</Do>
+
+<Done>
+After a reload, the dashboard shows rate, errors and duration for the selected service in one screen, with units and thresholds, and the check panels wait in a collapsed row.
+</Done>
+
+<Trap practice>
+If the Duration panel shows NaN or no line, the service may have had no server spans in a window: try a longer time range or the service **frontend**. `histogram_quantile()` needs the `le` label, so keep `sum by (le)` exactly as written.
+</Trap>
+
+<Question id="q-m05-s08" answer="c">
+A team builds a RED dashboard for its payment service. Which set of panels is RED?
+
+- CPU usage, memory saturation and disk errors
+
+  These are USE signals for a machine, not for the requests a service handles.
+
+- Uptime, version and number of replicas
+
+  These describe the deployment. None of them shows how requests are served.
+
+- Requests per second, error share and latency percentiles
+
+  Rate, errors and duration of requests make up RED.
+
+- Log lines per second, warnings and log volume by pod
+
+  These describe logging. RED is about the requests a service handles.
+</Question>

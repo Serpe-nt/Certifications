@@ -1,0 +1,127 @@
+---
+id: m05-s10
+title: Annotations and links between dashboards
+kind: lab
+minutes: 20
+order: 10
+exam:
+  - cert: none
+tags: [dashboard-links]
+check:
+  kind: exact
+  prompt: Paste the name of the built-in annotation query that every dashboard has, as the Annotations settings show it.
+  answers: ["Annotations & Alerts"]
+outcome: You can mark an event on a dashboard with an annotation, and link a dashboard, a panel and a single series to the next place a reader needs to go.
+terms:
+  - term: Annotation
+    def: A marker for an event at a point or a range of time, drawn across graph panels.
+  - term: Annotation query
+    def: A dashboard setting that fetches events from a data source and draws them as annotations.
+  - term: Dashboard link
+    def: A link at the top of a dashboard to other dashboards or to a web address.
+  - term: Panel link
+    def: A link shown next to one panel's title.
+  - term: Data link
+    def: A link on one series or value of a panel, which can carry its labels and the time range.
+sources:
+  - title: Annotate visualizations (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/annotate-visualizations/
+    checked: 2026-11-12
+  - title: Manage dashboard links (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/manage-dashboard-links/
+    checked: 2026-11-12
+  - title: Configure data links and actions (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/configure-data-links/
+    checked: 2026-11-12
+  - title: Data sources, special data sources (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/datasources/
+    checked: 2026-11-12
+---
+
+<Problem>
+Error share on checkout jumped at 14:05 and fell at 14:20. Was that the deploy, a feature flag, or the payment provider? Nobody wrote it down. And when the on-call engineer wanted the detailed dashboard for the failing operation, they had to search for it and set the time range and the service again by hand.
+</Problem>
+
+A graph shows what changed. It does not say why, and it does not show where to go next. Two small features close that gap.
+
+<Idea>
+An annotation marks an event on the time axis of every graph on the dashboard, so a change in a line sits next to its likely cause. Links carry the reader on: from the dashboard, from one panel, or from one series to the next view, with the time range and the variables kept.
+</Idea>
+
+## Annotations put events on the graph
+
+An annotation is a vertical line or a shaded region with a text and tags. You can add one by hand: hold Ctrl (Cmd on a Mac) and click a graph, or drag to mark a range. Annotations made this way are stored in Grafana and belong to the dashboard. A saved dashboard is needed first.
+
+They show up because of the built-in annotation query that every dashboard has. It fetches the dashboard's own annotations and alerts from the special data source **-- Grafana --**, and only this data source accepts annotations added by hand.
+
+You can add more annotation queries that read events from any data source: deploys written to Loki, restarts counted in Prometheus, annotations from other dashboards with a given tag. Each query gets a name and a colour, and a toggle above the dashboard lets the reader switch it on and off.
+
+<Compare caption="Two ways annotations get onto a graph">
+  <Col title="Added by hand">Ctrl and click on a graph. Stored in Grafana, with text and tags.</Col>
+  <Col title="Annotation query" hot>Fetched from a data source each time the dashboard loads, such as deploy events.</Col>
+</Compare>
+
+## Three kinds of link
+
+Grafana offers links at three levels. A dashboard link sits at the top of the dashboard and suits a link that matters for most panels: to all dashboards with a tag, or to a web address. A panel link sits next to one panel's title. A data link sits on a single series or value: click a point on a graph and the link knows which series it was.
+
+<Layers caption="Links from wide to narrow">
+  <Layer title="Dashboard link">Top of the dashboard. Related dashboards, chosen by tags.</Layer>
+  <Layer title="Panel link">Next to one panel's title. Drill down from that panel.</Layer>
+  <Layer title="Data link" hot>On one series or value. Carries its labels into the URL.</Layer>
+</Layers>
+
+## Keep the context in the link
+
+A link that loses the time range sends the reader to the wrong hour. Dashboard links have two options for this: **Include current time range** and **Include current template variable values**. In a data link you build the URL yourself with variables: `${__url_time_range}` for the time range, `${__all_variables}` for the dashboard's variables, and the labels of the clicked series such as `${__field.labels.span_name}`. Type `$` in the URL field to see the list. When you pass a variable to another dashboard, the target needs a variable of the same name, or you map it in the URL.
+
+<InLab>
+The lab's provisioned RED dashboards carry the tags `shop`, `red` and `lab`, and their UIDs follow one pattern, `shop-red-<service>`. A link can use both: tags for a list of all of them, the pattern for the one that matches the selected service.
+</InLab>
+
+<Trap>
+A dashboard link with no tags links to every other dashboard in Grafana. On a busy instance that is a long, useless list. Set tags so the link lists only the dashboards that belong together.
+</Trap>
+
+<Remember>
+Mark events where the graph changes, and give every dashboard a way to the next view with the time range and variables kept.
+</Remember>
+
+<Do>
+1. Open your dashboard `Shop service (m05)`. Hold Ctrl (Cmd on a Mac) and click a point on the panel Requests per second. In the dialog, write `m05 test annotation`, add the tag `m05`, and save it. A marker appears on every graph of the dashboard.
+2. Click **Edit**, open the dashboard options and click **View all settings**. On the **Annotations** tab, find the built-in query and its data source.
+3. On the **Links** tab, add a dashboard link of the type **Dashboards** with the tag `shop`. Turn on **Show as dropdown**, give it the title `Shop RED dashboards`, and turn on **Include current time range** and **Include current template variable values**.
+4. Close the settings. Edit the panel Requests per second, find **Data links and actions** and add a link titled `Provisioned RED for ${service}` with this URL: <Cmd>{`/d/shop-red-\${service}?\${__url_time_range}`}</Cmd>
+5. Save the dashboard and exit edit mode. Open the drop-down Shop RED dashboards at the top: it lists the dashboards of the folder Shop.
+6. Click a point on the panel Requests per second and choose the data link. The provisioned RED dashboard of the same service opens with your time range.
+7. Go back, hover over your annotation marker and delete it with the trash icon.
+8. Paste the name of the built-in annotation query in the lab check below.
+</Do>
+
+<Done>
+Your dashboard links to the shop's RED dashboards with the time range kept, and the Requests per second panel opens the matching provisioned dashboard for the selected service.
+</Done>
+
+<Trap practice>
+If the data link opens a dashboard that is not found, look at the URL it built: `${service}` must hold a single service name, and the address must look like `/d/shop-red-checkout?from=...`. A link written without the question mark before the time range breaks the address.
+</Trap>
+
+<Question id="q-m05-s10" answer="b">
+You want the deploys that CI writes to Loki to appear as markers on every graph of a dashboard. What do you add?
+
+- A dashboard link to the Loki data source
+
+  A link takes the reader somewhere else. It draws nothing on the graphs.
+
+- An annotation query on the Loki data source
+
+  An annotation query fetches events from any data source and draws them on the dashboard's graphs.
+
+- An annotation added by hand at each deploy
+
+  That works only while someone remembers to do it. A query fetches the events that CI already writes.
+
+- A data link on each graph to the deploy log
+
+  A data link opens a URL from one series. It does not mark events on the time axis.
+</Question>

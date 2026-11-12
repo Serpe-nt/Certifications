@@ -1,0 +1,124 @@
+---
+id: m05-s09
+title: "Dynamic dashboards: the new dashboard schema"
+kind: lab
+minutes: 18
+order: 9
+exam:
+  - cert: none
+tags: [dashboard-schema]
+check:
+  kind: exact
+  prompt: Paste the value of apiVersion at the top of your dashboard's JSON model.
+  answers: ["dashboard.grafana.app/v2"]
+outcome: You can tell the three dashboard JSON models apart, read a V2 Resource dashboard, and use its layouts and show/hide rules.
+terms:
+  - term: Dynamic dashboards
+    def: Grafana's current dashboard engine, with tabs, nested groupings, auto grid layouts and show/hide rules.
+  - term: JSON model
+    def: The JSON document that stores a whole dashboard; Grafana can show and edit it.
+  - term: V2 Resource
+    def: The current dashboard schema, which describes every part as a Kubernetes-style kind.
+  - term: Classic model
+    def: The dashboard JSON used before Grafana 12.2, still used by many shared dashboards.
+  - term: Auto grid
+    def: A layout in which Grafana sizes and places panels itself.
+  - term: Show/hide rule
+    def: A rule that shows or hides a panel, row or tab by query result, variable value or time range.
+sources:
+  - title: Dashboard JSON model (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/view-dashboard-json-model/
+    checked: 2026-11-12
+  - title: What's new in Grafana v13.0 (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/whatsnew/whats-new-in-v13/whats-new-in-v13-0/
+    checked: 2026-11-12
+  - title: Create dashboards, layouts and show/hide rules (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/create-dashboard/
+    checked: 2026-11-12
+  - title: Dashboard panel groupings (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/create-dashboard/dashboard-groupings/
+    checked: 2026-11-12
+  - title: Provision Grafana, dashboards (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/provisioning/
+    checked: 2026-11-12
+---
+
+<Problem>
+You find a well-made dashboard in an old blog post and paste its JSON into Grafana. It works. Then you open the JSON of a dashboard you built yourself today, and it looks nothing like the one from the post: other top-level keys, panels described in a different way. Both are Grafana dashboards.
+</Problem>
+
+Grafana changed how it stores dashboards, and both forms are still in use. You need to recognise each.
+
+<Idea>
+Since Grafana 13.0, dynamic dashboards are generally available and on by default. Every dashboard uses the new layout engine and is stored in a new schema, V2 Resource, which describes each part of the dashboard as a Kubernetes-style object. Older dashboards move to it when opened, and Grafana can still export the classic form for older Grafana versions.
+</Idea>
+
+## Three JSON models
+
+Grafana's documentation names three dashboard JSON models. The Classic model was the default before Grafana 12.2 and is the form most dashboards shared on grafana.com use. The V1 Resource wraps that classic content in a Kubernetes-style envelope: `apiVersion`, `kind`, `metadata` and a `spec` that holds the classic dashboard. The V2 Resource is the current schema. It models every element of the dashboard as a kind of its own, in the same Kubernetes style, and it is what makes the new layouts possible.
+
+<Timeline caption="How the dashboard schema changed">
+  <Event at="Before 12.2" title="Classic">The default JSON model, used for most shared dashboards.</Event>
+  <Event at="12.2 to 13.0" title="V1 Resource">The classic content in a Kubernetes-style envelope, used by the API.</Event>
+  <Event at="13.0" title="V2 Resource">Dynamic dashboards become generally available and on by default.</Event>
+</Timeline>
+
+## What the new engine adds
+
+The V2 schema carries features the classic one could not. Groupings can nest: rows and tabs inside rows and tabs, up to four levels deep. Each grouping has a layout. In **Custom**, you place and size every panel yourself. In **Auto grid**, Grafana sizes and places the panels for you in an even grid.
+
+Panels in an auto grid layout can have show/hide rules. A rule can hide a panel when its query returns no data, show a tab only for one value of a variable, or depend on the length of the time range. A dashboard can then hide what does not apply instead of showing empty panels.
+
+<Compare caption="Two layouts for a grouping">
+  <Col title="Custom">You position and size each panel. No show/hide rules.</Col>
+  <Col title="Auto grid" hot>Grafana fits the panels into an even grid. Show/hide rules work here.</Col>
+</Compare>
+
+## Reading and moving the JSON
+
+The JSON model of any dashboard is one click away in the dashboard settings, and you can edit it there. When you export a dashboard, Grafana asks which model to write. Choose Classic if the dashboard must load in Grafana 12.4 or older. To provision a dynamic dashboard from files, it must be in the Kubernetes resource format.
+
+<InLab>
+The lab's Grafana is 13.3, so the dashboard you built is stored in the V2 Resource model. The lab's provisioned dashboards in the folders Shop and Kubernetes are written in the Classic model and still load.
+</InLab>
+
+<Trap>
+A dashboard exported in the V2 Resource model will not load in an older Grafana that knows only the classic one. When you share a dashboard with a team on another version, choose the model on export.
+</Trap>
+
+<Remember>
+Grafana 13 stores dashboards as V2 Resources and still reads and writes the Classic model. Pick the model on export for the Grafana that will import it.
+</Remember>
+
+<Do>
+1. Open your dashboard `Shop service (m05)` and click **Edit**. Open the dashboard options in the sidebar and click **View all settings**.
+2. Open the **JSON Model** tab. Read the first lines: `apiVersion`, `kind`, `metadata` and `spec`.
+3. In `spec`, find `elements`: each panel is an object with `"kind": "Panel"`. Find `layout` and the row Checks inside it.
+4. Close the settings. Select the row Checks and look at its layout options: switch it between **Custom** and **Auto grid** and watch how the two beacon panels move.
+5. In auto grid, select the panel Beacon slots of m05 and add a show/hide rule that hides it when its query returns no data. Save the dashboard.
+6. Copy the value of `apiVersion` from the JSON model and paste it in the lab check below.
+</Do>
+
+<Done>
+You read your dashboard's JSON model, found its panels and layout in the V2 schema, and gave a panel a show/hide rule.
+</Done>
+
+<Question id="q-m05-s09" answer="d">
+A colleague runs Grafana 12.4 and asks for a copy of your dashboard from Grafana 13.3. How do you export it?
+
+- As a V2 Resource, because it is the current schema
+
+  The current schema is the problem: Grafana 12.4 and older need the classic one.
+
+- As a V1 Resource, because it holds every V2 feature
+
+  The V1 Resource holds the classic content. It has no tabs, auto grids or show/hide rules.
+
+- As a screenshot, because dashboards cannot move between versions
+
+  Dashboards move between versions as JSON. The model is what has to match.
+
+- In the Classic model, because Grafana 12.4 and older need it
+
+  Grafana's export offers the Classic model for exactly this case.
+</Question>

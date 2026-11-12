@@ -1,0 +1,134 @@
+---
+id: m05-s06
+title: Variables and repeating panels
+kind: lab
+minutes: 22
+order: 6
+exam:
+  - cert: pca
+    domain: P5
+    competency: Dashboarding basics
+tags: [dashboard-variables]
+check:
+  kind: exact
+  prompt: Paste the first value in your variable's drop-down list, with the list sorted alphabetically.
+  answers: ["ad"]
+outcome: You can turn a dashboard for one service into a dashboard for any service with a query variable, and repeat a panel once per selected value.
+terms:
+  - term: Variable
+    def: A placeholder on a dashboard whose value the viewer picks from a drop-down list.
+  - term: Query variable
+    def: A variable whose values come from a query to a data source, such as the values of one label.
+  - term: Multi-value
+    def: A variable setting that lets the viewer pick several values at once.
+  - term: Repeating panel
+    def: A panel that Grafana copies once for each selected value of a variable.
+  - term: Interpolation
+    def: Grafana replacing a variable in a query with its current value before sending the query.
+sources:
+  - title: Variables (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/variables/
+    checked: 2026-11-12
+  - title: Add variables (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/variables/add-template-variables/
+    checked: 2026-11-12
+  - title: Variable syntax (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/variables/variable-syntax/
+    checked: 2026-11-12
+  - title: Prometheus template variables (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/datasources/prometheus/template-variables/
+    checked: 2026-11-12
+  - title: Configure panel options, repeating panels (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/configure-panel-options/
+    checked: 2026-11-12
+  - title: Grafana dashboard best practices (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/best-practices/
+    checked: 2026-11-12
+---
+
+<Problem>
+The checkout dashboard works well, so the payment team copies it and replaces "checkout" in every query. Then the cart team does the same. Six weeks later there are twelve copies, a fix to one panel reaches only one of them, and nobody knows which copy is current.
+</Problem>
+
+The twelve copies differ in one word. That word should be something the viewer chooses, not something written into every query.
+
+<Idea>
+A variable is a placeholder that the viewer sets from a drop-down list at the top of the dashboard. You write `$service` in the queries once, and Grafana puts in the chosen value before it sends each query. One dashboard then serves every service, and a fix reaches all of them at once.
+</Idea>
+
+## Where the values come from
+
+The most useful kind is the query variable: its values come from a query to a data source. For a Prometheus data source, the query type **Label values** asks for every value of one label, optionally only on one metric. Other types return label names, metric names or the result of a PromQL query. The older form `label_values(metric, label)` still exists as **Classic query**, and Grafana marks it as deprecated.
+
+Other kinds fill the list in other ways. A custom variable takes a fixed, comma-separated list. A text box lets the viewer type a value. A data source variable lists data sources of one type, so the same dashboard can point at another Prometheus.
+
+<Compare caption="Three kinds of variable you will use most">
+  <Col title="Query" hot>Values from the data source, so a new service appears by itself.</Col>
+  <Col title="Custom">A fixed list you type, such as 50, 95, 99 for percentiles.</Col>
+  <Col title="Data source">The data sources of one type, to switch backend or tenant.</Col>
+</Compare>
+
+**Refresh** sets when Grafana reloads the values: on every dashboard load, or also when the time range changes. **Sort** orders the list. Without a default, the first value in the list is selected when the dashboard opens.
+
+## How a variable reaches the query
+
+Before a query leaves Grafana, it is interpolated: every `$service` or `${service}` is replaced by the current value. The braces are needed when the variable sits inside a word. The old form `[[service]]` is deprecated.
+
+A variable can allow several values at once (**Multi-value**) and offer an **All** option. Grafana then joins the values for the query language. For Prometheus it builds a regular expression, so the label matcher must be `=~`, not `=`. The chosen values also go into the page's address, so a link you share opens with the same selection.
+
+## Repeating panels
+
+With a multi-value variable, one panel can stand for many. Under **Repeat options**, choose the variable to repeat by, and Grafana draws a copy of the panel for each selected value, side by side or in a column. Only the first panel can be edited; its copies follow it. Put the variable in the title, so each copy says which value it shows.
+
+<Figure id="m05-s06-variable-editor" alt="The variable editor of a Grafana dashboard: the variable service of type Query on the Mimir data source, with the query type Label values, the label service_name and the metric traces_spanmetrics_calls_total, and a preview of values below." brief="A fake Grafana variable editor. The cursor sets Variable type to Query, types service as the name, picks the Mimir data source and Label values, then chooses service_name as the label and traces_spanmetrics_calls_total as the metric. The preview below fills with service names: ad, beacon, cart, checkout and more. Then the dashboard appears with a Service drop-down at the top, and switching it from checkout to payment redraws the panels. The learner should notice where the values come from and how the drop-down drives the panels." />
+
+<InLab>
+The span metrics of the shop carry the service in the label `service_name`, so one Label values query on `traces_spanmetrics_calls_total` lists every shop service that has sent a span.
+</InLab>
+
+<Trap>
+A single-value query written as `service_name="$service"` breaks the moment someone turns on Multi-value, because two values become a regular expression. Use `=~` wherever a variable might hold more than one value.
+</Trap>
+
+<Remember>
+One dashboard with a variable beats many copies. Write the variable in the queries and the titles, and use `=~` when it may hold several values.
+</Remember>
+
+<Do>
+1. Open your dashboard `Shop service (m05)` and click **Edit**. Open the dashboard options in the sidebar and find **Variables**. Add a variable.
+2. Choose the type **Query** and the name `service`, with the label `Service`. Pick the data source **Mimir** and the query type **Label values**. Set **Label** to `service_name` and **Metric** to `traces_spanmetrics_calls_total`.
+3. Set **Sort** to **Alphabetical (asc)**. The preview lists the shop's services. Go back to the dashboard: a Service drop-down appears at the top.
+4. In the panels Requests per second and Error share, replace every `service_name="checkout"` with `service_name=~"$service"`. Add `$service` to both titles, for example `Requests per second: $service`.
+5. Pick **payment** in the drop-down. Both panels redraw for the payment service, and the address bar now holds `var-service=payment`.
+6. Try a repeat: in the variable, turn on **Multi-value**. In the panel Error share, under **Repeat options**, choose **service**. Select three services in the drop-down: the panel appears three times, one per service.
+7. Undo the repeat for now: set the panel back to no repeat and turn **Multi-value** off again, then select **checkout**. Save the dashboard.
+8. Open the drop-down and paste its first value in the lab check below.
+</Do>
+
+<Done>
+The dashboard has a Service variable whose values come from Mimir, both panels follow it, and the choice shows in the address bar.
+</Done>
+
+<Trap practice>
+If the drop-down is empty, check the variable's data source and time range: Label values only returns services that sent span metrics in the time range of the dashboard. If a panel shows no data after the change, look for a leftover `=` before `"$service"`.
+</Trap>
+
+<Question id="q-m05-s06" answer="a">
+A dashboard has a variable cluster with values from Mimir. A new cluster starts sending metrics, but it is not in the drop-down until someone reopens the dashboard. Which setting explains this?
+
+- Refresh is set to On dashboard load
+
+  With this setting Grafana fetches the values only when the dashboard loads. A new value appears on the next load.
+
+- Sort is set to Disabled
+
+  Sort only changes the order of the values. It does not decide whether a new value is fetched.
+
+- The variable is not Multi-value
+
+  Multi-value lets a viewer pick several values. It has nothing to do with when the list is refreshed.
+
+- The query type is Label values
+
+  Label values does return every value of the label. When it runs is set by Refresh.
+</Question>
