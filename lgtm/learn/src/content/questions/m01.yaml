@@ -1,0 +1,653 @@
+# Quiz pool for module m01, Helm. The module serves no exam (cert none). Every fact is checked
+# against the source given on the question; the log is lgtm/docs/verification/m01.md.
+
+# helm-concepts
+- id: q-m01-001
+  tags: [ helm-concepts ]
+  exam: { cert: none }
+  q: Where does Helm 4 keep the record of each revision of a release by default?
+  options:
+    - text: In a Secret in the release's namespace
+      why: The default storage backend writes one Secret per revision into the namespace of the release.
+    - text: In a file under ~/.config/helm on the machine that ran Helm
+      why: That folder holds the client's settings, such as repositories. Release records live in the cluster.
+    - text: In a ConfigMap in the kube-system namespace
+      why: ConfigMaps are an optional backend, and they are kept in the release's namespace, not in kube-system.
+    - text: In annotations on each object the chart created
+      why: Helm labels its objects, but the release record with chart and values is a separate object.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/topics/advanced/
+
+- id: q-m01-002
+  tags: [ helm-concepts ]
+  exam: { cert: none }
+  q: A release is installed (revision 1), upgraded twice, then rolled back to revision 1. Which revision number is now deployed?
+  options:
+    - text: "1"
+      why: A rollback does not reuse an old number. It adds a revision with the old content.
+    - text: "4"
+      why: Install, two upgrades and one rollback make four revisions; the rollback is revision 4.
+    - text: "3"
+      why: Revision 3 is the second upgrade. The rollback comes after it.
+    - text: "2"
+      why: Revision 2 is the first upgrade, not the rollback.
+  answer: [ 1 ]
+  source: https://helm.sh/docs/glossary/
+
+- id: q-m01-003
+  tags: [ helm-concepts ]
+  exam: { cert: none }
+  q: "A chart's <code>Chart.yaml</code> has <code>version: 21.1.0</code> and <code>appVersion: 3.7.9</code>. Which statement is right?"
+  options:
+    - text: Helm installs image tag 21.1.0 unless appVersion overrides it
+      why: Image tags come from the templates and values. version is the chart's version, not an image tag.
+    - text: 3.7.9 is the chart's version, and 21.1.0 counts how often it was installed
+      why: version is the chart's own SemVer version; Helm does not count installs in Chart.yaml.
+    - text: 21.1.0 versions the chart; 3.7.9 only names the app's version
+      why: version identifies the chart package; appVersion is informational and has no effect on versioning.
+    - text: Both must be equal, or helm lint reports an error
+      why: The two fields are independent. Most charts have different values in them.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/topics/charts/
+
+- id: q-m01-004
+  tags: [ helm-concepts ]
+  exam: { cert: none }
+  q: Why can a team install three PostgreSQL databases from one chart in the same cluster?
+  options:
+    - text: Each database needs its own chart repository
+      why: One chart from one repository can be installed under several names.
+    - text: Helm copies the chart three times into the cluster's chart store
+      why: The chart stays a package. Installs create releases, not copies of the chart.
+    - text: The chart must declare three replicas in its values.yaml
+      why: Replicas scale one release's pods. Three databases come from three releases.
+    - text: Each install under a new name is its own release
+      why: A chart can be installed many times; each install is a separate release with its own name.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/glossary/
+
+# helm-install
+- id: q-m01-005
+  tags: [ helm-install ]
+  exam: { cert: none }
+  q: You run <code>helm install web myrepo/web</code> with no <code>--version</code>. Which chart version does Helm install?
+  options:
+    - text: The newest stable version in the repository index
+      why: Without --version Helm takes the latest stable version; --devel adds pre-releases.
+    - text: The version installed last time anywhere in the cluster
+      why: Helm does not look at other releases to choose a version.
+    - text: The oldest version, to stay compatible
+      why: Helm never picks the oldest version by itself.
+    - text: None, because --version is required for repository charts
+      why: --version is optional. Leaving it out is what makes installs drift.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/helm/helm_install/
+
+- id: q-m01-006
+  tags: [ helm-install ]
+  exam: { cert: none }
+  q: <code>helm install app ./chart -n team-a</code> fails because the namespace team-a does not exist. What fixes it in the same command?
+  options:
+    - text: Add --wait so Helm waits for the namespace
+      why: --wait waits for the release's objects; it never creates a namespace.
+    - text: Add --create-namespace
+      why: This flag creates the release namespace if it is not present.
+    - text: Replace -n with --kube-context team-a
+      why: A kubeconfig context selects a cluster and user, not a namespace to create.
+    - text: Add --force-replace
+      why: That flag replaces objects on update. It does not create a missing namespace.
+  answer: [ 1 ]
+  source: https://helm.sh/docs/helm/helm_install/
+
+- id: q-m01-007
+  tags: [ helm-install, helm-upgrade-rollback ]
+  exam: { cert: none }
+  q: A pipeline must create a release on its first run and update it on every later run, with one command. Which one?
+  options:
+    - text: helm install --dry-run
+      why: A dry run changes nothing, so it never creates or updates the release.
+    - text: helm install --replace
+      why: --replace only reuses the name of a deleted release kept in history; it does not upgrade.
+    - text: helm upgrade --install
+      why: --install makes upgrade install the release when it does not exist yet.
+    - text: helm rollback --install
+      why: rollback has no --install flag; it only returns to an earlier revision.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/helm/helm_upgrade/
+
+# helm-values
+- id: q-m01-008
+  tags: [ helm-values ]
+  exam: { cert: none }
+  q: You run <code>helm install web ./chart -f prod.yaml -f base.yaml</code>. Both files set <code>ui.message</code>. Which message does the release get?
+  options:
+    - text: Both, joined into one string
+      why: Helm merges maps key by key, but a single string key gets one value.
+    - text: The one in prod.yaml, because it is listed first
+      why: The first file is the weakest of the two, not the strongest.
+    - text: The chart's default, because the two files conflict
+      why: Helm does not cancel conflicting files; the later one simply wins.
+    - text: base.yaml's, because the right-most file wins
+      why: Values files are applied from left to right, and a later file overrides an earlier one.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/helm/helm_install/
+
+- id: q-m01-009
+  tags: [ helm-values ]
+  exam: { cert: none }
+  q: "The chart default is <code>replicaCount: 1</code>. <code>prod.yaml</code> sets 3, and the command adds <code>--set replicaCount=5 -f prod.yaml</code>. How many replicas?"
+  options:
+    - text: "5"
+      why: --set overrides values files, wherever the flags stand on the command line.
+    - text: "3"
+      why: The file is weaker than --set, even when it comes later on the line.
+    - text: "1"
+      why: The default is the weakest source of all.
+    - text: "8"
+      why: Helm replaces values; it never adds numbers from two sources.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/chart_template_guide/values_files/
+
+- id: q-m01-010
+  tags: [ helm-values ]
+  exam: { cert: none }
+  q: A chart's defaults have <code>livenessProbe.httpGet</code>. You want an <code>exec</code> probe instead and must remove <code>httpGet</code> from the merged values. How?
+  options:
+    - text: Leave httpGet out of your values file
+      why: Keys you leave out keep their defaults; the merge does not remove them.
+    - text: Set livenessProbe.httpGet to null
+      why: A null value removes the key from the merged values.
+    - text: Set livenessProbe.httpGet to an empty string
+      why: An empty string is still a value; the key stays in the result.
+    - text: Use --reset-values on install
+      why: That flag belongs to upgrade and resets to the defaults, which still contain httpGet.
+  answer: [ 1 ]
+  source: https://helm.sh/docs/chart_template_guide/values_files/
+
+- id: q-m01-011
+  tags: [ helm-values ]
+  exam: { cert: none }
+  q: Which <code>--set</code> flag produces a list with the items a and b under the key <code>tags</code>?
+  options:
+    - text: "--set tags[a]=b"
+      why: Brackets hold a numeric index into a list, not a value.
+    - text: "--set tags=a,b"
+      why: The comma separates pairs, so this sets tags to a and fails on b.
+    - text: "--set tags={a,b}"
+      why: Braces turn the value into a list.
+    - text: "--set tags=a --set tags=b"
+      why: The second flag overrides the first; the result is the single value b.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/intro/using_helm/
+
+- id: q-m01-012
+  tags: [ helm-values, helm-debugging ]
+  exam: { cert: none }
+  q: A release misbehaves. Which command shows the full set of values its templates received, defaults included?
+  options:
+    - text: helm status web
+      why: status shows the state, resources and notes, not the values.
+    - text: helm get values web
+      why: Without --all it shows only the user-supplied values.
+    - text: helm show values myrepo/web
+      why: That prints the chart's defaults, without what the release was given.
+    - text: helm get values web --all
+      why: --all dumps the computed values, the defaults merged with what was supplied.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/helm/helm_get_values/
+
+# helm-render
+- id: q-m01-013
+  tags: [ helm-render ]
+  exam: { cert: none }
+  q: You must review the YAML a chart produces with your values, on a laptop with no cluster access. Which command?
+  options:
+    - text: helm template
+      why: It renders the templates locally and needs no cluster.
+    - text: helm get manifest
+      why: It reads an installed release from the cluster.
+    - text: helm install --dry-run=server
+      why: The server mode connects to the cluster.
+    - text: helm status
+      why: It reports on an installed release, not on a chart.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/helm/helm_template/
+
+- id: q-m01-014
+  tags: [ helm-render ]
+  exam: { cert: none }
+  q: On the lab, <code>helm upgrade ... --set service.type=Bogus --dry-run=server</code> reported a complete dry run, and the real upgrade then failed. What does that teach?
+  options:
+    - text: --dry-run=server never connects to the cluster at all
+      why: The server mode does connect, for example to run lookups.
+    - text: A dry run proves rendering, not acceptance by the API server
+      why: The real upgrade sent the objects; the API server rejected the Service type.
+    - text: Dry runs ignore --set values and use the chart's defaults
+      why: The dry run rendered the same values; the type Bogus appeared in its output.
+    - text: The real upgrade pulled a newer chart than the dry run used
+      why: Both commands named the same chart version.
+  answer: [ 1 ]
+  source: https://helm.sh/docs/chart_template_guide/debugging/
+
+- id: q-m01-015
+  tags: [ helm-render ]
+  exam: { cert: none }
+  q: <code>helm template</code> of a chart prints a Service, a Deployment and three test pods. What does <code>helm get manifest</code> print after you install it?
+  options:
+    - text: Only the three test pods
+      why: The tests are the part the manifest leaves out.
+    - text: The Service, the Deployment and the three test pods
+      why: Test pods are hooks, which are not part of the release manifest.
+    - text: The Service and the Deployment
+      why: The manifest holds the release's objects; hooks and tests are shown by helm get hooks.
+    - text: Nothing until helm test has run
+      why: The manifest exists from the install on; tests do not change it.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/helm/helm_get_manifest/
+
+# helm-upgrade-rollback
+- id: q-m01-016
+  tags: [ helm-upgrade-rollback, helm-values ]
+  exam: { cert: none }
+  q: Revision 2 was made with <code>--set ui.message=hello</code>. Revision 3 is <code>helm upgrade web ./chart --set ui.color=red</code>. What happens to the message?
+  options:
+    - text: It becomes red, because both keys sit under ui
+      why: Each key keeps its own value; color does not overwrite message.
+    - text: It stays hello, because Helm always merges the old and new values
+      why: Merging with the last values is what --reuse-values asks for.
+    - text: The upgrade fails because ui.message is missing
+      why: A missing key falls back to the chart's default; nothing fails.
+    - text: It returns to the chart's default; only --reuse-values keeps it
+      why: Given new values without --reuse-values, the upgrade starts from the chart's defaults; seen on the lab.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/helm/helm_upgrade/
+
+- id: q-m01-017
+  tags: [ helm-upgrade-rollback ]
+  exam: { cert: none }
+  q: What does <code>--wait</code> change in <code>helm upgrade</code> under Helm 4?
+  options:
+    - text: Helm waits for ready objects up to --timeout, else fails
+      why: Plain --wait uses the watcher strategy; without the flag Helm waits for hooks only.
+    - text: Helm waits for a person to confirm before it applies anything
+      why: Helm has no confirmation step; --wait is about readiness.
+    - text: Helm waits five minutes before it starts applying the upgrade
+      why: Five minutes is the default timeout of the wait, not a delay before it.
+    - text: Helm waits for the previous upgrade of any release in the cluster
+      why: Locks are per release, and --wait does not affect them.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/helm/helm_upgrade/
+
+- id: q-m01-018
+  tags: [ helm-upgrade-rollback ]
+  exam: { cert: none }
+  q: A release keeps only its last 10 revisions. Which setting decides that number?
+  options:
+    - text: --timeout, which deletes old revisions after five minutes
+      why: --timeout bounds the wait for one operation, not how long history lasts.
+    - text: --history-max on upgrade and rollback, 10 by default
+      why: The flag limits the revisions kept per release; 0 means no limit.
+    - text: The chart's version field
+      why: Chart.yaml does not control how many revisions Helm keeps.
+    - text: Kubernetes, which keeps 10 Secrets per namespace
+      why: Kubernetes has no such limit; Helm prunes its own records.
+  answer: [ 1 ]
+  source: https://helm.sh/docs/helm/helm_upgrade/
+
+- id: q-m01-019
+  tags: [ helm-upgrade-rollback ]
+  exam: { cert: none }
+  q: An upgrade added a database column. You roll the release back. What happens to the column?
+  options:
+    - text: Kubernetes drops it when the old pods start
+      why: Pods do not change a schema on their own when an old version starts.
+    - text: Helm drops it, because rollback restores the whole revision
+      why: A revision holds manifests and values, not the state of a database.
+    - text: It stays, since rollback restores objects, not data
+      why: Helm restores the chart and values of a revision; changes inside a database are not part of it.
+    - text: The rollback fails until the column is removed
+      why: Helm does not inspect databases, so it cannot refuse for that reason.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/helm/helm_rollback/
+
+# helm-chart-structure
+- id: q-m01-020
+  tags: [ helm-chart-structure ]
+  exam: { cert: none }
+  q: Which three fields of <code>Chart.yaml</code> are required?
+  options:
+    - text: name, description and maintainers
+      why: description and maintainers are optional.
+    - text: name, appVersion and dependencies
+      why: appVersion and dependencies are optional.
+    - text: apiVersion, type and kubeVersion
+      why: type and kubeVersion are optional.
+    - text: apiVersion, name and version
+      why: These three are required; the rest are optional.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/topics/charts/
+
+- id: q-m01-021
+  tags: [ helm-chart-structure ]
+  exam: { cert: none }
+  q: A chart has <code>apiVersion v1</code> in its <code>Chart.yaml</code>. Can Helm 4 install it?
+  options:
+    - text: Yes; v1 charts still install
+      why: v1 charts remain installable; the podinfo chart of this module is one.
+    - text: No; Helm 4 needs apiVersion v3 in Chart.yaml
+      why: v3 charts are experimental in Helm 4 and need a variable; v2 is the normal one.
+    - text: Only after running helm dependency update
+      why: Dependency handling does not decide whether a chart's API version is accepted.
+    - text: Only when you add --force-replace
+      why: That flag concerns object updates, not chart API versions.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/topics/charts/
+
+- id: q-m01-022
+  tags: [ helm-chart-structure, helm-templates ]
+  exam: { cert: none }
+  q: A new file <code>templates/_ports.tpl</code> holds only <code>define</code> blocks. What does Helm do with it?
+  options:
+    - text: It sends the file to the cluster as a ConfigMap
+      why: Helm never turns a template file into a ConfigMap on its own.
+    - text: It shares the blocks with other templates and renders no object
+      why: Files that begin with an underscore hold helpers and are not rendered as manifests.
+    - text: It ignores it; only _helpers.tpl may hold define blocks
+      why: Any file starting with an underscore can hold named templates.
+    - text: helm lint fails, because .tpl files are not allowed
+      why: .tpl files are normal for helpers; lint accepts them.
+  answer: [ 1 ]
+  source: https://helm.sh/docs/chart_template_guide/named_templates/
+
+# helm-templates
+- id: q-m01-023
+  tags: [ helm-templates ]
+  exam: { cert: none }
+  q: "With <code>food: pizza</code> in the values, what does <code>{{ .Values.food | upper | quote }}</code> print?"
+  options:
+    - text: "\"pizza\""
+      why: upper runs before quote.
+    - text: PIZZA
+      why: quote adds the quotes at the end of the pipeline.
+    - text: "\"PIZZA\""
+      why: The pipeline upper-cases the value, then wraps it in quotes.
+    - text: upper quote pizza
+      why: Functions in a pipeline are called, not printed.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/chart_template_guide/functions_and_pipelines/
+
+- id: q-m01-024
+  tags: [ helm-templates ]
+  exam: { cert: none }
+  q: Why do charts use <code>include</code> rather than the <code>template</code> action to insert a named block of labels?
+  options:
+    - text: The template action was removed from the language in Helm 4
+      why: The action still exists; the guide only prefers include.
+    - text: template only works in files whose name starts with an underscore
+      why: Both work in any template file; the difference is piping.
+    - text: include is faster, because it does not need a scope argument
+      why: include takes a scope argument like template does.
+    - text: include's output can be piped into nindent; template's cannot
+      why: template is an action, so its output cannot be passed to other functions.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/chart_template_guide/named_templates/
+
+- id: q-m01-025
+  tags: [ helm-templates ]
+  exam: { cert: none }
+  q: The value <code>debug</code> is set to 0. Does <code>{{ if .Values.debug }}</code> include its block?
+  options:
+    - text: No, because a numeric zero counts as false
+      why: false, 0, an empty string, nil and empty collections all evaluate as false.
+    - text: Yes, because the key is set
+      why: A set key with a false-like value still counts as false.
+    - text: Yes, because only the boolean false counts as false
+      why: Several other values count as false, the number 0 among them.
+    - text: It fails, because if needs a boolean
+      why: if accepts any value and decides by these rules.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/chart_template_guide/control_structures/
+
+- id: q-m01-026
+  tags: [ helm-templates ]
+  exam: { cert: none }
+  q: Inside <code>{{ range .Values.hosts }}</code> you need the release name. Which works?
+  options:
+    - text: "{{ .Release.Name }}"
+      why: Inside range, the dot is the current host.
+    - text: "{{ $.Release.Name }}"
+      why: $ always refers to the top-level scope.
+    - text: "{{ .Values.Release.Name }}"
+      why: The release is not stored under Values.
+    - text: "{{ Release.Name }}"
+      why: "Objects need a scope in front: the dot or $."
+  answer: [ 1 ]
+  source: https://helm.sh/docs/chart_template_guide/variables/
+
+- id: q-m01-027
+  tags: [ helm-templates ]
+  exam: { cert: none }
+  q: A template writes <code>food</code> and an <code>if</code> block with dashes on both sides of every action, and the output shows food and mug on one line. Why?
+  options:
+    - text: quote removed the newline that followed food
+      why: quote adds quotes; it does not change whitespace around it.
+    - text: An if block always joins the lines around it
+      why: An if block keeps line breaks unless the dashes remove them.
+    - text: The dashes also removed the newlines
+      why: "{{- and -}} remove whitespace, newlines included, on their side."
+    - text: YAML joins short lines together on its own
+      why: The joined line comes from rendering, before any YAML parser sees it.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/chart_template_guide/control_structures/
+
+# helm-dependencies
+- id: q-m01-028
+  tags: [ helm-dependencies ]
+  exam: { cert: none }
+  q: A pipeline must rebuild a chart's <code>charts/</code> folder with exactly the versions the team tested. Which command?
+  options:
+    - text: helm package --dependency-update
+      why: That also re-resolves dependencies before packaging.
+    - text: helm dependency update, which picks the newest matching versions
+      why: update re-resolves ranges and may pick newer versions than were tested.
+    - text: helm repo update
+      why: That refreshes repository indexes and does not touch charts/.
+    - text: helm dependency build, which follows Chart.lock
+      why: build reconstructs charts/ from the lock file without choosing versions again.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/helm/helm_dependency_build/
+
+- id: q-m01-029
+  tags: [ helm-dependencies ]
+  exam: { cert: none }
+  q: A sub-chart template reads <code>.Values.region</code>, which is set only at the top level of the parent's values. What does it get?
+  options:
+    - text: Nothing; sub-charts cannot read the parent's values
+      why: Values flow down under the sub-chart's key, or through global, never up.
+    - text: The parent's region, because all values are shared
+      why: Only values under global are shared by name.
+    - text: An error that stops the render
+      why: A missing value is empty; the render goes on.
+    - text: The region of the cluster
+      why: Helm has no built-in region value.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/chart_template_guide/subcharts_and_globals/
+
+- id: q-m01-030
+  tags: [ helm-dependencies ]
+  exam: { cert: none }
+  q: How do you install the same chart twice as dependencies of one parent chart?
+  options:
+    - text: Set replicaCount to 2 in the sub-chart's values
+      why: That scales one copy; it does not create a second one.
+    - text: List it twice, each entry with its own alias
+      why: An alias gives each copy its own name, values key and object names.
+    - text: Add a condition that is true twice
+      why: A condition switches one dependency on or off.
+    - text: It is not possible; each chart can appear once
+      why: Aliases exist for exactly this case.
+  answer: [ 1 ]
+  source: https://helm.sh/docs/topics/charts/
+
+# helm-repositories
+- id: q-m01-031
+  tags: [ helm-repositories ]
+  exam: { cert: none }
+  q: What must a web server offer to work as a classic Helm chart repository?
+  options:
+    - text: An OCI API with digests
+      why: That is a registry, the other kind of chart source.
+    - text: A Helm server process that answers helm commands
+      why: Classic repositories are plain HTTP; no Helm process runs there.
+    - text: An index.yaml listing the charts and their URLs
+      why: Any HTTP server that serves the index and the archives can be a repository.
+    - text: A Git repository with the chart sources
+      why: Helm downloads packaged charts, not Git sources.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/topics/chart_repository/
+
+- id: q-m01-032
+  tags: [ helm-repositories ]
+  exam: { cert: none }
+  q: A chart is published at <code>oci://ghcr.io/acme/charts/web</code>. What do you run before <code>helm install</code>?
+  options:
+    - text: helm dependency build
+      why: That is for a chart's own dependencies.
+    - text: helm repo add acme oci://ghcr.io/acme/charts
+      why: OCI registries are not added as repositories.
+    - text: helm repo update
+      why: There is no index to refresh for an OCI registry.
+    - text: Nothing; install accepts the oci:// address
+      why: OCI charts need no repo add; install, pull, show and template accept oci:// addresses.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/topics/registries/
+
+- id: q-m01-033
+  tags: [ helm-repositories ]
+  exam: { cert: none }
+  q: Your security team wants the chart's exact bytes pinned, not only its version name. What does Helm 4 offer?
+  options:
+    - text: Install the OCI chart by its sha256 digest
+      why: Helm 4 installs by digest and refuses a chart whose digest does not match.
+    - text: Pin --version with a tilde range such as ~1.2.0
+      why: A range allows several versions, which is less strict than one version.
+    - text: Run helm repo update before every single install
+      why: That refreshes indexes; it pins nothing.
+    - text: Set appVersion in your own values file
+      why: appVersion is chart metadata, and values cannot change it.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/overview/
+
+# helm-hooks-tests
+- id: q-m01-034
+  tags: [ helm-hooks-tests ]
+  exam: { cert: none }
+  q: A hook Job has no <code>helm.sh/hook-delete-policy</code>. When does Helm delete it?
+  options:
+    - text: Right after it has succeeded, every time
+      why: That is hook-succeeded, which must be set explicitly.
+    - text: Before the hook runs again, by the default policy
+      why: Without the annotation, the previous resource is deleted before a new hook is launched.
+    - text: Never, not even on the next run of the hook
+      why: The default policy deletes it before the next run of the hook.
+    - text: When the release is uninstalled
+      why: Hook resources are not managed with the release, so uninstall leaves them.
+  answer: [ 1 ]
+  source: https://helm.sh/docs/topics/charts_hooks/
+
+- id: q-m01-035
+  tags: [ helm-hooks-tests ]
+  exam: { cert: none }
+  q: What makes a pod in a chart a test that <code>helm test</code> runs?
+  options:
+    - text: A pod name that ends in -test
+      why: Helm does not look at names to find tests.
+    - text: Being placed in a folder called tests
+      why: The folder is a convention; the annotation makes it a test.
+    - text: A helm.sh/hook annotation of type test
+      why: Tests are hooks of the type test; test-success is still accepted too.
+    - text: A label app.kubernetes.io/component=test
+      why: Labels do not mark tests; the hook annotation does.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/topics/chart_tests/
+
+- id: q-m01-036
+  tags: [ helm-hooks-tests ]
+  exam: { cert: none }
+  q: A pipeline should stop when a chart breaks a convention, even if it would install. Which command does that?
+  options:
+    - text: helm test
+      why: It runs a release's tests after install; it does not lint.
+    - text: helm lint
+      why: Without --strict, warnings alone do not fail the command.
+    - text: helm template --debug
+      why: It renders the chart; it does not check conventions.
+    - text: helm lint --strict
+      why: --strict fails on warnings as well as errors.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/helm/helm_lint/
+
+# helm-debugging
+- id: q-m01-037
+  tags: [ helm-debugging ]
+  exam: { cert: none }
+  q: After two failed upgrades in a row (revisions 5 and 6), you run <code>helm rollback web</code> with no number. Which revision's content does it restore?
+  options:
+    - text: Revision 5, the previous one, though it failed
+      why: Without a number, rollback goes to the previous revision; seen on the lab.
+    - text: The last revision that was deployed successfully
+      why: rollback does not skip failed revisions by itself.
+    - text: Revision 1, the install of the release
+      why: Only rollback 1 goes to the install.
+    - text: None; a revision number is required
+      why: The number is optional; 0 or no number means the previous revision.
+  answer: [ 0 ]
+  source: https://helm.sh/docs/helm/helm_rollback/
+
+- id: q-m01-038
+  tags: [ helm-debugging ]
+  exam: { cert: none }
+  q: A release shows <code>pending-upgrade</code>, and every new upgrade says another operation is in progress. No Helm process runs. What frees it?
+  options:
+    - text: Waiting until the pending upgrade times out
+      why: No process is left to finish or time out the pending revision.
+    - text: helm rollback to a known good revision
+      why: On the lab, a rollback to a chosen good revision ended the pending state.
+    - text: helm upgrade with --wait
+      why: The new upgrade is refused before it starts.
+    - text: helm repo update
+      why: Repository indexes have nothing to do with a release's state.
+  answer: [ 1 ]
+  source: https://helm.sh/docs/helm/helm_rollback/
+
+- id: q-m01-039
+  tags: [ helm-debugging, helm-upgrade-rollback ]
+  exam: { cert: none }
+  q: Old scripts use <code>helm upgrade --atomic</code>. What is the Helm 4 name of that flag?
+  options:
+    - text: --cleanup-on-fail
+      why: That flag deletes new objects of a failed upgrade; it does not roll back.
+    - text: --force-replace
+      why: That is the new name of --force.
+    - text: --rollback-on-failure
+      why: Helm 4 renamed --atomic; the old name still works with a warning.
+    - text: --wait-for-jobs
+      why: That waits for Jobs to finish; it does not roll back.
+  answer: [ 2 ]
+  source: https://helm.sh/docs/overview/
+
+- id: q-m01-040
+  tags: [ helm-debugging ]
+  exam: { cert: none }
+  q: A cleanup script runs <code>helm list -n apps --all</code> and fails under Helm 4. Why?
+  options:
+    - text: --all was renamed to --everything in Helm 4
+      why: There is no such flag; listing every status is simply the default.
+    - text: --all needs cluster-admin rights in Helm 4
+      why: The failure is an unknown flag, before any permission check.
+    - text: list cannot be combined with -n in Helm 4
+      why: -n selects the namespace for list as for any command.
+    - text: Helm 4 dropped --all; list shows every status
+      why: Helm 4 lists all releases in any status; the --all flag of Helm 3 is gone.
+  answer: [ 3 ]
+  source: https://helm.sh/docs/helm/helm_list/
