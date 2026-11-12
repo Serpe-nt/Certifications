@@ -55,7 +55,7 @@ Each function takes a range vector, such as `node_load1[1h]`, and returns an ins
 
 So `max_over_time(node_load1[1h])` answers "the highest load of each node in the last hour". The series keep their labels, except the metric name.
 
-All samples in the window count the same, even when they are not evenly spaced. `count_over_time` therefore tells you how often a series was really written. For a target that answers every scrape, that is the window divided by the scrape interval.
+All samples in the window count the same, even when they are not evenly spaced. `count_over_time` therefore tells you how often a series was written. For a target that answers every scrape, that is the window divided by the scrape interval.
 
 ## Across series or along time
 
