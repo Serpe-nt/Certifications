@@ -9,44 +9,81 @@ exam:
     domain: O1
     competency: Instrumentation
 tags: [instrumentation]
+outcome: You can choose between code-based, library and zero-code instrumentation for a service, and say what each one leaves out.
+terms:
+  - term: Code-based instrumentation
+    def: Telemetry you add to your own code with the OpenTelemetry API and SDK.
+  - term: Instrumentation library
+    def: A ready-made package that adds telemetry to a common framework or client.
+  - term: Zero-code instrumentation
+    def: An agent that adds telemetry at start-up, with no change to the code.
+  - term: API and SDK
+    def: The API is what code calls; the SDK is what records and sends the data.
+  - term: Exporter (Prometheus)
+    def: A program that reads the state of other software and serves it as Prometheus metrics.
 sources:
   - title: Instrumentation (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/instrumentation/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Zero-code (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/instrumentation/zero-code/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Code-based (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/instrumentation/code-based/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Libraries (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/instrumentation/libraries/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Prometheus overview (components)
     url: https://prometheus.io/docs/introduction/overview/
-    checked: 2026-11-10
+    checked: 2026-11-11
 ---
 
-<Why>
+<Problem>
 Nothing you have seen so far comes for free. A service sends no trace, no metric and no useful log until someone adds code or a tool that produces them. Your team owns twenty services, in five languages, and some of them you are not allowed to change. You need to know which ways of adding telemetry exist and what each costs.
-</Why>
+</Problem>
+
+There are three ways, and they differ in two things: how much work they are, and how deep they see.
 
 <Idea>
 Instrumenting means making a program send telemetry. You can write it into your code with the OpenTelemetry API and SDK, use instrumentation libraries for the frameworks you already use, or add an agent that does it with no code change. Most teams combine them.
 </Idea>
 
-<Points>
-  <Point label="Code-based: you write it">You add the OpenTelemetry API and SDK to the service and create spans and metrics yourself. It is the most work, and the only way to record your own business logic, such as the value of an order.</Point>
-  <Point label="Instrumentation libraries">Ready-made libraries add telemetry to common frameworks, such as an HTTP server or a database client, through hooks or by patching the library. Some libraries are instrumented natively: they call the OpenTelemetry API themselves.</Point>
-  <Point label="The API costs nothing until the SDK is there">A library depends only on the OpenTelemetry API. If the application does not load the SDK, those calls do nothing. So library authors can add instrumentation without forcing it on users.</Point>
-  <Point label="Zero-code: an agent does it">An agent adds the API and SDK at start-up, with bytecode changes, monkey patching or eBPF. It instruments the libraries at the edges: incoming requests, database calls, queues. It does not see your own logic. You configure it with environment variables, starting with the service name.</Point>
-  <Point label="Prometheus has the same split">Prometheus client libraries let you add metrics to your own code. For software you cannot change, such as HAProxy, an exporter reads its state and serves it as Prometheus metrics.</Point>
-  <Point label="In this lab">The shop uses all three. Payment is zero-code, loaded with `--require`. Ad runs the Java agent plus manual spans. Checkout sets up the Go SDK in code, with gRPC and Kafka instrumentation libraries.</Point>
-</Points>
+## Code-based: you write it
+
+You add the OpenTelemetry API and SDK to the service and create spans and metrics yourself. It is the most work. It is also the deepest view, and the only way to record your own business logic, such as the value of an order.
+
+## Libraries: someone else wrote it
+
+Most of what a service does goes through common frameworks: an HTTP server, a database client, a queue client. Ready-made instrumentation libraries add telemetry to them, through hooks or by patching the library. Some libraries are instrumented natively: they call the OpenTelemetry API themselves.
+
+A library can do this safely because it depends only on the OpenTelemetry API. If the application does not load the SDK, those calls do nothing. So library authors can add instrumentation without forcing it on users.
+
+## Zero-code: an agent does it at start-up
+
+An agent adds the API and SDK when the program starts, with bytecode changes, monkey patching or eBPF. It instruments the libraries at the edges: incoming requests, database calls, queues. It does not see your own logic. You configure it with environment variables, starting with the service name. This is the way for the services you are not allowed to change.
+
+<Compare caption="Three ways to instrument a service">
+  <Col title="Code-based">You change the code. Most work; the only way to see your own business logic.</Col>
+  <Col title="Libraries">You add packages for your frameworks. Requests, database and queue calls.</Col>
+  <Col title="Zero-code">No code change. An agent covers the edges, not your own logic.</Col>
+</Compare>
+
+## Prometheus has the same split
+
+Prometheus client libraries let you add metrics to your own code. For software you cannot change, such as HAProxy, an exporter reads its state and serves it as Prometheus metrics.
+
+<InLab>
+The shop uses all three. Payment is zero-code, loaded with `--require`. Ad runs the Java agent plus manual spans. Checkout sets up the Go SDK in code, with gRPC and Kafka instrumentation libraries.
+</InLab>
 
 <Trap>
 Zero-code is not "full" instrumentation. It shows requests coming in and calls going out, but not what happens in your own code between them. Start with zero-code, then add manual spans where you need more.
 </Trap>
+
+<Remember>
+Zero-code is the fastest start and sees the edges. Libraries cover your frameworks. Only code you write yourself shows your own logic.
+</Remember>
 
 <Question id="q-m02-s12" answer="b">
 An operations team must add tracing to a Java service. They cannot change or rebuild its code. What should they use?

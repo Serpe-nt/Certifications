@@ -9,47 +9,79 @@ exam:
     domain: O1
     competency: Semantic Conventions
 tags: [semantic-conventions]
+outcome: You can name the standard attributes of an HTTP span, set service.name, and tell what unknown_service in your data means.
+terms:
+  - term: Semantic conventions
+    def: OpenTelemetry's agreed names, types and meanings for common telemetry.
+  - term: Attribute
+    def: A key-value pair on a span, a metric point, a log record or a resource.
+  - term: Resource
+    def: The attributes that describe what produces the telemetry, such as the service.
+  - term: service.name
+    def: The logical name of a service, the same for every replica.
 sources:
   - title: Semantic conventions (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/semantic-conventions/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: OpenTelemetry semantic conventions 1.45.0
     url: https://opentelemetry.io/docs/specs/semconv/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Semantic conventions for HTTP spans
     url: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Service attributes (semantic conventions registry)
     url: https://opentelemetry.io/docs/specs/semconv/registry/attributes/service/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Resources (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/resources/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Libraries, semantic conventions (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/instrumentation/libraries/
-    checked: 2026-11-10
+    checked: 2026-11-11
 ---
 
-<Why>
+<Problem>
 The Java service calls the HTTP method `method`, the Go service calls it `http_verb`, and the Python service `request.type`. One dashboard for all three needs three queries, and a tool cannot know that the three names mean the same thing. Every team has invented its own words.
-</Why>
+</Problem>
+
+The fix is to agree on the words before any data is sent.
 
 <Idea>
 Semantic conventions are OpenTelemetry's shared dictionary. They fix the names, types and meaning of common attributes, and the names of common spans and metrics. When every service and library uses them, one query, one dashboard and one tool work for all.
 </Idea>
 
-<Points>
-  <Point label="What they define">Attribute names, their types, their meaning and their allowed values. They also define span names and kinds, and metric instruments with their units.</Point>
-  <Point label="Areas they cover">HTTP, databases, messaging, RPC, cloud providers, exceptions and more. There are conventions for each signal, and for resources: the attributes that describe what produces the telemetry.</Point>
-  <Point label="An HTTP example">An HTTP server span carries `http.request.method`, `http.route` and `http.response.status_code`. Its name is the method and a low-cardinality target, such as `GET /webshop/articles/:article_id`, never the full path with an ID in it.</Point>
-  <Point label="service.name matters most">`service.name` is the logical name of a service, the same for every replica. If you do not set it, SDKs use `unknown_service`, so set it, for example with the `OTEL_SERVICE_NAME` variable.</Point>
-  <Point label="Conventions have versions">The conventions change over time. Many older HTTP instrumentations still send the old names by default. `OTEL_SEMCONV_STABILITY_OPT_IN=http` switches them to the stable names, and `http/dup` sends both while you migrate.</Point>
-  <Point label="In this lab">Mimir and Loki turn `service.name` into the label `service_name`. That is the label you saw in the "Related logs" query.</Point>
-</Points>
+## A shared dictionary for telemetry
+
+The conventions define attribute names, their types, their meaning and their allowed values. They also define span names and kinds, and metric instruments with their units. They cover HTTP, databases, messaging, RPC, cloud providers, exceptions and more. There are conventions for each signal, and for resources: the attributes that describe what produces the telemetry.
+
+<Compare caption="The HTTP method, before and after the agreement">
+  <Col title="Each team's own name">`method` in Java, `http_verb` in Go, `request.type` in Python: three queries.</Col>
+  <Col title="Semantic conventions" hot>`http.request.method` in every service: one query.</Col>
+</Compare>
+
+## An HTTP span, by the book
+
+An HTTP server span carries `http.request.method`, `http.route` and `http.response.status_code`. Its name is the method and a low-cardinality target, such as `GET /webshop/articles/:article_id`, never the full path with an ID in it. A name with an ID would make a new span name for every article, the cardinality problem of step 10.
+
+## service.name comes first
+
+Of all the attributes, `service.name` matters most. It is a resource attribute, so every span, metric and log the SDK sends carries it. It is the logical name of a service, the same for every replica. If you do not set it, SDKs use `unknown_service`, so set it, for example with the `OTEL_SERVICE_NAME` variable.
+
+## Conventions have versions
+
+The conventions change over time, and some names have changed. Many older HTTP instrumentations still send the old names by default. `OTEL_SEMCONV_STABILITY_OPT_IN=http` switches them to the stable names, and `http/dup` sends both while you migrate.
+
+<InLab>
+Mimir and Loki turn `service.name` into the label `service_name`. That is the label you saw in the "Related logs" query of step 6.
+</InLab>
 
 <Trap>
 Semantic conventions are not only for traces. Metrics, logs, profiles and resources have them too. And a name that looks right is not enough: the type and the meaning of the value must match as well.
 </Trap>
+
+<Remember>
+Use the convention's name, type and meaning for every common attribute, and always set `service.name`. Then one query works for every service.
+</Remember>
 
 <Question id="q-m02-s11" answer="a">
 A service sends spans with `service.name` set to `unknown_service:java`. What does this tell you?

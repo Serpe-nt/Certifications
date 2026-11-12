@@ -12,44 +12,78 @@ exam:
     domain: O1
     competency: Telemetry Data
 tags: [logs]
+outcome: You can tell a structured log from a plain one, say what makes a log an event, and explain why Kubernetes logs and events need a store of their own.
+terms:
+  - term: Log
+    def: A timestamped record of something that happened, written by a program.
+  - term: Structured log
+    def: A log with a stable schema, the same field names and types every time.
+  - term: Event
+    def: A log for one named kind of happening, such as a pod being scheduled.
 sources:
   - title: Logs (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/signals/logs/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Event v1 (Kubernetes API reference)
     url: https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: kube-apiserver command line reference (--event-ttl)
     url: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Logging architecture (Kubernetes)
     url: https://kubernetes.io/docs/concepts/cluster-administration/logging/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Prometheus FAQ (How to feed logs into Prometheus?)
     url: https://prometheus.io/docs/introduction/faq/
-    checked: 2026-11-10
+    checked: 2026-11-11
 ---
 
-<Why>
+<Problem>
 The error rate of payment jumped at 02:14. The metric tells you how many requests failed, but not what went wrong. Somewhere a program wrote down the exact error message at that moment. You need those records, kept in one place you can search, even after the pod that wrote them is gone.
-</Why>
+</Problem>
+
+The metric pointed at a minute. The detail of that minute is in the logs.
 
 <Idea>
 A log is a timestamped record of something that happened, written by a program. An event is a log for one named kind of happening, such as "pod scheduled". Logs carry the detail that metrics leave out.
 </Idea>
 
-<Points>
-  <Point label="What a log is">A log is a timestamped text record with optional metadata. Logs are the oldest signal: almost every language and framework can write them.</Point>
-  <Point label="Structured logs are easier to use">A structured log has a stable schema: the same field names and types every time. Machines can then parse, filter and count them reliably. Plain text needs a regular expression for each format. JSON alone does not make a log structured if its fields change from line to line.</Point>
-  <Point label="Events are a kind of log">In OpenTelemetry, every event is a log, and its event name says which kind of thing happened. Not every log is an event.</Point>
-  <Point label="Kubernetes events do not last">Kubernetes reports things like a failed image pull as Event objects. The API server keeps them for one hour by default (`--event-ttl`). To keep them longer, a collector must copy them to a log store.</Point>
-  <Point label="Logs need a home outside the node">`kubectl logs` reads a container's stdout and stderr from its node. When a pod is evicted, its logs go with it. Kubernetes has no cluster-level log store of its own, so you add one.</Point>
-  <Point label="In this lab">Loki stores the logs. The shop sends its logs over OpenTelemetry, with the trace ID of the request on each line. Alloy sends pod logs and Kubernetes events. Prometheus does not take logs at all.</Point>
-</Points>
+## A record of one moment
+
+A log is a timestamped text record with optional metadata. Logs are the oldest signal: almost every language and framework can write them. Where a metric counts many requests as one number, a log line keeps the detail of one: the error message, the order ID, the name of the database that did not answer.
+
+## A stable schema makes logs searchable
+
+A log line is only useful if you can find it again among millions. A structured log has a stable schema: the same field names and types every time. Machines can then parse, filter and count those lines reliably. Plain text needs a regular expression for each format, and it breaks when the format changes.
+
+JSON alone does not make a log structured. If one line calls a field `user` and the next calls it `username`, the lines are JSON, but the schema is not stable.
+
+<Compare caption="Two ways to write the same error">
+  <Col title="Plain text">One sentence per line. Each format needs its own regular expression to pull out a field.</Col>
+  <Col title="Structured" hot>The same fields with the same names and types on every line, so a tool can filter on them.</Col>
+</Compare>
+
+## Events are logs with a name
+
+Some logs mark one known kind of happening. In OpenTelemetry, every event is a log, and its event name says which kind of thing happened. Not every log is an event.
+
+Kubernetes has events of its own. It reports things like a failed image pull as Event objects. They do not last: the API server keeps them for one hour by default (`--event-ttl`). To keep them longer, a collector must copy them to a log store.
+
+## Logs need a home outside the node
+
+`kubectl logs` reads a container's stdout and stderr from its node. When a pod is evicted, its logs go with it. Kubernetes has no cluster-level log store of its own, so you add one. Without it, the error message from 02:14 may be gone before you look for it.
+
+<InLab>
+Loki stores the logs. The shop sends its logs over OpenTelemetry, with the trace ID of the request on each line. Alloy sends pod logs and Kubernetes events. Prometheus does not take logs at all.
+</InLab>
 
 <Trap>
 Do not turn every log line into a metric, or every metric into a log line. Logs are for detail about single happenings. Metrics are for counting and trends. A log store can count lines, but it is slower and costlier than a metric for a simple rate.
 </Trap>
+
+<Remember>
+Logs keep the detail of one moment. Keep them structured, and keep them in a store that outlives the pod and the one-hour life of a Kubernetes event.
+</Remember>
 
 <Question id="q-m02-s03" answer="b">
 A pod could not pull its image two hours ago. Now `kubectl get events` shows nothing about it. What is the most likely reason?
