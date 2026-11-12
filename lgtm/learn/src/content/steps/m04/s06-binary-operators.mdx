@@ -1,0 +1,138 @@
+---
+id: m04-s06
+title: Binary operators and vector matching
+kind: lab
+minutes: 25
+order: 6
+exam:
+  - cert: pca
+    domain: P3
+    competency: Binary operators
+tags: [promql-binary-ops]
+check:
+  kind: exact
+  prompt: In the result of action 5, which nodename does the series of instance 10.10.0.31:9100 carry?
+  answers: ["worker2"]
+outcome: You can combine two vectors with arithmetic, comparison and set operators, control which series pair up with on and ignoring, and copy a label from one side with group_left.
+terms:
+  - term: Binary operator
+    def: An operator with two operands, such as /, > or and.
+  - term: Vector matching
+    def: The pairing of series from the left and the right side of a binary operator by their labels.
+  - term: on / ignoring
+    def: Keywords that match only on the listed labels, or on all labels except the listed ones.
+  - term: group_left
+    def: Allows many series on the left to match one series on the right, and can copy labels from the right.
+  - term: bool
+    def: A modifier that makes a comparison return 0 or 1 instead of filtering.
+  - term: Info metric
+    def: A series with the value 1 whose labels carry facts about a target, such as node_uname_info.
+sources:
+  - title: Operators, binary operators and vector matching (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/operators/
+    checked: 2026-11-12
+  - title: Query examples (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/examples/
+    checked: 2026-11-12
+---
+
+<Problem>
+A node exporter target is called `10.10.0.31:9100`. When its load is high at night, the person on call has to look up which machine that is. The machine's name is in another series, `node_uname_info`, in its label `nodename`. You want the load and the name in one result, so the alert can say "worker2".
+</Problem>
+
+<Idea>
+A binary operator between two vectors pairs each series on the left with the series on the right that has the same labels, then computes the result for each pair. `on` and `ignoring` change which labels must agree, and `group_left` or `group_right` allow one series on one side to pair with many on the other.
+</Idea>
+
+## Arithmetic and comparison
+
+The arithmetic operators are `+`, `-`, `*`, `/`, `%` and `^`. Between a vector and a number, the number is applied to every sample: `node_memory_MemAvailable_bytes / 1024 / 1024` gives MiB. Between two vectors, each series on the left is paired with the one on the right that has exactly the same labels, apart from the metric name:
+
+<Query lang="promql">{`1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes`}</Query>
+
+Both metrics come from the same node exporter with the same labels, so each node's two series pair up and you get the share of memory in use per node. The result has no metric name: Prometheus drops it in every arithmetic operation, because the value is no longer what the name describes.
+
+The comparison operators `==`, `!=`, `>`, `<`, `>=` and `<=` filter by default. `node_load1 > 0.5` returns only the nodes whose load is above 0.5, with their values unchanged. Add `bool` and they stop filtering: `node_load1 > bool 0.5` returns every node, with 1 where the comparison is true and 0 where it is false.
+
+## Matching on fewer labels: on and ignoring
+
+When the two sides do not have the same labels, nothing pairs up and the result is empty. There is no error. You then tell Prometheus which labels to compare:
+
+- `on (instance)` compares only `instance`.
+- `ignoring (code)` compares every label except `code`.
+
+`node_load1 / on (instance) node_uname_info` divides the load by 1 for each node, because the two series agree on `instance` even though their other labels differ.
+
+## One to many: group_left and group_right
+
+By default every series may find at most one partner. When several series on the left share one series on the right, you say so with `group_left`, which means "the left side has more series". `group_right` is the mirror image. In the brackets after `group_left` you can list labels to copy from the right side into the result.
+
+That is the answer to the scene. Each node has one `node_uname_info` series with the value 1 and the label `nodename`. Multiplying by it keeps the load and adds the name:
+
+<Query lang="promql">{`node_load1 * on (instance) group_left (nodename) node_uname_info`}</Query>
+
+A series with the value 1 whose labels hold facts about a target is called an info metric. Joining one in this way is the most common use of `group_left` you will meet.
+
+<Flow caption="How group_left adds a label">
+  <Stage title="node_load1" kicker="Left">One series per instance, the load as its value.</Stage>
+  <Stage title="on (instance)" kicker="Match">Pairs each load with the info series of the same instance.</Stage>
+  <Stage title="group_left (nodename)" kicker="Result">The load, times 1, with nodename copied from the right.</Stage>
+</Flow>
+
+## Set operators: and, or, unless
+
+`and`, `or` and `unless` work on whole series and ignore values. `a and b` keeps the series of `a` that have a partner in `b`, `a or b` adds the series of `b` that `a` lacks, and `a unless b` keeps the series of `a` that have no partner in `b`. They take `on` and `ignoring` too. In the lab, `kube_node_role` exists only for the three control-plane nodes, so this returns the kubelets of the four workers:
+
+<Query lang="promql">{`up{job="kubelet", metrics_path="/metrics"} unless on (node) kube_node_role`}</Query>
+
+When operators meet, `^` binds the strongest, then `*`, `/` and `%`, then `+` and `-`, then the comparisons, then `and` and `unless`, and `or` binds the weakest.
+
+<InLab>
+The lab's node exporters expose `node_uname_info`, with `nodename` set to the VM's host name, master1 to master3 and worker1 to worker4. kube-state-metrics exposes `kube_node_info` and `kube_node_role`, labelled by `node`.
+</InLab>
+
+<Trap>
+A binary operation between vectors that returns nothing is usually a matching problem, not missing data. Compare the labels of both sides and add `on` or `ignoring`.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. Compute the share of memory in use per node: <Query lang="promql">{`1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes`}</Query> Seven rows, and none has a metric name.
+2. Filter with a comparison: `node_load1 > 0.5`. Then add `bool`: `node_load1 > bool 0.5`. The second returns all seven nodes, with 0 or 1.
+3. Divide the load by the number of CPUs. Both sides come from the node exporter and have the same labels: <Query lang="promql">{`node_load1 / instance:node_num_cpu:sum`}</Query>
+4. Try to add the node name without `group_left`: <Query lang="promql">{`node_load1 / on (instance) node_uname_info`}</Query> It works, but the result keeps only the label `instance`.
+5. Now copy the name across with `group_left`: <Query lang="promql">{`node_load1 * on (instance) group_left (nodename) node_uname_info`}</Query> Every row keeps its labels and gains `nodename`.
+6. Find the worker kubelets with a set operator: <Query lang="promql">{`up{job="kubelet", metrics_path="/metrics"} unless on (node) kube_node_role`}</Query> Four rows, worker1 to worker4.
+7. Paste the nodename of instance 10.10.0.31:9100 from action 5 in the check below.
+</Do>
+
+<Done>
+You divided and compared vectors, joined the node name onto the load with `group_left`, and kept only the workers with `unless`.
+</Done>
+
+<Trap practice>
+If action 5 fails with "found duplicate series for the match group", the label in `on (...)` is not unique on the right side. With `on (job)`, all seven info series share one job. Check that you wrote `on (instance)`.
+</Trap>
+
+<Remember>
+Vectors pair up by identical labels. `on` and `ignoring` choose the labels to compare, and `group_left (label)` lets many series on the left share one on the right and copies `label` from it.
+</Remember>
+
+<Question id="q-m04-s06" answer="a">
+`disk_used_bytes` has the labels `instance` and `device`. `disk_size_bytes` has the same labels. What does `disk_used_bytes / disk_size_bytes` return?
+
+- One series per instance and device, with the share in use and no metric name
+
+  The label sets agree pair by pair, so every series finds one partner. Arithmetic drops the metric name.
+
+- Nothing, because the two metric names differ
+
+  The metric name is not compared when vectors are matched. The other labels agree, so the series pair up.
+
+- An error asking for group_left
+
+  group_left is needed only when one series must pair with several. Here each pair is one to one.
+
+- One series per instance, because device is dropped
+
+  Nothing tells Prometheus to drop device. Both sides keep it, and it stays in the result.
+</Question>
