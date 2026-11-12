@@ -1,0 +1,95 @@
+---
+id: m01-s12
+title: Repositories and OCI registries; pinning a chart version
+kind: concept
+minutes: 12
+order: 12
+exam:
+  - cert: none
+tags: [helm-repositories]
+outcome: You can install a chart from a classic repository or an OCI registry, pin it to an exact version or digest, and explain why a range is risky.
+terms:
+  - term: index.yaml
+    def: The file a classic chart repository serves; it lists every chart, version and download address.
+  - term: OCI registry
+    def: A registry of the kind that stores container images, which can also store Helm charts.
+  - term: Digest
+    def: A sha256 hash of a chart package; installing by digest gets exactly those bytes.
+  - term: Version range
+    def: A constraint such as ^6.0.0 or ~6.16.0 that matches several versions.
+sources:
+  - title: The chart repository guide
+    url: https://helm.sh/docs/topics/chart_repository/
+    checked: 2026-11-12
+  - title: Use OCI-based registries
+    url: https://helm.sh/docs/topics/registries/
+    checked: 2026-11-12
+  - title: Using Helm, helm search and helm repo
+    url: https://helm.sh/docs/intro/using_helm/
+    checked: 2026-11-12
+  - title: Helm 4 overview, enhanced OCI support
+    url: https://helm.sh/docs/overview/
+    checked: 2026-11-12
+  - title: helm install, chart references
+    url: https://helm.sh/docs/helm/helm_install/
+    checked: 2026-11-12
+---
+
+<Problem>
+Your staging install from last week worked. Today the same pipeline installs into production and breaks, because the chart's maintainers published a new version overnight and your command took the newest one. Nobody changed a line of your code.
+</Problem>
+
+<Idea>
+Charts come from two kinds of places: classic repositories, which are web servers with an `index.yaml`, and OCI registries, which are image registries that also store charts. From either, you pin the exact chart version with `--version`. From an OCI registry you can also pin the digest, so not even a re-published version can change what you install.
+</Idea>
+
+## Classic repositories
+
+A classic repository is any web server that serves an `index.yaml` and, usually, the chart archives. `helm repo add <name> <url>` stores the name and address on your machine, and `helm repo update` downloads the indexes again. `helm search repo` searches those downloaded indexes, so it needs no network, but it is only as fresh as your last update. `helm search hub` searches Artifact Hub, a public catalogue of charts from many repositories.
+
+## OCI registries
+
+A registry such as GHCR, Docker Hub or Quay can store charts next to images. There is no `helm repo add` step: you name the chart with an `oci://` address, which works with `pull`, `show`, `template`, `install` and `upgrade`. `helm push` uploads a packaged chart, and `helm registry login` signs in; in Helm 4 the login takes only the host name, not a full URL.
+
+<Compare caption="Two kinds of chart sources">
+  <Col title="Classic repository">helm repo add, then repo/chart. An index.yaml lists the versions.</Col>
+  <Col title="OCI registry" hot>No repo add: oci://host/path/chart. Versions are tags, and each has a digest.</Col>
+</Compare>
+
+## Pinning
+
+`--version 6.17.0` installs exactly that version. Without `--version`, Helm takes the newest stable one. A range such as `^6.0.0` matches the newest 6.x, and `~6.16.0` the newest 6.16.x: on this lab's repository index, `^6.0.0` picked 6.17.0. A range is useful for searching and wrong for a repeatable install.
+
+A version number is a name that points at a package. Helm 4 adds installs by digest: `oci://ghcr.io/stefanprodan/charts/podinfo@sha256:...` installs only a package with that exact hash, and refuses any other.
+
+<InLab>
+`lgtm/lab/helm/platform/versions.yml` pins every platform chart. Most come from classic repositories (`repo:`), and two from OCI registries (`ref:`): Envoy Gateway from `oci://docker.io/envoyproxy/gateway-helm` and Strimzi from `oci://quay.io/strimzi-helm/strimzi-kafka-operator`.
+</InLab>
+
+<Trap>
+Pinning the chart does not pin the images. A chart can point at a tag such as `latest` or let you leave the tag empty. Check the image tags in the rendered output too.
+</Trap>
+
+<Remember>
+Classic repositories need `repo add`; OCI charts use `oci://` addresses. Pin `--version` always, and a digest when you need exact bytes.
+</Remember>
+
+<Question id="q-m01-s12" answer="b">
+A pipeline runs `helm upgrade --install web myrepo/web` without `--version`. What does it install?
+
+- The version recorded in the release's last revision
+
+  Helm does not reuse the old chart version on upgrade unless you pass it.
+
+- The newest version in the repository index it has
+
+  Without --version, upgrade takes the latest version the index lists.
+
+- The oldest version, to keep the upgrade small
+
+  Helm never picks the oldest version on its own.
+
+- Nothing, because --version is required on upgrade
+
+  --version is optional; leaving it out is what makes the command unpredictable.
+</Question>
