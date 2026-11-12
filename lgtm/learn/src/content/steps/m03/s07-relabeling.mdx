@@ -1,0 +1,124 @@
+---
+id: m03-s07
+title: Relabeling targets and metrics
+kind: concept
+minutes: 18
+order: 7
+exam:
+  - cert: pca
+    domain: P2
+    competency: Configuration and Scraping
+tags: [prom-relabeling]
+outcome: You can read a relabel rule, say what it does to a target or a series, and choose between relabel_configs and metric_relabel_configs.
+terms:
+  - term: Relabeling
+    def: Rules that rewrite, keep or drop a label set, one rule after the other.
+  - term: relabel_configs
+    def: Rules applied to each discovered target before it is scraped.
+  - term: metric_relabel_configs
+    def: Rules applied to each scraped sample just before it is stored.
+  - term: __address__
+    def: The internal label holding the host and port Prometheus will scrape.
+  - term: __tmp prefix
+    def: A label name prefix for values a rule needs only for a moment; Prometheus never uses it itself.
+sources:
+  - title: Configuration, relabel_config and metric_relabel_configs (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+    checked: 2026-11-12
+  - title: Jobs and instances (Prometheus)
+    url: https://prometheus.io/docs/concepts/jobs_instances/
+    checked: 2026-11-12
+---
+
+<Problem>
+In the lab, discovery for the node exporter job finds 26 addresses and ports in the namespace `prom`, and only 7 of them are node exporters. The ones you want also need readable labels: the pod name, the namespace, the service. Discovery gave you all of that, but under names like `__meta_kubernetes_pod_name` that disappear before anything is stored.
+</Problem>
+
+<Idea>
+Relabeling is a list of rules that rewrite a label set, applied one after the other. `relabel_configs` work on targets before the scrape: they keep or drop targets and turn meta labels into real ones. `metric_relabel_configs` work on the scraped samples just before they are stored.
+</Idea>
+
+## How one rule works
+
+A rule reads the values of its `source_labels`, joins them with the `separator` (a semicolon by default), and matches the result against `regex`. Then its `action` decides what happens. The regex must match the whole string, because Prometheus anchors it at both ends: `regex: http` matches `http` and nothing longer. When a rule leaves out `regex`, it is `(.*)`; when it leaves out `action`, it is `replace`.
+
+The actions you will meet most:
+
+- `keep`: drop the target unless the regex matches.
+- `drop`: drop the target if the regex matches.
+- `replace`: write `replacement` into `target_label`, using groups from the regex such as `${1}`. If the regex does not match, nothing changes.
+- `labelmap`: copy every label whose name matches the regex to a new name built from `replacement`.
+- `labeldrop` and `labelkeep`: remove labels by name, or keep only some.
+- `hashmod`: write a hash of the source values, modulo a number, into a label. It is used to split targets between servers.
+
+## Target relabeling, step by step
+
+Before the rules run, a target has its discovered labels: the `__meta_` labels, `job`, and a few internal ones. `__address__` holds the `host:port` to scrape, `__scheme__` and `__metrics_path__` the rest of the URL, and `__param_<name>` the URL parameters. Rules may change any of them, and so change where and how Prometheus scrapes.
+
+When the last rule is done, three things happen. If no rule set `instance`, it gets the value of `__address__`. Then every label that starts with two underscores is removed. What is left is the label set of every series this target will produce. A rule that needs a value only for a moment can store it under a name starting with `__tmp`, which Prometheus promises never to use itself.
+
+This is part of a real job from the lab, trimmed:
+
+```yaml
+relabel_configs:
+  - source_labels: [__meta_kubernetes_service_label_app_kubernetes_io_name,
+                    __meta_kubernetes_service_labelpresent_app_kubernetes_io_name]
+    regex: (prometheus-node-exporter);true
+    action: keep
+  - source_labels: [__meta_kubernetes_endpoint_port_name]
+    regex: http-metrics
+    action: keep
+  - source_labels: [__meta_kubernetes_namespace]
+    target_label: namespace
+  - source_labels: [__meta_kubernetes_pod_name]
+    target_label: pod
+  - source_labels: [__meta_kubernetes_service_name]
+    target_label: job
+```
+
+The first rule keeps only targets whose Service has the label `app.kubernetes.io/name=prometheus-node-exporter`. The second keeps only the port named `http-metrics`. The next three copy the namespace, the pod and the Service's name into real labels; the last one replaces the `job` label, so the series get `job="kube-prometheus-stack-prometheus-node-exporter"` before a later rule in the same job sets it to `node-exporter`.
+
+<Flow caption="Where each kind of relabeling runs">
+  <Stage title="Discovery" kicker="Targets">Labels with __meta_, __address__, job.</Stage>
+  <Stage title="relabel_configs" kicker="Before scrape">Keep, drop, rename targets.</Stage>
+  <Stage title="Scrape" kicker="Samples">Series from the target's page.</Stage>
+  <Stage title="metric_relabel_configs" kicker="Before storage">Drop or change series.</Stage>
+</Flow>
+
+## Metric relabeling after the scrape
+
+`metric_relabel_configs` use the same fields and actions, but they run on every scraped sample, as the last step before it is stored. Use them to drop series that are too expensive to keep, or to fix a label a target gets wrong. They do not touch the series Prometheus makes itself, such as `up`.
+
+Prometheus has a third and a fourth place for the same kind of rule. `alert_relabel_configs` change alerts before they go to Alertmanager. `write_relabel_configs` choose what remote write sends (step 13).
+
+<InLab>
+On <LabLink to="prometheus" path="/service-discovery">the service discovery page</LabLink>, open the node exporter job and compare one target's discovered labels with its target labels. The `__meta_kubernetes_pod_name` value reappears as `pod`, and the job reads `node-exporter`.
+</InLab>
+
+<Trap>
+A `keep` rule with `regex: http` does not keep a port named `http-metrics`. The regex is anchored at both ends. Write `http.*` if you mean "starts with http".
+</Trap>
+
+<Remember>
+`relabel_configs` choose and shape targets before the scrape, using meta labels that vanish afterwards. `metric_relabel_configs` drop or change series after the scrape, just before storage.
+</Remember>
+
+<Question id="q-m03-s07" answer="c">
+A target's discovered labels include `__meta_kubernetes_pod_label_team="payments"`. You want every series from that pod to carry `team="payments"`. Which rule does that?
+
+- `metric_relabel_configs` with `action: labeldrop` and `regex: __meta_.*`
+
+  labeldrop removes labels. It does not create a team label, and meta labels are already gone after the scrape.
+
+- `relabel_configs` with `action: keep` and `source_labels: [__meta_kubernetes_pod_label_team]`
+
+  keep decides whether the target is scraped. It does not add any label.
+
+- `relabel_configs` with `source_labels: [__meta_kubernetes_pod_label_team]` and `target_label: team`
+
+  The default action, replace, copies the meta label's value into team before the meta labels are removed.
+
+- `static_configs` with `labels: {team: payments}` in the same job
+
+  Static labels apply to targets listed by hand, not to discovered pods, and would not follow the pod's real label.
+</Question>
