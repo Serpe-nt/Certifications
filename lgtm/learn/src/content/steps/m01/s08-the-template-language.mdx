@@ -77,7 +77,7 @@ Labels, names and selectors repeat in every object of a chart. A chart defines t
 and uses them with `include`, passing the scope as the last argument: `{{ include "greeter.fullname" . }}`. `include` returns text, so it can feed a pipeline: `{{- include "greeter.labels" . | nindent 4 }}` indents a block of labels under `labels:`. The older `template` action does the same insert but cannot be piped, which is why Helm's guide prefers `include`. Names are global across a chart and its sub-charts, so they start with the chart's name.
 
 <InLab>
-`helm template m01-podinfo podinfo/podinfo` from step 5 shows the Service's labels, such as `helm.sh/chart: podinfo-6.16.0`, all built by one named template in podinfo's `_helpers.tpl`.
+Rendering podinfo's Service with `helm template m01-podinfo podinfo/podinfo --version 6.16.0 --show-only templates/service.yaml` shows labels such as `helm.sh/chart: podinfo-6.16.0`, all built by one named template in podinfo's `_helpers.tpl`.
 </InLab>
 
 <Trap>

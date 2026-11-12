@@ -49,7 +49,9 @@ A classic repository is any web server that serves an `index.yaml` and, usually,
 
 ## OCI registries
 
-An OCI registry can store charts next to images; this module pulls podinfo's chart from GHCR, and the lab takes Strimzi's from Quay. There is no `helm repo add` step: you name the chart with an `oci://` address, which works with `pull`, `show`, `template`, `install` and `upgrade`. `helm push` uploads a packaged chart, and `helm registry login` signs in; in Helm 4 the login takes only the host name, not a full URL.
+An OCI registry can store charts next to images. The podinfo chart, which this module installs from its classic repository, is also published as an OCI artifact on GHCR, and the lab takes Strimzi's chart from Quay. There is no `helm repo add` step: you name the chart with an `oci://` address, which works with `pull`, `show`, `template`, `install` and `upgrade`. `helm push` uploads a packaged chart, and `helm registry login` signs in; in Helm 4 the login takes only the host name, not a full URL. To read podinfo's chart from GHCR with no `repo add`:
+
+<Cmd>{`helm show chart oci://ghcr.io/stefanprodan/charts/podinfo --version 6.17.0`}</Cmd>
 
 <Compare caption="Two kinds of chart sources">
   <Col title="Classic repository">helm repo add, then repo/chart. An index.yaml lists the versions.</Col>
@@ -81,9 +83,9 @@ A pipeline runs `helm upgrade --install web myrepo/web` without `--version`. Wha
 
   Helm does not reuse the old chart version on upgrade unless you pass it.
 
-- The newest version in the repository index it has
+- The newest stable version in the repository index it has
 
-  Without --version, upgrade takes the latest version the index lists.
+  Without --version Helm takes the latest stable version; pre-releases need --devel.
 
 - The oldest version, to keep the upgrade small
 

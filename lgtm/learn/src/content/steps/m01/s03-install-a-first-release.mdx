@@ -60,7 +60,7 @@ Helm renders the templates, sends the objects to the API server, and records the
 For each revision Helm writes a Secret into the release's namespace, named `sh.helm.release.v1.<release>.v<revision>` with the label `owner=helm`. That Secret is the release: delete it and Helm no longer knows the objects belong together.
 
 <InLab>
-This module works in the namespace `learn-m01` and names its releases with the prefix `m01-`. Nothing else in the lab is touched, and the last step of the module deletes the namespace.
+This module works in the namespace `learn-m01` and names its releases with the prefix `m01-`. Nothing else in the lab is touched, and step 20 tells you how to delete the namespace when you are done.
 </InLab>
 
 <Trap>

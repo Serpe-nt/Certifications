@@ -36,6 +36,9 @@ sources:
   - title: About Grafana
     url: https://grafana.com/docs/grafana/latest/introduction/
     checked: 2026-11-12
+  - title: Grafana Tempo documentation
+    url: https://grafana.com/docs/tempo/latest/
+    checked: 2026-11-12
   - title: Prometheus overview
     url: https://prometheus.io/docs/introduction/overview/
     checked: 2026-11-12
@@ -53,7 +56,7 @@ The products split into three jobs. Some send or collect telemetry, some store i
 
 ## Collecting: OpenTelemetry and Alloy
 
-OpenTelemetry is an open standard and a set of tools for producing telemetry: traces, metrics and logs. Code and libraries use its SDKs to create telemetry, and they send it in its protocol, OTLP. OpenTelemetry does not store anything. It is not a backend.
+OpenTelemetry is an observability framework and toolkit for producing, exporting and collecting telemetry: traces, metrics and logs. It has a specification and a standard protocol, OTLP. Code and libraries use its SDKs to create telemetry and send it in OTLP. OpenTelemetry does not store anything. It is not a backend.
 
 The OpenTelemetry Collector receives telemetry, processes it and exports it to one or more backends. It works with any vendor's backend. Grafana Alloy is Grafana's distribution of the Collector. It adds Prometheus pipelines and native support for Loki, so one Alloy can collect metrics, logs, traces and profiles.
 
@@ -61,7 +64,7 @@ The OpenTelemetry Collector receives telemetry, processes it and exports it to o
 
 Each signal has its own store, because each is shaped differently and is queried differently.
 
-- Mimir stores metrics for the long term. It speaks the Prometheus protocols, so you query it with PromQL, and it spreads its work over many machines.
+- Mimir stores metrics for the long term. It accepts Prometheus and OpenTelemetry metrics, you query it with PromQL, and it spreads its work over many machines.
 - Loki stores logs. It indexes only a small set of labels per log stream, not the text of each line, which keeps it cheap. You query it with LogQL.
 - Tempo stores traces: the path of one request through many services, made of spans.
 

@@ -61,7 +61,7 @@ Helm calls itself the package manager for Kubernetes. A chart holds templates of
 Helm keeps the record of each release version inside the cluster, as a Secret in the release's namespace. So the history does not depend on one person's laptop: anyone with access to the namespace sees the same releases. The record holds the chart and the values, so it can contain passwords, and access to Secrets must be controlled.
 
 <InLab>
-The whole lab is a set of Helm releases. Module m01 ends with you installing them, and `helm list -A` then shows every one of them.
+The whole lab is a set of Helm releases. Steps 16 and 17 of this module install them, and `helm list -A` then shows every one of them.
 </InLab>
 
 <Trap>

@@ -64,7 +64,7 @@ A dot goes one level down: `--set ui.message=hi` is `ui:` with `message: hi` und
 `helm get values <release>` prints the user-supplied values of a release: only what you passed with `-f` and `--set`, not the defaults. Add `--all` to see the computed values, the full merged tree the templates saw. When a release behaves oddly, this is the first thing to read.
 
 <InLab>
-The lab never uses `--set`. The playbook merges `values.yaml` of a release folder with `values-kind.yaml` for the kind test profile, and a few values it computes, into one set of values. Step 15 shows how.
+The lab's playbooks never use `--set`. The one behind `make lab` merges `values.yaml` of a release folder with `values-kind.yaml` for the kind test profile, and a few values it computes, into one set of values. Step 15 shows how.
 </InLab>
 
 <Trap>

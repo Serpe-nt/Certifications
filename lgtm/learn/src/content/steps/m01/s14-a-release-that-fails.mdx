@@ -64,7 +64,7 @@ In each case `helm status <release>` shows `STATUS: failed` and a `DESCRIPTION` 
 
 ## Stuck in pending
 
-While an operation runs, its revision has a pending status such as `pending-upgrade`, and Helm refuses a second operation on the release. If Helm's process dies without cleaning up, the status stays pending: on this lab, a `kill -9` during an upgrade left `pending-upgrade`, and the next upgrade failed with `another operation (install/upgrade/rollback) is in progress`. A rollback to a good revision cleared it. Ctrl+C is different: Helm 4 cancels cleanly, prints `Release ... has been cancelled`, and marks the revision `failed`.
+While an operation runs, its revision has a pending status such as `pending-upgrade`, and Helm refuses a second operation on the release. If Helm's process dies without cleaning up, the status stays pending: on this lab, a `kill -9` during an upgrade left `pending-upgrade`, and the next upgrade failed with `another operation (install/upgrade/rollback) is in progress`. A rollback to a good revision cleared it. Ctrl+C during an upgrade is different: Helm 4 cancels the upgrade cleanly, prints `Release ... has been cancelled`, and marks the revision `failed`.
 
 <Flow caption="Recovering a release">
   <Stage title="helm status" kicker="Read">Status and the error in DESCRIPTION.</Stage>

@@ -58,7 +58,7 @@ The safe habit is to pass the full values file on every upgrade, so the command 
 
 ## History and rollback
 
-`helm history <release>` lists every revision Helm still keeps, with its chart, app version, status and a description. Helm 4.3.1 on the lab wrote `Install complete`, `Upgrade complete` and `Rollback to 2`; the example on the helm history page still shows older wording. Exactly one revision is `deployed`; the replaced ones are `superseded`. Helm keeps 10 revisions per release by default (`--history-max`). `helm rollback <release> <revision>` restores that revision's chart and values as a new revision.
+`helm history <release>` lists the revisions Helm still keeps, at most 256 unless you change `--max`, with its chart, app version, status and a description. Helm 4.3.1 on the lab wrote `Install complete`, `Upgrade complete` and `Rollback to 2`; the example on the helm history page still shows older wording. Exactly one revision is `deployed`; the replaced ones are `superseded`. Helm keeps 10 revisions per release by default (`--history-max`). `helm rollback <release> <revision>` restores that revision's chart and values as a new revision.
 
 <Timeline caption="This step's revisions of m01-podinfo">
   <Event at="1" title="install 6.16.0">From step 3.</Event>
