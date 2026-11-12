@@ -108,9 +108,11 @@ function decode(el: HTMLElement, ms = 520): void {
   if (!final.trim()) return;
   el.dataset.decodeText = final;
   el.setAttribute('data-decoding', '');
-  const t0 = performance.now();
+  // Timed from the animation frames alone, so a frozen or faked clock cannot keep it scrambling.
+  let t0 = -1;
   const frame = (now: number) => {
-    const p = Math.min(1, (now - t0) / ms);
+    if (t0 < 0) t0 = now;
+    const p = Math.max(0, Math.min(1, (now - t0) / ms));
     const n = Math.floor(final.length * p);
     let out = final.slice(0, n);
     for (const c of final.slice(n)) out += c === ' ' ? ' ' : GLYPHS[Math.floor(Math.random() * GLYPHS.length)];

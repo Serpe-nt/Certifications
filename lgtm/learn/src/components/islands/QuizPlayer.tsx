@@ -47,9 +47,12 @@ export function Count({ to, pad = 0, ms = 900 }: { to: number; pad?: number; ms?
       return;
     }
     let raf = 0;
-    const t0 = performance.now();
+    // Timed from the animation frames alone: a page whose clock is frozen or faked (performance.now)
+    // must not leave the counter running forever.
+    let t0 = -1;
     const tick = (t: number) => {
-      const k = Math.min(1, (t - t0) / ms);
+      if (t0 < 0) t0 = t;
+      const k = Math.max(0, Math.min(1, (t - t0) / ms));
       setN(Math.round(to * (1 - (1 - k) ** 3)));
       if (k < 1) raf = requestAnimationFrame(tick);
     };
