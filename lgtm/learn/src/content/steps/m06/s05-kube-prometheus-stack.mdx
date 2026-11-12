@@ -1,0 +1,115 @@
+---
+id: m06-s05
+title: "kube-prometheus-stack: every piece one release installs"
+kind: lab
+minutes: 20
+order: 5
+exam:
+  - cert: pca
+    domain: P2
+    competency: Configuration and Scraping
+tags: [k8s-prometheus-stack, prom-operator]
+check:
+  kind: exact
+  prompt: Paste the number of ServiceMonitors that the release created in the namespace prom.
+  answers: ["8"]
+outcome: You can list what kube-prometheus-stack installs, tell what Helm created from what the operator created, and say which scrape jobs a kubeadm cluster needs switched off or opened.
+terms:
+  - term: kube-prometheus
+    def: The project that collects manifests, dashboards and rules for monitoring a whole cluster with the Prometheus Operator.
+  - term: Subchart
+    def: A chart that another chart installs as a dependency, such as kube-state-metrics inside kube-prometheus-stack.
+  - term: CRD
+    def: CustomResourceDefinition, the object that adds a new kind such as ServiceMonitor to the Kubernetes API.
+sources:
+  - title: kube-prometheus-stack README (GitHub)
+    url: https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/README.md
+    checked: 2026-11-12
+  - title: kube-prometheus-stack values, 93.1.1 (GitHub)
+    url: https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.1.1/charts/kube-prometheus-stack/values.yaml
+    checked: 2026-11-12
+  - title: Custom resource definitions (Helm best practices)
+    url: https://helm.sh/docs/chart_best_practices/custom_resource_definitions/
+    checked: 2026-11-12
+  - title: kube-prometheus README (GitHub)
+    url: https://github.com/prometheus-operator/kube-prometheus
+    checked: 2026-11-12
+---
+
+<Problem>
+A new job, first week. "We run kube-prometheus-stack" is all the handover says. One `helm list` line hides an operator, two StatefulSets, a DaemonSet, ten CRDs and dozens of rule objects. When a page fires at night, you need to know which of them makes which number, and which you can change.
+</Problem>
+
+The chart is one release, but it is many components, and not all of them are Helm's.
+
+<Idea>
+kube-prometheus-stack installs the Prometheus Operator, a Prometheus and an Alertmanager described as custom resources, kube-state-metrics and node exporter as subcharts, one ServiceMonitor per thing to scrape, and the rules and dashboards of the kube-prometheus project. Helm creates the objects in the chart; the operator then creates the running Prometheus and Alertmanager from them.
+</Idea>
+
+## Where the chart comes from
+
+The kube-prometheus project collects manifests, Grafana dashboards and Prometheus rules for monitoring a whole cluster with the Prometheus Operator. The kube-prometheus-stack chart installs its core as one Helm release. It was once called the `prometheus-operator` chart; it was renamed because the operator is only one part of what it installs. It leaves out two parts of kube-prometheus: the Prometheus Adapter, which serves the Metrics API from Prometheus, and the blackbox exporter.
+
+## Three layers of objects
+
+<Layers caption="What one kube-prometheus-stack release puts in the cluster">
+  <Layer title="CRDs">ServiceMonitor, PodMonitor, PrometheusRule, Prometheus, Alertmanager and the other kinds the operator reads.</Layer>
+  <Layer title="Helm's objects">The operator Deployment, the Prometheus and Alertmanager resources, ServiceMonitors, PrometheusRules, dashboard ConfigMaps, the two subcharts.</Layer>
+  <Layer title="The operator's objects" hot>The StatefulSets that run Prometheus and Alertmanager, and the generated scrape configuration.</Layer>
+</Layers>
+
+The CRDs come with the chart, but Helm has no support for upgrading or deleting CRDs, and `helm uninstall` leaves them behind. The chart's README says to update them by hand, and a change to them means a new major chart version. The StatefulSets do not appear in `helm get manifest` at all: the operator creates them from the `Prometheus` and `Alertmanager` resources.
+
+## The scrape jobs it sets up
+
+The chart writes one ServiceMonitor per source: the API server, the kubelet, CoreDNS, kube-state-metrics, node exporter, and Prometheus, Alertmanager and the operator themselves. It also has ServiceMonitors for the controller manager, the scheduler, etcd and kube-proxy, each behind an `enabled` switch. On a kubeadm cluster these four listen only on the node's own loopback address, so their targets would be down; step 10 looks at them.
+
+<InLab>
+The lab's release `kube-prometheus-stack` in `prom` (chart 93.1.1, operator v0.95.1) has `kubeControllerManager`, `kubeScheduler`, `kubeEtcd` and `kubeProxy` set to `enabled: false`, and its own Grafana off: the dashboards go to the lab's Grafana as ConfigMaps.
+</InLab>
+
+<Trap>
+Do not fix a scrape problem by editing the generated configuration Secret or the StatefulSet. The operator writes them back. Change the ServiceMonitor, the `Prometheus` resource, or the chart's values.
+</Trap>
+
+<Do>
+1. In WSL, list the kinds of object in the release's manifest and how many of each: <Cmd>{`helm -n prom get manifest kube-prometheus-stack | grep '^kind:' | sort | uniq -c`}</Cmd> You see one `Prometheus`, one `Alertmanager`, 30 `PrometheusRule`, 25 `ConfigMap` and one `DaemonSet`, but no `StatefulSet` and no `CustomResourceDefinition`.
+2. Find the StatefulSets the operator made: <Cmd>kubectl -n prom get statefulsets</Cmd> `prometheus-prom-prometheus` and `alertmanager-prom-alertmanager`.
+3. List the CRDs the operator reads: <Cmd>kubectl get crd | grep monitoring.coreos.com</Cmd> There are ten.
+4. List the pods in `prom` and match each to a component: <Cmd>kubectl -n prom get pods</Cmd> One operator, one kube-state-metrics, seven node exporters, one Prometheus and one Alertmanager.
+5. List the scrape sources the release set up: <Cmd>kubectl -n prom get servicemonitors</Cmd>
+6. See which switches the lab turned off: <Cmd>{`helm -n prom get values kube-prometheus-stack | grep -A1 -E 'kubeEtcd|kubeScheduler|kubeControllerManager|kubeProxy'`}</Cmd>
+7. Paste the number of ServiceMonitors from action 5 in the check below.
+</Do>
+
+<Done>
+You can point at each pod and object in `prom` and say whether Helm or the operator made it.
+</Done>
+
+<Trap practice>
+`helm get manifest` needs the release name and namespace: `kube-prometheus-stack` in `prom`. The objects themselves are named with the short prefix `prom-`, which comes from `fullnameOverride` in the lab's values, so `helm -n prom get manifest prom` answers `Error: release: not found`.
+</Trap>
+
+<Remember>
+One release, three layers: CRDs Helm installs once, objects Helm manages, and the StatefulSets the operator builds. Disabled ServiceMonitors are the first place to look when a control plane component is missing.
+</Remember>
+
+<Question id="q-m06-s05" answer="b">
+After `helm upgrade` of kube-prometheus-stack to a new major version, ServiceMonitors that use a new field are rejected by the API server. What did the upgrade most likely miss?
+
+- The operator Deployment was not restarted after the upgrade
+
+  A restart would not change what the API server accepts; that depends on the CRD.
+
+- Helm did not update the CRDs, so the API still has the old schema
+
+  Helm does not update CRDs on upgrade; the chart's README says to update them by hand.
+
+- The Prometheus StatefulSet still runs the old Prometheus image
+
+  The image decides what Prometheus can do, not which fields the API server accepts.
+
+- The ServiceMonitors lack the release label the chart selects on
+
+  A missing label makes Prometheus ignore an object; it does not make the API server reject it.
+</Question>
