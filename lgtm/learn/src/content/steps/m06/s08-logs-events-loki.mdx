@@ -1,0 +1,128 @@
+---
+id: m06-s08
+title: "Pod logs and cluster events in Loki"
+kind: lab
+minutes: 22
+order: 8
+exam:
+  - cert: none
+tags: [k8s-logs-events]
+check:
+  kind: exact
+  prompt: Paste the value of the reason label on the event that says which node got your pod.
+  answers: ["Scheduled"]
+outcome: You can find the log lines of one pod and the events of one namespace in Loki, after Kubernetes itself has forgotten them.
+terms:
+  - term: Stream
+    def: In Loki, all log lines that share one set of labels; a query first picks streams by label.
+  - term: Structured metadata
+    def: Extra key and value pairs stored with each log line in Loki without being stream labels, such as the pod name here.
+  - term: Event reason
+    def: A short word in a Kubernetes event that says what happened, such as Scheduled, Pulled, BackOff or Unhealthy.
+sources:
+  - title: Logging architecture (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/cluster-administration/logging/
+    checked: 2026-11-12
+  - title: Event v1 API (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/
+    checked: 2026-11-12
+  - title: kube-apiserver reference, --event-ttl (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+    checked: 2026-11-12
+  - title: Understand labels (Loki)
+    url: https://grafana.com/docs/loki/latest/get-started/labels/
+    checked: 2026-11-12
+  - title: Log queries (Loki)
+    url: https://grafana.com/docs/loki/latest/query/log_queries/
+    checked: 2026-11-12
+  - title: loki.source.kubernetes_events (Grafana Alloy)
+    url: https://grafana.com/docs/alloy/latest/reference/components/loki/loki.source.kubernetes_events/
+    checked: 2026-11-12
+---
+
+<Problem>
+A pod crashed in the night and was replaced. `kubectl logs --previous` finds nothing, because the new pod has a new name. `kubectl get events` is empty, because events last an hour. The only witness to what happened is whatever was copied out of the cluster before it was lost.
+</Problem>
+
+Step 7 set up the copy: Alloy reads every pod's log files and watches the event stream, and sends both to Loki. Here you read them back.
+
+<Idea>
+In Loki, pod logs and events are streams with labels such as `namespace`, `container` and `job`. You select streams with a label selector in braces, the same idea as a PromQL selector, then read or filter the lines. Module m12 teaches LogQL; here two selectors and one filter are enough.
+</Idea>
+
+## How a log line gets its labels
+
+The kubelet keeps each container's output in files under `/var/log/pods` on the node. The `alloy-logs` pod on that node reads the files and adds labels: `namespace`, `container`, `job` set to `<namespace>/<container>`, `service_name`, and `cluster="lgtm-lab"`. The pod's name is not a label. It is stored as structured metadata with each line, because a new pod name every rollout would create a new stream each time, and Loki slows down with many small streams. You filter on it after the selector: `| pod="counter"`.
+
+## What an event looks like
+
+An event names the object it is about, a `reason` such as `Scheduled`, `Pulled`, `BackOff` or `Unhealthy`, a `type` (`Normal` or `Warning`), a message, and a count of how often it happened. The `alloy-singleton` collector watches the API for events and writes each one as a log line to Loki, with `job="integrations/kubernetes/eventhandler"`, and with `namespace`, `reason` and `level` as labels.
+
+<Compare caption="Where to look, and for how long">
+  <Col title="In the cluster">kubectl logs: the newest log file of a pod that still exists. kubectl get events: the last hour.</Col>
+  <Col title="In Loki" hot>Every line and every event Alloy copied, for Loki's retention, after the pod and the event are gone.</Col>
+</Compare>
+
+<InLab>
+Loki keeps logs for 48 hours. The namespace `shop` is not in the file-based logs, because the shop's services send their logs over OTLP; their events are there.
+</InLab>
+
+<Trap>
+A Loki query needs at least one label in braces. `{pod="counter"}` returns nothing here, because `pod` is not a label: select by `namespace` or `container`, then filter on `pod`.
+</Trap>
+
+<Do>
+1. In WSL, create the namespace for this module: <Cmd>kubectl create namespace learn-m06</Cmd>
+2. Save this as `m06-counter.yaml`. It runs one small pod that prints a line every five seconds: <Cmd>{`apiVersion: v1
+kind: Pod
+metadata:
+  name: counter
+  namespace: learn-m06
+  labels:
+    app.kubernetes.io/name: counter
+spec:
+  containers:
+    - name: count
+      image: busybox:1.37
+      args: [/bin/sh, -c, 'i=0; while true; do echo "count $i"; i=$((i+1)); sleep 5; done']
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+        limits: { cpu: 50m, memory: 32Mi }`}</Cmd>
+3. Apply it and wait until it runs: <Cmd>kubectl apply -f m06-counter.yaml</Cmd> <Cmd>kubectl -n learn-m06 wait --for=condition=Ready pod/counter --timeout=120s</Cmd> Then read the events the cluster still has: <Cmd>kubectl -n learn-m06 get events</Cmd> You see `Scheduled`, `Pulling`, `Pulled`, `Created` and `Started`.
+4. Wait a minute. Open <LabLink to="grafana" path="/explore">Explore in Grafana</LabLink>, pick the data source `loki`, switch the query editor to Code, and run: <Query lang="logql">{`{namespace="learn-m06", container="count"} | pod="counter"`}</Query> The lines `count 0`, `count 1` and on arrive, newest first. Open one line and read its labels: `job` is `learn-m06/count`, `service_name` is `counter`.
+5. Now the events of the whole namespace: <Query lang="logql">{`{job="integrations/kubernetes/eventhandler", namespace="learn-m06"}`}</Query> One line per event, with `reason` as a label. Find the event whose message names the node the pod went to.
+6. Delete the namespace: <Cmd>kubectl delete namespace learn-m06</Cmd> Run the query of action 4 again: the lines are still in Loki, though the pod is gone.
+7. Paste that event's `reason` from action 5 in the check below.
+</Do>
+
+<Done>
+You read a pod's log lines and its namespace's events in Loki, and they stayed there after the pod was deleted.
+</Done>
+
+<Trap practice>
+If action 4 shows nothing, check the time range at the top of Explore: it must include the last few minutes. Then check the data source: `loki`, not `mimir` or `prometheus`.
+</Trap>
+
+<Remember>
+Pod logs: `{namespace="...", container="..."}`, then `| pod="..."`. Events: `{job="integrations/kubernetes/eventhandler", namespace="..."}`. Both outlive the pod and the hour.
+</Remember>
+
+<Question id="q-m06-s08" answer="b">
+A Deployment's pods crash every few minutes in the night, and each crash makes a new pod name. In the morning you want every line the crashed pods printed. Which Loki query starts from the right place?
+
+- {pod=~"web-.*"}
+
+  pod is stored as structured metadata in this setup, not as a stream label, so this selector matches no stream.
+
+- {namespace="shop-web", container="web"}
+
+  The namespace and container stay the same across pod names, so this stream holds the lines of every pod, crashed or not.
+
+- {job="integrations/kubernetes/eventhandler", namespace="shop-web"}
+
+  That stream holds the namespace's events, such as BackOff, not what the containers printed.
+
+- {service_name="kubelet"}
+
+  The kubelet does not ship container output under its own name; each line keeps its pod's labels.
+</Question>
