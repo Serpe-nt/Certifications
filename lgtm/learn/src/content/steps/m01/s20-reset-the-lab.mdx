@@ -1,0 +1,83 @@
+---
+id: m01-s20
+title: Reset the lab without rebuilding the cluster
+kind: concept
+minutes: 10
+order: 20
+exam:
+  - cert: none
+tags: [lab-install]
+outcome: You can say what make reset removes and what it keeps, when to use it instead of rebuilding, and how long a reset and a new install take.
+terms:
+  - term: Reset
+    def: Removing the lab's releases and their data while the cluster and the platform stay.
+  - term: Persistent volume claim
+    def: A request for storage; a StatefulSet's claims stay after its release is uninstalled unless deleted.
+sources:
+  - title: helm uninstall
+    url: https://helm.sh/docs/helm/helm_uninstall/
+    checked: 2026-11-12
+  - title: Using Helm, helm uninstall
+    url: https://helm.sh/docs/intro/using_helm/
+    checked: 2026-11-12
+  - title: StatefulSets (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/
+    checked: 2026-11-12
+---
+
+<Problem>
+After a few modules your lab holds broken experiments: a changed Loki limit you no longer remember, metrics from a fault you switched on last week, a dashboard edited by hand. You want a clean stack again, but rebuilding the VMs and the cluster costs an hour and redoing the platform another quarter.
+</Problem>
+
+<Idea>
+`make reset` removes only the top layer: every release of `make lab`, their volumes, the objects in the six buckets and the two Kafka topics. The VMs, the cluster, the platform, the Grafana password and the lab seed stay. `make lab` then installs the stack again from empty.
+</Idea>
+
+## What reset removes, in order
+
+The reset role uninstalls the lab's releases with Helm, the shop first. Kubernetes keeps the volumes a StatefulSet claimed when the StatefulSet is deleted, so the role deletes those claims next, namespace by namespace. Then it deletes the Kafka topics `mimir-ingest` and `tempo-traces` and empties the six buckets with a one-off Job. The next install starts from empty stores.
+
+<Compare caption="What make reset touches">
+  <Col title="Removed">The nine lab releases, their volumes, the bucket objects, the two ingest topics.</Col>
+  <Col title="Kept" hot>VMs, cluster, platform releases, S3 keys, Grafana password, lab seed.</Col>
+</Compare>
+
+## Reset, then install again
+
+On the owner's lab the reset left no pod in the lab namespaces and only the platform's own volumes, and a new `make lab` created the topics again from nothing. The reset, the new install, the smoke test and a second `make lab` took 14 minutes together. Because the seed stays, every token check you already passed stays valid.
+
+## When to reset, and when not
+
+Reset when the stack is in a state you cannot explain, or before a lesson that needs empty stores. Do not reset to fix one release: change its values file and run `make lab TAGS=<release>`, as step 15 showed. To start the platform again too, uninstall each add-on with Helm, delete its namespace and volumes, and run `make platform`; the S3 keys are then new.
+
+<InLab>
+`lgtm/lab/docs/runbook.md`, section Reset, and the reset run in `lgtm/lab/docs/acceptance-lab.md` show the commands and their output.
+</InLab>
+
+<Trap>
+Your own releases are not lab releases. The reset does not touch `learn-m01`. Delete that namespace yourself when this module is done: `helm uninstall` each release in it, then `kubectl delete namespace learn-m01`.
+</Trap>
+
+<Remember>
+`make reset` clears the stack and its data and keeps everything below it, including the seed; `make lab` brings the stack back.
+</Remember>
+
+<Question id="q-m01-s20" answer="b">
+After `make reset` and `make lab`, which value is the same as before?
+
+- The bucket objects that held last week's metric blocks
+
+  The reset empties the six buckets.
+
+- The lab seed, so passed token checks stay valid
+
+  The seed lives in its own Secret, which the reset keeps.
+
+- The revision numbers of the lab's Helm releases
+
+  The releases were uninstalled; the new install starts again at revision 1.
+
+- The volumes of Loki's ingesters
+
+  The reset deletes the claims of the lab releases' volumes.
+</Question>
