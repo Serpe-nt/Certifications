@@ -1,0 +1,92 @@
+---
+id: m01-s15
+title: How this lab drives Helm from Ansible, and where each values file lives
+kind: concept
+minutes: 12
+order: 15
+exam:
+  - cert: none
+tags: [lab-install]
+outcome: You can find the chart, version and values of any lab release in the repository, and say what make lab does with them for one release or for all.
+terms:
+  - term: Role
+    def: An Ansible unit of tasks; this lab has one role per Helm release.
+  - term: Tag
+    def: A label on a role that lets make run only that role, as in TAGS=loki.
+  - term: Profile
+    def: full for the real cluster, kind for the small smoke-test cluster; it picks the values files.
+sources:
+  - title: Using Helm
+    url: https://helm.sh/docs/intro/using_helm/
+    checked: 2026-11-12
+---
+
+<Problem>
+The lab has fifteen Helm releases. Typing fifteen `helm upgrade --install` commands with the right chart, version, namespace and values each time is how a lab drifts: one forgotten `-f`, one chart taken unpinned. You want one command, and you want to read every setting in Git before it runs.
+</Problem>
+
+<Idea>
+Every release has a folder in the repository with its pinned chart and its values. Ansible reads those files and calls Helm once per release, in a fixed order. `make platform` and `make lab` run the whole set; `TAGS=<name>` runs one release.
+</Idea>
+
+## One folder per release
+
+`lgtm/lab/helm/<release>/` holds three files for each part of the stack: `VERSION` names the chart repository (or a local chart path), the chart and its version; `values.yaml` holds the values for the real cluster; `values-kind.yaml` holds small extra values for the kind smoke test. The platform add-ons keep their pins together in `lgtm/lab/helm/platform/versions.yml` and their values in `lgtm/lab/helm/platform/<add-on>/`.
+
+<Layers caption="Where a release's settings come from">
+  <Layer title="VERSION or versions.yml" hot>Repository, chart, pinned version.</Layer>
+  <Layer title="values.yaml">The values for the real cluster, with comments on why.</Layer>
+  <Layer title="values-kind.yaml">Only for the kind profile, merged on top.</Layer>
+  <Layer title="Computed by the role">A few values that depend on the run, such as the StorageClass.</Layer>
+</Layers>
+
+## What one Ansible role does
+
+The playbooks `ansible/playbooks/platform.yml` and `lab.yml` run on your machine against the cluster in `~/.kube/lgtm-lab.config`. For each LGTM release a small role calls a shared role, `lab_release`. It reads `VERSION`, merges `values.yaml`, `values-kind.yaml` (kind profile only) and the computed values into one set, and calls the `kubernetes.core.helm` module. That module runs the lab's pinned Helm from `lgtm/lab/.bin`: install or upgrade, in the release's namespace, created when missing, waiting up to 15 minutes for the objects.
+
+Because the module gets one complete set of values every time, it can compare them with what the release has and skip unchanged releases. A second `make lab` reports `changed=0`. That is the same habit step 6 taught by hand: pass the full values on every upgrade.
+
+## Order, tags and the commands
+
+The order is fixed by what depends on what. The platform comes first, because the stack needs storage, the S3 store, Kafka and the gateway. Inside `make lab`, Prometheus comes first for its custom resource definitions, then Mimir, Loki and Tempo, then the Collector and Alloy that send to them, then Grafana, the lab's own `lab-glue` chart, and the shop last, so its first telemetry is not lost.
+
+<Flow caption="make lab, in order">
+  <Stage title="prometheus" kicker="CRDs">kube-prometheus-stack in prom.</Stage>
+  <Stage title="mimir, loki, tempo" kicker="Stores">The three backends.</Stage>
+  <Stage title="otel-gateway, alloy, grafana" kicker="Collect and show">Senders and the screen.</Stage>
+  <Stage title="glue, shop" kicker="Last">Routes, dashboards, beacon; then the shop.</Stage>
+</Flow>
+
+`make lab TAGS=loki` runs only the Loki role, which is how you change one release. A chart that lives in the repository, `lab-glue` or the shop, is upgraded only when its `Chart.yaml` version or its values change, so every template change needs a version bump.
+
+<InLab>
+`make status` lists the releases with `helm list --all-namespaces`, then the pods that are not running, the addresses and the lab seed.
+</InLab>
+
+<Trap>
+Do not fix a lab release with a hand-typed `helm upgrade`. The next `make lab` puts back what the files say. Change the file in `lgtm/lab/helm/`, then run `make lab TAGS=<release>`.
+</Trap>
+
+<Remember>
+Settings live in `lgtm/lab/helm/`, Ansible applies them with the pinned Helm, and `TAGS` limits a run to one release.
+</Remember>
+
+<Question id="q-m01-s15" answer="a">
+You want Loki to keep logs for 72 hours instead of 48. What is the lab's way to make that change?
+
+- Edit `retention_period` in `lgtm/lab/helm/loki/values.yaml`, then run `make lab TAGS=loki`
+
+  The values file is the source of truth, and the tag applies it to the Loki release only.
+
+- Run `helm upgrade loki ... --set` with the new retention from WSL
+
+  The next `make lab` applies the values file again and undoes a hand-made change.
+
+- Edit the Loki ConfigMap with kubectl
+
+  Helm owns that ConfigMap; the next upgrade of the release replaces it.
+
+- Run `make lab` without tags after editing `VERSION`
+
+  `VERSION` pins the chart, not its settings, and a run without tags touches every release.
+</Question>

@@ -1,0 +1,106 @@
+---
+id: m01-s18
+title: Open Grafana, the shop and the flag screen
+kind: lab
+minutes: 15
+order: 18
+exam:
+  - cert: none
+tags: [lab-install]
+check:
+  kind: exact
+  prompt: How many fault flags does the flag screen list?
+  answer: "16"
+outcome: You can open the lab's screens from your browser, sign in to Grafana with the lab's admin password, and find the shop's fault flags.
+terms:
+  - term: Gateway
+    def: The lab's Envoy Gateway; it routes each lab.k8s.local name to its service.
+  - term: Fault flag
+    def: A switch in the shop that breaks one part on purpose, for practice in finding faults.
+  - term: flagd
+    def: The feature flag service the shop reads its flags from; the flag screen edits them.
+sources:
+  - title: Get started with Explore (Grafana)
+    url: https://grafana.com/docs/grafana/latest/explore/get-started-with-explore/
+    checked: 2026-11-12
+---
+
+<Problem>
+Everything is installed, and so far you have seen it only as lines in `helm list`. The later modules happen in a browser: dashboards in Grafana, orders in the shop, faults switched on in the flag screen. You need all three open and signed in before the first lesson that uses them.
+</Problem>
+
+<Idea>
+Every screen of the lab has a name under `lab.k8s.local`. Windows sends those names to the lab's DNS on `lb`, HAProxy passes the request to the gateway, and the gateway routes it to the service. Grafana asks for a sign-in; the password is in a Secret the lab created.
+</Idea>
+
+<Flow caption="From your browser to Grafana">
+  <Stage title="Browser" kicker="Windows">grafana.lab.k8s.local resolves to 10.10.0.5.</Stage>
+  <Stage title="lb" kicker="HAProxy">Port 80 to a worker's NodePort 30080.</Stage>
+  <Stage title="Gateway" kicker="Envoy">Routes the name to the Grafana service.</Stage>
+  <Stage title="Grafana" kicker="grafana">Answers in the namespace grafana.</Stage>
+</Flow>
+
+## The names and how they resolve
+
+The lab's screens include `grafana`, `shop`, `flags`, `loadgen`, `prometheus`, `alertmanager` and `longhorn`, each followed by `.lab.k8s.local`. On Windows they resolve through the rule that `lab-vms.ps1 create -ConfigureDns` added. WSL does not use that rule, so from WSL you reach the same screen as `http://10.10.0.5` with a `Host:` header, for example `curl -H 'Host: grafana.lab.k8s.local' http://10.10.0.5/api/health`. `lgtm/lab/docs/reference.md` lists every address.
+
+## Grafana
+
+Grafana's user is `admin`. The password was made by the first `make lab` and is kept in the Secret `grafana/grafana-admin`; `make reset` does not change it. Grafana already has the data sources `mimir`, `loki` and `tempo` with data from the shop, and the folder Shop holds one dashboard per service. Explore, in the left menu, lets you query any data source directly; step 19 uses it.
+
+## The shop and the flag screen
+
+The shop is the astronomy shop of the OpenTelemetry Demo, trimmed for this lab. A load generator places orders all the time, so the stores always have fresh data. The flag screen, Flagd Configurator, lists the shop's fault flags, each with its options; all of them are off after an install. Later modules switch a flag on, watch the fault in Grafana, and switch it off again.
+
+<InLab>
+The load generator has a screen too, at `loadgen.lab.k8s.local`, which shows how many requests it sends.
+</InLab>
+
+<Trap>
+Do not switch flags on to try them out now. Other lessons expect every flag off, and a forgotten flag makes the next lesson's data look wrong.
+</Trap>
+
+<Remember>
+Names under `lab.k8s.local` work in a Windows browser; from WSL use `10.10.0.5` with a `Host:` header. Grafana's password is in `grafana/grafana-admin`.
+</Remember>
+
+<Do>
+1. In WSL (bash), read the Grafana admin password:
+   <Cmd>{`kubectl -n grafana get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d; echo`}</Cmd>
+2. Check from WSL that Grafana answers through the front door:
+   <Cmd>{`curl -s -H 'Host: grafana.lab.k8s.local' http://10.10.0.5/api/health`}</Cmd>
+   The answer has `"database": "ok"` and `"version": "13.3.0"`.
+3. In a Windows browser, open <LabLink to="grafana" path="/">Grafana</LabLink> and sign in as `admin` with the password.
+4. Open Dashboards, the folder Shop, and one service's dashboard. The panels show data.
+5. Open <LabLink to="shop" path="/">the shop</LabLink> and place an order.
+6. Open <LabLink to="flags" path="/">the flag screen</LabLink>. Count the flags it lists, and change nothing.
+7. Enter the number of flags below.
+</Do>
+
+<Done>
+You are signed in to Grafana, a Shop dashboard shows data, and the flag screen lists every flag with its options.
+</Done>
+
+<Trap practice>
+If the browser cannot find `grafana.lab.k8s.local`, check the name rule in PowerShell: `Resolve-DnsName grafana.lab.k8s.local` must answer 10.10.0.5. If it does not, `lab-vms.ps1 create -ConfigureDns` adds the rule again.
+</Trap practice>
+
+<Question id="q-m01-s18" answer="b">
+In WSL, `curl http://grafana.lab.k8s.local` fails with `Could not resolve host`, while the same address works in a Windows browser. Why?
+
+- Grafana only accepts requests from Windows
+
+  Grafana answers any client that reaches it; this is a name lookup failure.
+
+- WSL does not use the Windows rule that sends .k8s.local names to the lab DNS
+
+  The rule is set on Windows only, so WSL needs 10.10.0.5 and a Host header, or its own hosts entry.
+
+- The gateway blocks curl and allows only browsers
+
+  The gateway routes by host name, not by client type.
+
+- Grafana is down, and the browser shows a cached page
+
+  The error is about resolving the name, before any request reaches Grafana.
+</Question>
