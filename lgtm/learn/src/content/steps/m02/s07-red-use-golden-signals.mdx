@@ -12,38 +12,80 @@ exam:
     domain: O1
     competency: Analysis and Outcomes
 tags: [golden-signals]
+outcome: You can pick the right checklist for a service or a resource, and name the four or five metrics to put on its dashboard.
+terms:
+  - term: RED
+    def: Rate, errors and duration, the checklist for a service.
+  - term: USE
+    def: Utilization, saturation and errors, the checklist for a resource such as a CPU or a disk.
+  - term: Golden signals
+    def: Latency, traffic, errors and saturation, from Google's SRE book.
+  - term: Saturation
+    def: How full a resource is, often shown by work waiting in a queue.
+  - term: Tail latency
+    def: The time taken by the slowest requests, such as the slowest 1%.
 sources:
   - title: Grafana dashboard best practices (common observability strategies)
     url: https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/best-practices/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Monitoring distributed systems (Google SRE book, chapter 6)
     url: https://sre.google/sre-book/monitoring-distributed-systems/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Instrumentation (Prometheus best practices)
     url: https://prometheus.io/docs/practices/instrumentation/
-    checked: 2026-11-10
+    checked: 2026-11-11
 ---
 
-<Why>
+<Problem>
 A new service goes live and the team asks you to build its dashboard. It exposes two hundred metrics. If you put all of them on screen, nobody will find the important line during an incident. You need a short, fixed list of what to watch for every service and every machine.
-</Why>
+</Problem>
+
+You do not have to invent that list. Three well-known ones exist, and they differ mainly in what they watch.
 
 <Idea>
 Three well-known checklists give that list. RED is for services: rate, errors, duration. USE is for resources such as CPU and disks: utilization, saturation, errors. The four golden signals from Google's SRE book are latency, traffic, errors and saturation.
 </Idea>
 
-<Points>
-  <Point label="RED for services">Rate is requests per second. Errors is the number of failing requests. Duration is how long requests take, as a distribution. RED shows what users feel, so it is a good place for alerts.</Point>
-  <Point label="USE for resources">Utilization is how busy a resource is, such as CPU use. Saturation is how much work waits, such as a queue or the load average. Errors counts error events. USE suits CPU, memory, disks and network devices, and it points at causes.</Point>
-  <Point label="The four golden signals">Latency, traffic, errors and saturation. Google's advice: if you can measure only four metrics of a user-facing system, measure these. They are RED plus saturation.</Point>
-  <Point label="Errors are slow and fast">Keep the latency of failed requests apart from successful ones. A fast error can hide in an average and make latency look better. A slow error is even worse than a fast one.</Point>
-  <Point label="Look at the tail, not the mean">An average hides the few very slow requests. Measure a distribution, with buckets or percentiles such as p99, so the slow tail shows.</Point>
-  <Point label="In this lab">Each shop service has a RED dashboard in the Shop folder in Grafana. You used the one for checkout in the previous step.</Point>
-</Points>
+## RED watches what users feel
+
+RED is for services. Rate is requests per second. Errors is the number of failing requests. Duration is how long requests take, as a distribution. These are what a user of the service notices: whether it answers, whether it fails, and how slow it is. So a good RED dashboard stands in for the user's experience, and it is the right place for alerts.
+
+## USE watches the machines
+
+USE is for resources: CPU, memory, disks and network devices. Utilization is how busy a resource is, such as CPU use. Saturation is how much work waits, such as a queue or the load average. Errors counts error events. USE does not tell you what users feel. It points at causes: when RED shows that checkout is slow, USE can show that its node is out of CPU.
+
+## The four golden signals join both
+
+Google's SRE book names four golden signals: latency, traffic, errors and saturation. Its advice: if you can measure only four metrics of a user-facing system, measure these. They are RED plus saturation, so they cover what users feel and add a warning that a resource is filling up.
+
+<Compare caption="Three checklists, three uses">
+  <Col title="RED" hot>For services. Rate, errors, duration. Shows what users feel; alert on it.</Col>
+  <Col title="USE">For resources. Utilization, saturation, errors. Points at causes.</Col>
+  <Col title="Golden signals">For user-facing systems. Latency, traffic, errors, saturation: RED plus saturation.</Col>
+</Compare>
+
+## Errors and the slow tail need care
+
+Two things go wrong often when these signals are measured. The first is errors. Keep the latency of failed requests apart from successful ones. A fast error can hide in an average and make latency look better. A slow error is even worse than a fast one.
+
+The second is the mean. An average hides the few very slow requests. The SRE book gives an example: a service with an average latency of 100 ms at 1,000 requests per second can easily have 1% of its requests take 5 seconds. Measure a distribution, with buckets or percentiles such as p99, so the slow tail shows.
+
+<Figures caption="What an average can hide" unit="Milliseconds">
+  <Stat label="Average latency" value="100 ms" amount={100} max={5000} />
+  <Stat label="Slowest 1% of requests" value="5,000 ms" amount={5000} max={5000} hot note="Possible with that same average." />
+</Figures>
+
+<InLab>
+Each shop service has a RED dashboard in the Shop folder in Grafana. You used the one for checkout, Shop / checkout (RED), in the previous step.
+</InLab>
 
 <Trap>
 Do not alert on USE signals alone. High CPU on one node may not hurt any user. Alert on symptoms users feel, such as errors and latency, and use USE dashboards to find the cause.
 </Trap>
+
+<Remember>
+RED for services, USE for resources, and the golden signals when you can watch only four things. Measure latency as a distribution, and keep failed requests apart.
+</Remember>
 
 <Question id="q-m02-s07" answer="c">
 A team wants one dashboard per microservice that shows how users experience it. Which method fits best?

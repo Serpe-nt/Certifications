@@ -12,41 +12,81 @@ exam:
     domain: O1
     competency: Analysis and Outcomes
 tags: [slo]
+outcome: You can tell an SLI, an SLO and an SLA apart, and work out how many failures an error budget allows.
+terms:
+  - term: SLI
+    def: Service level indicator, a carefully defined number about how good the service is.
+  - term: SLO
+    def: Service level objective, a target for an SLI over a time window.
+  - term: SLA
+    def: Service level agreement, a contract with consequences when an SLO is missed.
+  - term: Error budget
+    def: The failure an SLO still allows, 100% minus the SLO.
+  - term: Error budget policy
+    def: What the team agrees to do when the error budget runs out.
 sources:
   - title: Service level objectives (Google SRE book, chapter 4)
     url: https://sre.google/sre-book/service-level-objectives/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Implementing SLOs (Google SRE workbook, chapter 2)
     url: https://sre.google/workbook/implementing-slos/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Example error budget policy (Google SRE workbook, appendix B)
     url: https://sre.google/workbook/error-budget-policy/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Observability primer (OpenTelemetry)
     url: https://opentelemetry.io/docs/concepts/observability-primer/
-    checked: 2026-11-10
+    checked: 2026-11-11
 ---
 
-<Why>
+<Problem>
 Developers want to ship new features every day. Operations want fewer changes, because changes break things. Without a shared number for "reliable enough", every release turns into an argument. Users, too, need to know what they can expect from the service.
-</Why>
+</Problem>
+
+The way out is to agree on one number, a target for it, and what happens when the target is missed.
 
 <Idea>
 An SLI measures how good the service is for users. An SLO is the target for that measure. An SLA is a contract that says what happens when the target is missed. The error budget is the failure the SLO still allows, and it decides when to slow down releases.
 </Idea>
 
-<Points>
-  <Point label="SLI: the measure">A service level indicator is a carefully defined number about the service, such as the share of requests that succeed, or request latency. A good SLI measures the service as users see it.</Point>
-  <Point label="SLO: the target">A service level objective is a target for an SLI over a time window. Example: 99.9% of checkout requests succeed over four weeks.</Point>
-  <Point label="SLA: the contract">A service level agreement is a contract with users that includes consequences, often money back, when an SLO is missed. Ask "what happens if we miss it?". If nothing happens, it is an SLO, not an SLA.</Point>
-  <Point label="Error budget: what may fail">The error budget is 100% minus the SLO. With a 99.9% SLO and 3 million requests in four weeks, 3,000 requests may fail. An outage that fails 1,500 requests uses half the budget.</Point>
-  <Point label="What the budget decides">An error budget policy says what the team does when the budget runs out, for example: stop releases except urgent fixes until the service is back within its SLO. The budget turns the argument into a rule.</Point>
-  <Point label="Why not 100%">A target of 100% is unrealistic and blocks change. Users would not see 100% anyway: the networks and devices between them and you fail too. So each extra nine costs more and helps users less.</Point>
-</Points>
+## SLI: a number about the user's experience
+
+A service level indicator is a carefully defined number about the service, such as the share of requests that succeed, or request latency. A good SLI measures the service as users see it. CPU use is a poor SLI: users do not feel it. The share of checkout requests that succeed is a good one: users feel every failure.
+
+## SLO is the target, SLA is the contract
+
+A service level objective is a target for an SLI over a time window. Example: 99.9% of checkout requests succeed over four weeks.
+
+A service level agreement is a contract with users that includes consequences, often money back, when an SLO is missed. To tell them apart, ask "what happens if we miss it?". If nothing happens, it is almost certainly an SLO and not part of an SLA.
+
+<Layers caption="From a measure to a contract">
+  <Layer title="SLI">The measure: the share of checkout requests that succeed.</Layer>
+  <Layer title="SLO">The target: 99.9% of them succeed over four weeks.</Layer>
+  <Layer title="SLA" hot>The contract: what users get when the target is missed.</Layer>
+</Layers>
+
+## The error budget turns the argument into a rule
+
+The error budget is 100% minus the SLO. With a 99.9% SLO and 3 million requests in four weeks, 3,000 requests may fail. An outage that fails 1,500 requests uses half the budget.
+
+<Figures caption="A 99.9% SLO over four weeks, 3 million requests" unit="Failed requests">
+  <Stat label="Error budget" value="3,000" amount={3000} max={3000} />
+  <Stat label="Used by one outage" value="1,500" amount={1500} max={3000} hot note="Half the budget is gone." />
+</Figures>
+
+The budget is what ends the argument from the start. While budget is left, the team can ship. An error budget policy says what the team does when the budget runs out, for example: stop releases except urgent fixes until the service is back within its SLO.
+
+## Why the target is never 100%
+
+A target of 100% is unrealistic and blocks change. Users would not see 100% anyway: the networks and devices between them and you fail too. So each extra nine costs more and helps users less. An SLO below 100% always leaves a budget, and the budget is what lets the team keep shipping.
 
 <Trap>
 People often say "SLA" when they mean SLO. An internal target with no penalty is an SLO. Keep the two apart in interviews and in the exam.
 </Trap>
+
+<Remember>
+The SLI is the measure, the SLO the target, the SLA the contract with a penalty. The error budget is 100% minus the SLO. When it is spent, the team's error budget policy applies; a common one stops releases except urgent fixes.
+</Remember>
 
 <Question id="q-m02-s08" answer="b">
 A service has an availability SLO of 99.5% over 30 days and served 2,000,000 requests in that window. How many failed requests does the error budget allow?

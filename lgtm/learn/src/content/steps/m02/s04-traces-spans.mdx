@@ -12,49 +12,90 @@ exam:
     domain: O1
     competency: Telemetry Data
 tags: [traces]
+outcome: You can read a trace as a tree of spans, find its root span, and explain how one trace crosses from one service to the next.
+terms:
+  - term: Trace
+    def: The record of one request's path through all the services it touches.
+  - term: Span
+    def: One piece of work inside a trace, with a start, an end and a parent.
+  - term: Root span
+    def: The first span of a trace, the only one with no parent.
+  - term: Context propagation
+    def: Sending the trace ID and span ID along with a call, so the next service joins the same trace.
+  - term: Sampling
+    def: Keeping only some traces, to save cost.
 sources:
   - title: Traces (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/signals/traces/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Observability primer (OpenTelemetry)
     url: https://opentelemetry.io/docs/concepts/observability-primer/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Context propagation (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/context-propagation/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Trace Context (W3C Recommendation)
     url: https://www.w3.org/TR/trace-context/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Sampling (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/sampling/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Introduction to tracing (Tempo)
     url: https://grafana.com/docs/tempo/latest/introduction/
-    checked: 2026-11-10
+    checked: 2026-11-11
 ---
 
-<Why>
+<Problem>
 One click on "Place order" starts work in six services: frontend, checkout, cart, product catalog, payment and a Kafka consumer. The click took four seconds. Each service logs on its own and has its own metrics, so none of them can tell you where those four seconds went. You need one record that follows the request through every service.
-</Why>
+</Problem>
+
+Metrics sum up many requests and logs describe single moments in single services. Neither follows one request across services. Traces do.
 
 <Idea>
 A trace records the path of one request through all the services it touches. It is made of spans: one span for each piece of work, with its start, its end and its parent. Together the spans show where the time went and where the error started.
 </Idea>
 
-<Points>
-  <Point label="A span is one piece of work">A span has a name, a start and an end time, and attributes: key-value pairs such as `http.request.method="POST"`. It also has a status: Unset (the default, no error), Error, or Ok (set on purpose by the developer).</Point>
-  <Point label="Spans form a tree">Every span carries the trace ID of its trace and its own span ID. A child span stores the ID of its parent. The first span has no parent: it is the root span, and it covers the whole request.</Point>
-  <Point label="How the trace crosses services">When service A calls service B, it sends the trace ID and its span ID along with the call. This is context propagation. By default OpenTelemetry uses the W3C `traceparent` header. B then creates its span in the same trace.</Point>
-  <Point label="What a trace ID looks like">A trace ID is 16 bytes, written as 32 lower-case hexadecimal characters. All zeros is not a valid ID. You will copy trace IDs between tools often.</Point>
-  <Point label="Span kind says which side">Kind tells the backend how spans fit together. Server spans handle an incoming call, client spans make an outgoing one, internal spans stay in one process. Producer and consumer spans are used for queues such as Kafka.</Point>
-  <Point label="Not every trace is kept">Most requests succeed and look alike, so systems often keep only a sample of traces to save cost. Sampling is covered in the OpenTelemetry modules. In this lab, Tempo stores the traces.</Point>
-</Points>
+## A span is one piece of work
+
+A span has a name, a start and an end time, and attributes: key-value pairs such as `http.request.method="POST"`. The start and end give its duration, so you can see how long each piece took.
+
+A span also has a status. Unset is the default and means the work finished with no error. Error marks a failure. Ok means a developer set the span as successful on purpose; it is not needed for a normal success.
+
+## Spans form a tree
+
+Every span carries the trace ID of its trace and its own span ID. A child span stores the ID of its parent. The first span has no parent: it is the root span, and it covers the whole request. The other spans hang below it. Most of them run inside the time of their parent. The usual exception is a consumer span that reads from a queue: its parent is the producer span, and it can start long after that span ended.
 
 <Figure id="m02-s04-waterfall" alt="A trace shown as a waterfall: a root span for the checkout request on top, with shorter child spans for cart, product catalog and payment below it, each indented under its parent." brief="A fake Grafana trace view of one checkout request. The bars appear one after another, from the root span at the top to the child spans of cart, product catalog and payment, each starting inside its parent's time. The payment bar is long and turns red. The learner should notice that parents contain their children in time, and that the long red bar shows where the time and the error came from." />
+
+A span also has a kind, which tells the backend how spans fit together. Server spans handle an incoming call, client spans make an outgoing one, internal spans stay in one process. Producer and consumer spans are used for queues such as Kafka.
+
+## The context travels with the call
+
+How does payment know that its span belongs to the checkout request? When service A calls service B, it sends the trace ID and its span ID along with the call. This is context propagation. By default OpenTelemetry uses the W3C `traceparent` header. B then creates its span in the same trace, as a child of A's span.
+
+<Flow caption="How one trace crosses two services">
+  <Stage title="Service A" kicker="Span">A starts a span in the trace.</Stage>
+  <Stage title="traceparent" kicker="Header">The call carries the trace ID and A's span ID.</Stage>
+  <Stage title="Service B" kicker="Child span">B starts a span with the same trace ID and A's span as its parent.</Stage>
+</Flow>
+
+A trace ID is 16 bytes, written as 32 lower-case hexadecimal characters, such as `4bf92f3577b34da6a3ce929d0e0e4736`. All zeros is not a valid ID. You will copy trace IDs between tools often.
+
+## Not every trace is kept
+
+Most requests succeed and look alike, so systems often keep only a sample of traces to save cost. Sampling is covered in the OpenTelemetry modules.
+
+<InLab>
+Tempo stores the shop's traces. When frontend calls checkout, the trace context travels in the gRPC metadata, so the calls to cart, product catalog and payment that follow are all in the same trace.
+</InLab>
 
 <Trap>
 A trace is not a list of log lines that happen to share a word. The spans are linked by IDs that each service passes on. If one service in the middle does not pass the context on, the trace breaks in two.
 </Trap>
+
+<Remember>
+A trace is a tree of spans that share one trace ID. The root span has no parent, and the context each service passes on is what keeps the tree whole.
+</Remember>
 
 <Question id="q-m02-s04" answer="d">
 In a trace, how can you tell which span is the root span?

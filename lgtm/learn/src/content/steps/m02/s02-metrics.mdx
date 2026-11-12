@@ -12,44 +12,89 @@ exam:
     domain: O1
     competency: Telemetry Data
 tags: [metrics]
+outcome: You can say what a metric is, how labels split it into series, and when a metric cannot answer your question.
+terms:
+  - term: Metric
+    def: A number about a service, measured again and again while it runs.
+  - term: Time series
+    def: The values of one metric with one set of labels, each stored with its time.
+  - term: Label
+    def: A key-value pair on a series, such as method="POST".
+  - term: Sample
+    def: One value of a series and the timestamp it was taken at.
 sources:
   - title: Metrics (OpenTelemetry concepts)
     url: https://opentelemetry.io/docs/concepts/signals/metrics/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Prometheus overview
     url: https://prometheus.io/docs/introduction/overview/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Data model (Prometheus)
     url: https://prometheus.io/docs/concepts/data_model/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Metric types (Prometheus)
     url: https://prometheus.io/docs/concepts/metric_types/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Observability primer (OpenTelemetry)
     url: https://opentelemetry.io/docs/concepts/observability-primer/
-    checked: 2026-11-10
+    checked: 2026-11-11
 ---
 
-<Why>
+<Problem>
 The shop serves thousands of requests a minute. You want to know if checkout is slower than yesterday, and whether the error rate is rising. Reading every request one by one would take hours. You need a few numbers that sum up the whole service and show how they change over time.
-</Why>
+</Problem>
+
+Those few numbers are metrics, the first of the three signals.
 
 <Idea>
 A metric is a number measured again and again while the service runs. Each value is stored with its time, so you get a line over time: a time series. Metrics are small and fast to query, which makes them the base of dashboards and alerts.
 </Idea>
 
-<Points>
-  <Point label="What a metric is">A metric is a measurement of a service captured at runtime, with the time it was taken and some metadata. Examples: the request rate, the error rate, the CPU use of a process.</Point>
-  <Point label="Name and labels make a series">In Prometheus, a series is named by a metric name plus labels, key-value pairs such as `method="POST"`. A different label value is a different series. Each sample in it is a number and a timestamp in milliseconds.</Point>
-  <Point label="Why metrics stay cheap">Metrics are aggregated before they are stored. A counter of a million requests is still one number per series. Their cost grows with the number of label combinations, not with the number of requests.</Point>
-  <Point label="Three shapes you will meet">A counter only goes up, and goes back to zero when the process restarts: requests served. A gauge goes up and down: memory in use, queue length. A histogram counts values in buckets: how many requests took less than one second. Module m03 covers them in depth.</Point>
-  <Point label="What metrics cannot tell you">A metric says how many requests failed, not which ones or why. Prometheus also warns that its data is not complete enough for exact work such as billing per request.</Point>
-  <Point label="In this lab">The shop sends its metrics over OpenTelemetry, and Prometheus collects cluster metrics. Both end up in Mimir, and Grafana draws them.</Point>
-</Points>
+## A number, measured again and again
+
+A metric is a measurement of a service captured at runtime, with the time it was taken and some metadata. The request rate, the error rate and the CPU use of a process are all metrics. One value alone says little. Many values in a row show a trend: is the error rate rising, is checkout slower than yesterday?
+
+## Labels split one metric into series
+
+One request counter for the whole shop would hide which requests fail. So Prometheus lets you add labels: key-value pairs such as `method="POST"`. A series is named by its metric name plus its labels, and a different label value is a different series. The counter for POST requests and the counter for GET requests are two series of one metric.
+
+Each series is a row of samples. A sample is a number and a timestamp in milliseconds. The labels are not inside the sample: they belong to the series.
+
+<Layers caption="One metric, from name to sample">
+  <Layer title="Metric name">What is measured, for example the number of HTTP requests.</Layer>
+  <Layer title="Labels">Which part of it, such as `method="POST"`. Each combination is one series.</Layer>
+  <Layer title="Samples" hot>A value and a timestamp in milliseconds, again and again.</Layer>
+</Layers>
+
+## Why metrics stay cheap
+
+Metrics are aggregated before they are stored. A counter of a million requests is still one number per series. So their cost grows with the number of label combinations, not with the number of requests. Step 10 shows what happens when a label has too many values.
+
+## Three shapes you will meet
+
+Prometheus has four core metric types. The three below are the ones you meet most; the fourth, the summary, comes in module m03 with the others in depth. For now, know these three by sight.
+
+<Compare caption="The three metric types you meet most">
+  <Col title="Counter">Only goes up, and goes back to zero when the process restarts. Example: requests served.</Col>
+  <Col title="Gauge">Goes up and down. Examples: memory in use, queue length.</Col>
+  <Col title="Histogram">Counts values in buckets. Example: how many requests took one second or less.</Col>
+</Compare>
+
+## What metrics cannot tell you
+
+The aggregation that makes metrics cheap also takes the detail away. A metric says how many requests failed, not which ones or why. Prometheus also warns that its data is not complete enough for exact work such as billing per request.
+
+<InLab>
+The shop sends its metrics over OpenTelemetry, and Prometheus collects cluster metrics. Both end up in Mimir, and Grafana draws them.
+</InLab>
 
 <Trap>
 A metric gives the same answer for every request in its time window. It cannot show you the one slow request. When you need a single request, go to a trace or a log.
 </Trap>
+
+<Remember>
+A metric is a number over time. Its labels decide how many series it has, and its samples hold only a value and a time.
+</Remember>
 
 <Question id="q-m02-s02" answer="a">
 A team counts HTTP requests with a label `method`. They add a second label, `status_code`, with values 200, 404 and 500. What happens to the data Prometheus stores?

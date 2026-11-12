@@ -9,40 +9,78 @@ exam:
     domain: O1
     competency: Analysis and Outcomes
 tags: [analysis]
+outcome: You can say which outcome a dashboard, an alert and a debugging session each give, and what makes an alert worth waking someone for.
+terms:
+  - term: Dashboard
+    def: A set of panels that gives a quick view of related data.
+  - term: Alert
+    def: A message meant for a person, sent when a rule says something is wrong.
+  - term: Page
+    def: An alert that interrupts someone at once, by phone or pager.
+  - term: Drilldown apps
+    def: Grafana apps for exploring metrics, logs, traces and profiles by clicking, without a query.
 sources:
   - title: Monitoring distributed systems (Google SRE book, chapter 6)
     url: https://sre.google/sre-book/monitoring-distributed-systems/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Alerting (Prometheus best practices)
     url: https://prometheus.io/docs/practices/alerting/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Dashboards (Grafana)
     url: https://grafana.com/docs/grafana/latest/dashboards/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Drilldown apps (Grafana)
     url: https://grafana.com/docs/grafana/latest/visualizations/simplified-exploration/
-    checked: 2026-11-10
+    checked: 2026-11-11
   - title: Introduction to exemplars (Grafana)
     url: https://grafana.com/docs/grafana/latest/fundamentals/exemplars/
-    checked: 2026-11-10
+    checked: 2026-11-11
 ---
 
-<Why>
+<Problem>
 Collecting telemetry costs money: storage, network, and the time of the people who add it. A store full of data that nobody looks at helps nobody. The data only pays off when it changes what people do: when it wakes the right person, or shortens the hunt for a cause.
-</Why>
+</Problem>
+
+This last step of the module asks what all that data is for.
 
 <Idea>
 Telemetry turns into outcomes in three ways. Dashboards answer known questions at a glance. Alerts call a human when something users feel is broken. Debugging follows the trail from the alert to the cause, across metrics, traces and logs.
 </Idea>
 
-<Points>
-  <Point label="Why teams collect it">Google's SRE book lists the reasons: long-term trends, comparing versions or experiments, alerting, dashboards, and debugging after something went wrong.</Point>
-  <Point label="Dashboards for known questions">A dashboard is a set of panels that gives a quick view of related data. A service dashboard should show its golden signals, as the RED dashboards in this lab do.</Point>
-  <Point label="Alerts for humans">An alert is a message meant for a person. Every page interrupts work or sleep, and too many pages teach people to ignore them. Keep alerts simple, alert on symptoms users feel, and do not page when there is nothing to do.</Point>
-  <Point label="Debugging: from symptom to cause">Start at the symptom on a metric, jump to one trace with an exemplar, then read the logs of that trace. You did exactly this in step 6.</Point>
-  <Point label="Exploring without a query language">Grafana's Drilldown apps for metrics, logs, traces and profiles let you explore data by clicking, with no PromQL or LogQL. They help you find a pattern before you know the exact query.</Point>
-  <Point label="Where this course goes next">Module m03 starts with Prometheus. Alerting, SLO alerts and runbooks come in m15, and full incident drills in m14.</Point>
-</Points>
+## Why teams collect it
+
+Google's SRE book lists many reasons to monitor a system, among them: to see long-term trends, to compare versions or experiments, to alert, to build dashboards, and to debug after something went wrong. This step follows three of them: dashboards, alerts and debugging.
+
+## Dashboards answer known questions
+
+A dashboard is a set of panels that gives a quick view of related data. It answers the questions you know you will ask again: is the service up, is it fast, is it failing? So a service dashboard should show its golden signals, as the RED dashboards in this lab do.
+
+## Alerts are for humans
+
+An alert is a message meant for a person. Every page interrupts work or sleep, and too many pages teach people to ignore them. So keep alerts simple, alert on symptoms users feel, and do not page when there is nothing to do. A high CPU on one node is a cause, not a symptom: it belongs on a dashboard, not on someone's phone.
+
+## Debugging follows the trail
+
+Once an alert fires, the question becomes why. Start at the symptom on a metric, jump to one trace with an exemplar, then read the logs of that trace. You did exactly this in step 6.
+
+<Flow caption="From the alert to the cause">
+  <Stage title="Alert" kicker="Symptom">Users feel it: errors or latency are up.</Stage>
+  <Stage title="Metric panel" kicker="Metric">The graph shows when, and an exemplar points to one request.</Stage>
+  <Stage title="Trace" kicker="Trace">The spans show which service and call took the time.</Stage>
+  <Stage title="Log lines" kicker="Logs">The lines of that trace say what went wrong.</Stage>
+</Flow>
+
+When you do not yet know the query to write, Grafana's Drilldown apps for metrics, logs, traces and profiles let you explore data by clicking, with no PromQL or LogQL. They help you find a pattern before you know the exact query.
+
+The course goes on from here. Module m03 starts with Prometheus. Alerting, SLO alerts and runbooks come in m15, and full incident drills in m14.
+
+<Trap>
+More alerts do not mean better monitoring. An alert that fires when nothing needs doing teaches people to ignore the next one, which may be real.
+</Trap>
+
+<Remember>
+Dashboards for known questions, alerts for symptoms users feel, and the trail from metric to trace to logs for the cause.
+</Remember>
 
 <Question id="q-m02-s13" answer="d">
 A team gets 40 pages a night. Most say "CPU above 80% on node X", and users notice nothing. What should they change first?
