@@ -6,14 +6,16 @@ The plan follows two learning plans on AWS Skill Builder: the **AWS Solutions Ar
 
 ```
 site/
-  index.html     page layout: overview, one-step card view, dialogs
-  style.css      styles (light/dark)
+  index.html     page layout: rail, overview, one-step card view, dialogs
+  fm/            the Field Manual design system: tokens, components, generated art (vendored)
+  style.css      the app in Field Manual (Carbon dark, Paper light)
+  fx.css         quiz, results, badges and celebration styles
   plan.js        the plan: days, steps, links, time estimates, the topics each step teaches, glossary, cleanup list
   quiz/          question pools: meta.js (topics, AWS links), d01–d15.js (no d07), mock1–2.js (65 each)
   extras.js      self-check model answers, "Which service?" drill, exam-wording cheat sheet
   keys/          key points per step (what to take away, the exam trap, AWS pages): d01–d14.js, c1–c9.js (courses and labs), r1.js
   qcore.js       quiz logic without the DOM: picking, grading, spaced repetition, weak spots
-  fx.js          confetti, fireworks, sounds
+  fx.js          celebration bursts, fireworks, sounds
   app.js         page logic: overview, step cards, quizzes, mock exam, notebook, timer, settings, server sync
 server/          Go: serves site/ and stores progress in SQLite (GET/PUT /api/state)
 tests/           node --test unit + data tests, Playwright end-to-end script
@@ -37,10 +39,10 @@ Open http://localhost:8080 (or the `PORT` set in `.env`, see "Security defaults"
 - **Overview, today first.** The top of the first screen is today: the day to work on (its goal, its progress, the time left), its next step, and one big button (Start Day 1, Continue Day 3, Take the Day 3 quiz), with the date and where you stand against the plan and the exam. Under it: what is still running in your account, today's goal, practice, your numbers (steps, days, focus time, quiz accuracy, streak, level), readiness and charts, and the days as tiles. Any tile opens its day.
 - **One step at a time.** A day opens as a single card with three buttons under it: Back, Mark complete, Next. Mark complete moves you to the next open step; Next skips a step without marking it, and the row of dots above the card shows what is still open. The arrow keys and Enter work too.
 - **A knowledge check on every card.** After the reading, one question written for that card: a miss lands in the notebook and comes back in review, and the day quizzes never ask it.
-- **Reading helpers.** A focus view hides the panels (button in the day header, or F). Search (Ctrl+K or /) finds any step, key point, term, exam wording, look-alike table, diagram part, your notes and the notebook. Theme and text size are in ⚙ Settings.
-- **Course diagrams.** Every card of a lecture course and its labs ends with the course's architecture as a blueprint. The parts this step is about are outlined and the first one is open; click any part (or Tab to it and press Enter) for why it is there and what the exam asks about it. "⤢ Larger" opens it full width.
+- **Reading helpers.** A focus view hides the panels (button in the day header, or F). Search (Ctrl+K or /) finds any step, key point, term, exam wording, look-alike table, diagram part, your notes and the notebook. Theme and text size are in Settings.
+- **Course diagrams.** Every card of a lecture course and its labs ends with the course's architecture as a drawn diagram. The parts this step is about are outlined and the first one is open; click any part (or Tab to it and press Enter) for why it is there and what the exam asks about it. "⤢ Larger" opens it full width.
 - **Cost guard.** Build steps that create something billable in your own AWS account (a NAT gateway, an Elastic IP, an EC2 instance…) put it on a "Still running" list on the overview when you complete them; add anything else from a Build card. Mark each one ✓ Deleted when it's gone. From 20:00, while anything is still on the list, a reminder comes up every 30 minutes (and as a Windows notification), unless you say to keep it running tonight.
-- **Today's goal and the week's challenges.** A ring on the overview fills with today's XP towards your daily goal (⚙ Settings). Three challenges a week (answer 150 questions, complete 40 steps, run the drill 3 times…) each add 50 XP. Reaching either drops a badge at the top of the screen.
+- **Today's goal and the week's challenges.** A dial on the overview lights up with today's XP towards your daily goal (Settings). Three challenges a week (answer 150 questions, complete 40 steps, run the drill 3 times…) each add 50 XP. Reaching either drops a badge at the top of the screen.
 - **Readiness and trends.** The 📈 panel shows, per exam domain, how many of the questions you've met you'd get right now (ready from 80%), the topic to study next with its step, why you miss (from the one-click reasons under each wrong answer), and day-by-day charts of answers right, focus time and XP (hover or use the arrow keys for the values; "Show as table" for all of them).
 - **Look-alikes.** 19 tables put services that sound alike side by side (SQS, SNS or EventBridge; ALB, NLB or GWLB; EBS, EFS or S3…), row by row, ending with the exam's cue. A missed question whose right and wrong answers name two services of one table links to it, and so do the card's panel, weak spots and the practice panel.
 - **Purpose first.** Each card opens with why the thing exists: the problem it was made to solve. Only then come where to do it and the details, as short labelled points.
@@ -59,14 +61,14 @@ Open http://localhost:8080 (or the `PORT` set in `.env`, see "Security defaults"
 - **"Which service?" drill, four ways:** 60 seconds; Reverse (a service, which requirement is it for?); Three lives (no clock, until the third miss); and the Daily five (the same five all day, your first try counts, a run of days).
 - **Moving around a quiz:** ← Previous and Next → go one question either way without answering, so you can skip one and come back; the squares above the question show right, wrong and open, and jump to any of them. After an answer, the main button goes on to the next open question.
 - **XP, levels and badges:** right answers earn XP the first time, after a miss, or when they were due for review (repeats don't), and so do steps and passed quizzes; levels come with titles from "Cloud curious" to "Solutions architect". 15 badges (5, 10, 20, 30 in a row, a perfect score, a comeback, 10 hours of focus, 80% on a mock…). The run of right answers shows in the quiz header and heats up; the results show stars, the XP earned and your longest run.
-- **South Park on the results:** a GIF for every answer right, a pass with some wrong, and a fail, ten of each in rotation (`site/gifs.js`), loaded from GIPHY. Switch them off in ⚙ Settings.
+- **South Park on the results:** a GIF for every answer right, a pass with some wrong, and a fail, ten of each in rotation (`site/gifs.js`), loaded from GIPHY. Switch them off in Settings.
 - **Practice panel:** review queue, mock exam, a 60-second "Which service?" drill, the notebook, a weak-spot map by topic, an exam-wording cheat sheet, and your badges and level.
 
 The questions are original practice questions in the exam's style, not official AWS questions.
 
 ## On a phone or tablet
 
-Everything works by touch. Tap a dotted term for its definition, a day on a chart for its values, a word of a mock exam question to highlight it (dragging scrolls); Back, Mark complete and Next replace the arrow keys and Enter. Theme and text size are per device (⚙ Settings). Notifications and away detection are for the PC; the focus timer still runs and syncs, and the block moves to whichever device you touch (see "Focus timer").
+Everything works by touch. Tap a dotted term for its definition, a day on a chart for its values, a word of a mock exam question to highlight it (dragging scrolls); Back, Mark complete and Next replace the arrow keys and Enter. Theme and text size are per device (Settings). Notifications and away detection are for the PC; the focus timer still runs and syncs, and the block moves to whichever device you touch (see "Focus timer").
 
 ## Focus timer
 
@@ -173,7 +175,7 @@ Back up the database file:
 docker compose cp saa-plan:/data/saa.db ./saa-backup.db
 ```
 
-Or use ⚙ Settings → Export / Import (JSON).
+Or use Settings → Export / Import (JSON).
 
 ## Security defaults
 

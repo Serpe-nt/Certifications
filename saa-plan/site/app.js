@@ -59,24 +59,24 @@ const LETTERS = "ABCDE";
 // can: whether the plan still leaves room for it, checked when the week's three are drawn.
 const CHAL_XP = 50;
 const CHAL = [
-  { id: "ans", i: "📝", k: "a", n: 150, t: n => `Answer ${n} quiz questions` },
-  { id: "right", i: "✅", k: "r", n: 120, t: n => `Get ${n} answers right` },
-  { id: "xp", i: "⭐", k: "x", n: 2000, t: n => `Earn ${n.toLocaleString("en-GB")} XP` },
-  { id: "days", i: "📅", k: "d", n: 4, t: n => `Complete ${n} days of the plan`, can: () => DAYS.filter(d => !dayDone(d)).length >= 4 },
-  { id: "steps", i: "👣", k: "s", n: 40, t: n => `Complete ${n} steps`, can: () => Object.keys(itemIndex).filter(id => !S.ticks[id]).length >= 40 },
-  { id: "focus", i: "⏱", k: "f", n: 15 * 60, t: n => `Log ${n / 60} hours of focus`, fmt: m => fmtH(m) },
-  { id: "fix", i: "🛠", k: "fix", n: 8, t: n => `Fix ${n} notebook questions`, can: () => Object.values(S.book).filter(b => !b.fixed).length >= 8 },
-  { id: "warm", i: "☕", k: "w", n: 4, t: n => `Do the morning warm-up on ${n} days`, can: () => Object.keys(S.srs).length >= 5 },
-  { id: "drill", i: "⚡", k: "dr", n: 3, t: n => `Run the “Which service?” drill ${n} times` },
+  { id: "ans", i: "", k: "a", n: 150, t: n => `Answer ${n} quiz questions` },
+  { id: "right", i: "", k: "r", n: 120, t: n => `Get ${n} answers right` },
+  { id: "xp", i: "", k: "x", n: 2000, t: n => `Earn ${n.toLocaleString("en-GB")} XP` },
+  { id: "days", i: "", k: "d", n: 4, t: n => `Complete ${n} days of the plan`, can: () => DAYS.filter(d => !dayDone(d)).length >= 4 },
+  { id: "steps", i: "", k: "s", n: 40, t: n => `Complete ${n} steps`, can: () => Object.keys(itemIndex).filter(id => !S.ticks[id]).length >= 40 },
+  { id: "focus", i: "", k: "f", n: 15 * 60, t: n => `Log ${n / 60} hours of focus`, fmt: m => fmtH(m) },
+  { id: "fix", i: "", k: "fix", n: 8, t: n => `Fix ${n} notebook questions`, can: () => Object.values(S.book).filter(b => !b.fixed).length >= 8 },
+  { id: "warm", i: "", k: "w", n: 4, t: n => `Do the morning warm-up on ${n} days`, can: () => Object.keys(S.srs).length >= 5 },
+  { id: "drill", i: "", k: "dr", n: 3, t: n => `Run the “Which service?” drill ${n} times` },
   // the id is the one Test me's challenge had, so a week that drew it keeps it; it now counts the cards' own questions
-  { id: "recall", i: "🧠", k: "cq", n: 15, t: n => `Get ${n} knowledge checks right`, can: () => CARDQS.filter(q => !(S.qs[q.id] || {}).right).length >= 15 }
+  { id: "recall", i: "", k: "cq", n: 15, t: n => `Get ${n} knowledge checks right`, can: () => CARDQS.filter(q => !(S.qs[q.id] || {}).right).length >= 15 }
 ];
 const CHAL_BY = Object.assign(Object.create(null), Object.fromEntries(CHAL.map(c => [c.id, c])));
 const CHAL_KEYS = [...new Set(CHAL.map(c => c.k))];
 const GOALS = [100, 150, 200, 300, 400, 600];   // daily XP goals to choose from in Settings
 // One-click reasons for a miss (S.book[id].why), and what helps with each.
-const WHY = [["know", "🤷", "Didn't know it"], ["mix", "🔀", "Mixed up two services"], ["read", "👓", "Misread the question"],
-  ["word", "🔑", "Missed a key word"], ["rush", "⏩", "Rushed or changed my answer"]];
+const WHY = [["know", "", "Didn't know it"], ["mix", "", "Mixed up two services"], ["read", "", "Misread the question"],
+  ["word", "", "Missed a key word"], ["rush", "", "Rushed or changed my answer"]];
 const WHY_BY = Object.assign(Object.create(null), Object.fromEntries(WHY.map(w => [w[0], w])));
 // Keep the newest 120 dates of a date-keyed map.
 const pruneDates = m => { const ks = Object.keys(m).sort(); for (const k of ks.slice(0, Math.max(0, ks.length - 120))) delete m[k]; };
@@ -428,8 +428,31 @@ function setView(day, at, push) {
   homeEl.hidden = !!d; flowEl.hidden = !d;
   document.body.classList.toggle("in-flow", !!d);
   if (d) renderFlow(moved);
+  railNav();
+  bdDraw();
   if (moved) { shown = key; movedAt = Date.now(); scrollTo(0, 0); }
 }
+// ---------- the Field Manual backdrop and the rail ----------
+// The backdrop is geometry only, drawn to the window and seeded with the view, so each day keeps its own drawing;
+// its one piece of text is the day's real number. Circuit on the overview, the quiet grid while you read a step.
+const bdEl = document.getElementById("bd");
+let bdKey = "", bdT = 0;
+function bdDraw() {
+  const d = view.day && dayOf(view.day), w = innerWidth, h = innerHeight, k = `${view.day}|${w}|${h}`;
+  if (!window.FieldManualArt || k === bdKey) return;
+  if (bdKey) bdEl.setAttribute("data-fm-redraw", "");   // later draws skip the boot animation
+  bdKey = k;
+  bdEl.innerHTML = FieldManualArt.backdrop({ width: w, height: h, seed: d ? d.id : "overview", style: d ? "grid" : "circuit", density: d ? 0.6 : 1, ghost: d ? pad2(d.day) : "", top: 48, grain: w * h < 4e6 });
+}
+addEventListener("resize", () => { clearTimeout(bdT); bdT = setTimeout(bdDraw, 150); });
+// where you are, in the rail: the overview, or the day and its card
+function railNav() {
+  const d = view.day && dayOf(view.day);
+  document.getElementById("rl-nav").innerHTML = d
+    ? `<a href="#" data-home-link>Overview</a><span aria-hidden="true">/</span><span aria-current="page">Day ${pad2(d.day)}</span>`
+    : `<span aria-current="page">Overview</span>`;
+}
+document.getElementById("timer").addEventListener("click", e => { if (e.target.closest("[data-home-link]")) { e.preventDefault(); setView("", "", true); } });
 function route() {
   const m = /^#(d\d+)(?:\/([\w-]+))?$/.exec(location.hash);
   setView(m ? m[1] : "", m ? m[2] : "", false);
@@ -448,9 +471,13 @@ const UI_KEY = KEY + "-ui";
 let ui = {};
 try { const u = JSON.parse(localStorage.getItem(UI_KEY)); if (isObj(u)) ui = u; } catch (e) {}
 const saveUI = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} };
-// Theme, text size and the focus view are this browser's choice (Settings, the Focus view button), never synced.
+// Theme, text size, motion and the focus view are this browser's choice (Settings, the Focus view button), never synced.
+// Motion is the Field Manual level: full (boot, response, live loops), calm (no loops), off (static); with effects off
+// a full level drops to calm. The reduced-motion system setting always means off (bundle.css and fx.css).
+const motionLevel = () => { const m = ui.motion === "calm" || ui.motion === "off" ? ui.motion : "full"; return m === "full" && !S.settings.fx ? "calm" : m; };
 function applyDisplay() {
   const r = document.documentElement;
+  r.dataset.fmMotion = motionLevel();
   if (ui.theme === "light" || ui.theme === "dark") r.dataset.theme = ui.theme; else delete r.dataset.theme;
   if (ui.size === "l" || ui.size === "xl") r.dataset.size = ui.size; else delete r.dataset.size;
   document.body.classList.toggle("focus-view", !!ui.focusView);
@@ -458,18 +485,35 @@ function applyDisplay() {
 applyDisplay();
 
 // ---------- overview: day tiles and quick links ----------
+// Write a block of the overview only when its markup changed: a refresh with nothing new (news from another device,
+// the minute tick) must not replay the Field Manual boot animation, which hides the hero for a moment.
+const lastHTML = new WeakMap();
+const setHTML = (el, h) => { if (lastHTML.get(el) !== h) { lastHTML.set(el, h); el.innerHTML = h; } };
+// Field Manual numbers: zero-padded counts ("03 / 22")
+const pad2 = n => String(n).padStart(2, "0");
+// A section header: the index chip, a mono title, a rule, and one real value on the right
+const secHead = (idx, title, val = "", id = "") => `<div class="fm-section"${id ? ` id="${id}"` : ""}><span class="fm-section__idx">/${pad2(idx)}</span><h2 class="fm-section__title">${title}</h2><span class="fm-section__rule"></span>${val ? `<span class="fm-data">${val}</span>` : ""}</div>`;
+// The plan as a lattice: one cell per day, filled by its state (done ink, today signal, quiz to pass alert, open outline)
 function renderMap(ti) {
-  let h = "", open = false;
+  // a week is a row of eight cells: a shorter week is padded with empty cells, so the lattice has no ragged edge
+  const pad = n => "<span class=\"fm-cell fm-cell--empty\" aria-hidden=\"true\">+</span>".repeat((8 - n % 8) % 8);
+  let h = "", open = false, wk = 0, n = 0;
   for (const d of PLAN) {
-    if (d.week) { h += `${open ? "</div>" : ""}<div class="week">${d.week}</div><div class="tiles">`; open = true; continue; }
+    if (d.week) {
+      const m = /^(Week \d+)\s*[—–-]\s*(.+)$/.exec(d.week);
+      h += `${open ? pad(n) + "</div>" : ""}<div class="week">${secHead(++wk, esc(m ? m[1] : d.week), m ? esc(m[2]) : "")}</div><div class="tiles">`;
+      open = true; n = 0; continue;
+    }
+    n++;
     const ids = dIds(d), k = ids.filter(done).length, complete = dayDone(d), quizDue = k === ids.length && !complete;
     const st = complete ? "✓ Done" : quizDue ? "Quiz to pass" : k ? `${k} of ${ids.length} steps, ~${fmtH(dayLeft(d))} left` : `${plural(ids.length, "step")}, ~${fmtH(dayPlanned(d))}`;
-    h += `<a class="dt" href="#${d.id}" data-day="${d.id}" data-done="${complete ? 1 : 0}" data-quiz="${quizDue ? 1 : 0}" data-today="${d.day === ti ? 1 : 0}">` +
-      `<span class="dt-n"><small>Day</small>${d.day}</span>${d.day === ti ? `<span class="today-badge">Today</span>` : ""}` +
-      `<span class="dt-t">${d.title}</span><span class="dt-d">${fmtD(dayDate(d.day))}</span><span class="dt-s">${st}</span>` +
-      `<span class="pbar"><span style="width:${pct(k + (hasQuiz(d) && quizOk(d) ? 1 : 0), stepIds(d).length)}%"></span></span></a>`;
+    const cls = complete ? " is-done" : d.day === ti ? " is-now" : quizDue ? " is-alert" : "";
+    h += `<a class="dt fm-cell${cls}" href="#${d.id}" data-day="${d.id}" data-done="${complete ? 1 : 0}" data-quiz="${quizDue ? 1 : 0}" data-today="${d.day === ti ? 1 : 0}"${d.day === ti ? ' aria-current="date"' : ""}>` +
+      `<span class="dt-top"><span class="dt-n fm-cell__code"><small>Day</small>${pad2(d.day)}</span>${d.day === ti ? `<span class="today-badge">Today</span>` : ""}</span>` +
+      `<span><span class="dt-t fm-cell__name">${d.title}</span><span class="dt-d fm-cell__val">${fmtD(dayDate(d.day))}</span><span class="dt-s fm-cell__val">${st}</span>` +
+      `<span class="pbar"><span style="width:${pct(k + (hasQuiz(d) && quizOk(d) ? 1 : 0), stepIds(d).length)}%"></span></span></span></a>`;
   }
-  document.getElementById("map").innerHTML = h + (open ? "</div>" : "");
+  setHTML(document.getElementById("map"), h + (open ? pad(n) + "</div>" : ""));
 }
 function renderLinks() {
   const nav = document.getElementById("links");
@@ -491,17 +535,18 @@ function renderStats(dn, total) {
   const mins = Object.values(S.log).reduce((a, b) => a + b, 0), sk = streak();
   let seen = 0, right = 0;
   for (const id in S.qs) if (QBY[id]) { seen += S.qs[id].seen; right += S.qs[id].right; }
+  // label, value, its reference point; the lead tile carries an ink bar, the rest are quiet
   const cells = [
-    ["Steps", `${dn} <small>of ${total}</small>`],
-    ["Days", `${DAYS.filter(dayDone).length} <small>of ${DAYS.length}</small>`],
-    ["Focus time", mins >= 1 ? fmtH(mins) : "–"],
-    ["Quiz answers right", seen ? `${pct(right, seen)}% <small>of ${seen}</small>` : "–"],
-    ["Streak", sk ? `🔥 ${plural(sk, "day")}` : "–"]
+    ["Steps", `${pad2(dn)}<small>/ ${total}</small>`, "Steps complete in the plan"],
+    ["Days", `${pad2(DAYS.filter(dayDone).length)}<small>/ ${DAYS.length}</small>`, "Days done, quiz passed"],
+    ["Focus time", mins >= 1 ? fmtH(mins) : "—", mins >= 1 ? "Logged by the focus timer" : "No focus block logged yet"],
+    ["Answers right", seen ? `${pct(right, seen)}<small>% of ${seen}</small>` : "—", seen ? "Every quiz answer so far" : "No quiz answered yet"],
+    ["Streak", sk ? `${pad2(sk)}<small>${sk === 1 ? "day" : "days"}</small>` : "—", sk ? "Days done in a row" : "Finish a day to start one"]
   ];
   const L = levelOf(xpTotal());
-  document.getElementById("stats").innerHTML = cells.map(([k, v]) => `<div class="st"><span class="tb-k">${k}</span><b>${v}</b></div>`).join("") +
-    `<button type="button" class="st st-lv" data-sheet="badges" title="${L.x} XP, ${L.to - L.x} to level ${L.n + 1}. Open badges and level."><span class="tb-k">Level</span>` +
-    `<b>${L.n} <small>${rankOf(L.n)}</small></b><span class="xpbar"><span style="width:${L.pct}%"></span></span></button>`;
+  setHTML(document.getElementById("stats"), cells.map(([k, v, c], i) => `<div class="st fm-stat${i ? " fm-stat--quiet" : ""}"><span class="tb-k">${k}</span><b class="fm-stat__num">${v}</b><span class="fm-stat__cap">${c}</span></div>`).join("") +
+    `<button type="button" class="st st-lv fm-stat fm-stat--quiet" data-sheet="badges" title="${L.x} XP, ${L.to - L.x} to level ${L.n + 1}. Open badges and level."><span class="tb-k">Level</span>` +
+    `<b class="fm-stat__num">${L.n} <small>${rankOf(L.n)}</small></b><span class="xpbar"><span style="width:${L.pct}%"></span></span><span class="fm-stat__cap">${L.to - L.x} XP to level ${L.n + 1}</span></button>`);
 }
 function refresh() {
   const ti = todayIdx();
@@ -514,6 +559,10 @@ function refresh() {
   document.getElementById("bar").style.width = p + "%";
   document.getElementById("tb-pct").textContent = p + "%";
   document.getElementById("tb-sheet").textContent = ti < 1 ? "Not started" : ti > LAST ? "Finished" : `Day ${ti} of ${LAST}`;
+  // the rail: the calendar day against the plan, one segment per day
+  const dayCls = d => (dayDone(d) ? "is-done" : d.day === ti ? "is-now" : "");
+  document.getElementById("rl-pos").innerHTML = `<span class="fm-data">${ti < 1 ? "Day 00" : ti > LAST ? "Done" : "Day " + pad2(ti)} / ${LAST}</span>` +
+    `<span class="fm-seg fm-seg--mini" role="progressbar" aria-label="Days done" aria-valuenow="${DAYS.filter(dayDone).length}" aria-valuemax="${DAYS.length}">${DAYS.map(d => `<i class="${dayCls(d)}"></i>`).join("")}</span>`;
   const examD = examDate();
   document.getElementById("tb-exam").textContent = fmtD(examD);
   document.getElementById("tb-exam-k").textContent = S.settings.exam ? "Exam (booked)" : "Exam";
@@ -593,8 +642,8 @@ function warmHTML() {
   if (!w) return "";
   // the warm-up's Start is not orange: the card's one orange button is the day's
   return w.kind === "warm"
-    ? `<div class="nx-warm"><span>☕ <b>Warm-up:</b> ${plural(w.n, "quick question")} from yesterday before you start. Recalling it now is what makes it stick.</span><span class="nx-wb"><button type="button" class="nx-wgo" data-warm="start">Start the warm-up</button><button type="button" data-warm="skip">Skip today</button></span></div>`
-    : `<div class="nx-warm"><span>🔁 <b>${plural(w.n, "missed question")}</b> ${w.n === 1 ? "is" : "are"} due for review.</span><span class="nx-wb"><button type="button" data-review>Review now</button></span></div>`;
+    ? `<div class="nx-warm"><span><b>Warm-up:</b> ${plural(w.n, "quick question")} from yesterday before you start. Recalling it now is what makes it stick.</span><span class="nx-wb"><button type="button" class="nx-wgo" data-warm="start">Start the warm-up</button><button type="button" class="ghost" data-warm="skip">Skip today</button></span></div>`
+    : `<div class="nx-warm"><span><b>${plural(w.n, "missed question")}</b> ${w.n === 1 ? "is" : "are"} due for review.</span><span class="nx-wb"><button type="button" data-review>Review now</button></span></div>`;
 }
 const liveQuiz = d => !!(S.run && S.run.kind === "day" && S.run.day === d.id && !S.run.done);
 // The card at the top of the overview. Its day is the one with the earliest open step (today's, unless you are behind
@@ -606,38 +655,46 @@ function renderNext(ti, st) {
   const head = (k, date) => `<div class="nx-h"><span class="nx-k">${k}</span>${date ? `<span class="nx-d">${date}</span>` : ""}<span class="nx-st">${st.join("")}</span></div>`;
   if (!n) {
     el.className = "next all-done";
-    el.innerHTML = pre + head("All done", fmtD(new Date())) + `<p class="nx-fin">Every day is done. 🚀 Go pass SAA-C03.</p>` +
-      `<div class="nx-a center"><button type="button" class="primary big" data-mock>${S.run && S.run.kind === "mock" && !S.run.done ? "Resume mock exam" : "Take a mock exam"}</button></div>`;
+    setHTML(el, pre + head("All done", fmtD(new Date())) + `<p class="nx-fin"><span class="nx-k">Plan complete</span> Every day is done. Book the exam and go pass SAA-C03.</p>` +
+      `<div class="nx-a"><button type="button" class="primary big" data-mock>${S.run && S.run.kind === "mock" && !S.run.done ? "Resume mock exam" : "Take a mock exam"} <span aria-hidden="true">→</span></button></div>`);
     return;
   }
   el.className = "next";
   const { d } = n, ids = dIds(d), k = ids.filter(done).length, cards = stepIds(d), at = n.quiz ? "quiz" : n.it[0];
   // the card is on another day than the calendar's: say which day today is on the plan
   const cal = td && td !== d ? `<p class="nx-cal">Today on the plan: Day ${td.day}, ${td.title}${dayDone(td) ? ` <span class="pill ok">✓ Done</span>` : `, about ${fmtH(dayLeft(td))}`}</p>` : "";
-  // one segment per card, grouped like the day's blocks: the done ones filled, the next one outlined
+  // one segment per card, grouped like the day's blocks: the done ones filled ink, the next one signal and standing proud
   const seg = id => `<i class="${(id === "quiz" ? quizOk(d) : done(id)) ? "on" : id === at ? "nx" : ""}${id === "quiz" ? " q" : ""}"></i>`;
   const segs = d.groups.map(g => `<span style="flex:${g.items.length}">${gIds(g).map(seg).join("")}</span>`).join("") + (hasQuiz(d) ? `<span style="flex:1">${seg("quiz")}</span>` : "");
-  let edge, kick, body, act;
+  let kick, body, act;
   if (n.quiz) {
     const r = S.quiz[d.id], tries = r ? r.tries.length : 0, live = liveQuiz(d);
-    edge = "quiz"; kick = "Up next";
+    kick = "Up next";
     body = `<span class="tag t-quiz">Quiz</span><p class="nx-step">${live ? `You are on question ${S.run.i + 1} of ${S.run.ids.length}.` : tries ? `Best so far ${r.best} of ${QZ.DAILY}. A retake draws different questions.` : `Every step is done. ${QZ.DAILY} questions, pass at ${QZ.needed(QZ.DAILY)}.`}</p>`;
-    act = `<button type="button" class="primary big" data-quiz-start="${d.id}">${live ? "Resume quiz" : tries ? `Retake the Day ${d.day} quiz` : `Take the Day ${d.day} quiz`}</button>` +
+    act = `<button type="button" class="primary big" data-quiz-start="${d.id}">${live ? "Resume quiz" : tries ? `Retake the Day ${d.day} quiz` : `Take the Day ${d.day} quiz`} <span aria-hidden="true">→</span></button>` +
       `<a class="btn" href="#${d.id}/quiz">Open Day ${d.day}</a>`;
   } else {
-    edge = TAGS[n.g.t] ? n.g.t : "check"; kick = k ? "Next step" : "First step";
-    body = `<span class="tag t-${edge}">${n.g.label || TAGS[n.g.t]}</span><p class="nx-step">${n.it[1]}</p>` +
-      (n.g.where ? `<p class="nx-where"><span aria-hidden="true">📍</span> ${n.g.where}</p>` : "");
+    const t = TAGS[n.g.t] ? n.g.t : "check";
+    kick = k ? "Next step" : "First step";
+    body = `<span class="tag t-${t}">${n.g.label || TAGS[n.g.t]}</span><p class="nx-step">${n.it[1]}</p>` +
+      (n.g.where ? `<p class="nx-where">${n.g.where}</p>` : "");
     act = `<a class="btn primary big" href="#${d.id}" data-start-day>${k ? "Continue" : "Start"} Day ${d.day} <span aria-hidden="true">→</span></a>`;
   }
+  // The hero: a frame holding the day as a dot-matrix numeral in a sunk well, beside its title, goal and numbers.
+  const dots = window.FieldManualArt ? FieldManualArt.dotNumeral(pad2(d.day), { pitch: 13, label: `Day ${d.day}` }) : `<b>${pad2(d.day)}</b>`;
+  const meta = [["Steps", `${pad2(k)} / ${pad2(ids.length)}`], ["Time left", `~${fmtH(dayLeft(d))}`], ["Planned", fmtD(dayDate(d.day))]];
   // before Day 1 the head already says when the plan starts
-  el.innerHTML = pre + head(d.day === ti ? "Today" : "Next up", d.day === ti ? fmtD(dayDate(d.day)) : ti < 1 ? "" : `planned for ${fmtD(dayDate(d.day))}`) + cal +
-    `<div class="nx-body"><div class="nx-day">` +
-    `<div class="hero"><span class="hero-n"><small>Day</small>${d.day}</span><div><h2 class="hero-t">${d.title}</h2><p class="goal">${d.goal}</p></div></div>` +
-    `<div class="hero-p"><div class="segs" role="img" aria-label="${k} of ${ids.length} steps done">${segs}</div>` +
-    `<span class="muted">${k} of ${ids.length} steps done${hasQuiz(d) ? ", then the quiz" : ""}. About ${fmtH(dayLeft(d))} left.</span></div></div>` +
-    `<div class="box nx-go" style="--edge:var(--${edge})"><div class="nx-gk"><span>${kick}</span><span class="muted">Step ${cards.indexOf(at) + 1} of ${cards.length}</span></div>` +
-    body + `<div class="nx-a">${act}</div></div></div>`;
+  setHTML(el, pre + head(d.day === ti ? "Today" : "Next up", d.day === ti ? fmtD(dayDate(d.day)) : ti < 1 ? "" : `planned for ${fmtD(dayDate(d.day))}`) + cal +
+    `<div class="nx-body"><div class="nx-day fm-frame fm-frame--foot is-live"><span class="fm-frame__tab"><span class="fm-idx">/${pad2(d.day)}</span>${d.day === ti ? "Today" : "Next up"}<span class="fm-slants" aria-hidden="true"></span></span>` +
+    `<div class="hero"><div class="hero-n fm-readout__well"><div class="fm-readout__cap"><span class="fm-label">Day</span><span class="fm-data">/ ${LAST}</span></div>${dots}</div>` +
+    `<div class="hero-x"><h2 class="hero-t">${d.title}</h2><p class="goal">${d.goal}</p>` +
+    `<dl class="fm-meta">${meta.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join("")}</dl></div></div>` +
+    `<div class="hero-p"><div class="fm-progress__head"><span class="fm-label">Steps today</span><span class="fm-data">${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? " + quiz" : ""}</span></div>` +
+    `<div class="segs" aria-hidden="true">${segs}</div>` +
+    `<span class="muted">${k} of ${ids.length} steps done${hasQuiz(d) ? ", then the quiz" : ""}. About ${fmtH(dayLeft(d))} left.</span></div>` +
+    `<span class="fm-frame__foot fm-data">${esc(d.id.toUpperCase())}</span></div>` +
+    `<div class="nx-go fm-cut is-current"><div class="nx-gk"><span>${kick}</span><span class="muted">Step ${pad2(cards.indexOf(at) + 1)} / ${pad2(cards.length)}</span></div>` +
+    body + `<div class="nx-a">${act}</div></div></div>`);
 }
 
 // ---------- day flow: one card at a time ----------
@@ -649,11 +706,11 @@ function renderFlow(moved) {
   const d = dayOf(view.day), ids = stepIds(d), at = view.at, i = ids.indexOf(at);
   document.getElementById("fl-day").innerHTML = `<span class="fl-dn">Day ${d.day}</span><span class="fl-tt">${d.title}</span>` +
     `<span class="fl-dd">${fmtD(dayDate(d.day))}</span>${d.day === todayIdx() ? `<span class="today-badge">Today</span>` : ""}`;
-  const tools = [`<button type="button" class="ghost" data-focus-view aria-pressed="${!!ui.focusView}" title="Hide the panels around the card (F)">${ui.focusView ? "⤡ Show panels" : "⤢ Focus view"}</button>`,
-    `<button type="button" class="ghost" data-search title="Search (Ctrl+K)">🔍</button>`,
-    `<button type="button" class="ghost" data-sheet="daynotes">📝 Day notes</button>`];
-  if (d.groups.some(g => g.t === "build")) tools.push(`<button type="button" class="ghost" data-cleanup="${d.id}">🧹 Cleanup check</button>`);
-  for (const t of d.tools || []) tools.push(t === "notebook" ? `<button type="button" class="ghost" data-sheet="notebook">📓 Notebook</button>` : `<button type="button" class="ghost" data-sheet="weak">📈 Weak spots</button>`);
+  const tools = [`<button type="button" class="ghost" data-focus-view aria-pressed="${!!ui.focusView}" title="Hide the panels around the card (F)">${ui.focusView ? "Show panels" : "Focus view"}</button>`,
+    `<button type="button" class="ghost" data-search title="Search (Ctrl+K)">Search</button>`,
+    `<button type="button" class="ghost" data-sheet="daynotes">Day notes</button>`];
+  if (d.groups.some(g => g.t === "build")) tools.push(`<button type="button" class="ghost" data-cleanup="${d.id}">Cleanup check</button>`);
+  for (const t of d.tools || []) tools.push(t === "notebook" ? `<button type="button" class="ghost" data-sheet="notebook">Notebook</button>` : `<button type="button" class="ghost" data-sheet="weak">Weak spots</button>`);
   document.getElementById("fl-tools").innerHTML = tools.join("");
 
   // one dot per card, grouped like the day's blocks
@@ -736,12 +793,13 @@ function tagStats() {
   }
   return m;
 }
-// A section of the card or a panel: a tinted box with an icon; its edge colour says what kind of thing it holds.
+// A section of the card or a panel: an outlined panel under a mono label; the marker beside the label says what kind
+// of thing it holds (signal for why, alert hazard for the trap, ink for the rest). icon stays for the call sites, unused.
 const box = (kind, icon, title, body, cls = "") =>
-  `<section class="box b-${kind}${cls ? " " + cls : ""}"><h3 class="box-h"><span class="bi" aria-hidden="true">${icon}</span>${title}</h3>${body}</section>`;
+  `<section class="box b-${kind}${cls ? " " + cls : ""}"><h3 class="box-h"><span class="bi" aria-hidden="true"></span>${title}</h3>${body}</section>`;
 // A box that folds; whether it is open is remembered across cards, in this browser.
 const foldBox = (kind, icon, sec, title, n, body, openByDefault) =>
-  `<details class="box b-${kind} c-fold" data-sec="${sec}"${(sec in ui ? ui[sec] : openByDefault) ? " open" : ""}><summary class="box-h"><span class="bi" aria-hidden="true">${icon}</span>${title} <span class="muted">${n}</span></summary>${body}</details>`;
+  `<details class="box b-${kind} c-fold" data-sec="${sec}"${(sec in ui ? ui[sec] : openByDefault) ? " open" : ""}><summary class="box-h"><span class="bi" aria-hidden="true"></span>${title} <span class="muted">${n}</span></summary>${body}</details>`;
 // ---------- course diagrams: one per lecture course, on the cards of the course (cN) and of its labs (lN) ----------
 const DGS = window.DIAGRAMS || {};
 const dgKey = id => { const m = /^[cl](\d+)[a-z]$/.exec(id); return m && DGS["c" + m[1]] && window.DG ? "c" + m[1] : ""; };
@@ -753,14 +811,14 @@ function dgPartHTML(dg, pid) {
   if (!p) return `<p class="muted dg-hint">Click a part of the picture to see why it is there and what the exam asks about it.</p>`;
   return `<h4 class="dg-pn">${esc(p.name)}</h4><p class="dg-pw txt">${p.why}</p>` +
     ((p.k || []).length ? `<ul class="k-list">${p.k.map(([l, t]) => `<li><b class="k-l">${esc(l)}</b><span>${t}</span></li>`).join("")}</ul>` : "") +
-    (p.trap ? `<p class="dg-trap"><b>⚠️ Exam trap:</b> ${p.trap}</p>` : "");
+    (p.trap ? `<p class="dg-trap"><b>[ Trap ]</b> ${p.trap}</p>` : "");
 }
 // The picture with the step's parts as buttons and the open part explained under it (or beside it, in the larger view).
 function dgViewHTML(key, id, sel, big) {
   const dg = DGS[key], rel = id ? dgRel(id, dg) : [];
   const chips = rel.length ? `<p class="dg-rel"><span class="muted">This step:</span>${rel.map(p => `<button type="button" class="sm" data-dg-part="${esc(p)}">${esc(dg.parts[p].name)}</button>`).join("")}</p>` : "";
   return `<div class="dg-box" data-dg="${key}" data-rel="${esc(rel.join(" "))}">${chips}<div class="dg-pic"><div class="dg-wrap">${DG.svg(dg, key + (big ? "-big" : ""))}</div>` +
-    (big ? "" : `<button type="button" class="sm dg-big" data-dg-big="${esc(id)}" title="Open the diagram larger">⤢ Larger</button>`) +
+    (big ? "" : `<button type="button" class="sm dg-big" data-dg-big="${esc(id)}" title="Open the diagram larger">Larger ↗</button>`) +
     `</div><div class="dg-part" aria-live="polite" data-sel="${esc(sel)}">${dgPartHTML(dg, sel)}</div></div>`;
 }
 function dgHTML(id) {
@@ -768,7 +826,7 @@ function dgHTML(id) {
   if (!key) return "";
   const dg = DGS[key];
   if (dgSel.id !== id) dgSel = { id, part: dgRel(id, dg)[0] || "" };
-  return foldBox("map", "🗺", "dg", "Course diagram", "", `<p class="dg-t"><b>${esc(dg.title)}</b></p><p class="dg-why txt">${dg.why}</p>${dgViewHTML(key, id, dgSel.part, false)}`, true);
+  return foldBox("map", "", "dg", "Course diagram", "", `<p class="dg-t"><b>${esc(dg.title)}</b></p><p class="dg-why txt">${dg.why}</p>${dgViewHTML(key, id, dgSel.part, false)}`, true);
 }
 // Mark the open part and the step's parts on the picture (after it is on screen).
 function dgMark(root) {
@@ -794,8 +852,8 @@ function openDiagram(id) {
 }
 function dgSheet() {
   const id = shDlg.dataset.dg || "", key = dgKey(id);
-  if (!key) return ["🗺 Course diagram", ""];
-  return [`🗺 ${DGS[key].title}`, `<p class="muted dg-why txt">${DGS[key].why}</p>${dgViewHTML(key, id, dgSel.id === id ? dgSel.part : "", true)}`];
+  if (!key) return ["Course diagram", ""];
+  return [DGS[key].title, `<p class="muted dg-why txt">${DGS[key].why}</p>${dgViewHTML(key, id, dgSel.id === id ? dgSel.part : "", true)}`];
 }
 
 // ---------- look-alikes: services the exam sets against each other, side by side ----------
@@ -816,7 +874,7 @@ function laFor(q, picked) {
   const a = mine.length ? hit(mine) : [];
   return a.length ? a : hit(wrongAll);
 }
-const laLinks = list => list.length ? `<div class="qz-la"><span>⚖️ Compare side by side:</span>${list.map(e => `<button type="button" class="link" data-look="${esc(e.id)}">${esc(e.title)}</button>`).join("")}</div>` : "";
+const laLinks = list => list.length ? `<div class="qz-la"><span>Compare side by side:</span>${list.map(e => `<button type="button" class="link" data-look="${esc(e.id)}">${esc(e.title)}</button>`).join("")}</div>` : "";
 const laTag = tag => LA.filter(e => (e.tags || []).includes(tag));
 let laOn = "";   // the table a link opened: shown first and marked
 function lookHTML() {
@@ -860,22 +918,22 @@ function stepCardHTML(id) {
   if (head && parts && !steps) h += `<p class="c-kick">${parts[1]}</p>`;
   h += head ? `<h2 class="c-t c-hl" tabindex="-1">${esc(head)}</h2>` : `<h2 class="c-t txt" tabindex="-1">${txt}</h2>`;
   // where to do it comes right after the title: it is where the step happens, read before anything else
-  if (g.where || url) h += `<div class="c-where"><span class="bi" aria-hidden="true">📍</span>${g.where ? `<span class="where">Where: ${g.where}</span>` : `<span class="where"></span>`}${url ? `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open ↗</a>` : ""}</div>`;
+  if (g.where || url) h += `<div class="c-where"><span class="bi" aria-hidden="true"></span>${g.where ? `<span class="where">Where: ${g.where}</span>` : `<span class="where"></span>`}${url ? `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open ↗</a>` : ""}</div>`;
   // a reading block ("Read: …") is a Watch group too, but you read it
   const lessons = /^Read\b/.test(g.label || "") ? "To read" : LESSONS[g.t];
   if (head && !steps) h += `<p class="c-les txt">${lessons ? `${lessons}: ` : ""}${parts ? parts[2] : txt}</p>`;
   if (note && !steps) h += `<p class="c-n txt">${note}</p>`;
   h += `</header>`;
   // Purpose first: the problem or need behind the step, then the idea that answers it, before any detail.
-  if (kp && kp.why) h += box("why", "💡", g.t === "setup" || g.t === "prep" ? "Why this step" : "Why it exists",
+  if (kp && kp.why) h += box("why", "", g.t === "setup" || g.t === "prep" ? "Why this step" : "Why it exists",
     `<p class="txt">${kp.why}</p>${kp.idea ? `<p class="txt c-idea">${kp.idea}</p>` : ""}`, "c-why");
   // a step you carry out: its numbered actions (they replace the step text and its note) and how you know it worked
-  if (steps) h += box("do", "🛠", "Do it", `<ol class="c-do txt">${steps.map(s => `<li>${s}</li>`).join("")}</ol>` +
+  if (steps) h += box("do", "", "Do it", `<ol class="c-do txt">${steps.map(s => `<li>${s}</li>`).join("")}</ol>` +
     (kp.done ? `<p class="c-done txt"><b>Done when:</b> ${kp.done}</p>` : ""), "c-doit");
   if (SCORE_AT[id]) h += scoreFieldHTML(SCORE_AT[id]);
   if (d.decision === id) { const [cls, v] = verdictHTML(); h += `<div class="verdict ${cls}" data-verdict>${v}</div>`; }
   if (g.t === "check" && CARDS[id]) {
-    h += box("check", "🧠", "Self-check", `<p class="muted">Explain it out loud first, then open the model answer and compare.</p>` +
+    h += box("check", "", "Self-check", `<p class="muted">Explain it out loud first, then open the model answer and compare.</p>` +
       `<button type="button" class="flip${S.conf[id] === "shaky" ? " shaky" : ""}" data-flip="${id}" aria-expanded="false" aria-controls="ca-${id}">${flipLabel(id)}</button>` +
       `<div class="card-a" id="ca-${id}" hidden><div class="card-t">${CARDS[id]}</div><div class="card-b"><span class="muted">How close were you?</span>` +
       `<button type="button" data-conf="ok" data-cid="${id}">Got it</button><button type="button" data-conf="shaky" data-cid="${id}">Shaky</button></div></div>`, "c-check");
@@ -885,15 +943,15 @@ function stepCardHTML(id) {
     const pts = kp.k || [], labelled = pts.some(Array.isArray);
     if (pts.length) {
       const li = x => (Array.isArray(x) ? `<li><b class="k-l">${x[0]}</b><span>${x[1]}</span></li>` : `<li>${x}</li>`);
-      h += box("know", "📘", kp.why ? "What to know" : "Key points", `<ul${labelled ? ' class="k-list"' : ""}>${pts.map(li).join("")}</ul>`, "c-key");
+      h += box("know", "", kp.why ? "What to know" : "Key points", `<ul${labelled ? ' class="k-list"' : ""}>${pts.map(li).join("")}</ul>`, "c-key");
     }
-    if (kp.trap) h += box("trap", "⚠️", "Exam trap", `<p>${kp.trap}</p>`, "c-trap");
+    if (kp.trap) h += box("trap", "", "Exam trap", `<p>${kp.trap}</p>`, "c-trap");
   }
   // billable things: on the steps that create something, and on the block's last step (the cleanup)
   if (g.t === "build" && (BILL.steps[id] || g.items.indexOf(it) === g.items.length - 1)) h += costBoxHTML(d);
   // after the reading, the knowledge check: one question on what this card taught; then your notes close the article, like the comments under a post
   return h + dgHTML(id) + cardQHTML(id) +
-    `<label class="box b-notes c-notes"><span class="box-h"><span class="bi" aria-hidden="true">📝</span>My notes on this step <span class="saved" data-saved="${id}">saved</span></span>` +
+    `<label class="box b-notes c-notes"><span class="box-h"><span class="bi" aria-hidden="true"></span>My notes on this step <span class="saved" data-saved="${id}">saved</span></span>` +
     `<textarea data-inote="${id}" maxlength="${NOTE_MAX}" placeholder="What surprised you, what to look at again…">${esc(S.inotes[id] || "")}</textarea></label>`;
 }
 // Two lists side by side when there is room (CSS decides); one alone needs no columns.
@@ -908,8 +966,8 @@ function sideHTML(id) {
   for (const t of tags) for (const c of CUES) if ((CUE_TAGS[c[0]] || []).includes(t) && !cues.includes(c) && cues.length < 4) cues.push(c);
 
   const l = sideCols(
-    docs.length ? box("docs", "📄", "AWS docs", `<ul class="c-docs">${docs.map(([t, u]) => `<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a></li>`).join("")}</ul>`) : "",
-    terms.length ? foldBox("terms", "📖", "terms", "Terms in this step", terms.length, `<dl class="c-terms">${terms.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`, true) : "");
+    docs.length ? box("docs", "", "AWS docs", `<ul class="c-docs">${docs.map(([t, u]) => `<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a></li>`).join("")}</ul>`) : "",
+    terms.length ? foldBox("terms", "", "terms", "Terms in this step", terms.length, `<dl class="c-terms">${terms.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`, true) : "");
 
   // how you stand and what to tell apart in one column, how the exam words it in the other
   let r = "";
@@ -927,11 +985,11 @@ function sideHTML(id) {
         (seen.length ? ` You have answered ${seen.length}, ${right} right at the last try.` : "") + `</span>` +
         `<button type="button" data-step-quiz="${id}">${live ? "Resume practice" : `Try ${Math.min(QZ.STEP, qs.length)} now`}</button></div>`;
     }
-    r += box("exam", "📊", "Exam topics", b);
+    r += box("exam", "", "Exam topics", b);
   }
   const las = LA.filter(e => (e.tags || []).some(t => tags.includes(t))).slice(0, 4);
-  if (las.length) r += box("look", "⚖️", "Look-alikes on these topics", `<ul class="c-la">${las.map(e => `<li><button type="button" class="link" data-look="${esc(e.id)}">${esc(e.title)}</button></li>`).join("")}</ul>`);
-  r = sideCols(r, cues.length ? foldBox("cues", "🗣", "cues", "Exam wording on these topics", cues.length,
+  if (las.length) r += box("look", "", "Look-alikes on these topics", `<ul class="c-la">${las.map(e => `<li><button type="button" class="link" data-look="${esc(e.id)}">${esc(e.title)}</button></li>`).join("")}</ul>`);
+  r = sideCols(r, cues.length ? foldBox("cues", "", "cues", "Exam wording on these topics", cues.length,
     `<ul class="cue-l">${cues.map(c => `<li><b>${esc(c[0])}</b><span>→ ${esc(c[1])}</span><span class="muted">${esc(c[2])}</span></li>`).join("")}</ul>`, true) : "");
   return { l: l && `<div class="side-t">Look it up</div>${l}`, r: r && `<div class="side-t">On the exam</div>${r}` };
 }
@@ -988,8 +1046,8 @@ const longStep = g => (g.min || 0) / g.items.length >= 30;
 function stepToast(d) {
   const ids = dIds(d), n = ids.filter(done).length, left = ids.length - n;
   const half = ids.length >= 4 && n === Math.ceil(ids.length / 2);
-  FX.toast(half ? `<b>Halfway through Day ${d.day}</b> · ${plural(left, "step")} to go`
-    : `<b>✓ ${n} of ${ids.length}</b> · ${left === 0 ? "every step done" : left === 1 ? "one more step" : `${left} steps to go`}`, half ? "half" : "");
+  FX.toast(half ? `<b>Halfway through Day ${d.day}.</b> ${plural(left, "step")} to go`
+    : `<b>✓ ${n} of ${ids.length}</b> steps done. ${left === 0 ? "Every step done" : left === 1 ? "One more step" : `${left} steps to go`}`, half ? "half" : "");
 }
 function stepDone(d, g, el) {
   FX.step(el, { n: dIds(d).filter(done).length, big: longStep(g) });
@@ -1000,10 +1058,10 @@ function blockDone(d, g, el) {
   stepToast(d);
   if (itemsDone(d) && hasQuiz(d)) {
     FX.quizOpen();
-    FX.banner("All steps done 🔓", `The Day ${d.day} quiz is open: ${QZ.DAILY} questions, pass at ${QZ.needed(QZ.DAILY)}.`, "block");
+    FX.banner("All steps done", `Day ${d.day} quiz open. ${QZ.DAILY} questions, pass mark ${QZ.needed(QZ.DAILY)}.`, "block");
   } else {
     FX.block(el);
-    FX.banner(`${strip(g.label || TAGS[g.t])} ✅`, `Block ${n} of ${d.groups.length} done · about ${fmtH(dayLeft(d))} left today`, "block");
+    FX.banner(strip(g.label || TAGS[g.t]), `Block ${n} of ${d.groups.length} done. About ${fmtH(dayLeft(d))} left today.`, "block");
   }
 }
 function setTick(id, val, srcEl) {
@@ -1014,7 +1072,7 @@ function setTick(id, val, srcEl) {
   markDayDone(d);
   const billed = billFor(id, val, d);
   save();
-  if (billed.length) setTimeout(() => FX.toast(`🧾 On your <b>still running</b> list: ${billed.map(esc).join(", ")}`), 900);
+  if (billed.length) setTimeout(() => FX.toast(`Added to the <b>still running</b> list: ${billed.map(esc).join(", ")}`), 900);
   if (val) {
     // effects start from the button that was pressed, so fire them before the card is redrawn
     let cel = 0;   // how long a top rung's banner stays up
@@ -1042,16 +1100,18 @@ function complete(id, srcEl) {
 }
 // The top rungs. Returns how long the banner stays up, so what follows (the cleanup check, the mock's prompt) waits for it.
 function celebrate(kind, d) {
-  const sk = streak();
-  const skTxt = sk > 1 ? ` · 🔥 ${sk}-day streak` : "";
+  const sk = streak(), nDone = DAYS.filter(dayDone).length;
+  const skTxt = sk > 1 ? ` Streak ${pad2(sk)} days.` : "";
+  // the banner's mark: the day, the week or the whole plan as dot-matrix characters (fx.js shows a square without art.js)
+  const dots = s => (window.FieldManualArt ? FieldManualArt.dotNumeral(s, { pitch: 8, label: s }) : "");
   let ms;
-  if (kind === "all") { FX.all(); ms = FX.banner(`All ${DAYS.length} days done`, "Go pass SAA-C03.", "all", "🚀"); }
+  if (kind === "all") { FX.all(); ms = FX.banner(`All ${DAYS.length} days done`, `${pad2(nDone)} / ${DAYS.length} days. Plan complete. Next: pass SAA-C03.`, "all", dots(`${nDone}/${DAYS.length}`)); }
   else if (kind === "week") {
     const w = WEEK[d.id], next = WEEKS[w + 1];
-    FX.week(); ms = FX.banner(`Week ${w + 1} complete`, (next ? `Next: ${strip(next)}.` : "Only the exam left.") + skTxt, "week", "🏆");
+    FX.week(); ms = FX.banner(`Week ${w + 1} complete`, (next ? `Next: ${strip(next)}.` : "Only the exam left.") + skTxt, "week", dots(`W${pad2(w + 1)}`));
   }
-  else { FX.day(); ms = FX.banner(`Day ${d.day} complete`, `${DAYS.filter(dayDone).length}/${DAYS.length} days done${skTxt}`, "day", "🎉"); }
-  if ([3, 5, 7, 10, 14, 21].includes(sk)) setTimeout(() => FX.badge("🔥", `${sk} days in a row`, "A study streak", sk >= 10 ? "epic" : "gold"), 3400);
+  else { FX.day(); ms = FX.banner(`Day ${d.day} complete`, `${pad2(nDone)} / ${DAYS.length} days done.${skTxt}`, "day", dots(pad2(d.day))); }
+  if ([3, 5, 7, 10, 14, 21].includes(sk)) setTimeout(() => FX.badge(`${pad2(sk)}D`, `${sk} days in a row`, "Study streak", sk >= 10 ? "epic" : "gold"), 3400);
   return ms;
 }
 
@@ -1061,22 +1121,23 @@ function celebrate(kind, d) {
 const XP = { right: 10, step: 5, pass: 100 };
 // Badges are earned once and kept with the date (S.ach). Most are read from the state, so progress made
 // before badges existed earns them too (quietly, at boot); the streak ones (`row`) only while answering.
+// i = the badge's code: a short mono label in its cell, mostly the badge's own threshold (Field Manual has no icons).
 const ACH = [
-  { id: "first", i: "🎯", t: "First one right", d: "Answer a quiz question right.", xp: 20, ok: c => c.right >= 1 },
-  { id: "row5", i: "🔥", t: "On a roll", d: "5 right answers in a row.", xp: 50, row: 5 },
-  { id: "row10", i: "🔥", t: "On fire", d: "10 right answers in a row.", xp: 100, row: 10 },
-  { id: "row20", i: "🌟", t: "Legendary", d: "20 right answers in a row.", xp: 200, row: 20 },
-  { id: "row30", i: "👑", t: "Flawless", d: "30 right answers in a row: a whole day quiz.", xp: 300, row: 30 },
-  { id: "pass1", i: "✅", t: "First quiz passed", d: "Pass an end-of-day quiz.", xp: 50, ok: c => c.passed >= 1 },
-  { id: "perfect", i: "💯", t: "Perfect score", d: "Every answer of a day quiz right.", xp: 200, ok: c => c.perfect },
-  { id: "comeback", i: "🔁", t: "Comeback", d: "Pass a day quiz you failed before.", xp: 100, ok: c => c.comeback },
-  { id: "right100", i: "🧠", t: "A hundred right", d: "100 right answers that earned XP.", xp: 100, ok: c => c.right >= 100 },
-  { id: "right500", i: "🧠", t: "Five hundred right", d: "500 right answers that earned XP.", xp: 250, ok: c => c.right >= 500 },
-  { id: "fix10", i: "🛠", t: "Mistake fixer", d: "Answer 10 notebook questions right after missing them.", xp: 100, ok: c => c.fixed >= 10 },
-  { id: "warm5", i: "☕", t: "Early bird", d: "Do the morning warm-up on 5 days.", xp: 75, ok: c => c.warm >= 5 },
-  { id: "drill15", i: "⚡", t: "Quick draw", d: "15 or more in the 60-second drill.", xp: 100, ok: c => c.drill >= 15 },
-  { id: "focus10", i: "⏱", t: "Deep work", d: "10 hours of focus time logged.", xp: 150, ok: c => c.focus >= 600 },
-  { id: "mock80", i: "🎓", t: "Exam ready", d: "80% or more on a mock exam.", xp: 300, ok: c => c.mock >= 80 }
+  { id: "first", i: "1ST", t: "First one right", d: "Answer a quiz question right.", xp: 20, ok: c => c.right >= 1 },
+  { id: "row5", i: "R05", t: "On a roll", d: "5 right answers in a row.", xp: 50, row: 5 },
+  { id: "row10", i: "R10", t: "On fire", d: "10 right answers in a row.", xp: 100, row: 10 },
+  { id: "row20", i: "R20", t: "Legendary", d: "20 right answers in a row.", xp: 200, row: 20 },
+  { id: "row30", i: "R30", t: "Flawless", d: "30 right answers in a row: a whole day quiz.", xp: 300, row: 30 },
+  { id: "pass1", i: "P01", t: "First quiz passed", d: "Pass an end-of-day quiz.", xp: 50, ok: c => c.passed >= 1 },
+  { id: "perfect", i: "MAX", t: "Perfect score", d: "Every answer of a day quiz right.", xp: 200, ok: c => c.perfect },
+  { id: "comeback", i: "2ND", t: "Comeback", d: "Pass a day quiz you failed before.", xp: 100, ok: c => c.comeback },
+  { id: "right100", i: "100", t: "A hundred right", d: "100 right answers that earned XP.", xp: 100, ok: c => c.right >= 100 },
+  { id: "right500", i: "500", t: "Five hundred right", d: "500 right answers that earned XP.", xp: 250, ok: c => c.right >= 500 },
+  { id: "fix10", i: "FIX", t: "Mistake fixer", d: "Answer 10 notebook questions right after missing them.", xp: 100, ok: c => c.fixed >= 10 },
+  { id: "warm5", i: "AM5", t: "Early bird", d: "Do the morning warm-up on 5 days.", xp: 75, ok: c => c.warm >= 5 },
+  { id: "drill15", i: "D15", t: "Quick draw", d: "15 or more in the 60-second drill.", xp: 100, ok: c => c.drill >= 15 },
+  { id: "focus10", i: "10H", t: "Deep work", d: "10 hours of focus time logged.", xp: 150, ok: c => c.focus >= 600 },
+  { id: "mock80", i: "80%", t: "Exam ready", d: "80% or more on a mock exam.", xp: 300, ok: c => c.mock >= 80 }
 ];
 const ACH_BY = Object.assign(Object.create(null), Object.fromEntries(ACH.map(a => [a.id, a])));
 // A title for every two levels; the plan's XP adds up to about level 20 by exam day.
@@ -1130,7 +1191,7 @@ function showGains(got, delay = 0) {
   const all = got.map(a => [a.i, a.t, `New badge, +${a.xp} XP`, "gold"]).concat(checkGoals());
   all.forEach(([i, t, sub, tier], k) => setTimeout(() => { FX.sound("unlock"); FX.badge(i, t, sub, tier); }, delay + k * 650));
   const n = levelOf(xpTotal()).n, was = lvShown;
-  if (was && n > was) setTimeout(() => { FX.sound("level"); FX.badge("⭐", `Level ${n}`, rankOf(n) !== rankOf(was) ? `New title: ${rankOf(n)}` : rankOf(n), "level"); }, delay + all.length * 650);
+  if (was && n > was) setTimeout(() => { FX.sound("level"); FX.badge(`L${pad2(n)}`, `Level ${n}`, rankOf(n) !== rankOf(was) ? `New title: ${rankOf(n)}` : rankOf(n), "level"); }, delay + all.length * 650);
   lvShown = Math.max(lvShown, n);
 }
 
@@ -1187,13 +1248,13 @@ function checkGoals() {
   const e = S.xpDay[today()];
   if (!ready || !e) return [];
   const out = [];
-  if (!e.hit && xpToday() >= S.settings.goal) { e.hit = true; const gs = goalStreak(); out.push(["🎯", "Daily goal reached", `${S.settings.goal} XP today${gs > 1 ? `, ${gs} days in a row` : ""}`, "silver"]); }
+  if (!e.hit && xpToday() >= S.settings.goal) { e.hit = true; const gs = goalStreak(); out.push(["XP", "Daily goal reached", `${S.settings.goal} XP today${gs > 1 ? `, ${gs} days in a row` : ""}`, "silver"]); }
   const c = counters();
   for (const id of S.week.ids) {
     const ch = CHAL_BY[id];
     if (chalDone(id) || chalProg(id, c) < ch.n) continue;
     S.chal[`${S.week.key}:${id}`] = today();
-    out.push(["🏆", "Weekly challenge done", `${ch.t(ch.n)}, +${CHAL_XP} XP`, "epic"]);
+    out.push(["WK", "Weekly challenge done", `${ch.t(ch.n)}, +${CHAL_XP} XP`, "epic"]);
   }
   if (out.length) save();
   return out;
@@ -1202,10 +1263,10 @@ function renderToday() {
   const el = document.getElementById("today");
   if (!ready || !S.xpDay[today()]) { el.hidden = true; return; }
   el.hidden = false;
-  const goal = S.settings.goal, x = xpToday(), hit = x >= goal, gs = goalStreak(), R = 34, C = 2 * Math.PI * R;
-  // a meter: the fill is the share of the goal, the track a lighter step of the same colour
-  const ring = `<svg class="ring" viewBox="0 0 84 84" aria-hidden="true"><circle class="ring-t" cx="42" cy="42" r="${R}"/>` +
-    `<circle class="ring-f" cx="42" cy="42" r="${R}" stroke-dasharray="${(Math.min(1, x / goal) * C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 42 42)"/></svg>`;
+  const goal = S.settings.goal, x = xpToday(), hit = x >= goal, gs = goalStreak();
+  // a Field Manual dial: a ring of ticks lit up to today's share of the goal, the goal itself the long tick at the end
+  const share = Math.min(100, Math.round(x / goal * 100));
+  const ring = window.FieldManualArt ? FieldManualArt.dial(share, { max: 100, target: 100, size: 88, label: `${x} of ${goal} XP today` }) : "";
   const c = counters(), sun = parseDate(S.week.key); sun.setDate(sun.getDate() + 6);
   const rows = S.week.ids.map(id => {
     const ch = CHAL_BY[id], n = Math.min(ch.n, chalDone(id) ? ch.n : chalProg(id, c)), done = n >= ch.n, f = ch.fmt || (v => v.toLocaleString("en-GB"));
@@ -1214,8 +1275,8 @@ function renderToday() {
       `<span class="ch-n">${done ? "✓ Done" : `${f(n)} / ${f(ch.n)}`}</span></span></li>`;
   }).join("");
   el.innerHTML = `<div class="td-goal${hit ? " hit" : ""}" role="group" aria-label="Today's goal: ${x} of ${goal} XP">${ring}` +
-    `<div class="ring-v"><b>${x.toLocaleString("en-GB")}</b><small>of ${goal} XP</small></div>` +
-    `<div class="td-x"><h3>Today's goal</h3><p>${hit ? "Reached 🎯" : `${goal - x} XP to go`}</p>` +
+    `<div class="ring-v" aria-hidden="true"><b>${x.toLocaleString("en-GB")}</b><small>of ${goal} XP</small></div>` +
+    `<div class="td-x"><h3>Today's goal</h3><p>${hit ? "[ Reached ]" : `${goal - x} XP to go`}</p>` +
     `<p class="muted">${gs > 1 ? `Reached ${gs} days in a row.` : hit ? "Reached today. Keep it up tomorrow for a run of days." : "Right answers, steps, passed quizzes and challenges count."} <button type="button" class="link" data-goal-set>Change</button></p></div></div>` +
     `<div class="td-ch"><h3>This week's challenges <span class="muted">+${CHAL_XP} XP each, until ${fmtD(sun)}</span></h3><ul>${rows || `<li class="muted">None this week.</li>`}</ul></div>`;
 }
@@ -1237,7 +1298,7 @@ function studyNext(rd) {
   const w = QZ.weakTags(BANK.filter(q => q.dom === dom.i + 1), S.qs, 3).find(t => tagRefs(t.tag).length);
   return w ? { dom: dom.i + 1, tag: w.tag, right: w.right, seen: w.seen, step: tagRefs(w.tag)[0] } : null;
 }
-const band = a => (a >= READY ? ["ok", "✓", "Ready"] : a >= CLOSE ? ["warn", "◐", "Close"] : ["bad", "✗", "Not yet"]);
+const band = a => (a >= READY ? ["ok", "✓", "Ready"] : a >= CLOSE ? ["warn", "■", "Close"] : ["bad", "✕", "Not yet"]);
 function whyCounts() {
   const n = Object.create(null);
   for (const id in S.book) if (QBY[id] && S.book[id].why) n[S.book[id].why] = (n[S.book[id].why] || 0) + 1;
@@ -1255,7 +1316,7 @@ function whyPatternHTML() {
   const wc = whyCounts();
   if (!wc.length) return `<p class="muted">Mark why you missed a question (the buttons under a wrong answer, or in the notebook) and the pattern shows here.</p>`;
   const max = wc[0][1], all = wc.reduce((a, x) => a + x[1], 0);
-  return `<ul class="why-bars">${wc.map(([w, n]) => `<li><span class="wb-l">${w[1]} ${esc(w[2])}</span><span class="wb-t"><span style="width:${(n / max * 100).toFixed(1)}%"></span></span><span class="wb-n">${n}</span></li>`).join("")}</ul>` +
+  return `<ul class="why-bars">${wc.map(([w, n]) => `<li><span class="wb-l">${esc(w[2])}</span><span class="wb-t"><span style="width:${(n / max * 100).toFixed(1)}%"></span></span><span class="wb-n">${n}</span></li>`).join("")}</ul>` +
     `<p class="why-tip"><b>Most often: ${esc(wc[0][0][2].toLowerCase())}</b> (${wc[0][1]} of ${all}). ${WHY_TIP[wc[0][0][0]]()}</p>`;
 }
 function renderReady() {
@@ -1276,8 +1337,8 @@ function renderReady() {
   const nx = studyNext(rd);
   if (nx) {
     const { d, it } = itemIndex[nx.step];
-    h += `<div class="rd-next"><span class="rd-nk">📍 Study this next</span><p><b>${esc(nx.tag)}</b> in D${nx.dom} ${DOMAINS[nx.dom - 1]}: ${nx.right} of ${nx.seen} answers right. Day ${d.day} teaches it: ${it[1]}</p>` +
-      `<div class="row"><button type="button" data-jump="${nx.step}">Open the step</button><button type="button" data-step-quiz="${nx.step}">Try 3 questions on it</button>${laTag(nx.tag).length ? `<button type="button" data-look="${esc(laTag(nx.tag)[0].id)}">⚖️ ${esc(laTag(nx.tag)[0].title)}</button>` : ""}</div></div>`;
+    h += `<div class="rd-next"><span class="rd-nk">Study this next</span><p><b>${esc(nx.tag)}</b> in D${nx.dom} ${DOMAINS[nx.dom - 1]}: ${nx.right} of ${nx.seen} answers right. Day ${d.day} teaches it: ${it[1]}</p>` +
+      `<div class="row"><button type="button" data-jump="${nx.step}">Open the step</button><button type="button" data-step-quiz="${nx.step}">Try 3 questions on it</button>${laTag(nx.tag).length ? `<button type="button" data-look="${esc(laTag(nx.tag)[0].id)}">${esc(laTag(nx.tag)[0].title)}</button>` : ""}</div></div>`;
   }
   h += `<h3 class="sub-h">Why you miss</h3>${whyPatternHTML()}`;
   el.innerHTML = h;
@@ -1326,14 +1387,14 @@ function chartSVG(data, val, { kind, max, ref, refLabel, unit, per = 1 }) {
     const w = Math.min(24, Math.max(2, bw - 2));
     vs.forEach((v, i) => {
       if (!v) return;
-      const h = Math.max(1, (v / top) * ph), x0 = x(i) - w / 2, y0 = T + ph - h, r = Math.min(4, w / 2, h);
-      g += `<path class="mk" d="M${x0.toFixed(1)} ${(T + ph).toFixed(1)}V${(y0 + r).toFixed(1)}q0 -${r} ${r} -${r}h${(w - 2 * r).toFixed(1)}q${r} 0 ${r} ${r}V${(T + ph).toFixed(1)}z"/>`;
+      const h = Math.max(1, (v / top) * ph), x0 = x(i) - w / 2, y0 = T + ph - h;
+      g += `<rect class="mk${i === n - 1 ? " now" : ""}" x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}"/>`;
     });
   } else {
     let path = "", on = false;
-    vs.forEach((v, i) => { if (v == null) { on = false; return; } path += `${on ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`; on = true; });
+    vs.forEach((v, i) => { if (v == null) { on = false; return; } path += on ? `H${x(i).toFixed(1)}V${y(v).toFixed(1)}` : `M${x(i).toFixed(1)} ${y(v).toFixed(1)}`; on = true; });
     g += `<path class="ln" d="${path}"/>`;
-    vs.forEach((v, i) => { if (v != null) g += `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4"/>`; });
+    vs.forEach((v, i) => { if (v != null) g += `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3"/>`; });
   }
   // the last value is labelled; the rest are on hover, with the keys, and in the table
   const li = vs.map((v, i) => (v ? i : -1)).filter(i => i >= 0).pop();
@@ -1395,11 +1456,11 @@ function verdictHTML() {
   const weak = weakestDomain();
   const weakTxt = weak ? ` Focus on <b>Domain ${weak.i + 1} (${weak.name})</b>.` : "";
   const peStep = itemIndex[Object.keys(SCORE_AT).find(k => SCORE_AT[k] === "pe")];
-  if (pe == null) return ["", `Enter your <b>Official Practice Exam</b> score${peStep ? ` (Day ${peStep.d.day})` : ""} in 📊 Scores to get the go/no-go decision.`];
+  if (pe == null) return ["", `Enter your <b>Official Practice Exam</b> score${peStep ? ` (Day ${peStep.d.day})` : ""} in Scores to get the go/no-go decision.`];
   if (pe < 100 || pe > 1000) return ["", "Practice exam score must be between 100 and 1000."];
-  if (pe >= 750) return ["go", `<b>GO</b> — ${pe}/1000. Book the exam for Day ${LAST} (${fmtD(dayDate(LAST))}).`];
-  if (pe >= 720) return ["mid", `<b>BORDERLINE</b> — ${pe}/1000 passes, but with no margin. Add 3–4 days, then book.${weakTxt}`];
-  return ["no", `<b>NOT YET</b> — ${pe}/1000 (pass is 720). Add a week before booking.${weakTxt}`];
+  if (pe >= 750) return ["go", `<b>[ GO ]</b> ${pe}/1000. Book the exam for Day ${LAST} (${fmtD(dayDate(LAST))}).`];
+  if (pe >= 720) return ["mid", `<b>[ BORDERLINE ]</b> ${pe}/1000 passes, but with no margin. Add 3–4 days, then book.${weakTxt}`];
+  return ["no", `<b>[ NOT YET ]</b> ${pe}/1000 (pass is 720). Add a week before booking.${weakTxt}`];
 }
 function weakestDomain() {
   let w = null;
@@ -1433,7 +1494,7 @@ function renderScores() {
   if (pe != null) sum.push(`practice exam ${pe}`);
   document.getElementById("score-sum").textContent = sum.join(", ");
 }
-// A score can be typed in the 📊 Scores panel or on the card of the step that asks for it: keep both in step.
+// A score can be typed in the Scores panel or on the card of the step that asks for it: keep both in step.
 document.addEventListener("input", e => {
   const k = e.target.dataset && e.target.dataset.score;
   if (!k) return;
@@ -1453,24 +1514,24 @@ function renderPractice() {
   const left = mockDays.filter(d => !dayDone(d)).length;
   const liveMock = S.run && S.run.kind === "mock" && !S.run.done;
   const cards = [
-    ["🔁 Review", due ? `${plural(due, "missed question")} due today.` : `Nothing due. Questions you miss come back after ${QZ.SRS_DAYS.join(", ").replace(/, (\d+)$/, " and $1")} days until you get them right three times.`,
+    ["Review", due ? `${plural(due, "missed question")} due today.` : `Nothing due. Questions you miss come back after ${QZ.SRS_DAYS.join(", ").replace(/, (\d+)$/, " and $1")} days until you get them right three times.`,
       `<button type="button" data-review${due ? ' class="primary"' : " disabled"}>Start review</button>`],
-    ["🧪 Mock exam", mockOpen() || liveMock
+    ["Mock exam", mockOpen() || liveMock
       ? `${QZ.MOCK.n} questions in ${QZ.MOCK.minutes} minutes, results at the end like the real exam. Each attempt draws different questions.${last ? ` Last: ${last.pct}% on ${fmtD(parseDate(last.at))}.` : ""}`
       : `Unlocks when Days 1–${MOCK_AFTER} are complete (${left} to go): the lectures and labs.`,
       `<button type="button" data-mock${mockOpen() || liveMock ? ' class="primary"' : " disabled"}>${liveMock ? `Resume (${clock(S.run.end - Date.now())} left)` : "Start mock exam"}</button>`],
-    ["⚡ Which service?", `Quick picks between services, four ways.${S.drill.day[t] != null ? ` Today's five: ${S.drill.day[t]} of 5.` : ""}`,
+    ["Which service?", `Quick picks between services, four ways.${S.drill.day[t] != null ? ` Today's five: ${S.drill.day[t]} of 5.` : ""}`,
       `<div class="dr-modes">${Object.entries(DRILL_MODES).map(([k, m]) => { const b = { go: S.drill.best, rev: S.drill.rev, lives: S.drill.lives }[k];
         return `<button type="button"${k === "go" ? " data-drill" : ` data-drill-mode="${k}"`}${DRILL.length ? "" : " disabled"} title="${esc(m.t)}: ${esc(m.d)}">${m.b}${b ? ` <small>best ${b}</small>` : k === "day" && S.drill.day[t] != null ? ` <small>✓ ${S.drill.day[t]}/5</small>` : ""}</button>`; }).join("")}</div>`],
-    ["📓 Wrong-answer notebook", book.length ? `${open} open, ${book.length - open} fixed.` : "Every question you miss lands here with your one-line note.",
+    ["Wrong-answer notebook", book.length ? `${open} open, ${book.length - open} fixed.` : "Every question you miss lands here with your one-line note.",
       `<button type="button" data-sheet="notebook">Open notebook</button>`],
-    ["📈 Weak spots", weak ? `Weakest topic so far: ${esc(weak.tag)} (${pct(weak.right, weak.seen)}% right).` : "Fills in as you answer questions.",
+    ["Weak spots", weak ? `Weakest topic so far: ${esc(weak.tag)} (${pct(weak.right, weak.seen)}% right).` : "Fills in as you answer questions.",
       `<button type="button" data-sheet="weak">Show weak spots</button>`],
-    ["🗣 Exam wording", "What phrases like “least operational overhead” usually point to.",
+    ["Exam wording", "What phrases like “least operational overhead” usually point to.",
       `<button type="button" data-sheet="cues"${CUES.length ? "" : " disabled"}>Open cheat sheet</button>`],
-    ["⚖️ Look-alikes", `${plural(LA.length, "table")} of services that sound alike, side by side: SQS or SNS, ALB or NLB, EBS, EFS or S3…`,
+    ["Look-alikes", `${plural(LA.length, "table")} of services that sound alike, side by side: SQS or SNS, ALB or NLB, EBS, EFS or S3…`,
       `<button type="button" data-look${LA.length ? "" : " disabled"}>Compare them</button>`],
-    ["🏅 Badges and level", (L => `Level ${L.n}, ${rankOf(L.n)}: ${L.to - L.x} XP to level ${L.n + 1}. ${Object.keys(S.ach).filter(id => ACH_BY[id]).length} of ${ACH.length} badges earned.`)(levelOf(xpTotal())),
+    ["Badges and level", (L => `Level ${L.n}, ${rankOf(L.n)}: ${L.to - L.x} XP to level ${L.n + 1}. ${Object.keys(S.ach).filter(id => ACH_BY[id]).length} of ${ACH.length} badges earned.`)(levelOf(xpTotal())),
       `<button type="button" data-sheet="badges">Show badges</button>`]
   ];
   document.getElementById("pr-grid").innerHTML = cards.map(([h, p, b]) => `<div class="place pr"><h3>${h}</h3><p>${p}</p>${b}</div>`).join("");
@@ -1493,7 +1554,8 @@ let fresh = false;   // the answer on screen was checked just now: animate it (g
 let comboFx = "";    // the answer just checked, for the combo meter: "up" (right), "broke" (a miss ended a run of 2 or more), "miss"
 let comboWas = 0;    // the run a miss just ended
 // Right answers in a row (run.row) get a badge at these marks; the tier sets its look.
-const ROW_TIERS = [[30, "👑", "Flawless", "epic"], [25, "💎", "Untouchable", "epic"], [20, "🌟", "Legendary", "epic"], [15, "⚡", "Unstoppable", "gold"], [10, "🔥", "On fire", "gold"], [5, "🔥", "On a roll", "silver"], [3, "🔥", "Warming up", "bronze"]];
+// The second field is the badge's code: the run itself, zero-padded.
+const ROW_TIERS = [[30, "R30", "Flawless", "epic"], [25, "R25", "Untouchable", "epic"], [20, "R20", "Legendary", "epic"], [15, "R15", "Unstoppable", "gold"], [10, "R10", "On fire", "gold"], [5, "R05", "On a roll", "silver"], [3, "R03", "Warming up", "bronze"]];
 const ROW_MARKS = ROW_TIERS.map(x => x[0]);
 const ROW_UP = ROW_MARKS.slice().reverse();   // 3, 5, 10 … 30
 let intro = null;    // { title, html, go, goLabel } shown before a quiz or mock starts
@@ -1582,11 +1644,14 @@ function renderIntro() {
   qzBody.innerHTML = intro.html + `<div class="qz-a"><button type="button" data-qz="close">Later</button><button type="button" class="primary" data-qz="go">${intro.goLabel}</button></div>`;
 }
 
-// what each option says, which ones were right, which one you picked, and why
+// what each option says, which ones were right, which one you picked, and why (QuizOption rows after checking:
+// the right one filled signal, your wrong pick with an alert key, each with its state word; colour never says it alone)
 function fbHTML(q, ord, ans, anim = false) {
   return `<ol class="qz-fb${anim ? " fresh" : ""}">${ord.map((oi, k) => {
     const right = q.a.includes(oi), mine = ans.includes(oi);
-    return `<li class="${right ? "right" : mine ? "wrong" : ""}"><span class="qz-l">${LETTERS[k]}</span><div><div class="qz-t">${q.o[oi]}${mine ? ' <span class="mine">your answer</span>' : ""}</div><div class="qz-why">${right ? "✓ " : mine ? "✗ " : ""}${q.x[oi]}</div></div></li>`;
+    const word = right ? (mine ? "✓ Your answer" : "✓ Correct") : mine ? "✕ Your answer" : "";
+    return `<li class="${right ? "right" : mine ? "wrong" : ""}"><span class="qz-l">${LETTERS[k]}</span><div class="qz-c"><div class="qz-t">${q.o[oi]}</div><div class="qz-why">${q.x[oi]}</div></div>` +
+      `<span class="qz-s${mine ? " mine" : ""}">${word}</span></li>`;
   }).join("")}</ol>`;
 }
 // Show where to watch or read first (Skill Builder), then hands-on, then self-checks; within a kind, in the plan's order.
@@ -1616,10 +1681,10 @@ const answerHTML = q => `<ul class="qz-ans">${q.a.map(i => `<li><b>✓ ${q.o[i]}
 const whyHTML = q => {
   const b = S.book[q.id];
   if (!b) return "";
-  return `<div class="why-r" role="group" aria-label="Why did you miss it?"><span class="why-k">Why did you miss it?</span>${WHY.map(([k, i, t]) => `<button type="button" class="sm" data-why="${k}" data-wq="${esc(q.id)}" aria-pressed="${b.why === k}">${i} ${t}</button>`).join("")}</div>`;
+  return `<div class="why-r" role="group" aria-label="Why did you miss it?"><span class="why-k">Why did you miss it?</span>${WHY.map(([k, i, t]) => `<button type="button" class="sm" data-why="${k}" data-wq="${esc(q.id)}" aria-pressed="${b.why === k}">${i ? `${i} ` : ""}${t}</button>`).join("")}</div>`;
 };
 const noteHTML = q => `<label class="qz-note">A line for your notebook, if you like.<input type="text" maxlength="300" data-note="${q.id}" value="${esc((S.book[q.id] || {}).note || "")}" placeholder="e.g. mixed up gateway and interface endpoints"></label>`;
-const optsHTML = (q, ord, on) => `<div class="qz-opts">${ord.map((oi, k) => `<button type="button" class="qz-o${on.includes(oi) ? " on" : ""}" data-o="${oi}" aria-pressed="${on.includes(oi)}"><span class="qz-l">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span></button>`).join("")}</div>`;
+const optsHTML = (q, ord, on) => `<div class="qz-opts">${ord.map((oi, k) => `<button type="button" class="qz-o${on.includes(oi) ? " on" : ""}" data-o="${oi}" aria-pressed="${on.includes(oi)}"><span class="qz-l">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span><span class="qz-s" aria-hidden="true">${on.includes(oi) ? "Selected" : ""}</span></button>`).join("")}</div>`;
 
 // Record an answer everywhere it matters: stats, spaced repetition, notebook.
 // Returns whether the answer earned XP: a right answer the first time, right after a miss, or right when it was
@@ -1650,26 +1715,29 @@ function comboStep(n) {
   const to = ROW_UP.find(m => m >= n) || ROW_UP[ROW_UP.length - 1], from = [0, ...ROW_UP].filter(m => m < to).pop();
   return { to, pct: Math.max(0, Math.min(100, (n - from) / (to - from) * 100)) };
 }
-// The combo meter in the quiz's header (not in the mock exam): the run of right answers and a bar that fills towards
-// the next streak badge. It heats up as the run grows (h0–h4), bursts at each mark and drains with a crack on a miss.
+// The combo meter in the quiz's header (not in the mock exam): the run of right answers and a segmented bar (one
+// segment per answer between two marks) that fills towards the next streak badge. Heat (h0–h4) is shown by four heat
+// cells and the meter's fill (fx.css); it bursts at each mark and drains with a crack on a miss.
 function comboHTML(r) {
   if (r.ids.length < 3) return "";
-  const n = r.row, { to, pct } = comboStep(n), meter = (w, from) => `<span class="cb-m" aria-hidden="true"><i style="width:${w}%;--from:${from}%"></i></span>`;
+  const segs = t => t - [0, ...ROW_UP].filter(m => m < t).pop();
+  const n = r.row, { to, pct } = comboStep(n), meter = (w, from, t) => `<span class="cb-m" aria-hidden="true" style="--u:${segs(t)}"><i style="width:${w}%;--from:${from}%"></i></span>`;
   if (comboFx === "broke") return `<span class="qz-cb broke" title="Right answers in a row">` +
-    `<span class="cb-f" aria-hidden="true">💔</span><span class="cb-n">Streak lost <small>at ${comboWas}</small></span>${meter(0, comboStep(comboWas).pct)}<span class="cb-to">${to}</span></span>`;
+    `<span class="cb-f" aria-hidden="true">✕</span><span class="cb-n">Streak lost <small>at ${comboWas}</small></span>${meter(0, comboStep(comboWas).pct, to)}<span class="cb-to">${to}</span></span>`;
   const h = n >= 20 ? 4 : n >= 10 ? 3 : n >= 5 ? 2 : n >= 3 ? 1 : 0, prev = comboStep(Math.max(0, n - 1));
   const fx = comboFx === "up" ? (ROW_MARKS.includes(n) ? " boom" : " up") : comboFx === "miss" ? " miss" : "";
   const from = comboFx === "miss" ? comboStep(comboWas).pct : comboFx === "up" && prev.to === to ? prev.pct : comboFx === "up" ? 0 : pct;
   return `<span class="qz-cb h${h}${fx}" title="Right answers in a row; the next streak badge at ${to}">` +
-    `<span class="cb-f" aria-hidden="true">🔥</span><span class="cb-n"><b>${n}</b> in a row</span>` +
-    `${meter(pct, from)}<span class="cb-to">${n >= to ? "★" : to}</span></span>`;
+    `<span class="cb-f" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="cb-n"><b>${n}</b> in a row</span>` +
+    `${meter(pct, from, to)}<span class="cb-to">${n >= to ? "✓" : to}</span></span>`;
 }
-// One square per question: right, wrong, not answered yet. Click one to go there. The one just answered pops.
+// One square per question, numbered (a Trace of the run): right ink, wrong alert, the one on screen signal, not
+// answered an outline. Click one to go there. The one just answered pops.
 function mapHTML(r) {
   if (r.ids.length < 2) return "";
   return `<div class="qz-map">${r.ids.map((k, i) => {
     const a = r.ans[k], st = !a ? "" : QZ.isRight(QBY[k], a) ? "ok" : "bad";
-    return `<button type="button" tabindex="-1" data-go="${i}" class="${st}${i === r.i ? " cur" : ""}${i === r.i && fresh && st ? " just" : ""}" aria-label="Question ${i + 1}${st === "ok" ? ", right" : st ? ", wrong" : ""}"></button>`;
+    return `<button type="button" tabindex="-1" data-go="${i}" class="${st}${i === r.i ? " cur" : ""}${i === r.i && fresh && st ? " just" : ""}" aria-label="Question ${i + 1}${st === "ok" ? ", right" : st ? ", wrong" : ""}">${pad2(i + 1)}</button>`;
   }).join("")}</div>`;
 }
 // The next question not answered yet after the one on screen, wrapping round; -1 when every one is answered.
@@ -1682,7 +1750,7 @@ function renderQ() {
   r.ord[id] = ord;
   const answered = Object.keys(r.ans).filter(k => QBY[k]);
   const right = answered.filter(k => QZ.isRight(QBY[k], r.ans[k])).length, bump = c => fresh && (comboFx === "up") === (c === "ok") ? " bump" : "";
-  head(runTitle(r), [`Question ${r.i + 1} of ${n}`, `<span class="ok${bump("ok")}">✓ ${right}</span>`, `<span class="bad${bump("bad")}">✗ ${answered.length - right}</span>`, comboHTML(r)], answered.length / n * 100);
+  head(runTitle(r), [`Question ${pad2(r.i + 1)} / ${pad2(n)}`, `<span class="ok${bump("ok")}">✓ ${right}</span>`, `<span class="bad${bump("bad")}">✕ ${answered.length - right}</span>`, comboHTML(r)], answered.length / n * 100);
   // Previous and Next move one question either way and never answer; the main button checks, then goes on to the next open question.
   const prev = n > 1 ? `<button type="button" data-qz="prev"${r.i ? "" : " disabled"}>← Previous</button>` : "";
   const skip = r.i + 1 < n ? `<button type="button" data-qz="skip">Next →</button>` : "";
@@ -1696,7 +1764,7 @@ function renderQ() {
     const keyL = ord.map((oi, k) => q.a.includes(oi) ? LETTERS[k] : "").filter(Boolean).join(" and ");
     const main = to < 0 ? "See results" : to === r.i + 1 ? "Next question →" : `Continue at question ${to + 1} →`;
     qzBody.innerHTML = mapHTML(r) + `<div class="qz-q">${q.q}</div>` +
-      `<div class="qz-verdict ${ok ? "ok" : "bad"}${fresh ? " fresh" : ""}" role="status">${ok ? "✓ Correct." : `✗ Not quite. The answer is ${keyL}.`}${fresh === "xp" ? `<span class="xp-up">+${XP.right} XP</span>` : ""}</div>` +
+      `<div class="qz-verdict ${ok ? "ok" : "bad"}${fresh ? " fresh" : ""}" role="status">${ok ? `<span class="v-s">✓ Correct</span>` : `<span class="v-s">✕ Incorrect</span><span class="v-l">The answer is ${keyL}.</span>`}${fresh === "xp" ? `<span class="xp-up">+${XP.right} XP</span>` : ""}</div>` +
       fbHTML(q, ord, ans, fresh) + studyHTML(q, true, !ok, ans) + (ok ? "" : whyHTML(q) + noteHTML(q)) +
       `<div class="qz-a qz-nav">${prev}${to === r.i + 1 ? "" : skip}<button type="button" class="primary" data-qz="next">${main}</button></div>`;
   }
@@ -1773,7 +1841,7 @@ function check() {
     FX.badge(icon, `${r.row} in a row`, a ? `New badge: ${a.t}, +${a.xp} XP` : name, tier);
   }
   else FX.right(r.row, verdict, meter);
-  if (record) { r.rec = true; save(); const n = r.row; setTimeout(() => FX.badge("🏅", "New record", `${n} in a row beats your best of ${best}`, "gold"), 450); }
+  if (record) { r.rec = true; save(); const n = r.row; setTimeout(() => FX.badge("REC", "New record", `${n} in a row beats your best of ${best}`, "gold"), 450); }
   showGains(rest, 700);
 }
 function nextQ() {
@@ -1808,7 +1876,7 @@ function finishRun() {
     else if (clean) {
       const a = got.find(x => x.id === "perfect");
       got = got.filter(x => x !== a);
-      FX.perfect(); FX.badge("💯", "Perfect score", a ? `New badge, +${a.xp} XP` : `All ${n} right`, "epic");
+      FX.perfect(); FX.badge("MAX", "Perfect score", a ? `New badge, +${a.xp} XP` : `All ${n} right`, "epic");
     }
     else FX.pass();
   } else if (clean) { FX.sound("chime"); FX.sparkle(qzBody.querySelector(".qz-score")); }
@@ -1839,7 +1907,8 @@ function rewardHTML(r) {
   const L = levelOf(r.xp1 >= 0 ? r.xp1 : xpTotal()), gain = r.xp0 >= 0 ? L.x - r.xp0 : 0;
   const from = r.xp0 >= L.from ? (r.xp0 - L.from) / (L.to - L.from) * 100 : 0;   // a level gained: the bar fills from empty
   const row = r.rowMax >= 2 ? `Longest run of right answers: ${r.rowMax}${r.rowMax < 3 ? "" : r.rowMax > r.best0 ? ", your best yet" : r.rowMax === r.best0 ? ", equal to your best" : ""}. ` : "";
-  return `<div class="qz-rw"><div class="stars" role="img" aria-label="${stars} of 3 stars">${[0, 1, 2].map(k => `<span class="${k < stars ? "on" : ""}" style="animation-delay:${0.2 + k * 0.25}s">★</span>`).join("")}</div>` +
+  // the stars are three squares: lit in signal, unlit an outline
+  return `<div class="qz-rw"><div class="stars" role="img" aria-label="${stars} of 3 stars">${[0, 1, 2].map(k => `<span class="${k < stars ? "on" : ""}" style="animation-delay:${0.2 + k * 0.25}s"></span>`).join("")}</div>` +
     `<div class="rw-x"><div class="rw-l"><b>Level ${L.n}</b><span class="muted">${rankOf(L.n)}</span>${gain > 0 ? `<span class="xp-up">+${gain} XP</span>` : ""}</div>` +
     `<span class="xpbar"><span style="--from:${from}%;width:${L.pct}%"></span></span>` +
     `<span class="muted">${row}${L.to - L.x} XP to level ${L.n + 1}.</span></div></div>`;
@@ -1864,10 +1933,32 @@ function gifHTML(r) {
   const [id, alt] = g, still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   return `<figure class="qz-gif"><img src="https://media.giphy.com/media/${id}/${still ? "giphy_s" : "giphy"}.gif" alt="${esc(alt || "South Park")}" referrerpolicy="no-referrer" decoding="async"><figcaption>via GIPHY</figcaption></figure>`;
 }
-// the score box: the number, what it means, and the GIF beside it
+// The run's own id, for the result's foot and its barcode: the day and the try ("D03-T2"), the mock's number, the step,
+// or the kind and the date.
+function runCode(r) {
+  if (r.kind === "day") { const d = dayOf(r.day), q = S.quiz[r.day]; return `D${pad2(d ? d.day : 0)}-T${q && q.tries.length ? q.tries.length : 1}`; }
+  if (r.kind === "mock") return `MOCK-${pad2(S.mocks.length)}`;
+  if (r.kind === "step") return `STEP-${String(r.item).toUpperCase()}`;
+  return `${r.kind === "warm" ? "WARM" : "REV"}-${today()}`;
+}
+// The score box as a Field Manual Result: a frame with the verdict as one bracketed word, the score on a dial and on a
+// ruler against the bar (the pass mark of a day quiz, 80% aimed at on a mock, 60% on the rest), the number and what it
+// means, the run's id as a real barcode in the frame's foot; the GIF beside it.
 function resHTML(r, cls, score, msg) {
-  const gif = gifHTML(r);
-  return `<div class="qz-res ${cls}${gif ? " has-gif" : ""}"><div class="qz-res-t"><div class="qz-score">${score}</div><div>${msg}</div></div>${gif}</div>` + rewardHTML(r);
+  const gif = gifHTML(r), A = window.FieldManualArt, [sc, n] = r.kind === "mock" ? [r.res.score, r.res.n] : [r.score, r.ids.length];
+  const p = n ? Math.round(sc / n * 100) : 0;
+  const [barK, bar] = r.kind === "day" ? ["Pass", Math.round(QZ.needed(n) / n * 100)] : r.kind === "mock" ? ["Aim", 80] : ["Bar", 60];
+  const below = p < bar;
+  const word = r.kind === "day" ? (QZ.passed(sc, n) ? "Passed" : "Retry") : r.kind === "mock" ? (cls === "ok" ? "Ready" : cls === "mid" ? "Close" : "Retry") : outcome(r) === "fail" ? "Retry" : "Done";
+  const label = `Score ${p}%, ${barK.toLowerCase()} mark ${bar}%`, code = runCode(r);
+  const dial = A ? `<span class="fm-dial${below ? " is-below" : ""}">${A.dial(p, { target: bar, size: 112, label })}<span class="fm-dial__val">${p}<small>%</small></span></span>` : "";
+  const ruler = `<div class="fm-ruler${below ? " is-below" : ""}" style="--value:${p};--target:${bar}" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" aria-label="${label}">` +
+    `<div class="fm-ruler__track"><span class="fm-ruler__target" data-label="${barK} ${bar}"></span><span class="fm-ruler__pointer" data-label="${p}%"></span></div>` +
+    `<div class="fm-ruler__scale" aria-hidden="true"><span>0</span><span>50</span><span>100</span></div></div>`;
+  return `<section class="qz-res fm-frame fm-frame--foot ${cls}${gif ? " has-gif" : ""}" aria-label="Result"><span class="fm-frame__tab">Result</span>` +
+    `<div class="qz-res-t"><p class="qz-vd fm-bracketed${word === "Retry" ? " is-alert" : ""}">${word}</p>` +
+    `<div class="qz-res-m">${dial}<div class="qz-res-x"><div class="qz-score">${score}</div><div class="qz-msg">${msg}</div></div></div>${ruler}</div>` +
+    `${gif}<span class="fm-frame__foot">${esc(code)}${A ? A.barcode(code, { height: 10 }).replace("<svg", '<svg aria-hidden="true"') : ""}</span></section>` + rewardHTML(r);
 }
 function hookGif() {
   const img = qzBody.querySelector(".qz-gif img");
@@ -1885,14 +1976,14 @@ function renderResult() {
   if (r.kind === "day") {
     const d = dayOf(r.day), pass = QZ.passed(r.score, n);
     qzBody.innerHTML = resHTML(r, pass ? "ok" : "bad", score,
-      pass ? (r.cel ? `Passed. Day ${d.day} is complete.` : "Passed.") : `You need ${QZ.needed(n)} to pass. A retake draws different questions, and the ones you missed come back for review over the next days.`) +
+      pass ? `Pass mark ${QZ.needed(n)}.${r.cel ? ` Day ${d.day} is complete.` : ""}` : `You need ${QZ.needed(n)} to pass. A retake draws different questions, and the ones you missed come back for review over the next days.`) +
       missedHTML(missed) +
       `<div class="qz-a">${pass
-        ? `<button type="button" class="primary" data-qz="finish">${r.cel ? `Finish Day ${d.day} 🎉` : "Close"}</button>`
+        ? `<button type="button" class="primary" data-qz="finish">${r.cel ? `Finish Day ${d.day} →` : "Close"}</button>`
         : `<button type="button" data-qz="finish">Close</button><button type="button" class="primary" data-qz="retake">Retake with new questions</button>`}</div>`;
   } else {
     qzBody.innerHTML = resHTML(r, missed.length ? (outcome(r) === "fail" ? "bad" : "") : "ok", score,
-      missed.length ? "The ones you missed come back in a few days." : "All right. Nice.") + missedHTML(missed) +
+      missed.length ? "The ones you missed come back in a few days." : "Every answer right.") + missedHTML(missed) +
       `<div class="qz-a"><button type="button" class="primary" data-qz="finish">Close</button></div>`;
   }
   hookGif();
@@ -1916,19 +2007,19 @@ function finishResults() {
 // ---------- mock exam (no feedback until the end) ----------
 // The mock exam screen works like an exam screen: strike out the options you have ruled out, highlight the words
 // that carry the requirement, flag questions for review, the clock always in view (red in the last 10 minutes).
-const mkClock = r => `<span id="mk-time" class="mk-time${r.end - Date.now() < 600000 ? " low" : ""}">⏱ ${clock(r.end - Date.now())}</span> left`;
+const mkClock = r => `<span id="mk-time" class="mk-time${r.end - Date.now() < 600000 ? " low" : ""}">${clock(r.end - Date.now())}</span> left`;
 function renderMockQ() {
   const r = S.run, id = r.ids[r.i], q = QBY[id], ord = r.ord[id] || QZ.order(q), mine = r.ans[id] || [], xs = r.x[id] || [];
   r.ord[id] = ord;
   const answered = r.ids.filter(k => (r.ans[k] || []).length).length;
-  head("Mock exam", [`Question ${r.i + 1} of ${r.ids.length}`, mkClock(r), `${answered} answered`], answered / r.ids.length * 100);
+  head("Mock exam", [`Question ${pad2(r.i + 1)} / ${r.ids.length}`, mkClock(r), `${pad2(answered)} answered`], answered / r.ids.length * 100);
   const last = r.i + 1 >= r.ids.length, multi = q.a.length > 1;
-  qzBody.innerHTML = `<div class="mk-tools"><button type="button" data-qz="flag" class="flagb" aria-pressed="${!!r.flag[id]}">${r.flag[id] ? "⚑ Flagged for review" : "⚐ Flag for review"}</button>` +
-    `<span class="muted mk-hint"><span class="kbd">🖍 Click or drag over words to highlight them. Shift + 1–${ord.length} or ⊘ strikes an option out.</span><span class="touch">🖍 Tap a word to highlight it. ⊘ strikes an option out.</span></span></div>` +
+  qzBody.innerHTML = `<div class="mk-tools"><button type="button" data-qz="flag" class="flagb" aria-pressed="${!!r.flag[id]}">${r.flag[id] ? "■ Flagged for review" : "□ Flag for review"}</button>` +
+    `<span class="muted mk-hint"><span class="kbd">Click or drag over words to highlight them. Shift + 1–${ord.length} or the / button strikes an option out.</span><span class="touch">Tap a word to highlight it. The / button strikes an option out.</span></span></div>` +
     `<div class="qz-q mk-q">${q.q}</div>` +
     `<div class="qz-opts mk-opts${multi ? " multi" : ""}">${ord.map((oi, k) => `<div class="mk-row${xs.includes(oi) ? " x" : ""}">` +
       `<button type="button" class="qz-o${mine.includes(oi) ? " on" : ""}" data-o="${oi}" aria-pressed="${mine.includes(oi)}"><span class="qz-l">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span></button>` +
-      `<button type="button" class="mk-x" data-qz="strike" data-x="${oi}" aria-pressed="${xs.includes(oi)}" title="${xs.includes(oi) ? "Bring this option back" : "Strike this option out"}" aria-label="${xs.includes(oi) ? "Bring back" : "Strike out"} option ${LETTERS[k]}">⊘</button></div>`).join("")}</div>` +
+      `<button type="button" class="mk-x" data-qz="strike" data-x="${oi}" aria-pressed="${xs.includes(oi)}" title="${xs.includes(oi) ? "Bring this option back" : "Strike this option out"}" aria-label="${xs.includes(oi) ? "Bring back" : "Strike out"} option ${LETTERS[k]}">/</button></div>`).join("")}</div>` +
     `<div class="qz-a mk-a"><button type="button" data-qz="prev"${r.i ? "" : " disabled"}>← Previous</button>` +
     `<button type="button" data-qz="grid">Review all</button>` +
     `<button type="button" class="primary" data-qz="${last ? "grid" : "mnext"}">${last ? "Review and finish" : "Next →"}</button></div>`;
@@ -1994,7 +2085,7 @@ function renderGrid() {
   const show = k => (gridF === "flag" ? !!r.flag[k] : gridF === "open" ? !(r.ans[k] || []).length : true);
   qzBody.innerHTML = `<p>${r.ids.length - un} of ${r.ids.length} answered${fl ? `, ${fl} flagged` : ""}. Pick a number to go back to it.</p>` +
     `<div class="seg mk-f" role="group" aria-label="Show">${[["", `All (${r.ids.length})`], ["flag", `Flagged (${fl})`], ["open", `Not answered (${un})`]].map(([k, l]) => `<button type="button" data-grid-f="${k}" aria-pressed="${gridF === k}">${l}</button>`).join("")}</div>` +
-    `<div class="mk-grid">${r.ids.map((k, i) => show(k) ? `<button type="button" data-go="${i}" class="${(r.ans[k] || []).length ? "ans" : ""}${r.flag[k] ? " flag" : ""}">${i + 1}</button>` : "").join("") || `<p class="muted">None.</p>`}</div>` +
+    `<div class="mk-grid">${r.ids.map((k, i) => show(k) ? `<button type="button" data-go="${i}" class="${(r.ans[k] || []).length ? "ans" : ""}${r.flag[k] ? " flag" : ""}" aria-label="Question ${i + 1}, ${(r.ans[k] || []).length ? "answered" : "not answered"}${r.flag[k] ? ", flagged" : ""}">${i + 1}</button>` : "").join("") || `<p class="muted">None.</p>`}</div>` +
     `<div class="mk-key"><span class="ans">Answered</span><span class="flag">Flagged</span><span>Not answered</span></div>` +
     `<div class="qz-a"><button type="button" data-qz="back">Back to the questions</button><button type="button" class="primary" data-qz="finish-mock">Finish exam</button></div>`;
 }
@@ -2035,7 +2126,7 @@ function renderMockResult() {
     `<p class="muted">The real exam reports a scaled score from 100 to 1000 (720 to pass), and AWS doesn't publish how right answers map to it, so treat this percentage as a rough guide. Aim for 80% or more here.${prev.length ? ` Earlier mocks: ${prev.join(", ")}.` : ""}</p>` +
     `<div class="dom-bars">${res.dom.map(([a, n], i) => bar(`D${i + 1} ${doms[i]}`, pct(a, n), `${a}/${n}`)).join("")}</div>` +
     `<div class="mk-rev-h"><h3 class="sub-h">Review</h3><label class="chk"><input type="checkbox" data-only${r.only ? " checked" : ""}> Only the ones I got wrong</label></div>` +
-    `<ol class="qz-missed">${list.map(x => `<li value="${x.i + 1}" class="${x.ok ? "right" : "wrong"}"><details><summary>${x.ok ? "✓" : "✗"} ${x.q.q}</summary>${fbHTML(x.q, r.ord[x.q.id] || QZ.order(x.q), r.ans[x.q.id] || [])}${x.ok ? "" : whyHTML(x.q)}${studyHTML(x.q, false, !x.ok, r.ans[x.q.id])}</details></li>`).join("") || "<li>Nothing wrong. 🎉</li>"}</ol>` +
+    `<ol class="qz-missed">${list.map(x => `<li value="${x.i + 1}" class="${x.ok ? "right" : "wrong"}"><details><summary>${x.ok ? "✓" : "✕"} ${x.q.q}</summary>${fbHTML(x.q, r.ord[x.q.id] || QZ.order(x.q), r.ans[x.q.id] || [])}${x.ok ? "" : whyHTML(x.q)}${studyHTML(x.q, false, !x.ok, r.ans[x.q.id])}</details></li>`).join("") || "<li>Nothing wrong.</li>"}</ol>` +
     `<div class="qz-a"><button type="button" class="primary" data-qz="finish">Close</button></div>`;
   hookGif();
 }
@@ -2047,10 +2138,10 @@ function renderMockResult() {
 //   lives: no clock, until the third miss
 //   day:   the same five for everyone on a date, once a day; the first try is the day's result
 const DRILL_MODES = {
-  go: { t: "60 seconds", b: "⏱ 60 s", d: "A requirement, four services." },
-  rev: { t: "Reverse", b: "🔁 Reverse", d: "A service, four requirements: which one is it for?" },
-  lives: { t: "Three lives", b: "❤ 3 lives", d: "No clock. Keep going until your third miss." },
-  day: { t: "Daily five", b: "📅 Daily five", d: "Today's five, the same all day. Your first try counts." }
+  go: { t: "60 seconds", b: "60 s", d: "A requirement, four services." },
+  rev: { t: "Reverse", b: "Reverse", d: "A service, four requirements: which one is it for?" },
+  lives: { t: "Three lives", b: "3 lives", d: "No clock. Keep going until your third miss." },
+  day: { t: "Daily five", b: "Daily five", d: "Today's five, the same all day. Your first try counts." }
 };
 // A seeded shuffle, so the daily five are the same five all day.
 function seeded(arr, seed) {
@@ -2111,7 +2202,7 @@ function drillPick(k) {
   const over = (drill.mode === "lives" && drill.lives <= 0) || (drill.mode === "day" && drill.n >= drill.items.length);
   setTimeout(() => { if (!drill || drill.done) return; if (over) return drillEnd(); drill.lock = false; drill.i++; drillNext(); }, ok ? 350 : 1200);
 }
-const livesHTML = () => [0, 1, 2].map(i => `<span class="${i < drill.lives ? "on" : ""}" aria-hidden="true">${i < drill.lives ? "❤" : "♡"}</span>`).join("") + `<span class="sr">${plural(Math.max(0, drill.lives), "life", "lives")} left</span>`;
+const livesHTML = () => [0, 1, 2].map(i => `<span class="${i < drill.lives ? "on" : ""}" aria-hidden="true">${i < drill.lives ? "■" : "□"}</span>`).join("") + `<span class="sr">${plural(Math.max(0, drill.lives), "life", "lives")} left</span>`;
 // Days in a row with the daily five done, up to today (or yesterday, while today's is still open).
 function dailyRun() {
   const d = midnight();
@@ -2143,10 +2234,13 @@ function renderDrill() {
       `<div class="qz-opts dr-opts${rev ? " dr-long" : ""}">${drill.opts.map((o, k) => `<button type="button" class="qz-o" data-dr="${k}"><span class="qz-l">${k + 1}</span><span class="qz-t">${esc(o)}</span></button>`).join("")}</div><p class="muted kbd">Keys 1–4 work too.</p>`;
     return;
   }
-  const best = drill.mode === "day" ? "" : drill.best ? "New personal best. 🎉" : `Your best: ${S.drill[{ go: "best", rev: "rev", lives: "lives" }[drill.mode]]}.`;
-  const day = drill.mode === "day" ? (drill.first ? `Today's result. ${dailyRun() > 1 ? `🔥 ${dailyRun()} days in a row.` : "Come back tomorrow for the next five."}` : `Today's result stays ${S.drill.day[drill.date]} of 5: only the first try counts.`) : "";
+  const best = drill.mode === "day" ? "" : drill.best ? "New personal best." : `Your best: ${S.drill[{ go: "best", rev: "rev", lives: "lives" }[drill.mode]]}.`;
+  const day = drill.mode === "day" ? (drill.first ? `Today's result. ${dailyRun() > 1 ? `${dailyRun()} days in a row.` : "Come back tomorrow for the next five."}` : `Today's result stays ${S.drill.day[drill.date]} of 5: only the first try counts.`) : "";
   head(title, [drill.mode === "lives" ? "Out of lives" : drill.mode === "day" ? "Done" : "Time is up"], 100);
-  qzBody.innerHTML = `<div class="qz-res ok"><div class="qz-score">${drill.score} <small>right of ${drill.n}</small></div><div>${best}${day}</div></div>` +
+  // the result in a frame like a quiz's: the state as one bracketed word, the count, what it means
+  qzBody.innerHTML = `<section class="qz-res fm-frame ok" aria-label="Result"><span class="fm-frame__tab">Result</span><div class="qz-res-t">` +
+    `<p class="qz-vd fm-bracketed">${drill.mode === "lives" ? "Out" : drill.mode === "day" ? "Done" : "Time"}</p>` +
+    `<div class="qz-res-x"><div class="qz-score">${drill.score} <small>right of ${drill.n}</small></div><div class="qz-msg">${best}${day}</div></div></div></section>` +
     (drill.missed.length ? `<h3 class="sub-h">Missed</h3><ul class="dr-missed">${drill.missed.map(it => `<li><div>${esc(it[0])}</div><div><b>${esc(it[1])}</b>: ${esc(it[3])}</div></li>`).join("")}</ul>` : "") +
     `<div class="qz-a"><button type="button" data-qz="close">Close</button>${drill.mode === "day" ? "" : `<button type="button" class="primary" data-drill-mode="${drill.mode}">Play again</button>`}</div>`;
 }
@@ -2242,9 +2336,9 @@ function mockTick() {
   if (!r || r.kind !== "mock" || r.done) return;
   if (Date.now() >= r.end) return finishMock(true);
   const el = document.getElementById("mk-time"), left = r.end - Date.now();
-  if (el && qzDlg.open) { el.textContent = `⏱ ${clock(left)}`; el.classList.toggle("low", left < 600000); }
+  if (el && qzDlg.open) { el.textContent = clock(left); el.classList.toggle("low", left < 600000); }
   // like the exam, a word when 10 minutes and 1 minute are left (once each, in this tab)
-  for (const m of [10, 1]) if (left < m * 60000 && left > m * 60000 - 5000 && mkWarned !== `${r.t0}:${m}`) { mkWarned = `${r.t0}:${m}`; FX.toast(`⏱ <b>${m === 1 ? "1 minute" : "10 minutes"} left</b> in the mock exam`, "warn"); }
+  for (const m of [10, 1]) if (left < m * 60000 && left > m * 60000 - 5000 && mkWarned !== `${r.t0}:${m}`) { mkWarned = `${r.t0}:${m}`; FX.toast(`<b>${m === 1 ? "1 minute" : "10 minutes"} left</b> in the mock exam`, "warn"); }
 }
 
 // ---------- notebook, weak spots, cheat sheet, day notes ----------
@@ -2258,8 +2352,8 @@ function openSheet(kind) {
 }
 function renderSheet() {
   const kind = shDlg.dataset.kind;
-  const [title, html] = kind === "notebook" ? ["📓 Wrong-answer notebook", notebookHTML()] : kind === "weak" ? ["📈 Weak spots", weakHTML()]
-    : kind === "daynotes" ? dayNotesHTML() : kind === "badges" ? ["🏅 Badges and level", badgesHTML()] : kind === "look" ? ["⚖️ Look-alikes", lookHTML()] : kind === "dg" ? dgSheet() : ["🗣 Exam wording", cuesHTML()];
+  const [title, html] = kind === "notebook" ? ["Wrong-answer notebook", notebookHTML()] : kind === "weak" ? ["Weak spots", weakHTML()]
+    : kind === "daynotes" ? dayNotesHTML() : kind === "badges" ? ["Badges and level", badgesHTML()] : kind === "look" ? ["Look-alikes", lookHTML()] : kind === "dg" ? dgSheet() : ["Exam wording", cuesHTML()];
   document.getElementById("sh-title").textContent = title;
   shBody.innerHTML = html;
   if (kind === "dg") { dgMark(shBody); applyGlossary(shBody); }
@@ -2267,9 +2361,9 @@ function renderSheet() {
 // Notes for the day on screen, plus the notes written on its single steps.
 function dayNotesHTML() {
   const d = dayOf(view.day);
-  if (!d) return ["📝 Day notes", ""];
+  if (!d) return ["Day notes", ""];
   const mine = dIds(d).filter(id => (S.inotes[id] || "").trim());
-  return [`📝 Day ${d.day} notes`,
+  return [`Day ${d.day} notes`,
     `<label class="notes-l">Notes for the whole day <span class="saved" data-saved="${d.id}">saved</span>` +
     `<textarea data-notes="${d.id}" placeholder="${esc(d.notesHint || "Weak spots, wrong answers, things to revisit…")}">${esc(S.notes[d.id] || "")}</textarea></label>` +
     (mine.length ? `<h3 class="sub-h">Your notes on single steps</h3><ul class="qz-refs">${mine.map(id => `<li><div class="ref-t">${itemIndex[id].it[1]}</div>` +
@@ -2317,7 +2411,8 @@ function weakHTML() {
 }
 function badgesHTML() {
   const L = levelOf(xpTotal()), next = Math.floor((L.n - 1) / 2) + 1;
-  return `<div class="lv"><div class="lv-n"><small>Level</small>${L.n}</div><div class="lv-x"><b>${rankOf(L.n)}</b>` +
+  // the level as a readout; each badge a cell whose code is filled ink once earned (state is fill)
+  return `<div class="lv"><div class="lv-n"><small>Level</small>${pad2(L.n)}</div><div class="lv-x"><b>${rankOf(L.n)}</b>` +
     `<span class="xpbar"><span style="width:${L.pct}%"></span></span>` +
     `<span class="muted">${L.x} XP, ${L.to - L.x} to level ${L.n + 1}.${next < RANKS.length ? ` Next title at level ${next * 2 + 1}: ${RANKS[next]}.` : ""}</span></div></div>` +
     `<p class="muted">XP: ${XP.right} for a right quiz answer the first time, right after a miss, or right when it is due for review (repeats earn nothing), ${XP.step} for a completed step, ${XP.pass} for a day quiz passed, and what each badge is worth. ` +
@@ -2456,14 +2551,14 @@ function cardQHTML(id) {
   let b = `<p class="cq-q txt">${q.q}</p>`;
   if (cardQ.ans) {
     const ok = QZ.isRight(q, cardQ.ans);
-    b += `<p class="cq-v ${ok ? "ok" : "bad"}" role="status">${ok ? "✓ Right." : "✗ Not this time. It is in your notebook now and comes back in review."}</p>` +
+    b += `<p class="cq-v ${ok ? "ok" : "bad"}" role="status">${ok ? "✓ Right." : "✕ Not this time. It is in your notebook now and comes back in review."}</p>` +
       fbHTML(q, cardQ.ord, cardQ.ans) + `<div class="cq-a"><button type="button" class="sm" data-cq-again>Answer again</button></div>`;
   } else {
     b += `<div class="qz-opts cq-opts">${cardQ.ord.map((oi, k) => { const on = cardQ.sel.includes(oi); return `<button type="button" class="qz-o${on ? " on" : ""}" data-cq-o="${oi}" aria-pressed="${on}"><span class="qz-l">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span></button>`; }).join("")}</div>` +
       `<div class="cq-a"><button type="button" data-cq-check${cardQ.sel.length === q.a.length ? "" : " disabled"}>Check answer</button>` +
       (s && s.seen ? `<span class="muted">Last time: ${s.last ? "right" : "missed"}.</span>` : "") + `</div>`;
   }
-  return box("q", "❓", "Knowledge check", b, "c-q");
+  return box("q", "", "Knowledge check", b, "c-q");
 }
 function cardQClick(b) {
   const q = CARDQ[cardQ.id], ds = b.dataset;
@@ -2557,7 +2652,7 @@ function renderRunning() {
   const el = document.getElementById("running"), run = costRunning();
   el.hidden = !run.length;
   if (!run.length) { el.innerHTML = ""; return; }
-  el.innerHTML = `<h3>🧾 Still running in your AWS account <span class="muted">${plural(run.length, "thing")}</span></h3>` +
+  el.innerHTML = `<h3>Still running in your AWS account <span class="muted">${plural(run.length, "thing")}</span></h3>` +
     `<p class="muted">Delete them when you're done with them: they cost money while they exist. Mark each one when it's gone.</p>` +
     `<ul class="cost-l">${run.map(x => costItemHTML(x)).join("")}</ul>` +
     `<div class="row"><a class="btn" href="${esc(linkFor("own"))}" target="_blank" rel="noopener">Open AWS ↗</a><details class="cost-more"><summary class="btn">+ Something else</summary>${costAddHTML("")}</details></div>`;
@@ -2565,7 +2660,7 @@ function renderRunning() {
 // On a Build card: what this day put in your account, and a way to add what the steps don't know about.
 function costBoxHTML(d) {
   const mine = S.cost.items.filter(x => x.day === d.id);
-  return box("cost", "🧾", "Billable things from this day",
+  return box("cost", "", "Billable things from this day",
     (mine.length ? `<ul class="cost-l">${mine.map(x => costItemHTML(x, true)).join("")}</ul>` : `<p class="muted">Nothing yet. Steps that create something billable add it here and to the overview when you complete them.</p>`) +
     `<p class="muted cost-h">Made something else that bills (a load balancer, a database…)? Add it, so the evening check knows.</p>${costAddHTML(d.id)}`, "c-cost");
 }
@@ -2583,7 +2678,7 @@ document.addEventListener("click", e => {
     x.gone = Date.now();
     FX.small(g);
     costChanged();
-    if (!costRunning().length) FX.toast("🧹 <b>All clean</b>: nothing left running up a bill");
+    if (!costRunning().length) FX.toast("<b>All clean</b>: nothing left running up a bill");
     return;
   }
   const b = e.target.closest("[data-cost-back]");
@@ -2800,10 +2895,11 @@ document.addEventListener("click", e => {
 // ---------- header buttons ----------
 const bFx = document.getElementById("b-fx"), bSnd = document.getElementById("b-snd");
 function syncToggles() {
-  bFx.textContent = `🎉 Effects ${S.settings.fx ? "on" : "off"}`;
+  bFx.textContent = `Effects ${S.settings.fx ? "on" : "off"}`;
   bFx.setAttribute("aria-pressed", S.settings.fx);
-  bSnd.textContent = `${S.settings.sound ? "🔔" : "🔕"} Sound ${S.settings.sound ? "on" : "off"}`;
+  bSnd.textContent = `Sound ${S.settings.sound ? "on" : "off"}`;
   bSnd.setAttribute("aria-pressed", S.settings.sound);
+  document.documentElement.dataset.fmMotion = motionLevel();
   FX.set({ fx: S.settings.fx, sound: S.settings.sound });
 }
 bFx.onclick = () => { S.settings.fx = !S.settings.fx; save(); syncToggles(); if (S.settings.fx) FX.tick(bFx); };
@@ -2830,6 +2926,7 @@ document.getElementById("b-set").onclick = () => {
   document.getElementById("s-goal").value = String(S.settings.goal);
   document.getElementById("s-theme").value = ui.theme === "light" || ui.theme === "dark" ? ui.theme : "";
   document.getElementById("s-size").value = ui.size === "l" || ui.size === "xl" ? ui.size : "";
+  document.getElementById("s-motion").value = ui.motion === "calm" || ui.motion === "off" ? ui.motion : "";
   renderSettingsInfo();
   setDlg.returnValue = "";
   setDlg.showModal();
@@ -2848,6 +2945,7 @@ setDlg.addEventListener("close", () => {
   const goal = +document.getElementById("s-goal").value;
   if (GOALS.includes(goal)) S.settings.goal = goal;
   ui.theme = document.getElementById("s-theme").value; ui.size = document.getElementById("s-size").value;
+  ui.motion = document.getElementById("s-motion").value;
   saveUI(); applyDisplay();
   save(); rebuild();
 });
@@ -2927,13 +3025,13 @@ function tmRender() {
     : over ? "Break is over" : !t.running && s ? "Break, paused" : t.ask ? "Focus block done" : "Break";
   tm.querySelector(".tm-time").textContent = mmss(s);
   const go = tm.querySelector('[data-tm="toggle"]'), what = t.running ? "Pause" : rest ? (s ? "Resume the break" : "Start the break") : s === FOCUS ? "Start a 50-minute focus block" : "Resume focus";
-  go.textContent = t.running ? "❚❚" : "▶";
+  go.textContent = t.running ? "■" : "▶";
   go.title = what; go.setAttribute("aria-label", what);
-  tm.querySelector('[data-tm="switch"]').textContent = rest ? "🎯 Focus now" : "☕ Break now";
+  tm.querySelector('[data-tm="switch"]').textContent = rest ? "Focus now" : "Break now";
   const day = dayOf(t.day) || workDay();
   tm.querySelector(".tm-info").textContent = [day && (S.log[day.id] || 0) >= 1 ? `Focus on Day ${day.day} so far: ${fmtH(S.log[day.id])}.` : "Starts by itself when you start a day or complete a step.", permText()].filter(Boolean).join(" ");
   tm.querySelector('[data-tm="perm"]').hidden = !permAsk();
-  document.title = t.running ? `${mmss(s)} ${!rest ? "🎯" : over ? "⏰" : "☕"} · SAA-C03 Plan` : t.ask ? "Focus block done 🎯 · SAA-C03 Plan" : "SAA-C03 Plan";
+  document.title = t.running ? `${mmss(s)} ${!rest ? "Focus" : over ? "Break over" : "Break"} · SAA-C03 Plan` : t.ask ? "Focus block done · SAA-C03 Plan" : "SAA-C03 Plan";
   const up = document.getElementById("brk-up");
   if (up) up.textContent = mmss(restUp());
 }
@@ -2973,7 +3071,7 @@ function autoFocus() {
   if (t.mode === "rest" || t.left <= 0 || t.left > FOCUS) t.left = FOCUS;
   Object.assign(t, { mode: "focus", from: t.left, endAt: Date.now() + t.left * 1000, running: true, day: (workDay() || {}).id || "", dev: DEV });
   tmSave();
-  FX.toast(`🎯 <b>Focus on</b>, ${Math.round(t.left / 60)} minutes`);
+  FX.toast(`<b>Focus on</b>, ${Math.round(t.left / 60)} minutes`);
 }
 document.addEventListener("click", e => { if (e.target.closest("[data-start-day]")) autoFocus(); }, true);
 
@@ -3035,18 +3133,18 @@ async function askPerms() {
 function brkOpen(kind) {
   brkDlg.dataset.kind = kind;
   brkBody.innerHTML = kind === "away"
-    ? `<h2 id="brk-t" tabindex="-1">Welcome back 👋</h2><p>You were away for <b>${Math.max(1, Math.round((Date.now() - S.timer.away) / 60000))} minutes</b> during this focus block (no input, the screen off or the device asleep). Count that time as focus?</p>` +
+    ? `<h2 id="brk-t" tabindex="-1">Welcome back</h2><p>You were away for <b>${Math.max(1, Math.round((Date.now() - S.timer.away) / 60000))} minutes</b> during this focus block (no input, the screen off or the device asleep). Count that time as focus?</p>` +
       `<p class="muted">Not counting it picks the block up where you left it.</p>` +
       `<div class="row end"><button type="button" data-brk="skip-away">Don't count it</button><button type="button" class="primary" data-brk="keep-away">Count it</button></div>`
     : kind === "done"
-    ? `<h2 id="brk-t" tabindex="-1">Focus block done 🎯</h2><p>50 minutes of focus. Take a break now: it has no set length. The clock counts up, and after ${REST_NAG / 60} minutes it reminds you every minute to come back.</p>` +
-      `<div class="row end"><button type="button" data-brk="focus">Skip the break, focus again</button><button type="button" class="primary" data-brk="rest">Start break ☕</button></div>`
-    : `<h2 id="brk-t" tabindex="-1">Break is over ⏰</h2><p>You have been on a break for <b id="brk-up">${mmss(restUp())}</b>. Time for the next 50 minutes of focus.</p>` +
+    ? `<h2 id="brk-t" tabindex="-1">Focus block done</h2><p>50 minutes of focus. Take a break now: it has no set length. The clock counts up, and after ${REST_NAG / 60} minutes it reminds you every minute to come back.</p>` +
+      `<div class="row end"><button type="button" data-brk="focus">Skip the break, focus again</button><button type="button" class="primary" data-brk="rest">Start break</button></div>`
+    : `<h2 id="brk-t" tabindex="-1">Break is over</h2><p>You have been on a break for <b id="brk-up">${mmss(restUp())}</b>. Time for the next 50 minutes of focus.</p>` +
       `<p class="muted">Away for longer? Pause the break and the reminders stop until you resume it.</p>` +
-      `<div class="row end"><button type="button" data-brk="pause">Pause the break</button><button type="button" data-brk="later">Not yet</button><button type="button" class="primary" data-brk="focus">Start focus 🎯</button></div>`;
+      `<div class="row end"><button type="button" data-brk="pause">Pause the break</button><button type="button" data-brk="later">Not yet</button><button type="button" class="primary" data-brk="focus">Start focus</button></div>`;
   if (!brkDlg.open) brkDlg.showModal();
   brkAt = Date.now();
-  if (kind === "done") notify("Focus block done 🎯", "Time for a break. It has no set length.");
+  if (kind === "done") notify("Focus block done", "Time for a break. It has no set length.");
   document.getElementById("brk-t").focus({ preventScroll: true });
 }
 brkDlg.addEventListener("click", e => {
@@ -3103,7 +3201,7 @@ function timerTick(was) {
       nagKey = key;
       let heard = "";
       try { heard = localStorage.getItem(NAG_KEY) || ""; localStorage.setItem(NAG_KEY, key); } catch (e) {}
-      if (heard !== key) { FX.sound("nag"); notify("Break is over ⏰", `On a break for ${mmss(restUp())}. Time for the next focus block.`); }   // another tab already knocked this minute
+      if (heard !== key) { FX.sound("nag"); notify("Break is over", `On a break for ${mmss(restUp())}. Time for the next focus block.`); }   // another tab already knocked this minute
       if (!brkDlg.open) { if (inTimed()) overHeld = true; else brkOpen("over"); }
     }
     if (overHeld && !brkDlg.open && !inTimed()) { overHeld = false; brkOpen("over"); }
@@ -3331,7 +3429,7 @@ setInterval(() => { if (todayIdx() !== lastIdx || today() !== lastDate) { lastId
 // Days ticked off before quizzes existed count as done once their quiz is passed.
 DAYS.forEach(markDayDone);
 award(0, false);   // saved with the next change, or after the first sync (applyState)
-document.getElementById("tb-sub").textContent = `SAA-C03 in ${DAYS.length} days`;
+document.querySelector(".tb .tb-k").textContent = `SAA-C03 / ${DAYS.length}-day study plan`;
 restoreScores();
 rebuild();
 route();

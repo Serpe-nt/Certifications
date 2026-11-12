@@ -82,7 +82,11 @@ function ExamIntro({ cert, bank, other, mocks, ready }: { cert: Cert; bank: Bank
   const pool = bank.questions.filter((q) => q.cert === cert && (q.pool === `mock-${cert}` || !q.pool.startsWith('mock-')));
   const total = Object.entries(split).reduce((n, [d, c]) => n + Math.min(c, pool.filter((q) => q.domain === d).length), 0);
   const busy = other && !other.done && other.cert !== cert;
-  const start = () => updateState((s) => startExam(s, cert, pickMock(cert, bank.questions, s.qs), Date.now()));
+  const start = () => {
+    updateState((s) => startExam(s, cert, pickMock(cert, bank.questions, s.qs), Date.now()));
+    // The intro is taller than the exam: start with the clock and the first question in view.
+    requestAnimationFrame(() => document.querySelector('.qz')?.scrollIntoView({ block: 'start' }));
+  };
   return (
     <section className="qz-intro" data-exam-intro={cert}>
       <dl className="qz-facts">
@@ -221,11 +225,17 @@ function ExamScreen({ exam, bank, now, ready }: { exam: ExamRun; bank: Bank; now
           <p className="qz-missing">This question is no longer in the course. Skip it.</p>
         )}
         <nav className="qz-foot qz-examnav" aria-label="Exam">
-          <button type="button" className="btn" onClick={() => go(i - 1)} disabled={!ready || i === 0}>
+          <button type="button" className="qz-stepbtn mono" onClick={() => go(i - 1)} disabled={!ready || i === 0}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M10 3 5 8l5 5" />
+            </svg>
             Previous
           </button>
-          <button type="button" className={last ? 'btn' : 'btn btn-primary'} onClick={() => go(i + 1)} disabled={!ready || last}>
+          <button type="button" className={last ? 'qz-stepbtn mono' : 'qz-stepbtn qz-stepbtn-go mono'} onClick={() => go(i + 1)} disabled={!ready || last}>
             Next
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="m6 3 5 5-5 5" />
+            </svg>
           </button>
         </nav>
         </div>
@@ -263,7 +273,15 @@ function ExamScreen({ exam, bank, now, ready }: { exam: ExamRun; bank: Bank; now
             Flagged
           </span>
         </span>
-        <button type="button" className={last ? 'btn btn-primary' : 'btn'} onClick={() => setConfirm(true)} disabled={!ready || over} data-submit-exam>
+        <button type="button" className={last ? 'btn btn-primary' : 'btn'} onClick={() => {
+            setConfirm(true);
+            // Bring the confirm panel into view and put the keyboard on its first button.
+            requestAnimationFrame(() => {
+              const p = document.querySelector<HTMLElement>('[data-confirm-submit]');
+              p?.scrollIntoView({ block: 'nearest' });
+              p?.querySelector<HTMLButtonElement>('[data-confirm-yes]')?.focus({ preventScroll: true });
+            });
+          }} disabled={!ready || over} data-submit-exam>
           Submit
         </button>
       </div>
@@ -276,7 +294,14 @@ function ExamScreen({ exam, bank, now, ready }: { exam: ExamRun; bank: Bank; now
             <button type="button" className="btn btn-primary" onClick={submit} disabled={!ready} data-confirm-yes>
               Submit the exam
             </button>
-            <button type="button" className="btn" onClick={() => setConfirm(false)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setConfirm(false);
+                requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-submit-exam]')?.focus());
+              }}
+            >
               Keep going
             </button>
           </p>
@@ -320,7 +345,7 @@ function ExamResults({ exam, bank, record }: { exam: ExamRun; bank: Bank; record
           </p>
           <p className="qz-board-text">
             The pass mark is {Math.round(info.pass * 100)}% ({needed(n, info.pass)} of {n}). {exam.timeUp ? 'Time ran out; the exam was submitted for you. ' : ''}
-            Time taken: {record?.mins ?? 0} minutes.
+            Time taken: {record?.mins ?? 0} {(record?.mins ?? 0) === 1 ? 'minute' : 'minutes'}.
           </p>
           <div className="qz-board-actions">
             <button type="button" className="btn btn-primary" onClick={() => updateState(dropExam)} disabled={!ready} data-close-exam>

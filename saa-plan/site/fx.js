@@ -1,34 +1,60 @@
-// Celebration effects: canvas confetti/fireworks + Web Audio sounds + banner, toast and badges. No dependencies.
-// A ladder, from small to large: step → block → quiz unlocked → day → week → all, plus a sound and stars on every quiz
-// answer and bigger bursts at each streak mark.
+// Celebration effects, drawn the Field Manual way: a canvas of square pieces, dot-matrix bursts, viewfinder brackets,
+// scan lines and rising packets in the theme's own inks (signal, ink, paper), plus Web Audio sounds and the banner,
+// toast and badges. No dependencies. Everything moves like a machine: the canvas is redrawn in steps (25 a second) on a
+// 4 px grid, pieces turn in 45-degree steps and cut out at the end of their life; nothing fades, glows or blurs.
+// A ladder, from small to large: step → block → quiz unlocked → day → week → all, plus a sound and a burst on every
+// quiz answer and bigger bursts at each streak mark.
 window.FX = (() => {
   let fxOn = true, soundOn = true;
-  let cv = null, ctx = null, W = 0, H = 0, raf = 0;
-  let parts = [], rockets = [], rings = [], flashes = [];
+  let cv = null, ctx = null, W = 0, H = 0, raf = 0, prev = 0, acc = 0, drawn = 0, clock = 0;
+  let parts = [], rockets = [], frames = [], cells = [], scans = [];
   let actx = null, out = null, bEl = null, vEl = null, bT = 0, tEl = null, tT = 0, bdWrap = null, glowT = 0;
   const bdQ = [];   // badges waiting for a free place
   const MAX_PARTS = 6000;   // the biggest celebrations stay smooth on a slow machine
+  const MAX_CELLS = 9000;
+  const FRAME = 1000 / 60;  // the simulation runs in fixed 60 Hz steps, whatever the screen's refresh rate
+  const STEP = 40;          // ...and is drawn every 40 ms: motion in steps, not smooth
+  const GRID = 4;           // positions snap to a 4 px grid
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
-  const COLORS = ["#ff9900", "#ffc061", "#0972d3", "#5aa9ff", "#8a3ffc", "#b58cff", "#1fbf5f", "#ff5c8a", "#ffe066"];
-  const GOLD = ["#ffe066", "#ffc061", "#ff9900", "#fff3b0", "#ffffff"];
-  const HOT = ["#ffe066", "#ff9900", "#ff7a00", "#e5383b", "#ffffff"];    // a run of 5 or more
-  const EPIC = ["#b58cff", "#8a3ffc", "#ff5c8a", "#ffe066", "#ffffff"];   // a run of 20 or more
   const R = (a, b) => a + Math.random() * (b - a);
   const pick = a => a[(Math.random() * a.length) | 0];
-  const motion = () => fxOn && !reduce.matches;
+  const snap = v => Math.round(v / GRID) * GRID;
+  const motion = () => fxOn && !reduce.matches && document.documentElement.dataset.fmMotion !== "off";
+  // No emoji in the interface: whatever a caller passes, pictographs go (the system's own glyphs ↗ and ▶ stay).
+  const plain = s => String(s == null ? "" : s).replace(/(?![↗▶])\p{Extended_Pictographic}️?/gu, "").replace(/^\s+/, "");
   // A modal dialog sits in the browser's top layer, above everything else on the page:
   // whatever must show while one is open (the quiz) has to live inside it. With two open
   // (the break reminder over a quiz), the later one in the page is the one on top.
   const host = () => { const d = document.querySelectorAll("dialog[open]"); return d.length ? d[d.length - 1] : document.body; };
+
+  // ---------- colour: the theme's own tokens, read when an effect starts (so Carbon and Paper both work) ----------
+  // Pieces carry a token name, not a colour, so a theme switch mid-burst repaints them right.
+  let C = {};
+  function pal() {
+    const cs = getComputedStyle(document.documentElement), v = (n, f) => cs.getPropertyValue(n).trim() || f;
+    C = { sig: v("--signal", "#D4F23A"), edge: v("--signal-edge", "#D4F23A"), ink: v("--ink", "#E8EAE8"), ink3: v("--ink-3", "#8A908D"),
+      raised: v("--paper-raised", "#171A18"), paper: v("--paper", "#0E100F"), rule: v("--rule", "#343836"), alert: v("--alert", "#FF5A2E") };
+  }
+  // Mixes of pieces by heat. "raised" pieces are paper with an ink outline, so they read on either theme.
+  const MIX = {
+    base: ["sig", "sig", "ink", "ink", "raised"],
+    hot: ["sig", "sig", "sig", "ink", "edge"],        // a run of 5 or more
+    epic: ["sig", "ink", "raised", "edge", "sig"],    // a run of 20 or more, the top rungs
+    sig: ["sig", "sig", "edge"],
+    ink: ["ink", "ink", "ink3"],
+    broke: ["alert", "ink", "ink3", "alert"]          // a run broken: the only place alert is used
+  };
 
   // ---------- canvas ----------
   function ensure() {
     if (!cv) {
       cv = document.createElement("canvas");
       cv.className = "fx-canvas";
+      cv.setAttribute("aria-hidden", "true");
       ctx = cv.getContext("2d");
       addEventListener("resize", size);
     }
+    pal();
     const h = host();
     if (cv.parentNode !== h) { h.appendChild(cv); size(); }
   }
@@ -38,6 +64,7 @@ window.FX = (() => {
     cv.width = W * dpr; cv.height = H * dpr;
     cv.style.width = W + "px"; cv.style.height = H + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
   }
   function center(el) {
     if (el && el.getBoundingClientRect) {
@@ -47,75 +74,105 @@ window.FX = (() => {
     return { x: W / 2, y: H / 2 };
   }
 
-  // shapes: "rect" (paper), "dot", "star"; a particle with ch draws that character (an emoji)
-  function confetti(x, y, n, o = {}) {
-    const { speed = 7, angle = -Math.PI / 2, spread = Math.PI * 2, gravity = 0.22, ttl = [50, 90], size = [4, 8], shapes = ["rect", "rect", "dot"], colors = COLORS } = o;
+  // Square pieces thrown from a point. shapes: "sq" (a square plate), "bar" (a 3:1 strip), "px" (one dot-matrix pixel).
+  // They turn in 45-degree steps (every few ticks), not smoothly.
+  function burst(x, y, n, o = {}) {
+    const { speed = 7, angle = -Math.PI / 2, spread = Math.PI * 2, gravity = 0.22, ttl = [50, 90], size = [4, 8], shapes = ["sq", "bar", "sq", "px"], colors = MIX.base } = o;
     n = Math.min(n, MAX_PARTS - parts.length);
     for (let i = 0; i < n; i++) {
       const a = angle + R(-spread / 2, spread / 2), v = speed * R(0.45, 1.1);
       parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: gravity, drag: 0.986, life: 0,
-        ttl: R(ttl[0], ttl[1]), c: pick(colors), s: R(size[0], size[1]), rot: R(0, 6.28), vr: R(-0.3, 0.3), shape: pick(shapes) });
+        ttl: R(ttl[0], ttl[1]), c: pick(colors), s: R(size[0], size[1]), rot: (Math.random() * 8) | 0, turn: (R(4, 12)) | 0, shape: pick(shapes) });
     }
     run();
   }
-  const stars = (x, y, n, o = {}) => confetti(x, y, n, { speed: 8, ttl: [40, 75], size: [7, 13], gravity: 0.16, shapes: ["star"], colors: GOLD, ...o });
-  function sparks(x, y, n, c, speed = 6.5) {
+  // dot-matrix pixels: small square sparks (the old stars)
+  const pixels = (x, y, n, o = {}) => burst(x, y, n, { speed: 8, ttl: [40, 75], size: [3, 6], gravity: 0.16, shapes: ["px", "px", "sq"], colors: MIX.sig, ...o });
+  // A firework's break: dotted rays along the eight 45-degree directions, each a chain of pixels at rising speeds.
+  function rays(x, y, len, c, big) {
+    const chain = big ? 7 : 5;
+    for (let k = 0; k < 8; k++) {
+      const a = k * Math.PI / 4;
+      for (let j = 1; j <= chain && parts.length < MAX_PARTS; j++) {
+        const v = len * j / chain;
+        parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.03, drag: 0.95, life: 0, ttl: R(46, 70), c: j % 2 ? c : "ink", s: big ? 5 : 4, rot: 0, turn: 0, shape: "px" });
+      }
+    }
+    // the in-between directions get a shorter, fainter chain: a dotted star, not a smooth circle
+    if (big) for (let k = 0; k < 8; k++) {
+      const a = (k + 0.5) * Math.PI / 4;
+      for (let j = 1; j <= 3 && parts.length < MAX_PARTS; j++) parts.push({ x, y, vx: Math.cos(a) * len * j / 5, vy: Math.sin(a) * len * j / 5, g: 0.03, drag: 0.95, life: 0, ttl: R(40, 60), c: "edge", s: 3, rot: 0, turn: 0, shape: "px" });
+    }
+    run();
+  }
+  // Viewfinder brackets that open out from where something was finished (the old expanding ring).
+  function frame(x, y, c = "edge", delay = 0, ttl = 26) {
+    setTimeout(() => { if (!motion()) return; ensure(); frames.push({ x, y, r: 10, c, life: 0, ttl }); run(); }, delay);
+  }
+  // A dot-matrix burst: a diamond of square cells (45-degree edges) that light ring by ring from the centre, hold,
+  // and switch off in the same order. r = rings, pitch = px between cells.
+  function grid(x, y, r, colors = MIX.sig, delay = 0, pitch = 10) {
+    setTimeout(() => {
+      if (!motion()) return;
+      ensure();
+      const t0 = clock;
+      for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) {
+        const d = Math.abs(i) + Math.abs(j);
+        if (d > r || cells.length >= MAX_CELLS || (d > 1 && Math.random() < 0.18)) continue;   // a few gaps: a matrix, not a slab
+        cells.push({ x: snap(x + i * pitch), y: snap(y + j * pitch), on: t0 + d * 2, off: t0 + d * 2 + 7, s: Math.max(3, pitch * 0.55), c: d === r ? "edge" : pick(colors) });
+      }
+      run();
+    }, delay);
+  }
+  // Pieces falling in columns at a constant speed, each a short dotted packet (the old emoji rain).
+  function rain(n, colors = MIX.base) {
     n = Math.min(n, MAX_PARTS - parts.length);
     for (let i = 0; i < n; i++) {
-      const a = R(0, 6.28), v = R(1.5, speed);
-      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.06, drag: 0.975, life: 0,
-        ttl: R(55, 95), c: Math.random() < 0.75 ? c : "#ffffff", s: R(2, 3.4), rot: 0, vr: 0, shape: "dot" });
+      parts.push({ x: Math.round(R(0, W) / 16) * 16, y: R(-H * 0.6, -20), vx: 0, vy: R(4, 8), g: 0, drag: 1, life: 0,
+        ttl: R(150, 240), c: pick(colors), s: R(5, 9), rot: 0, turn: 0, shape: "col" });
     }
     run();
   }
-  // an expanding ring where something was finished
-  function ring(x, y, c, delay = 0) {
-    setTimeout(() => { ensure(); rings.push({ x, y, r: 8, c, life: 0, ttl: 30 }); run(); }, delay);
-  }
-  // characters falling from the top of the screen
-  function rain(chars, n) {
-    n = Math.min(n, MAX_PARTS - parts.length);
-    for (let i = 0; i < n; i++) {
-      parts.push({ x: R(0, W), y: R(-H * 0.6, -20), vx: R(-0.6, 0.6), vy: R(2, 5), g: 0.03, drag: 1, life: 0,
-        ttl: R(150, 240), c: "#fff", s: R(18, 30), rot: R(-0.4, 0.4), vr: R(-0.03, 0.03), ch: pick(chars) });
-    }
-    run();
-  }
-  // big: a firework of the top rungs, with a second colour, a ring and glitter, and a louder bang
+  // big: a packet of the top rungs, with a second ink, brackets and pixels, and a louder bang.
+  // A packet rises straight up at a constant speed (a signal on a wire), then breaks into rays.
   function rocket(x, delay, big = false) {
     setTimeout(() => {
+      if (!motion()) return;
       ensure();
-      rockets.push({ x, y: H + 10, vx: R(-0.8, 0.8), vy: -Math.sqrt(2 * 0.18 * R(H * (big ? 0.5 : 0.45), H * (big ? 0.85 : 0.75))), c: pick(COLORS), c2: pick(COLORS), big });
+      const top = R(H * (big ? 0.12 : 0.2), H * (big ? 0.5 : 0.55)), ticks = big ? 52 : 46;
+      rockets.push({ x: snap(x), y: H + 10, vy: -(H + 10 - top) / ticks, top, c: pick(["sig", "sig", "ink"]), c2: pick(["ink", "edge", "sig"]), big });
       if (soundOn) noise(0, 0.35, 0.025, 2500);
       run();
     }, delay);
   }
-  function cannons(n) {
+  // two bursts from the bottom corners, at 45 degrees
+  function cannons(n, colors = MIX.base) {
     const speed = Math.sqrt(0.5 * H * 0.85);
-    const o = { speed, spread: 0.55, gravity: 0.25, ttl: [100, 150], size: [5, 9], shapes: ["rect", "rect", "dot", "star"] };
-    confetti(0, H, n, { ...o, angle: -Math.PI / 3 });
-    confetti(W, H, n, { ...o, angle: (-Math.PI * 2) / 3 });
+    const o = { speed, spread: 0.4, gravity: 0.25, ttl: [100, 150], size: [5, 9], shapes: ["sq", "bar", "bar", "px"], colors };
+    burst(0, H, n, { ...o, angle: -Math.PI / 4 });
+    burst(W, H, n, { ...o, angle: (-Math.PI * 3) / 4 });
   }
   // run fn after ms, on a canvas in whatever is on top by then
   const later = (ms, fn) => setTimeout(() => { if (!motion()) return; ensure(); fn(); }, ms);
-  // a soft glow over the whole screen, fading out (rgb = "r,g,b"). Gentle and never more than two a second.
-  function flash(rgb, peak = 0.3, delay = 0) {
-    later(delay, () => { flashes.push({ rgb, peak, life: 0, ttl: 34 }); run(); });
+  // A scan line sweeps down the screen at a constant speed, three dotted rows behind it (the old soft flash).
+  // One pass, never more than two a second.
+  function scan(delay = 0, c = "edge", ttl = 40) {
+    later(delay, () => { scans.push({ c, life: 0, ttl }); run(); });
   }
-  // a fountain of confetti from the bottom edge for ms milliseconds
-  function fountain(x, ms, delay = 0) {
+  // a column of pieces from the bottom edge for ms milliseconds
+  function fountain(x, ms, delay = 0, colors = MIX.base) {
     later(delay, () => {
       const end = Date.now() + ms;
       const id = setInterval(() => {
         if (Date.now() > end || !motion()) return clearInterval(id);
         ensure();
-        confetti(x, H + 4, 5, { speed: Math.sqrt(2 * 0.24 * H * R(0.7, 1)), spread: 0.36, gravity: 0.24, ttl: [90, 140], size: [5, 9], shapes: ["rect", "rect", "dot", "star"] });
+        burst(x, H + 4, 5, { speed: Math.sqrt(2 * 0.24 * H * R(0.7, 1)), spread: 0.3, gravity: 0.24, ttl: [90, 140], size: [5, 9], shapes: ["sq", "bar", "px"], colors });
       }, 40);
     });
   }
-  // The open dialog's edge lights up (a long run of right answers). A box-shadow, not a transform:
-  // a transform would move the fixed layers inside the dialog (canvas, badges) with it.
-  function glow(c) {
+  // The open dialog's edge lights up (a long run of right answers): an outline that steps out twice and is gone.
+  // An outline, not a transform: a transform would move the fixed layers inside the dialog (canvas, badges) with it.
+  function glow(c = "var(--signal)") {
     const h = host();
     if (h === document.body) return;
     h.style.setProperty("--fx-glow", c);
@@ -123,78 +180,90 @@ window.FX = (() => {
     clearTimeout(glowT);
     glowT = setTimeout(() => h.classList.remove("fx-glow"), 1300);
   }
-  function starPath(r) {
-    ctx.beginPath();
-    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.45 : r; ctx.lineTo(Math.cos(a) * q, Math.sin(a) * q); }
-    ctx.closePath(); ctx.fill();
-  }
 
+  function update() {
+    clock++;
+    scans = scans.filter(s => ++s.life < s.ttl);
+    frames = frames.filter(f => { f.life++; f.r += 9 * (1 - f.life / f.ttl) + 2; return f.life < f.ttl; });
+    cells = cells.filter(c => clock < c.off);
+    rockets = rockets.filter(r => {
+      r.y += r.vy;
+      if (r.y > r.top) return true;
+      if (r.big) {
+        rays(r.x, r.y, 8.5, r.c, true); rays(r.x, r.y, 4.5, r.c2, false);
+        frames.push({ x: r.x, y: r.y, r: 10, c: "edge", life: 0, ttl: 30 });
+        pixels(r.x, r.y, 12, { speed: 5, gravity: 0.07, ttl: [50, 90], size: [3, 5], colors: MIX.epic });
+      } else rays(r.x, r.y, 6, r.c, false);
+      if (soundOn) noise(0, r.big ? 0.8 : 0.5, r.big ? 0.1 : 0.08, r.big ? 520 : 700);
+      return false;
+    });
+    parts = parts.filter(p => {
+      p.vx *= p.drag; p.vy = p.vy * p.drag + p.g;
+      p.x += p.vx; p.y += p.vy; p.life++;
+      if (p.turn && p.life % p.turn === 0) p.rot = (p.rot + 1) % 8;
+      return p.life < p.ttl && p.y < H + 40;
+    });
+  }
+  function fillPiece(p) {
+    const x = snap(p.x), y = snap(p.y), late = p.life > p.ttl * 0.75, s = Math.max(2, Math.round((late ? p.s / 2 : p.s)));   // late in life: one step smaller, then gone
+    if (p.shape === "col") {   // a falling packet: three cells, the lead one largest
+      ctx.fillStyle = C[p.c];
+      ctx.fillRect(x, y, s, s);
+      ctx.fillRect(x + 1, y - s - 4, s - 2, s - 2);
+      ctx.fillRect(x + 2, y - 2 * s - 6, Math.max(2, s - 4), Math.max(2, s - 4));
+      return;
+    }
+    if (p.shape === "px") { ctx.fillStyle = C[p.c]; ctx.fillRect(x - s / 2, y - s / 2, s, s); return; }
+    const w = p.shape === "bar" ? s * 1.6 : s, h = p.shape === "bar" ? Math.max(2, s / 2.2) : s;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(p.rot * Math.PI / 4);
+    ctx.fillStyle = C[p.c]; ctx.fillRect(-w / 2, -h / 2, w, h);
+    if (p.c === "raised") { ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.strokeRect(-w / 2 + 0.5, -h / 2 + 0.5, w - 1, h - 1); }
+    ctx.restore();
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (const s of scans) {
+      const y = snap(s.life / s.ttl * (H + 32)), p = 8;
+      ctx.fillStyle = C[s.c]; ctx.fillRect(0, y, W, 2);
+      for (let k = 1; k <= 3; k++) {
+        const yy = y - k * p;
+        if (yy < 0) break;
+        ctx.fillStyle = k === 1 ? C[s.c] : C.rule;
+        for (let x = (k % 2) * p / 2; x < W; x += p) ctx.fillRect(x, yy, 2, 2);
+      }
+    }
+    for (const c of cells) if (clock >= c.on) { ctx.fillStyle = C[c.c]; ctx.fillRect(c.x - c.s / 2, c.y - c.s / 2, c.s, c.s); }
+    ctx.lineWidth = 2;
+    for (const f of frames) {
+      const r = snap(f.r), a = Math.max(6, snap(r * 0.32)), x = snap(f.x), y = snap(f.y);
+      ctx.strokeStyle = C[f.c];
+      ctx.beginPath();
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const cx = x + sx * r, cy = y + sy * r;
+        ctx.moveTo(cx - sx * a, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy - sy * a);
+      }
+      ctx.stroke();
+    }
+    for (const r of rockets) {
+      const y = snap(r.y);
+      ctx.fillStyle = C[r.c]; ctx.fillRect(r.x - 2, y, 4, 12);
+      ctx.fillStyle = C.ink3;
+      for (let k = 1; k <= 4; k++) ctx.fillRect(r.x - 1, y + 12 + k * 8, 2, 4);   // a dotted trail, a wire behind the packet
+    }
+    for (const p of parts) fillPiece(p);
+  }
   function run() {
     if (raf) return;
-    const step = () => {
-      ctx.clearRect(0, 0, W, H);
-      flashes = flashes.filter(f => {
-        f.life++;
-        const a = f.peak * (1 - f.life / f.ttl) ** 2;
-        if (f.life >= f.ttl) return false;
-        const x = W / 2, y = H * 0.4, g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(W, H) * 0.8);
-        g.addColorStop(0, `rgba(${f.rgb},1)`); g.addColorStop(1, `rgba(${f.rgb},0)`);
-        ctx.globalAlpha = a; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-        return true;
-      });
-      rings = rings.filter(g => {
-        g.life++; g.r += 5.5 * (1 - g.life / g.ttl) + 1;
-        const a = 1 - g.life / g.ttl;
-        if (a <= 0) return false;
-        ctx.globalAlpha = a * 0.8; ctx.strokeStyle = g.c; ctx.lineWidth = 1 + 4 * a;
-        ctx.beginPath(); ctx.arc(g.x, g.y, g.r, 0, 6.28); ctx.stroke();
-        return true;
-      });
-      rockets = rockets.filter(r => {
-        r.x += r.vx; r.y += r.vy; r.vy += 0.18;
-        ctx.fillStyle = r.c;
-        ctx.globalAlpha = 0.35;
-        ctx.beginPath(); ctx.arc(r.x - r.vx * 3, r.y - r.vy * 3, 1.8, 0, 6.28); ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.beginPath(); ctx.arc(r.x, r.y, 2.6, 0, 6.28); ctx.fill();
-        if (r.vy >= -0.8) {
-          if (r.big) {
-            sparks(r.x, r.y, 130, r.c, 8.5); sparks(r.x, r.y, 50, r.c2, 5);
-            rings.push({ x: r.x, y: r.y, r: 8, c: r.c, life: 0, ttl: 34 });
-            stars(r.x, r.y, 12, { speed: 5, gravity: 0.07, ttl: [50, 90], size: [4, 8] });
-          } else sparks(r.x, r.y, 90, r.c);
-          if (soundOn) noise(0, r.big ? 0.8 : 0.5, r.big ? 0.1 : 0.08, r.big ? 520 : 700);
-          return false;
-        }
-        return true;
-      });
-      parts = parts.filter(p => {
-        p.vx *= p.drag; p.vy = p.vy * p.drag + p.g;
-        p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life++;
-        const a = 1 - p.life / p.ttl;
-        if (a <= 0 || p.y > H + 40) return false;
-        ctx.globalAlpha = Math.min(1, a * 1.6);
-        ctx.fillStyle = p.c;
-        if (p.ch) {
-          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-          ctx.font = `${p.s}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(p.ch, 0, 0);
-          ctx.restore();
-        } else if (p.shape === "rect") {
-          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-          ctx.fillRect(-p.s / 2, (-p.s / 4) * Math.abs(Math.cos(p.rot * 2)) - 0.5, p.s, (p.s / 2) * Math.abs(Math.cos(p.rot * 2)) + 1);
-          ctx.restore();
-        } else if (p.shape === "star") {
-          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); starPath(p.s / 2); ctx.restore();
-        } else {
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.s / 2, 0, 6.28); ctx.fill();
-        }
-        return true;
-      });
-      ctx.globalAlpha = 1;
-      if (parts.length || rockets.length || rings.length || flashes.length) raf = requestAnimationFrame(step);
+    prev = performance.now(); acc = 0; drawn = 0;
+    const loop = now => {
+      acc = Math.min(acc + now - prev, 250); prev = now;
+      while (acc >= FRAME) { update(); acc -= FRAME; }
+      const busy = parts.length || rockets.length || frames.length || cells.length || scans.length;
+      if (now - drawn >= STEP || !busy) { drawn = now; draw(); }
+      if (busy) raf = requestAnimationFrame(loop);
       else { raf = 0; ctx.clearRect(0, 0, W, H); }
     };
-    raf = requestAnimationFrame(step);
+    raf = requestAnimationFrame(loop);
   }
 
   // ---------- sound ----------
@@ -303,11 +372,15 @@ window.FX = (() => {
   };
   const sound = (n, arg) => { if (soundOn && SND[n]) SND[n](arg); };
 
-  // ---------- banner (centre of the screen) and toast (a short line above the buttons) ----------
-  // The top rungs (day, week, all) stay up longer, carry a big icon that stamps in, and dim the page around them
-  // (the veil, an effect: only with motion). Returns how long the banner stays, so what comes next can wait for it.
+  // ---------- banner (a panel in the middle of the screen) and toast (one system line above the buttons) ----------
+  // The banner is a Field Manual panel: a mono label line with the time, the title as a bracketed display word,
+  // the facts as a terminal line. The top rungs (day, week, all) stay up longer, carry a dot-matrix code that switches
+  // on dot by dot, wipe in from the top in steps and dim the page around them (the veil, an effect: only with motion).
+  // Each is bigger than the one below: day a raised panel, week the panel in the other theme, all the one signal block.
+  // Returns how long the banner stays, so what comes next can wait for it.
   const BANNER_MS = { all: 9000, week: 6500, day: 4600, block: 2300, info: 2600 };
   const TOP = { day: 1, week: 1, all: 1 };
+  const hhmm = () => { const d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
   function banner(title, sub = "", kind = "day", icon = "") {
     if (!bEl) { bEl = document.createElement("div"); bEl.setAttribute("role", "status"); }
     if (!vEl) { vEl = document.createElement("div"); vEl.setAttribute("aria-hidden", "true"); }
@@ -315,8 +388,12 @@ window.FX = (() => {
     const ms = BANNER_MS[kind] || 3200, veil = TOP[kind] && motion();
     if (veil && vEl.parentNode !== host()) host().appendChild(vEl);
     vEl.className = "fx-veil k-" + kind;
-    bEl.className = "fx-banner k-" + kind;
-    bEl.innerHTML = `${icon ? `<div class="b-i">${icon}</div>` : ""}<div class="b-t">${title}</div>${sub ? `<div class="b-s">${sub}</div>` : ""}`;
+    bEl.className = "fx-banner k-" + kind + (kind === "week" ? " fm-invert" : "");
+    icon = plain(icon);
+    // a top rung always carries its mark: the caller's dot-matrix code, or a plain square
+    if (!icon && TOP[kind]) icon = "■";
+    bEl.innerHTML = `<div class="b-l"><span>${kind === "info" ? "Notice" : "Log"}</span><span class="b-tm">${hhmm()}</span></div>` +
+      `${icon ? `<div class="b-i" aria-hidden="true">${icon}</div>` : ""}<div class="b-t">${plain(title)}</div>${sub ? `<div class="b-s">${plain(sub)}</div>` : ""}`;
     void bEl.offsetWidth;
     bEl.classList.add("show");
     if (veil) vEl.classList.add("show");
@@ -324,11 +401,12 @@ window.FX = (() => {
     bT = setTimeout(() => { bEl.classList.remove("show"); vEl.classList.remove("show"); }, ms);
     return ms;
   }
+  // kind: "" (plain), "half" or "combo" (live: a signal cap), "warn" (the alert cap)
   function toast(html, kind = "") {
     if (!tEl) { tEl = document.createElement("div"); tEl.setAttribute("role", "status"); }
     if (tEl.parentNode !== host()) host().appendChild(tEl);
     tEl.className = "fx-toast" + (kind ? " k-" + kind : "");
-    tEl.innerHTML = html;
+    tEl.innerHTML = `<span class="t-cap" aria-hidden="true"></span><span class="t-b">${plain(html)}</span>`;
     void tEl.offsetWidth;
     tEl.classList.add("show");
     clearTimeout(tT);
@@ -336,8 +414,8 @@ window.FX = (() => {
   }
   // A badge drops in at the top of the screen: right answers in a row, a record, a level, a badge earned.
   // Two at most are on screen; the rest wait their turn, so each one is seen for its full three seconds.
-  // tier: bronze | silver | gold | epic | level. Like the banner, it carries information, so it shows with
-  // effects off too (without the stars).
+  // tier: bronze | silver | gold | epic | level (the fill of its code cell says which). icon: a short mono code
+  // ("R05", "L07"). Like the banner, it carries information, so it shows with effects off too (without the burst).
   function badge(icon, title, sub = "", tier = "gold") {
     bdQ.push([icon, title, sub, tier]);
     bdNext();
@@ -350,20 +428,23 @@ window.FX = (() => {
   }
   function bdShow(icon, title, sub, tier) {
     const el = document.createElement("div");
-    el.className = "fx-badge k-" + tier;
-    el.innerHTML = `<span class="bd-i">${icon}</span><span class="bd-x"><span class="bd-t">${title}</span>${sub ? `<span class="bd-s">${sub}</span>` : ""}</span>`;
+    el.className = "fx-badge k-" + tier + (tier === "epic" ? " fm-invert" : "");
+    el.innerHTML = `<span class="bd-i" aria-hidden="true">${plain(icon) || "■"}</span><span class="bd-x"><span class="bd-t">${plain(title)}</span>${sub ? `<span class="bd-s">${plain(sub)}</span>` : ""}</span>`;
     bdWrap.appendChild(el);
-    // stars burst from the medal once it has landed
+    // a dot-matrix burst round the code cell once the badge has landed
     setTimeout(() => {
       if (!el.isConnected || !motion()) return;
       ensure();
-      const p = center(el.querySelector(".bd-i"));
-      ring(p.x, p.y, tier === "epic" ? "#b58cff" : "#ffe066");
-      stars(p.x, p.y, tier === "epic" || tier === "level" ? 26 : 14, { speed: 6.5, gravity: 0.14, ttl: [30, 60], size: [5, 11], colors: tier === "epic" ? ["#b58cff", "#8a3ffc", "#ffe066", "#ffffff"] : GOLD });
+      const p = center(el.querySelector(".bd-i")), big = tier === "epic" || tier === "level";
+      frame(p.x, p.y, "edge", 0, 20);
+      grid(p.x, p.y, big ? 4 : 3, big ? MIX.epic : MIX.sig, 0, 8);
+      pixels(p.x, p.y, big ? 26 : 14, { speed: 6.5, gravity: 0.14, ttl: [30, 60], size: [3, 5], colors: big ? MIX.epic : MIX.sig });
     }, 420);
     setTimeout(() => { el.classList.add("out"); bdNext(); }, 3000);
     setTimeout(() => el.remove(), 3500);
   }
+  // the heat of a run of n right answers: 1 up to 3, 5, 10, 15, 20, 30 in a row
+  const heat = n => (tier(n) >= 5 ? MIX.epic : tier(n) >= 2 ? MIX.hot : MIX.sig);
 
   return {
     // one step done. n = how many steps of the day are done now (the note climbs); big = a long step such as a lab or a lecture
@@ -372,9 +453,10 @@ window.FX = (() => {
       if (!motion()) return;
       ensure();
       const p = center(el);
-      ring(p.x, p.y, "#5fd37a");
-      confetti(p.x, p.y, big ? 70 : 36, { speed: big ? 10.5 : 7.5, spread: Math.PI * 1.3, ttl: [40, 80], size: [3, 7], shapes: ["rect", "rect", "dot", "star"] });
-      if (big) { ring(p.x, p.y, "#ffc061", 140); stars(p.x, p.y, 16, { speed: 9 }); rocket(R(W * 0.3, W * 0.7), 180); }
+      frame(p.x, p.y, "edge");
+      grid(p.x, p.y, big ? 5 : 3);
+      burst(p.x, p.y, big ? 70 : 36, { speed: big ? 10.5 : 7.5, spread: Math.PI * 1.3, ttl: [40, 80], size: [3, 7] });
+      if (big) { frame(p.x, p.y, "ink", 140); pixels(p.x, p.y, 16, { speed: 9 }); rocket(R(W * 0.3, W * 0.7), 180); }
     },
     // a block of the day done (a lecture, its labs, a build…)
     block(el) {
@@ -382,8 +464,9 @@ window.FX = (() => {
       if (!motion()) return;
       ensure();
       const p = center(el);
-      ring(p.x, p.y, "#ff9900"); ring(p.x, p.y, "#ffe066", 160);
-      stars(p.x, p.y, 28, { speed: 11 });
+      frame(p.x, p.y, "edge"); frame(p.x, p.y, "ink", 160);
+      grid(p.x, p.y, 6, MIX.base);
+      pixels(p.x, p.y, 28, { speed: 11 });
       cannons(48);
       rocket(R(W * 0.2, W * 0.45), 260); rocket(R(W * 0.55, W * 0.8), 520);
     },
@@ -393,54 +476,58 @@ window.FX = (() => {
       if (!motion()) return;
       ensure();
       const x = W / 2, y = H * 0.42;
-      ring(x, y, "#5aa9ff"); ring(x, y, "#b58cff", 150); ring(x, y, "#5aa9ff", 300);
-      stars(x, y, 34, { speed: 10, colors: ["#5aa9ff", "#b58cff", "#ffffff", "#ffe066"] });
+      frame(x, y, "edge"); frame(x, y, "ink", 150); frame(x, y, "edge", 300);
+      grid(x, y, 7, MIX.sig, 80);
+      pixels(x, y, 34, { speed: 10, colors: MIX.epic });
     },
-    // a small burst of stars: a right answer, a self-check you knew. No sound of its own.
+    // a small dot-matrix burst: a right answer, a self-check you knew. No sound of its own.
     sparkle(el) {
       if (!motion()) return;
       ensure();
       const p = center(el);
-      stars(p.x, p.y, 12, { speed: 5.5, ttl: [24, 46], size: [5, 10], gravity: 0.1 });
+      grid(p.x, p.y, 2, MIX.sig, 0, 8);
+      pixels(p.x, p.y, 12, { speed: 5.5, ttl: [24, 46], size: [3, 5], gravity: 0.1 });
     },
     // A right answer in a quiz (not the mock exam). n = right answers in a row now: the note climbs with it and the
-    // stars grow and heat up. el = the verdict, meter = the combo meter in the quiz header (it gets a ring).
+    // burst grows and heats up. el = the verdict, meter = the combo meter in the quiz header (it gets brackets).
     right(n, el, meter) {
       sound("right", n);
       if (!motion()) return;
       ensure();
       const p = center(el);
-      stars(p.x, p.y, Math.min(12 + n * 2, 34), { speed: 5.5 + Math.min(n, 10) * 0.25, ttl: [24, 50], size: [5, 10], gravity: 0.1, colors: n >= 5 ? HOT : GOLD });
+      grid(p.x, p.y, Math.min(2 + (n >> 1), 5), heat(n), 0, 8);
+      pixels(p.x, p.y, Math.min(12 + n * 2, 34), { speed: 5.5 + Math.min(n, 10) * 0.25, ttl: [24, 50], size: [3, 6], gravity: 0.1, colors: heat(n) });
       if (!meter) return;
       const m = center(meter);
-      ring(m.x, m.y, n >= 5 ? "#ff7a00" : "#ffe066");
-      if (n >= 3) sparks(m.x, m.y, 8 + n, n >= 5 ? "#ff7a00" : "#ffc061", 4);
+      frame(m.x, m.y, n >= 5 ? "sig" : "edge", 0, 18);
+      if (n >= 3) burst(m.x, m.y, 8 + n, { speed: 4, gravity: 0.06, ttl: [40, 70], size: [3, 4], shapes: ["px"], colors: heat(n) });
     },
-    // A wrong answer in a quiz. was = the run it ended: from 3 on, the meter cracks and its pieces fall.
+    // A wrong answer in a quiz. was = the run it ended: from 3 on, the meter cracks and its pieces fall (in alert).
     wrong(was, meter) {
       sound("wrong");
       if (was >= 3) sound("broke");
       if (!motion() || was < 3 || !meter) return;
       ensure();
       const m = center(meter);
-      confetti(m.x, m.y, Math.min(14 + was * 2, 50), { speed: 4.5, gravity: 0.3, ttl: [30, 60], size: [3, 7], shapes: ["rect", "dot"], colors: ["#9fb3c8", "#e5383b", "#6b7c93", "#ffffff"] });
+      burst(m.x, m.y, Math.min(14 + was * 2, 50), { speed: 4.5, gravity: 0.3, ttl: [30, 60], size: [3, 7], shapes: ["sq", "bar", "px"], colors: MIX.broke });
     },
-    // A streak mark (3, 5, 10, 15, 20, 25, 30 in a row): the burst grows with the tier. From 5: cannons;
-    // from 10: a glow round the quiz, a soft flash, flames falling and rockets; from 20 in purple.
+    // A streak mark (3, 5, 10, 15, 20, 25, 30 in a row): the burst grows with the tier. From 5: corner bursts;
+    // from 10: the quiz's edge steps out, a scan line, falling packets and rising ones; from 20 the epic mix.
     combo(n, el, meter) {
       sound("right", n);
       setTimeout(() => sound("combo", n), 120);
       if (!motion()) return;
       ensure();
-      const t = tier(n), p = center(el), m = meter ? center(meter) : p, cols = t >= 5 ? EPIC : t >= 2 ? HOT : GOLD;
-      ring(p.x, p.y, "#ffe066"); ring(m.x, m.y, t >= 5 ? "#b58cff" : "#ff7a00", 90);
-      stars(p.x, p.y, Math.min(16 + n * 2, 64), { speed: 7.5 + t, colors: cols });
-      confetti(m.x, m.y, 18 + t * 8, { speed: 5 + t, angle: Math.PI / 2, spread: Math.PI * 1.1, ttl: [40, 80], size: [3, 7], shapes: ["rect", "dot", "star"], colors: cols });
-      if (t >= 2) cannons(20 + t * 14);
+      const t = tier(n), p = center(el), m = meter ? center(meter) : p, cols = heat(n);
+      frame(p.x, p.y, "edge"); frame(m.x, m.y, t >= 5 ? "sig" : "ink", 90);
+      grid(p.x, p.y, Math.min(3 + t, 9), cols, 0, 9);
+      pixels(p.x, p.y, Math.min(16 + n * 2, 64), { speed: 7.5 + t, colors: cols });
+      burst(m.x, m.y, 18 + t * 8, { speed: 5 + t, angle: Math.PI / 2, spread: Math.PI * 1.1, ttl: [40, 80], size: [3, 7], colors: cols });
+      if (t >= 2) cannons(20 + t * 14, cols);
       if (t >= 3) {
-        glow(t >= 5 ? "#8a3ffc" : "#ff7a00");
-        flash(t >= 5 ? "181,140,255" : "255,153,0", 0.1 + t * 0.025);
-        rain(t >= 5 ? ["🔥", "🌟", "💎", "⚡"] : ["🔥", "⚡"], 10 + t * 8);
+        glow(t >= 5 ? "var(--signal)" : "var(--ink)");
+        scan(0, t >= 5 ? "sig" : "edge", 34);
+        rain(10 + t * 8, cols);
         for (let i = 0; i < t - 1; i++) rocket(R(W * 0.15, W * 0.85), 150 + i * 220, t >= 5);
       }
     },
@@ -449,8 +536,10 @@ window.FX = (() => {
       sound("finale");
       if (!motion()) return;
       ensure();
-      rain(["⭐", "✨", "💯"], 70);
-      cannons(120);
+      scan(0, "sig", 36);
+      grid(W / 2, H * 0.35, 9, MIX.epic, 120, 12);
+      rain(70, MIX.epic);
+      cannons(120, MIX.epic);
       for (let i = 0; i < 6; i++) rocket(R(W * 0.12, W * 0.88), 200 + i * 240);
     },
     // a quiz passed (the day's celebration follows when the results are closed)
@@ -459,23 +548,26 @@ window.FX = (() => {
       if (!motion()) return;
       ensure();
       cannons(70);
-      stars(W / 2, H * 0.35, 30, { speed: 11 });
+      grid(W / 2, H * 0.35, 6, MIX.sig, 0, 12);
+      pixels(W / 2, H * 0.35, 30, { speed: 11 });
       rocket(R(W * 0.25, W * 0.75), 250);
     },
-    tick(el) { sound("pop"); if (!motion()) return; ensure(); const p = center(el); confetti(p.x, p.y, 22, { speed: 6, spread: Math.PI * 1.2, ttl: [35, 65], size: [3, 6] }); },
-    group(el) { sound("chime"); if (!motion()) return; ensure(); const p = center(el); confetti(p.x, p.y, 70, { speed: 10, spread: Math.PI * 1.4, ttl: [50, 90] }); },
-    // The top rungs, much bigger than a passed or perfect quiz: a flash, rings and stars from the banner, waves of
-    // cannons, a fountain from the bottom, emoji rain in waves and big fireworks. Each rung longer and fuller.
+    tick(el) { sound("pop"); if (!motion()) return; ensure(); const p = center(el); burst(p.x, p.y, 22, { speed: 6, spread: Math.PI * 1.2, ttl: [35, 65], size: [3, 6] }); },
+    group(el) { sound("chime"); if (!motion()) return; ensure(); const p = center(el); grid(p.x, p.y, 4); burst(p.x, p.y, 70, { speed: 10, spread: Math.PI * 1.4, ttl: [50, 90] }); },
+    // The top rungs, much bigger than a passed or perfect quiz: scan lines, brackets and a dot-matrix burst from the
+    // banner, waves of corner bursts, columns from the bottom, falling packets in waves and big rising packets.
+    // Each rung longer and fuller than the one below.
     day() {
       sound("day");
       if (!motion()) return;
       ensure();
-      const x = W / 2, y = H * 0.38, chars = ["🎉", "⭐", "✨", "🎊"];
-      flash("255,214,102", 0.3);
-      ring(x, y, "#ff9900"); ring(x, y, "#ffe066", 160); ring(x, y, "#5fd37a", 320);
-      stars(x, y, 50, { speed: 14 });
+      const x = W / 2, y = H * 0.38;
+      scan(0, "edge", 40);
+      frame(x, y, "edge"); frame(x, y, "ink", 160); frame(x, y, "edge", 320);
+      grid(x, y, 10, MIX.base, 120, 12);
+      pixels(x, y, 50, { speed: 14 });
       for (let k = 0; k < 3; k++) later(k * 600, () => cannons(150));
-      rain(chars, 60); later(1400, () => rain(chars, 40));
+      rain(60); later(1400, () => rain(40));
       fountain(x, 2400, 300);
       for (let i = 0; i < 10; i++) rocket(R(W * 0.12, W * 0.88), 250 + i * 260, true);
     },
@@ -483,13 +575,14 @@ window.FX = (() => {
       sound("week");
       if (!motion()) return;
       ensure();
-      const x = W / 2, y = H * 0.38, chars = ["🏆", "⭐", "🎉", "🥇", "✨"];
-      flash("255,214,102", 0.36); flash("255,153,0", 0.28, 1500);
-      ["#ffe066", "#ff9900", "#5aa9ff", "#b58cff"].forEach((c, k) => ring(x, y, c, k * 170));
-      stars(x, y, 80, { speed: 16 });
-      for (let k = 0; k < 5; k++) later(k * 560, () => cannons(170));
-      for (let k = 0; k < 3; k++) later(k * 1100, () => rain(chars, 60));
-      fountain(W * 0.2, 3800, 200); fountain(W * 0.8, 3800, 200);
+      const x = W / 2, y = H * 0.38;
+      scan(0, "edge", 40); scan(1500, "sig", 40);
+      ["edge", "ink", "sig", "edge"].forEach((c, k) => frame(x, y, c, k * 170, 30));
+      grid(x, y, 13, MIX.hot, 120, 12); grid(x, y, 8, MIX.epic, 1500, 14);
+      pixels(x, y, 80, { speed: 16, colors: MIX.hot });
+      for (let k = 0; k < 5; k++) later(k * 560, () => cannons(170, MIX.hot));
+      for (let k = 0; k < 3; k++) later(k * 1100, () => rain(60, MIX.hot));
+      fountain(W * 0.2, 3800, 200, MIX.hot); fountain(W * 0.8, 3800, 200, MIX.hot);
       for (let i = 0; i < 14; i++) rocket(R(W * 0.08, W * 0.92), 200 + i * 220, true);
       for (let i = 0; i < 6; i++) rocket(W * (0.1 + i * 0.16), 3600, true);   // the closing volley
     },
@@ -498,20 +591,21 @@ window.FX = (() => {
       setTimeout(() => sound("finale"), 7200);
       if (!motion()) return;
       ensure();
-      const x = W / 2, y = H * 0.38, chars = ["🚀", "🏆", "⭐", "🎓", "🎉", "💯"];
-      flash("255,214,102", 0.4); flash("181,140,255", 0.3, 2300); flash("95,211,122", 0.3, 4600);
-      COLORS.forEach((c, k) => ring(x, y, c, k * 150));
-      stars(x, y, 110, { speed: 18 });
-      for (let k = 0; k < 8; k++) later(k * 600, () => cannons(180));
-      for (let k = 0; k < 5; k++) later(k * 1200, () => rain(chars, 60));
-      fountain(W * 0.15, 6000, 200); fountain(x, 6000, 600); fountain(W * 0.85, 6000, 200);
+      const x = W / 2, y = H * 0.38;
+      scan(0, "sig", 44); scan(2300, "edge", 44); scan(4600, "sig", 44);
+      ["edge", "sig", "ink", "edge", "sig", "ink", "edge", "sig", "ink"].forEach((c, k) => frame(x, y, c, k * 150, 32));
+      grid(x, y, 16, MIX.epic, 120, 12); grid(x, y, 12, MIX.sig, 2300, 14); grid(x, y, 16, MIX.epic, 4600, 12);
+      pixels(x, y, 110, { speed: 18, colors: MIX.epic });
+      for (let k = 0; k < 8; k++) later(k * 600, () => cannons(180, MIX.epic));
+      for (let k = 0; k < 5; k++) later(k * 1200, () => rain(60, MIX.epic));
+      fountain(W * 0.15, 6000, 200, MIX.epic); fountain(x, 6000, 600, MIX.epic); fountain(W * 0.85, 6000, 200, MIX.epic);
       for (let i = 0; i < 26; i++) rocket(R(W * 0.06, W * 0.94), 150 + i * 210, true);
       for (const at of [2300, 4600, 7200]) for (let i = 0; i < 8; i++) rocket(W * (0.07 + i * 0.123), at, true);   // volleys on the beats
     },
-    small(el) { sound("clean"); if (!motion()) return; ensure(); const p = center(el); confetti(p.x, p.y, 40, { speed: 8, spread: Math.PI * 1.3 }); },
+    small(el) { sound("clean"); if (!motion()) return; ensure(); const p = center(el); grid(p.x, p.y, 3); burst(p.x, p.y, 40, { speed: 8, spread: Math.PI * 1.3 }); },
     banner, toast, badge, sound,
     unlock() { if (soundOn) ac(); },
-    // fx-off on <html> stops the decorative CSS loops too (the combo meter's flicker); prefers-reduced-motion stops them all
+    // fx-off on <html> stops the decorative CSS loops too (the combo meter's pulse); prefers-reduced-motion stops them all
     set(o) { if ("fx" in o) { fxOn = !!o.fx; document.documentElement.classList.toggle("fx-off", !fxOn); } if ("sound" in o) soundOn = !!o.sound; }
   };
 })();

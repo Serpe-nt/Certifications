@@ -31,7 +31,7 @@ window.DG = (() => {
       `<defs><marker id="${mk}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>`;
     for (const a of dg.areas || []) {
       h += `<g class="dg-area${a.dash ? " dash" : ""}${a.kind ? " k-" + esc(a.kind) : ""}${parts[a.id] ? " hot" : ""}"${hot(parts, a.id)}>` +
-        `<rect x="${a.x * U}" y="${a.y * U}" width="${a.w * U}" height="${a.h * U}" rx="6"/>` +
+        `<rect x="${a.x * U}" y="${a.y * U}" width="${a.w * U}" height="${a.h * U}"/>` +
         `<text x="${a.x * U + 8}" y="${a.y * U + 16}">${esc(a.label)}</text></g>`;
     }
     for (const [f, t, label] of dg.links || []) {
@@ -46,7 +46,7 @@ window.DG = (() => {
     for (const n of dg.nodes || []) {
       const [cx, cy] = mid(n), ls = lines(n.label, n.w * U - 12, 12.5);
       h += `<g class="dg-node${parts[n.id] ? " hot" : ""}"${hot(parts, n.id)}>` +
-        `<rect x="${n.x * U}" y="${n.y * U}" width="${n.w * U}" height="${n.h * U}" rx="5"/>` +
+        `<rect x="${n.x * U}" y="${n.y * U}" width="${n.w * U}" height="${n.h * U}"/>` +
         ls.map((l, i) => `<text x="${cx}" y="${(cy + (i - (ls.length - 1) / 2) * 15 + 4.5).toFixed(1)}" text-anchor="middle">${esc(l)}</text>`).join("") + `</g>`;
     }
     return h + `</svg>`;

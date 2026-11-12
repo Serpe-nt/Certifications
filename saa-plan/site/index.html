@@ -4,103 +4,62 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta name="theme-color" content="#E1E5EA" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0B0E16" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#E6E8E6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E100F" media="(prefers-color-scheme: dark)">
 <title>SAA-C03 Plan</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M0 0H24L32 8V32H0Z' fill='%23D4F23A'/><path d='M7 9H25M7 16H25M7 23H17' stroke='%23121413' stroke-width='3'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wdth,wght@50..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="fm/tokens.css">
+<link rel="stylesheet" href="fm/bundle.css">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="fx.css">
 </head>
 <body>
 
-<!-- Focus timer: a strip along the top of the window that fills as a block runs; its chip holds the controls -->
+<!-- The rail: the code block, where you are, the sync notice and the focus timer. Its hairline fills as a block runs. -->
 <div id="timer" class="timer">
   <div class="tm-bar" aria-hidden="true"><span class="tm-fill"></span></div>
   <div class="tm-row">
+    <a class="rl-code" href="#" data-home-link aria-label="SAA-C03 plan, overview">SAA-C03</a>
+    <span class="rl-nav" id="rl-nav"></span>
     <!-- shown only when changes can't reach the server: offline, signed out, or no answer -->
-    <span class="sync-w" role="status"><button type="button" class="sync-st" id="sync-st" hidden><span class="ss-i" aria-hidden="true">⚠</span><span class="ss-s"></span><span class="ss-l"></span></button></span>
+    <span class="sync-w" role="status"><button type="button" class="sync-st" id="sync-st" hidden><span class="ss-i" aria-hidden="true">[ ! ]</span><span class="ss-s"></span><span class="ss-l"></span></button></span>
+    <span class="rl-pos" id="rl-pos"></span>
     <div class="tm-chip">
       <button type="button" class="tm-go" data-tm="toggle"></button>
-      <button type="button" class="tm-face" data-tm="menu" aria-expanded="false" aria-controls="tm-pop"><span class="tm-mode"></span><span class="tm-time"></span><span class="tm-caret" aria-hidden="true">▾</span></button>
+      <button type="button" class="tm-face" data-tm="menu" aria-expanded="false" aria-controls="tm-pop"><span class="tm-mode"></span><span class="tm-time"></span><span class="tm-caret" aria-hidden="true">+</span></button>
     </div>
     <div class="tm-pop" id="tm-pop" hidden>
-      <div class="tm-btns"><button type="button" data-tm="reset">↺ Reset</button><button type="button" data-tm="switch"></button></div>
+      <div class="tm-btns"><button type="button" data-tm="reset">Reset</button><button type="button" data-tm="switch"></button></div>
       <p class="tm-info"></p>
       <button type="button" class="tm-perm" data-tm="perm" hidden>Turn on notifications and away detection</button>
     </div>
   </div>
 </div>
 
-<!-- Blueprint drawings in the margins (decorative) -->
-<svg class="bp-art" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-  <defs>
-    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
-  </defs>
-  <g class="ink">
-    <!-- Left: Region / VPC / 2 AZs -->
-    <rect x="34" y="110" width="292" height="470" rx="6" class="dash"/>
-    <text x="46" y="132">Region eu-west-1</text>
-    <rect x="54" y="160" width="252" height="400" rx="4"/>
-    <text x="66" y="182">VPC 10.0.0.0/16</text>
-    <circle cx="180" cy="160" r="13"/><text x="200" y="152" class="sm">IGW</text>
-    <rect x="68" y="200" width="108" height="342" rx="3" class="dash"/>
-    <rect x="186" y="200" width="108" height="342" rx="3" class="dash"/>
-    <text x="78" y="220" class="sm">AZ a</text><text x="196" y="220" class="sm">AZ b</text>
-    <rect x="78" y="234" width="88" height="110" rx="2"/><text x="86" y="252" class="sm">public</text><text x="86" y="268" class="xs">10.0.1.0/24</text>
-    <rect x="196" y="234" width="88" height="110" rx="2"/><text x="204" y="252" class="sm">public</text><text x="204" y="268" class="xs">10.0.2.0/24</text>
-    <rect x="96" y="290" width="52" height="36" rx="2"/><text x="104" y="313" class="xs">NAT</text>
-    <rect x="78" y="364" width="88" height="160" rx="2"/><text x="86" y="382" class="sm">private</text><text x="86" y="398" class="xs">10.0.11.0/24</text>
-    <rect x="196" y="364" width="88" height="160" rx="2"/><text x="204" y="382" class="sm">private</text><text x="204" y="398" class="xs">10.0.12.0/24</text>
-    <rect x="98" y="420" width="48" height="34" rx="2"/><text x="108" y="442" class="xs">EC2</text>
-    <rect x="216" y="420" width="48" height="34" rx="2"/><text x="226" y="442" class="xs">EC2</text>
-    <path d="M122 420 V326" marker-end="url(#ar)"/>
-    <path d="M68 610 H294 M68 602 V618 M294 602 V618"/><text x="148" y="632" class="sm">2 × AZ</text>
-    <!-- Right: users → ALB → ASG → RDS -->
-    <circle cx="1420" cy="120" r="16"/><text x="1444" y="125" class="sm">users</text>
-    <path d="M1420 136 V206" marker-end="url(#ar)"/>
-    <rect x="1340" y="210" width="160" height="40" rx="3"/><text x="1364" y="236">Application LB</text>
-    <path d="M1380 250 L1350 318" marker-end="url(#ar)"/><path d="M1460 250 L1490 318" marker-end="url(#ar)"/>
-    <rect x="1290" y="300" width="260" height="110" rx="4" class="dash"/>
-    <text x="1300" y="400" class="sm">Auto Scaling group (min 2)</text>
-    <rect x="1312" y="322" width="76" height="46" rx="2"/><text x="1336" y="350" class="sm">EC2</text>
-    <rect x="1452" y="322" width="76" height="46" rx="2"/><text x="1476" y="350" class="sm">EC2</text>
-    <path d="M1420 410 V476" marker-end="url(#ar)"/>
-    <ellipse cx="1380" cy="492" rx="34" ry="9"/><path d="M1346 492 V538 A34 9 0 0 0 1414 538 V492"/>
-    <text x="1356" y="524" class="sm">RDS</text>
-    <ellipse cx="1488" cy="492" rx="34" ry="9" class="dash"/><path d="M1454 492 V538 A34 9 0 0 0 1522 538 V492" class="dash"/>
-    <text x="1460" y="524" class="xs">standby</text>
-    <path d="M1414 515 H1452" class="dash"/><text x="1404" y="570" class="xs">Multi-AZ, synchronous</text>
-    <!-- Right lower: S3 + CloudFront -->
-    <rect x="1330" y="690" width="70" height="56" rx="3"/><text x="1352" y="724" class="sm">S3</text>
-    <circle cx="1490" cy="718" r="30"/><text x="1462" y="770" class="xs">CloudFront</text>
-    <path d="M1460 718 H1404" marker-end="url(#ar)"/><text x="1416" y="708" class="xs">OAC</text>
-    <!-- Left lower: SQS decoupling -->
-    <rect x="60" y="760" width="64" height="40" rx="3"/><text x="72" y="785" class="xs">producer</text>
-    <path d="M124 780 H160" marker-end="url(#ar)"/>
-    <rect x="164" y="766" width="70" height="28" rx="2"/><path d="M181 766 V794 M198 766 V794 M215 766 V794"/><text x="180" y="814" class="xs">SQS</text>
-    <path d="M234 780 H268" marker-end="url(#ar)"/>
-    <rect x="272" y="760" width="56" height="40" rx="3"/><text x="280" y="785" class="xs">Lambda</text>
-  </g>
-</svg>
+<!-- The Field Manual backdrop: generated geometry behind everything, seeded with the view (app.js bdDraw); holds no information -->
+<div class="bd-host" aria-hidden="true"><div class="fm-backdrop" id="bd"></div></div>
 
 <div class="wrap">
 
-<header class="tb">
+<!-- The title bar: what this is, the one display title, where the plan stands, the header buttons -->
+<header class="tb" data-fm-clear>
   <div class="tb-title">
-    <span class="tb-k">Project</span>
-    <h1>AWS Solutions Architect – Associate</h1>
-    <span class="tb-sub" id="tb-sub">SAA-C03</span>
+    <span class="tb-k">SAA-C03 / Study plan</span>
+    <h1 class="display-c">Solutions Architect Associate</h1>
   </div>
-  <div class="tb-cell"><span class="tb-k">Sheet</span><b id="tb-sheet"></b></div>
-  <div class="tb-cell"><span class="tb-k" id="tb-exam-k">Exam</span><b id="tb-exam"></b></div>
-  <div class="tb-cell"><span class="tb-k">Done</span><b id="tb-pct"></b></div>
+  <dl class="tb-cells">
+    <div class="tb-cell"><dt class="tb-k">Sheet</dt><dd id="tb-sheet"></dd></div>
+    <div class="tb-cell"><dt class="tb-k" id="tb-exam-k">Exam</dt><dd id="tb-exam"></dd></div>
+    <div class="tb-cell"><dt class="tb-k">Done</dt><dd id="tb-pct"></dd></div>
+  </dl>
   <div class="tb-tools">
     <button id="b-fx" class="ghost" title="Visual effects"></button>
     <button id="b-snd" class="ghost" title="Sounds"></button>
-    <button id="b-search" class="ghost" title="Search (Ctrl+K)">🔍 Search</button>
-    <button id="b-set" class="ghost">⚙ Settings</button>
+    <button id="b-search" class="ghost" title="Search (Ctrl+K)">Search</button>
+    <button id="b-set" class="ghost">Settings</button>
   </div>
 </header>
 
@@ -115,7 +74,7 @@
 <section id="today" class="today" aria-label="Today's goal and this week's challenges" hidden></section>
 
 <details class="panel" id="practice" open>
-  <summary>🎯 Practice <span id="pr-sum" class="muted"></span></summary>
+  <summary><span class="sm-t">Practice</span> <span id="pr-sum" class="muted"></span></summary>
   <p class="p-intro">A day of new material ends with a 30-question quiz you pass at 80%. Around it: reviews of what you missed, a quick service drill, your wrong-answer notebook, a weak-spot map, and a full mock exam once the lectures and labs are done.</p>
   <div class="grid" id="pr-grid"></div>
 </details>
@@ -127,7 +86,7 @@
 </section>
 
 <details class="panel" id="progress" open>
-  <summary>📈 Readiness and trends</summary>
+  <summary><span class="sm-t">Readiness and trends</span></summary>
   <div class="pg-grid">
     <section aria-labelledby="ready-h"><h3 class="sub-h" id="ready-h">Exam readiness by domain</h3><div id="ready" class="ready"></div></section>
     <section aria-labelledby="trends-h"><h3 class="sub-h" id="trends-h">Day by day</h3><div id="trends" class="trends"></div></section>
@@ -135,7 +94,7 @@
 </details>
 
 <details class="panel" id="scores" open>
-  <summary>📊 Scores <span id="score-sum" class="muted"></span></summary>
+  <summary><span class="sm-t">Scores</span> <span id="score-sum" class="muted"></span></summary>
   <div class="scores-grid">
     <label><span>Official Practice Question Set, first try</span><span class="in"><input type="number" min="0" max="20" inputmode="numeric" data-score="qs7"> / 20</span></label>
     <label><span>Domain 1 Practice questions — Secure</span><span class="in"><input type="number" min="0" max="100" inputmode="numeric" data-score="b1"> %</span></label>
@@ -155,11 +114,11 @@
 <nav id="links" class="links" aria-label="Quick links"></nav>
 
 <details class="panel" id="places" open>
-  <summary>🗺 Where things happen: 4 separate places</summary>
+  <summary><span class="sm-t">Where things happen</span> <span class="muted">4 separate places</span></summary>
   <p class="p-intro">AWS splits learning, the actual cloud, and exam booking into different sites with different logins. Every step says which one it uses.</p>
   <div class="grid">
     <div class="place">
-      <h3>① Skill Builder</h3>
+      <h3><span class="fm-idx">①</span> Skill Builder</h3>
       <span class="url">skillbuilder.aws</span>
       <ul>
         <li>The learning site you already use (login: AWS Builder ID).</li>
@@ -169,7 +128,7 @@
       </ul>
     </div>
     <div class="place">
-      <h3>② Lab sandbox</h3>
+      <h3><span class="fm-idx">②</span> Lab sandbox</h3>
       <span class="url">opened from inside a lab on Skill Builder</span>
       <ul>
         <li>Each AWS SimuLearn or AWS Builder Lab opens a <b>temporary AWS account</b> that AWS gives you.</li>
@@ -178,7 +137,7 @@
       </ul>
     </div>
     <div class="place">
-      <h3>③ Your own AWS account</h3>
+      <h3><span class="fm-idx">③</span> Your own AWS account</h3>
       <span class="url">console.aws.amazon.com</span>
       <ul>
         <li>A real, permanent cloud account you create on Day 1.</li>
@@ -187,7 +146,7 @@
       </ul>
     </div>
     <div class="place">
-      <h3>④ Certification account</h3>
+      <h3><span class="fm-idx">④</span> Certification account</h3>
       <span class="url">aws.training → Certification</span>
       <ul>
         <li>Only for booking and managing the exam.</li>
@@ -199,7 +158,7 @@
   <p class="rules"><b>Rules:</b> lectures first, then their labs, in the order of the plan. Watch lectures at 1.25–1.5×. Labs beat videos — if short on time, cut video, never labs. In ③ your own account, delete what you built every day. For every wrong practice answer, write why each wrong option is wrong. Dotted-underlined terms on a step show a definition on hover or tap.</p>
 </details>
 
-<p class="foot">Course, module, lesson and lab names follow the outlines of the AWS Solutions Architect Learning Plan (Includes Labs) and the Exam Prep Plan (SAA-C03) as Skill Builder listed them on 12 October 2026. If a name is worded differently in your view, go by the order: lectures first, then their labs. Quiz and mock questions are original practice questions written in the exam's style, not official AWS questions. Progress is saved on the server when it runs from Docker, and in this browser either way; export a backup in ⚙ Settings now and then.</p>
+<p class="foot">Course, module, lesson and lab names follow the outlines of the AWS Solutions Architect Learning Plan (Includes Labs) and the Exam Prep Plan (SAA-C03) as Skill Builder listed them on 12 October 2026. If a name is worded differently in your view, go by the order: lectures first, then their labs. Quiz and mock questions are original practice questions written in the exam's style, not official AWS questions. Progress is saved on the server when it runs from Docker, and in this browser either way; export a backup in Settings now and then.</p>
 </div>
 
 <!-- One day, one step at a time: a single card with Back, Mark complete and Next under it -->
@@ -227,11 +186,11 @@
 <!-- Cleanup check -->
 <dialog id="cleanup">
   <form method="dialog">
-    <h2>🧹 Cleanup check <span id="cl-day" class="muted"></span></h2>
+    <h2>Cleanup check <span id="cl-day" class="muted"></span></h2>
     <p class="muted">Before you stop for the day — in ③ your AWS account, Region eu-west-1, confirm:</p>
     <div id="cl-run" class="cl-run" hidden></div>
     <ul id="cl-list" class="cl"></ul>
-    <p id="cl-ok" class="cl-ok" hidden>All clean ✓ — nothing left running up a bill.</p>
+    <p id="cl-ok" class="cl-ok" hidden>[ ✓ All clean ] Nothing left running up a bill.</p>
     <div class="row end">
       <a class="btn" id="cl-open" target="_blank" rel="noopener">Open AWS ↗</a>
       <button value="close" class="primary">Done</button>
@@ -261,7 +220,7 @@
 
 <!-- The evening reminder: billable things still running in your own AWS account -->
 <dialog id="costnag" class="costnag" aria-labelledby="cn-t">
-  <h2 id="cn-t" tabindex="-1">🧾 Still running in your AWS account</h2>
+  <h2 id="cn-t" tabindex="-1">Still running in your AWS account</h2>
   <div id="cn-body"></div>
   <div class="row end">
     <a class="btn" id="cn-open" target="_blank" rel="noopener">Open AWS ↗</a>
@@ -274,7 +233,7 @@
 <!-- Settings -->
 <dialog id="settings">
   <form method="dialog">
-    <h2>⚙ Settings</h2>
+    <h2>Settings</h2>
     <label class="field">Day 1 date <input type="date" id="s-start" required></label>
     <label class="field">Booked exam date
       <input type="date" id="s-exam">
@@ -288,13 +247,15 @@
     <label class="chk"><input type="checkbox" id="s-fx"> Visual effects</label>
     <label class="chk"><input type="checkbox" id="s-snd"> Sounds</label>
     <label class="chk"><input type="checkbox" id="s-gif"> South Park GIFs on quiz results (loaded from GIPHY)</label>
-    <label class="field">Daily XP goal <small>The ring on the overview. A day's quiz with its steps is worth about 400.</small>
+    <label class="field">Daily XP goal <small>The dial on the overview. A day's quiz with its steps is worth about 400.</small>
       <select id="s-goal"><option>100</option><option>150</option><option>200</option><option>300</option><option>400</option><option>600</option></select></label>
     <div class="s-disp">
       <label class="field">Theme <small>This browser only.</small>
         <select id="s-theme"><option value="">Follow the system</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
       <label class="field">Text size <small>Cards, panels and quizzes.</small>
         <select id="s-size"><option value="">Normal</option><option value="l">Larger</option><option value="xl">Largest</option></select></label>
+      <label class="field">Motion <small>This browser only. Calm stops the loops; off holds everything still.</small>
+        <select id="s-motion"><option value="">Full</option><option value="calm">Calm</option><option value="off">Off</option></select></label>
     </div>
     <div class="row">
       <button type="button" id="s-export">Export progress</button>
@@ -312,7 +273,7 @@
 
 <!-- Search: key points, steps, terms, your notes and the notebook (Ctrl+K) -->
 <dialog id="search" class="qz srch" aria-labelledby="sr-title">
-  <div class="qz-h"><h2 id="sr-title">🔍 Search</h2><button type="button" class="qz-x" data-sr-close aria-label="Close">✕</button></div>
+  <div class="qz-h"><h2 id="sr-title">Search</h2><button type="button" class="qz-x" data-sr-close aria-label="Close">✕</button></div>
   <div class="qz-body">
     <input type="search" id="sr-q" autocomplete="off" spellcheck="false" placeholder="Key points, steps, terms, your notes, the notebook…" aria-controls="sr-list">
     <ul id="sr-list" class="sr-list" role="listbox" aria-label="Results"></ul>
@@ -379,6 +340,7 @@
 <script src="keys/r1.js"></script>
 <script src="keys/t1.js"></script>
 <script src="keys/s0.js"></script>
+<script src="fm/art.js"></script>
 <script src="qcore.js"></script>
 <script src="fx.js"></script>
 <script src="app.js"></script>
