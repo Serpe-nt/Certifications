@@ -1,0 +1,127 @@
+---
+id: m01-s03
+title: Install a first release from a small public chart
+kind: lab
+minutes: 20
+order: 3
+exam:
+  - cert: none
+tags: [helm-install]
+check:
+  kind: exact
+  prompt: Paste the APP VERSION that helm list shows for m01-podinfo.
+  answer: 6.16.0
+outcome: You can add a repository, pick a chart version, install it into a namespace of its own, and see the release with helm list and helm status.
+terms:
+  - term: podinfo
+    def: A tiny web app in Go that shows good practice for services on Kubernetes; the practice chart here.
+  - term: Release record
+    def: The Secret named sh.helm.release.v1.<release>.v<revision> in which Helm stores one revision.
+sources:
+  - title: Using Helm
+    url: https://helm.sh/docs/intro/using_helm/
+    checked: 2026-11-12
+  - title: helm install
+    url: https://helm.sh/docs/helm/helm_install/
+    checked: 2026-11-12
+  - title: Helm 4 overview
+    url: https://helm.sh/docs/overview/
+    checked: 2026-11-12
+  - title: Advanced Helm techniques, storage backends
+    url: https://helm.sh/docs/topics/advanced/
+    checked: 2026-11-12
+  - title: podinfo (GitHub)
+    url: https://github.com/stefanprodan/podinfo
+    checked: 2026-11-12
+---
+
+<Problem>
+You have read what a release is. Now you want one in your own cluster, from a real public chart, without guessing which version you got or where it went, and without touching anything else in the cluster.
+</Problem>
+
+<Idea>
+`helm install` takes a release name and a chart, renders the chart with its default values, and applies the result. Pin the chart version with `--version` and put the release in a namespace of its own with `--namespace`. `helm list` and `helm status` then show what Helm installed.
+</Idea>
+
+## The practice chart
+
+The steps of this module use podinfo, a tiny web app written in Go to show good practice for running services on Kubernetes. Its chart is maintained by its author, is published in versions, and needs nothing from the cluster: no volume, no load balancer, a service of type ClusterIP only. Its pod asks for 1m of CPU and 16Mi of memory.
+
+## Pin the version
+
+Without `--version`, Helm installs the newest stable version in the repository. That is fine for a first look and wrong for anything you want to repeat: next month the same command installs something else. `helm search repo podinfo --versions` lists every version, and `helm show values` prints a version's default values before you install it.
+
+## What install does, and when it returns
+
+Helm renders the templates, sends the objects to the API server, and records the release. It applies the objects with server-side apply by default; Helm 3 used client-side apply. By default Helm 4 waits only for hooks, not for your pods. So `STATUS: deployed` can show while the pod is still being created. Step 6 shows how to wait.
+
+## Where Helm keeps the release
+
+For each revision Helm writes a Secret into the release's namespace, named `sh.helm.release.v1.<release>.v<revision>` with the label `owner=helm`. That Secret is the release: delete it and Helm no longer knows the objects belong together.
+
+<InLab>
+This module works in the namespace `learn-m01` and names its releases with the prefix `m01-`. Nothing else in the lab is touched, and step 20 tells you how to delete the namespace when you are done.
+</InLab>
+
+<Trap>
+`--namespace` sets where the release and its objects go; it does not create the namespace. Add `--create-namespace`, or create it first, or the install fails.
+</Trap>
+
+<Remember>
+Name, chart, pinned version, own namespace: `helm install <name> <repo>/<chart> --version <v> -n <namespace>`.
+</Remember>
+
+<Do>
+1. In WSL (bash), go to `lgtm/lab` and get the lab's pinned tools, Helm 4.3.1 and kubectl, into `.bin`. Put them first on your path and select the lab:
+   <Cmd>{`make lab-tools
+export PATH=$PWD/.bin:$PATH
+export KUBECONFIG=~/.kube/lgtm-lab.config
+helm version`}</Cmd>
+   The version starts with `v4.3.1`.
+2. Add the podinfo repository and list its versions:
+   <Cmd>{`helm repo add podinfo https://stefanprodan.github.io/podinfo
+helm repo update
+helm search repo podinfo --versions | head -4`}</Cmd>
+3. Read the chart and its default values for version 6.16.0:
+   <Cmd>{`helm show chart podinfo/podinfo --version 6.16.0
+helm show values podinfo/podinfo --version 6.16.0 | less`}</Cmd>
+4. Install it as `m01-podinfo` into a new namespace:
+   <Cmd>{`helm install m01-podinfo podinfo/podinfo --version 6.16.0 --namespace learn-m01 --create-namespace`}</Cmd>
+   Helm prints `STATUS: deployed`, `REVISION: 1` and the chart's notes.
+5. Look at the release and at what it created:
+   <Cmd>{`helm list -n learn-m01
+helm status m01-podinfo -n learn-m01
+kubectl get deploy,svc,pods -n learn-m01`}</Cmd>
+6. Find the record Helm keeps:
+   <Cmd>{`kubectl get secret -n learn-m01 -l owner=helm`}</Cmd>
+   One Secret, `sh.helm.release.v1.m01-podinfo.v1`, of type `helm.sh/release.v1`.
+7. Paste the APP VERSION from `helm list` below.
+</Do>
+
+<Done>
+`helm list -n learn-m01` shows `m01-podinfo` at revision 1, status `deployed`, chart `podinfo-6.16.0`, and the pod is `Running`.
+</Done>
+
+<Trap practice>
+Every Helm command needs `-n learn-m01`. Without it Helm looks in the namespace of your kubeconfig context, usually `default`, and answers that the release is not found.
+</Trap>
+
+<Question id="q-m01-s03" answer="a">
+Right after `helm install` prints `STATUS: deployed`, `kubectl get pods` shows the pod in `ContainerCreating`. What does that tell you?
+
+- Nothing is wrong: by default Helm 4 does not wait for pods to be ready
+
+  Without `--wait`, Helm applies the objects and returns; the pod is still starting.
+
+- The install failed and Helm will roll it back soon
+
+  A failed install has the status `failed`. `deployed` means the objects were applied.
+
+- The image is missing from the registry
+
+  A missing image shows as `ErrImagePull` or `ImagePullBackOff`, not as the normal start.
+
+- Helm installed into the wrong namespace
+
+  The pod is listed in the namespace you asked for, so the namespace is right.
+</Question>

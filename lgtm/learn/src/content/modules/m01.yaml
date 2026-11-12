@@ -1,0 +1,6 @@
+id: m01
+title: Helm
+goal: Install, change, roll back and debug a Helm release, read any chart, and install the whole lab release by release.
+order: 1
+quiz: true
+exams: []

@@ -1,0 +1,95 @@
+---
+id: m00-s01
+title: How this course works
+kind: concept
+minutes: 8
+order: 1
+exam:
+  - cert: none
+tags: [course]
+outcome: You can move through a step, do its lab work, pass its check, and know when a missed question comes back.
+terms:
+  - term: Step
+    def: One short article on one topic, with a question at the end.
+  - term: Lab check
+    def: A box on the Practice tab that accepts a value only the finished lab can give.
+  - term: Lab seed
+    def: 16 characters printed when the lab is installed; the site uses it to check tokens.
+  - term: Review
+    def: A missed question that comes back after 1, 2 and 4 days.
+---
+
+<Problem>
+You want to learn the stack that teams use to watch their systems, and pass two exams on it. A pile of product docs will not get you there. You need to read one thing at a time, do it on a real cluster, and know which parts you have not learned yet.
+</Problem>
+
+This site is built around that. Here is how one step, one module and the whole course fit together.
+
+<Idea>
+The course is a row of modules, and each module is a row of short steps. You read a step as an article, do its lab work where it has some, and paste a value from your lab that the site checks. A quiz closes each module, and the questions you miss come back later until you get them right.
+</Idea>
+
+## A step is one article
+
+Every step opens with a problem, then gives the idea in a few sentences, then explains it in a few short sections. Boxes in the text mark where the idea shows up in your lab, the usual mistake, and what to keep. A question at the end checks that you understood. The sidebar lists the sections, the new terms with their meaning, and the official pages the facts come from.
+
+Some steps have something to do in the lab. They have two tabs: Learn holds the article and Practice holds the actions. Reading a step never needs the lab, so you can read on a phone and do the practice later at the PC. Under the article sit Back, Mark complete and Next.
+
+## The check tells you the lab work is done
+
+On Practice, the last box asks for a value that only a finished lab can give: a trace ID, a number, a name or a token. The site checks what you paste. Mark complete stays locked on a lab step until the check passes, and a passed check counts on every device.
+
+Some checks ask for a token. The lab runs a small service that publishes tokens made from your lab seed, and the site works out the same token in your browser. You type the seed once in Settings. The site never connects to your lab.
+
+## Modules end with a quiz, and misses come back
+
+A module is done when all its steps are complete and you pass its quiz. The quiz takes 15 questions from the module's pool, and you pass at 80%. A question you miss comes back for review after 1 day, then 2, then 4. Practice also offers three questions on any step and a round on your weak spots.
+
+<Flow caption="From reading to remembering">
+  <Stage title="Read" kicker="Learn">The article, then the question at its end.</Stage>
+  <Stage title="Do" kicker="Practice">The actions in your lab, then the check.</Stage>
+  <Stage title="Pass" kicker="Quiz">15 questions per module, 80% to pass.</Stage>
+  <Stage title="Review" kicker="Practice">Misses come back after 1, 2 and 4 days.</Stage>
+</Flow>
+
+## Progress you can see
+
+Finished steps, passed checks, right answers and passed quizzes earn XP, and XP raises your level. Badges mark milestones, such as your first finished step. A short message at the bottom right of the screen tells you when you finish a step, a quiz or a module, reach a new level or earn a badge. Your progress is saved on the device and on the site's server, so a phone and the PC show the same.
+
+## Two exams and two mock exams
+
+Most modules also prepare you for two exams: the OpenTelemetry Certified Associate (OTCA) and the Prometheus Certified Associate (PCA). A step shows the exam domain it serves. The overview page shows how ready you are per domain, once you have answered 10 questions of it. Each exam has a mock: 60 questions in 90 minutes, picked by the domain weights, and you pass at 75%.
+
+The first two modules serve no exam. This one builds the lab, and the next one teaches Helm, because the whole lab is installed with Helm.
+
+<InLab>
+The lab seed is printed at the end of the lab install in module m01, and `make status` prints it again at any time.
+</InLab>
+
+<Trap>
+A passed lab check proves that your lab gave the right value, not that you remember the idea. Answer the question at the end of each step even when the check is green.
+</Trap>
+
+<Remember>
+Read, do, paste, pass. Misses come back after 1, 2 and 4 days until you get them right.
+</Remember>
+
+<Question id="q-m00-s01" answer="c">
+You miss a quiz question on Monday. When does the site show it to you again first?
+
+- At the end of the same quiz
+
+  The quiz does not repeat a question in the same run. Missed questions go into the review queue.
+
+- Only when you take the module quiz again
+
+  A new quiz run may or may not draw it. The review queue brings it back on its own schedule.
+
+- On Tuesday, one day later
+
+  A missed question comes back after 1 day, then after 2 and 4 days.
+
+- One week later, in the mock exam
+
+  The mock exams draw from their own pools, not from your missed questions.
+</Question>

@@ -1,0 +1,97 @@
+---
+id: m01-s07
+title: "Inside a chart: Chart.yaml, values.yaml, templates/"
+kind: concept
+minutes: 12
+order: 7
+exam:
+  - cert: none
+tags: [helm-chart-structure]
+outcome: You can open any chart, name what each file and folder is for, and find where a setting comes from.
+terms:
+  - term: Chart.yaml
+    def: The chart's metadata, required in every chart; name, version, apiVersion and more.
+  - term: templates/
+    def: The folder of template files that Helm renders into Kubernetes manifests.
+  - term: NOTES.txt
+    def: A template in templates/ whose output Helm prints after install and upgrade.
+  - term: Library chart
+    def: A chart of shared template helpers that installs no objects of its own.
+sources:
+  - title: Charts (Helm)
+    url: https://helm.sh/docs/topics/charts/
+    checked: 2026-11-12
+  - title: Named templates, underscore files
+    url: https://helm.sh/docs/chart_template_guide/named_templates/
+    checked: 2026-11-12
+  - title: Helm 4 overview, Charts v3
+    url: https://helm.sh/docs/overview/
+    checked: 2026-11-12
+  - title: helm create
+    url: https://helm.sh/docs/helm/helm_create/
+    checked: 2026-11-12
+---
+
+<Problem>
+A release does something you did not expect: an extra label, a missing port. The answer is somewhere in the chart, but you have never opened one. You need to know which file holds the defaults, which holds the templates, and which only describes the chart.
+</Problem>
+
+<Idea>
+A chart is a folder with a fixed layout. `Chart.yaml` describes the chart, `values.yaml` holds the defaults, and `templates/` holds the files Helm renders. Everything else in the layout is optional.
+</Idea>
+
+## The layout
+
+The folder's name is the chart's name. Helm reserves a few names in it and leaves other files alone.
+
+<Layers caption="A chart folder, from what every chart has to what some add">
+  <Layer title="Chart.yaml" hot>Required. Name, version, apiVersion, dependencies, and more.</Layer>
+  <Layer title="values.yaml">The default value of every setting.</Layer>
+  <Layer title="templates/">The templates, helper files, NOTES.txt and tests.</Layer>
+  <Layer title="charts/ and crds/">Packaged sub-charts, and custom resource definitions.</Layer>
+  <Layer title="Optional files">README.md, LICENSE, values.schema.json, .helmignore.</Layer>
+</Layers>
+
+## Chart.yaml
+
+`apiVersion`, `name` and `version` are required. `apiVersion: v2` is for charts that need Helm 3 or later; `v1` charts come from Helm 2 times and still install. `type` is `application`, the default, or `library` for charts that only share helper templates. `appVersion` names the application's version for information. `dependencies` lists sub-charts; step 11 covers them. `kubeVersion` can limit the Kubernetes versions the chart accepts, and Helm refuses to install it on others. Unknown fields are not allowed; extra data goes under `annotations`.
+
+## templates/
+
+Every file in `templates/` is rendered and sent to the cluster, with two exceptions. Files whose name starts with `_`, usually `_helpers.tpl`, hold named templates that other files reuse; they produce no object of their own. `NOTES.txt` is rendered and printed after install, not applied. A `tests/` folder inside `templates/` is the usual place for test pods, which step 13 covers.
+
+## Two ways to get a chart in front of you
+
+`helm create mychart` writes a starter chart with a Deployment, a Service, an optional Ingress, HTTPRoute and autoscaler, a service account, a test and a `_helpers.tpl`. `helm pull <repo>/<chart> --version <v> --untar` downloads a published chart and unpacks it, so you can read it before you install it.
+
+<InLab>
+The lab has two charts of its own: `lgtm/lab/charts/lab-glue` (routes, dashboards, the beacon) and the shop chart in `lgtm/lab/demo/chart`. They have the same layout as any public chart.
+</InLab>
+
+<Trap>
+Helm 4 can create a chart with `apiVersion: v3`, but only behind the variable `HELM_EXPERIMENTAL_CHART_V3`, and the Helm docs call it experimental. Write `apiVersion: v2` charts.
+</Trap>
+
+<Remember>
+`Chart.yaml` describes, `values.yaml` sets defaults, `templates/` renders. Files starting with `_` are helpers, not objects.
+</Remember>
+
+<Question id="q-m01-s07" answer="a">
+A chart's `templates/` folder holds `_helpers.tpl`, `deployment.yaml`, `service.yaml` and `NOTES.txt`. Which files become Kubernetes objects?
+
+- deployment.yaml and service.yaml
+
+  Files starting with an underscore hold helpers, and NOTES.txt is printed, not applied.
+
+- All four, because every file in templates/ is rendered and applied
+
+  Helm renders NOTES.txt for the screen and uses `_` files only as helpers.
+
+- deployment.yaml, service.yaml and NOTES.txt
+
+  NOTES.txt is rendered and printed after install; it is never sent to the API server.
+
+- Only _helpers.tpl, which includes the other files
+
+  It is the other way round: the other files include the helpers.
+</Question>

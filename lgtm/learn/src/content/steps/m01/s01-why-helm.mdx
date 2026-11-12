@@ -1,0 +1,93 @@
+---
+id: m01-s01
+title: "Why Helm: what goes wrong with a folder of manifests"
+kind: concept
+minutes: 10
+order: 1
+exam:
+  - cert: none
+tags: [helm-concepts]
+outcome: You can name what a folder of manifests and kubectl apply cannot tell you, and say which of those gaps Helm fills.
+terms:
+  - term: Manifest
+    def: A YAML file that describes one or more Kubernetes objects.
+  - term: Package manager
+    def: A tool that installs, upgrades and removes software as versioned units.
+  - term: Release history
+    def: The list of every version of an installed application, kept so you can go back.
+sources:
+  - title: Introduction to Helm
+    url: https://helm.sh/docs/intro/introduction/
+    checked: 2026-11-12
+  - title: Declarative management of Kubernetes objects using configuration files
+    url: https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/
+    checked: 2026-11-12
+  - title: Advanced Helm techniques, storage backends
+    url: https://helm.sh/docs/topics/advanced/
+    checked: 2026-11-12
+---
+
+<Problem>
+Your team keeps an app as a folder of 14 YAML files and runs `kubectl apply -f app/`. A teammate changed three files on Friday. On Monday the app is broken, and nobody can say what was deployed before, which objects belong to the app, or how to get Friday's version back.
+</Problem>
+
+You already know how to apply manifests. The trouble starts on the second and third deploy, and in the second and third environment.
+
+<Idea>
+Helm treats the manifests of one application as one package, called a chart, with settings you pass in from outside. Each install of a chart is a release, and Helm records every version of a release in the cluster. You can see what is deployed, change it, and go back to an earlier version with one command.
+</Idea>
+
+## What kubectl apply does not remember
+
+`kubectl apply` creates or updates the objects in the files you give it. It does not record which set of files was applied together, or in which version. Delete a file from the folder and apply again: the object stays in the cluster. kubectl can remove such leftovers with `--prune`, but its own documentation recommends deleting objects explicitly instead, because pruning can remove more or less than you expect.
+
+So the folder in Git is not proof of what runs. Someone has to compare by hand.
+
+## The same app, three environments
+
+Development wants one replica and a debug log level. Production wants three replicas, other resource limits and another host name. With plain manifests you copy the folder per environment and edit the copies, and the copies drift apart. Each fix then has to be made three times.
+
+## What Helm adds
+
+Helm calls itself the package manager for Kubernetes. A chart holds templates of the manifests and their default settings. You install it with your own settings for each environment, and Helm renders the templates into manifests and applies them.
+
+<Compare caption="A folder of manifests or a chart">
+  <Col title="Folder and kubectl apply">Copies per environment. No record of what was applied together. Going back means finding old files in Git.</Col>
+  <Col title="Helm chart" hot>One chart, settings per environment. Every version of a release is recorded. One command goes back.</Col>
+</Compare>
+
+## Where the history lives
+
+Helm keeps the record of each release version inside the cluster, as a Secret in the release's namespace. So the history does not depend on one person's laptop: anyone with access to the namespace sees the same releases. The record holds the chart and the values, so it can contain passwords, and access to Secrets must be controlled.
+
+<InLab>
+The whole lab is a set of Helm releases. Steps 16 and 17 of this module install them, and `helm list -A` then shows every one of them.
+</InLab>
+
+<Trap>
+Helm does not replace Git. You still keep your charts and your settings files in Git. Helm adds what Git cannot see: what is running in the cluster, in which version.
+</Trap>
+
+<Remember>
+A chart is the package, a release is one install of it, and Helm records every version of each release in the cluster.
+</Remember>
+
+<Question id="q-m01-s01" answer="b">
+You delete `cache.yaml` from your manifest folder and run `kubectl apply -f app/` again. What happens to the cache Deployment in the cluster?
+
+- kubectl deletes it, because its file is gone from the folder
+
+  kubectl apply only creates and updates. Without pruning it leaves objects whose files were removed.
+
+- It keeps running, because kubectl apply does not delete objects missing from the folder
+
+  apply works on the files it is given and has no record of the earlier set of files.
+
+- kubectl stops with an error about a missing file
+
+  apply reads the files that exist. It does not know which files used to be there.
+
+- It is scaled to zero until the file comes back
+
+  kubectl does not change an object that is not in the files it was given.
+</Question>

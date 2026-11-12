@@ -1,0 +1,122 @@
+---
+id: m01-s16
+title: Install the platform add-ons, reading their values first
+kind: lab
+minutes: 30
+order: 16
+exam:
+  - cert: none
+tags: [lab-install]
+check:
+  kind: exact
+  prompt: Paste the name of the StorageClass that kubectl get storageclass marks as (default).
+  answer: longhorn
+outcome: You can read the values of each platform release before installing it, install the platform with one command, and check every add-on with helm and kubectl.
+terms:
+  - term: Longhorn
+    def: Block storage for Kubernetes that keeps copies of each volume on several nodes.
+  - term: StorageClass
+    def: A Kubernetes object that says how volumes are made; the default one serves claims that name none.
+  - term: Over-provisioning
+    def: Letting the sum of volume sizes exceed the disk, because thin volumes use only what is written.
+sources:
+  - title: Using Helm, helm get
+    url: https://helm.sh/docs/intro/using_helm/
+    checked: 2026-11-12
+  - title: helm get values
+    url: https://helm.sh/docs/helm/helm_get_values/
+    checked: 2026-11-12
+  - title: Longhorn settings reference
+    url: https://longhorn.io/docs/1.13.0/references/settings/
+    checked: 2026-11-12
+  - title: Storage classes (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/storage/storage-classes/
+    checked: 2026-11-12
+---
+
+<Problem>
+The stack needs volumes, an S3 store, a way in for the browser, Kafka and certificates, and none of that exists on the empty cluster. Six charts will change your cluster deeply. Installing them without reading their values is how a lab ends up with three default StorageClasses or a disk that fills in a week.
+</Problem>
+
+<Idea>
+`make platform` installs six Helm releases in order: metrics-server, cert-manager, Envoy Gateway, Longhorn, the RustFS S3 store and the Strimzi Kafka operator with its Kafka cluster. Before you run it, read two or three values of each; after it, check each release with `helm list`, `helm get values` and kubectl.
+</Idea>
+
+## Values worth reading before you install
+
+Each values file explains its choices in comments. Three releases set things you will meet again:
+
+- Longhorn (`helm/platform/longhorn/values.yaml`): `persistence.defaultClass: true` makes `longhorn` the default StorageClass; `defaultReplicaCount: 2` keeps two copies of every volume on two workers; `storageOverProvisioningPercentage: 200` lets thin volumes add up to twice the disk, because Longhorn keeps 30% of each disk in reserve and the lab's volumes would not fit otherwise.
+- RustFS (`helm/platform/rustfs/values.yaml`): `dataStorageSize: 25Gi` sizes the one volume that holds every metric block, log chunk and trace block of the lab.
+- metrics-server (`helm/platform/metrics-server/values.yaml`): `--kubelet-insecure-tls`, because the kubelets of a kubeadm cluster serve self-signed certificates. A lab simplification, not a production setting.
+
+<Figures caption="What the platform reserves on the four workers" unit="Total requests">
+  <Stat label="CPU, millicores" value="2310m" amount={2310} max={16000} note="of 16 vCPU" />
+  <Stat label="Memory, GiB" value="4.55 GiB" amount={4.55} max={22.75} hot note="of 22.75 GiB allocatable" />
+</Figures>
+
+## One command, in order
+
+`make platform` runs `ansible/playbooks/platform.yml`. It first moves CoreDNS and the Calico controllers off the masters, then installs the add-ons in order. It downloads the pinned Helm, kubectl and two other tools into `lgtm/lab/.bin` as well. The first run on the owner's cluster took about 13 minutes; a second run changes nothing.
+
+## Checking with Helm
+
+`helm list -A` now shows the six releases, each `deployed` at revision 1 or higher, with the chart versions of `versions.yml`. `helm get values <release> -n <namespace>` prints the values Ansible passed, so you can compare them with the files you read. `make platform-check` then proves the add-ons work: a volume keeps its data, the S3 store answers, the gateway routes through `lb`, and a message goes through Kafka.
+
+<InLab>
+Envoy Gateway and Strimzi come from OCI registries, the other four from classic repositories, as step 12 described.
+</InLab>
+
+<Trap>
+Two StorageClasses appear, `longhorn` and `longhorn-static`. Only `longhorn` is the default; the Longhorn chart always creates the second one, and the lab does not use it.
+</Trap>
+
+<Remember>
+Read the values, run `make platform`, then check with `helm list -A`, `helm get values` and `make platform-check`.
+</Remember>
+
+<Do>
+1. In WSL (bash), in `lgtm/lab`, with the lab kubeconfig selected, read the pins and three values files:
+   <Cmd>{`less helm/platform/versions.yml
+less helm/platform/longhorn/values.yaml
+less helm/platform/rustfs/values.yaml
+less helm/platform/metrics-server/values.yaml`}</Cmd>
+2. Install the platform. It takes about 15 minutes and ends with a PLAY RECAP showing `failed=0`:
+   <Cmd>{`make platform`}</Cmd>
+3. List the releases and compare the chart versions with `versions.yml`:
+   <Cmd>{`helm list -A`}</Cmd>
+4. Compare what Longhorn got with what you read:
+   <Cmd>{`helm get values longhorn -n longhorn-system`}</Cmd>
+5. Run the smoke test. It ends with `PLATFORM CHECK PASSED (profile full)`:
+   <Cmd>{`make platform-check`}</Cmd>
+6. List the StorageClasses and paste the name of the default one below:
+   <Cmd>{`kubectl get storageclass`}</Cmd>
+</Do>
+
+<Done>
+`helm list -A` shows metrics-server, cert-manager, envoy-gateway, longhorn, rustfs and strimzi as `deployed`, and the platform check passes.
+</Done>
+
+<Trap practice>
+If a pod stays `Pending` with a volume, look at the Longhorn screen and at `kubectl -n longhorn-system get nodes.longhorn.io`. `lgtm/lab/docs/platform.md` lists the checks for the real cluster.
+</Trap>
+
+<Question id="q-m01-s16" answer="b">
+A colleague asks why the lab's Longhorn allows volumes to add up to twice the disk size. What is the reason given in its values file?
+
+- Each volume is written twice, so the disk must count double
+
+  Two copies need space on two workers, but that is not what the over-provisioning setting is for.
+
+- Volumes are thin, so they use only what is written, and the 30% reserve would not leave room otherwise
+
+  The values file sets 200% because thin volumes rarely fill and the reserve shrinks the usable space.
+
+- Kafka needs twice its volume size for its logs
+
+  Kafka's volumes are sized on their own; the setting applies to every Longhorn disk.
+
+- Longhorn needs the setting to make it the default StorageClass
+
+  The default class comes from persistence.defaultClass, a separate value.
+</Question>

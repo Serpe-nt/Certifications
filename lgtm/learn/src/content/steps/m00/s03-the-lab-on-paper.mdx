@@ -1,0 +1,99 @@
+---
+id: m00-s03
+title: "The lab on paper: VMs, cluster, namespaces, data flow"
+kind: concept
+minutes: 10
+order: 3
+exam:
+  - cert: none
+tags: [lab-setup]
+outcome: You can draw the lab from the PC down to the namespaces, and say which machine and which command build each layer.
+terms:
+  - term: Hyper-V
+    def: The hypervisor built into Windows Pro; it runs the lab's virtual machines.
+  - term: Load balancer VM
+    def: The lab's lb machine; it spreads API and web traffic over the cluster nodes.
+  - term: Stacked etcd
+    def: etcd running on the control-plane nodes themselves, one member per node.
+  - term: Tenant
+    def: A separate space for data inside Mimir, Loki or Tempo, chosen by a request header.
+sources:
+  - title: Options for highly available topology (Kubernetes)
+    url: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/
+    checked: 2026-11-12
+---
+
+<Problem>
+Later steps say things like "open Grafana", "query the tenant lab" or "the Collector in the namespace otel". Each of those lives on a VM, inside a cluster, inside a namespace. If you lose your place in those layers, a simple fault looks like a mystery.
+</Problem>
+
+<Idea>
+The lab is four layers, each built by one command. Hyper-V on your PC runs eight VMs, Ansible turns seven of them into a Kubernetes cluster, Helm installs a platform on it, and Helm then installs the LGTM stack and a demo shop. Each product lives in a namespace of its own.
+</Idea>
+
+## Eight machines on a private network
+
+The VMs sit on a private Hyper-V network, 10.10.0.0/24, and reach the internet through your PC. One small VM called `lb` is not part of Kubernetes. It runs HAProxy, which sends API traffic to the three control-plane nodes and web traffic to the workers, and dnsmasq, which answers names under `k8s.local`.
+
+<Figures caption="The machines" unit="Count">
+  <Stat label="lb: HAProxy and DNS" value="1" amount={1} max={4} />
+  <Stat label="Control plane: master1 to master3" value="3" amount={3} max={4} />
+  <Stat label="Workers: worker1 to worker4" value="4" amount={4} max={4} hot />
+</Figures>
+
+The three control-plane nodes run etcd on themselves, one member each. Kubernetes calls this stacked etcd. With three members the cluster keeps working when one control-plane node is lost. All your workloads run on the four workers, and each worker has a second disk for volumes.
+
+## Four layers, four commands
+
+You build the lab from the bottom up, and each layer has its own command. You create the VMs from an elevated PowerShell. Everything after that runs from WSL, in the folder `lgtm/lab`.
+
+<Layers caption="The lab, from the top down">
+  <Layer title="make lab" hot>Mimir, Loki, Tempo, Grafana, the Collector, Alloy, Prometheus, the shop.</Layer>
+  <Layer title="make platform">Storage, an S3 store, a web gateway, Kafka, certificates, metrics-server.</Layer>
+  <Layer title="make cluster">Kubernetes 1.35 with Calico on seven VMs, and HAProxy and DNS on lb.</Layer>
+  <Layer title="lab-vms.ps1 create">Eight Hyper-V VMs on 10.10.0.0/24.</Layer>
+</Layers>
+
+This module builds the bottom two layers. Module m01 teaches Helm, then installs the top two with it.
+
+## One namespace per product
+
+The finished lab keeps every product apart. The platform uses `longhorn-system` for storage, `s3` for the object store, `gateway` for web traffic, `kafka` and `cert-manager`. The stack uses `mimir`, `loki`, `tempo`, `grafana`, `otel` for the Collector, `alloy`, `prom` for Prometheus, and `shop` for the demo shop. When something breaks, the namespace tells you where to look.
+
+## How data moves through it
+
+The shop's services send OTLP to the Collector `otel-gateway` in `otel`. The Collector sends metrics to Mimir, logs to Loki and traces to Tempo. Alloy adds pod logs and Kubernetes events. Prometheus scrapes the cluster and sends a copy to Mimir. Grafana reads from all of them. The browser reaches Grafana and the other screens through `lb` and the gateway, under names like `grafana.lab.k8s.local`.
+
+Mimir, Loki and Tempo keep the data of different users apart as tenants. The shop's data goes to the tenant `lab`, and Prometheus writes to the tenant `prom`.
+
+<InLab>
+`lgtm/lab/docs/reference.md` lists every address, namespace and tenant of the finished lab on one page.
+</InLab>
+
+<Trap>
+The `lb` VM is not a Kubernetes node, so `kubectl get nodes` lists seven nodes, not eight. It still matters: if `lb` is down, kubectl and the browser lose the cluster.
+</Trap>
+
+<Remember>
+VMs, cluster, platform, stack: four layers, built in that order, one command each.
+</Remember>
+
+<Question id="q-m00-s03" answer="a">
+The `lb` VM is stopped, and the seven Kubernetes nodes still run. What stops working from your PC?
+
+- kubectl and the browser, because both reach the cluster through lb
+
+  HAProxy on lb carries the API on port 6443 and the web traffic on ports 80 and 443.
+
+- Nothing, because lb is not a Kubernetes node
+
+  It is not a node, but every way into the cluster from your PC goes through it.
+
+- Only the shop, because lb runs the shop's database
+
+  The shop runs on the workers. lb runs HAProxy and DNS only.
+
+- etcd, because lb holds one etcd member
+
+  etcd runs on the three control-plane nodes, not on lb.
+</Question>

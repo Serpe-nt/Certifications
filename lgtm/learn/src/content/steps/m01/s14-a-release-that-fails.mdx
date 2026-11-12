@@ -1,0 +1,143 @@
+---
+id: m01-s14
+title: "A release that fails: status, get, --debug, stuck releases"
+kind: lab
+minutes: 30
+order: 14
+exam:
+  - cert: none
+tags: [helm-debugging]
+check:
+  kind: exact
+  prompt: Paste the STATUS that helm status showed right after the failed hook upgrade.
+  answer: failed
+outcome: You can break a release on purpose, read why it failed with helm status, history and kubectl, and bring it back to a known good revision, including from a stuck pending state.
+terms:
+  - term: failed
+    def: The status of a revision whose install, upgrade or rollback did not complete.
+  - term: pending-upgrade
+    def: The status of a revision whose upgrade started and never finished; Helm blocks new operations on it.
+  - term: --rollback-on-failure
+    def: Makes Helm roll back on its own when an install or upgrade fails; Helm 3 called it --atomic.
+sources:
+  - title: helm upgrade
+    url: https://helm.sh/docs/helm/helm_upgrade/
+    checked: 2026-11-12
+  - title: helm rollback
+    url: https://helm.sh/docs/helm/helm_rollback/
+    checked: 2026-11-12
+  - title: helm status
+    url: https://helm.sh/docs/helm/helm_status/
+    checked: 2026-11-12
+  - title: helm list
+    url: https://helm.sh/docs/helm/helm_list/
+    checked: 2026-11-12
+  - title: Helm 4 overview, CLI flags renamed
+    url: https://helm.sh/docs/overview/
+    checked: 2026-11-12
+  - title: Chart hooks
+    url: https://helm.sh/docs/topics/charts_hooks/
+    checked: 2026-11-12
+---
+
+<Problem>
+A deploy fails at 17:50. The pipeline log says `UPGRADE FAILED`, the app may or may not be running the new version, and the next deploy says `another operation (install/upgrade/rollback) is in progress`. You need to know what state the release is in and how to get back to a good one, fast.
+</Problem>
+
+<Idea>
+Every failed operation leaves a revision with the status `failed` and a description that says why. `helm status` and `helm history` show it, and kubectl shows what the objects are doing. Recovery is a rollback to the last revision you know was good, named by its number.
+</Idea>
+
+## Three ways a release fails
+
+A hook fails: a pre-upgrade Job exits with an error, so Helm stops before it changes any object. The pods keep running the old version, and the new revision is `failed`. The objects never become ready: with `--wait`, Helm waits up to `--timeout`, then marks the revision `failed`, while the broken pods stay as they are. The API server rejects an object, as the `type: Bogus` Service did in step 5.
+
+In each case `helm status <release>` shows `STATUS: failed` and a `DESCRIPTION` that holds the error, and `helm history` keeps it on its line. `kubectl get pods` and `kubectl describe` show the rest, such as `ErrImagePull`. The global flag `--debug` makes any Helm command print more detail about what it does.
+
+## Roll back to a number, not to "the previous one"
+
+`helm rollback <release>` with no number goes to the revision just before the current one, even when that one failed. On this lab, after two failed upgrades in a row, a bare `helm rollback` went to the first failed revision and deployed its chart and values. Read `helm history`, find the last revision that was `deployed` or `superseded` with the values you want, and name it: `helm rollback <release> <revision>`. `helm get values` and `helm get manifest` with `--revision <n>` show what any revision held.
+
+## Let Helm roll back for you
+
+`--rollback-on-failure` on install or upgrade makes Helm undo a failed operation on its own. On upgrade it rolls back to the last successful revision; on install it uninstalls. It also turns on `--wait`. Helm 3 called this flag `--atomic`; Helm 4 still accepts the old name with a warning.
+
+## Stuck in pending
+
+While an operation runs, its revision has a pending status such as `pending-upgrade`, and Helm refuses a second operation on the release. If Helm's process dies without cleaning up, the status stays pending: on this lab, a `kill -9` during an upgrade left `pending-upgrade`, and the next upgrade failed with `another operation (install/upgrade/rollback) is in progress`. A rollback to a good revision cleared it. Ctrl+C during an upgrade is different: Helm 4 cancels the upgrade cleanly, prints `Release ... has been cancelled`, and marks the revision `failed`.
+
+<Flow caption="Recovering a release">
+  <Stage title="helm status" kicker="Read">Status and the error in DESCRIPTION.</Stage>
+  <Stage title="kubectl" kicker="Look">Pods, events, describe.</Stage>
+  <Stage title="helm history" kicker="Choose">The last good revision number.</Stage>
+  <Stage title="helm rollback" kicker="Fix">To that number, with --wait.</Stage>
+</Flow>
+
+<Trap>
+`helm list` in Helm 4 shows releases in every status by default; Helm 3 showed only deployed and failed ones unless you added `--all`. Helm 4 has no `--all` flag for `list`, and a script that passes it fails with `unknown flag`.
+</Trap>
+
+<Remember>
+Read `helm status` and `helm history`, look with kubectl, then roll back to a revision number you chose.
+</Remember>
+
+<Do>
+1. Start from step 6's release and break it with a pre-upgrade hook that exits with 1. The podinfo chart has a switch for exactly that:
+   <Cmd>{`helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01 --set ui.message="Hello from revision 2" --set hooks.preUpgrade.job.enabled=true --set hooks.preUpgrade.job.exitCode=1`}</Cmd>
+   Helm prints `UPGRADE FAILED: pre-upgrade hooks failed`.
+2. Read the state, and note the STATUS for the check:
+   <Cmd>{`helm status m01-podinfo -n learn-m01 | head -7
+helm history m01-podinfo -n learn-m01
+kubectl get deploy m01-podinfo -n learn-m01 -o jsonpath='{.spec.template.spec.containers[0].image}'; echo`}</Cmd>
+   The image is still the one of the last good revision: the hook stopped the upgrade before any change.
+3. Break it another way: an image tag that does not exist, with a one-minute wait:
+   <Cmd>{`helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01 --set ui.message="Hello from revision 2" --set image.tag=0.0.0-missing --wait --timeout 60s
+kubectl get pods -n learn-m01`}</Cmd>
+   After a minute: `UPGRADE FAILED` with `context deadline exceeded`, and a pod in `ErrImagePull` or `ImagePullBackOff`.
+4. Choose the last good revision and roll back to it by number. In a clean run it is revision 4, from step 6:
+   <Cmd>{`helm history m01-podinfo -n learn-m01
+helm rollback m01-podinfo 4 -n learn-m01 --wait`}</Cmd>
+5. Let Helm do the same on its own:
+   <Cmd>{`helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01 --set image.tag=0.0.0-missing --rollback-on-failure --timeout 60s
+helm history m01-podinfo -n learn-m01 | tail -2`}</Cmd>
+   The last line is `deployed` with `Rollback to ...`.
+6. Leave a release stuck: start an upgrade in the background, kill Helm hard, and try another operation:
+   <Cmd>{`helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01 --set image.tag=0.0.0-missing --wait --timeout 5m &
+sleep 8; kill -9 $!
+helm status m01-podinfo -n learn-m01 | head -5
+helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01`}</Cmd>
+   The status is `pending-upgrade`, and the upgrade is refused.
+7. Free it with a rollback to the newest `deployed` revision of `helm history`; put its number in place of REVISION:
+   <Cmd>{`helm history m01-podinfo -n learn-m01 | tail -3
+helm rollback m01-podinfo REVISION -n learn-m01 --wait
+helm list -n learn-m01`}</Cmd>
+8. Paste below the STATUS you noted in action 2.
+</Do>
+
+<Done>
+`helm list -n learn-m01` shows `m01-podinfo` as `deployed`, and its pod is `Running` with the image `ghcr.io/stefanprodan/podinfo:6.17.0`.
+</Done>
+
+<Trap practice>
+Your revision numbers can differ from this text if you ran extra commands. Always read `helm history` and pick the number yourself; never copy one from a guide.
+</Trap>
+
+<Question id="q-m01-s14" answer="c">
+`helm upgrade` fails with `another operation (install/upgrade/rollback) is in progress`, but no Helm command is running anywhere. `helm status` shows `pending-upgrade`. What do you do?
+
+- Wait for the pending upgrade to finish on its own
+
+  Nothing is running, so the pending revision never finishes by itself.
+
+- Delete the release's namespace and install it again
+
+  That throws away the app and its history to fix one stuck record.
+
+- Roll back to the last good revision from helm history
+
+  A rollback to a chosen good revision ends the pending state, as on the lab.
+
+- Run the same upgrade again with a longer --timeout
+
+  The new upgrade is refused before it starts, so a longer wait changes nothing.
+</Question>

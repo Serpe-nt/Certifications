@@ -1,0 +1,114 @@
+---
+id: m00-s05
+title: Build the cluster with Ansible
+kind: lab
+minutes: 40
+order: 5
+exam:
+  - cert: none
+tags: [lab-setup]
+check:
+  kind: exact
+  prompt: Paste the name that kubectl config current-context prints with the lab kubeconfig.
+  answer: lgtm-lab
+outcome: You can build the highly available cluster with one make command, run it again safely, and point kubectl at it without touching your other kubeconfig.
+terms:
+  - term: Playbook
+    def: An Ansible file that lists which roles run on which group of hosts, in order.
+  - term: Idempotent
+    def: Safe to run again; a second run changes nothing that is already right.
+  - term: Control-plane endpoint
+    def: The one address kubectl and the nodes use for the API; here cluster-endpoint.k8s.local:6443.
+sources:
+  - title: Creating highly available clusters with kubeadm
+    url: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/high-availability/
+    checked: 2026-11-12
+  - title: Organizing cluster access using kubeconfig files
+    url: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
+    checked: 2026-11-12
+---
+
+<Problem>
+You have eight running VMs and nothing on them. A highly available cluster needs a load balancer in front of three API servers, the same packages on seven nodes, one `kubeadm init`, five joins in the right order, and a network plugin. Typed by hand, it takes an afternoon and never comes out the same twice.
+</Problem>
+
+<Idea>
+Ansible does it from WSL over SSH. One playbook, `site.yml`, runs six plays in order: the load balancer and DNS, the common node setup, `kubeadm init` on master1, the other control-plane joins, the worker joins, and a kubeconfig for you. `make cluster` runs it, and it is safe to run again.
+</Idea>
+
+## Why the load balancer comes first
+
+Every node and kubectl reach the API through one name, `cluster-endpoint.k8s.local:6443`. That name points at `lb`, and HAProxy on `lb` forwards to the three API servers. `kubeadm init` already uses this endpoint, so HAProxy and the DNS must answer before the first master is set up. That is why play one configures `lb`.
+
+## Six plays, one run
+
+<Flow caption="What site.yml does, in order">
+  <Stage title="lb" kicker="Play 1">HAProxy for the API and web ports, dnsmasq for k8s.local.</Stage>
+  <Stage title="All nodes" kicker="Play 2">Swap off, kernel modules, containerd, Kubernetes 1.35 packages.</Stage>
+  <Stage title="master1" kicker="Play 3">kubeadm init, then Calico for the pod network.</Stage>
+  <Stage title="Joins" kicker="Plays 4 to 6">master2 and master3, the workers, then your kubeconfig.</Stage>
+</Flow>
+
+The first master runs `kubeadm init` with the pod network 10.100.0.0/16 and the service network 10.96.0.0/16, then installs Calico. The other two masters join one at a time as control-plane nodes, and the four workers join after them. The last play copies the admin kubeconfig from master1 to `~/.kube/lgtm-lab.config` in WSL.
+
+## Safe to run again
+
+Each task checks first and changes only what is wrong. `kubeadm init` is skipped when the cluster exists, and a node that has joined is skipped. On a healthy cluster a second `make cluster` should report `changed=0` for every host. That is how you repair a node too: fix the cause, run it again.
+
+## Your own kubeconfig stays untouched
+
+The lab writes its kubeconfig to `~/.kube/lgtm-lab.config` and never to `~/.kube/config`. kubectl reads the file in the `KUBECONFIG` variable, so you choose the lab per shell. The context in the file is called `lgtm-lab`. The file holds a cluster-admin certificate, so keep it out of any repository.
+
+<Trap>
+WSL in this lab logs in with fish. The commands are written for bash, so type `bash` first. In fish, `export` does not work; use `set -gx KUBECONFIG ~/.kube/lgtm-lab.config` instead.
+</Trap>
+
+<Remember>
+`make cluster` is the whole cluster build, and running it again is how you check or repair it.
+</Remember>
+
+<Do>
+1. In WSL, type `bash`, then go to the lab folder of your checkout:
+   <Cmd>{`cd /mnt/c/<your checkout>/lgtm/lab`}</Cmd>
+2. Install the pinned Ansible and its collections once, write the inventory from `nodes.yml`, then check that Ansible reaches every VM. Each host answers `"ping": "pong"`:
+   <Cmd>{`make venv
+make collections
+make inventory
+make ping`}</Cmd>
+3. Build the cluster and keep a log. It takes 15 to 30 minutes and ends with a PLAY RECAP where every host has `failed=0` and `unreachable=0`:
+   <Cmd>{`make cluster 2>&1 | tee ~/lgtm-cluster-first-run.log`}</Cmd>
+4. Run the read-only health check. It checks HAProxy, the DNS name and all seven nodes:
+   <Cmd>{`make cluster-check`}</Cmd>
+5. Point kubectl at the lab for this shell and print the context:
+   <Cmd>{`export KUBECONFIG=~/.kube/lgtm-lab.config
+kubectl config current-context`}</Cmd>
+6. Paste the context name below.
+</Do>
+
+<Done>
+`make cluster-check` ends with `failed=0` and lists seven nodes `Ready`, and kubectl prints the lab's context.
+</Done>
+
+<Trap practice>
+If a task fails, keep the log, fix the cause and run `make cluster` again: finished work is skipped. Section 7 of `lgtm/lab/docs/bootstrap-windows11.md` lists the errors seen so far and their fixes.
+</Trap>
+
+<Question id="q-m00-s05" answer="b">
+On worker2, someone deleted the file that sends `k8s.local` names to the lab DNS. What is the intended way to put it back?
+
+- Run `kubeadm reset` on every node and build the cluster again
+
+  That throws away a working cluster to fix one file on one node.
+
+- Run `make cluster` again, which corrects what differs and skips the rest
+
+  The playbook is meant to be run again; it changes only what is not as described.
+
+- Edit the inventory file `hosts.yml` and add the file there
+
+  The inventory says which hosts exist. It is generated and not edited by hand.
+
+- Delete the worker from Hyper-V and create it again
+
+  A new VM works, but the playbook can repair the node in place in minutes.
+</Question>

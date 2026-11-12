@@ -1,0 +1,111 @@
+---
+id: m01-s19
+title: Enter your lab seed and pass the first token check
+kind: lab
+minutes: 15
+order: 19
+exam:
+  - cert: none
+tags: [lab-tokens]
+check:
+  kind: token
+  prompt: Paste the token that the Loki query returns for the slot log-m01-1 (8 hexadecimal characters).
+  slot: log-m01-1
+outcome: You can store your lab seed in the site, run a given query in Grafana Explore, and pass a token check with the value it returns.
+terms:
+  - term: Beacon
+    def: A small service in the lab that publishes, every minute, a token for every check slot.
+  - term: Slot
+    def: The name of one check, such as log-m01-1; each slot has its own token.
+  - term: Token
+    def: A short value computed from the lab seed and a slot; the site and the beacon compute the same one.
+sources:
+  - title: Loki query editor (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/loki/query-editor/
+    checked: 2026-11-12
+  - title: Get started with Explore (Grafana)
+    url: https://grafana.com/docs/grafana/latest/explore/get-started-with-explore/
+    checked: 2026-11-12
+---
+
+<Problem>
+Some later checks ask for a value that only your running lab can produce, but the site never connects to your lab. It must still know whether the value you paste is right, without trusting you and without a network path into your cluster.
+</Problem>
+
+<Idea>
+The lab and the site share one secret: the lab seed, 16 characters made at the first `make lab`. From the seed and a slot name, both compute the same short token. The lab's beacon publishes it as a log line, a metric and a span; you find it with a query and paste it, and the site checks it against its own result.
+</Idea>
+
+<Flow caption="One token, computed twice">
+  <Stage title="Lab seed" kicker="Settings">You type it into the site once.</Stage>
+  <Stage title="Beacon" kicker="Lab">Publishes the token of every slot each minute.</Stage>
+  <Stage title="Query" kicker="Grafana">You find the token for this step's slot.</Stage>
+  <Stage title="Check" kicker="Site">The site computes it from the seed and compares.</Stage>
+</Flow>
+
+## The seed and the slots
+
+The first `make lab` creates the seed and stores it in the Secret `lab-tools/lab-seed`; `make status` prints it, and `make reset` keeps it. A slot names one check: a channel (`log`, `metric` or `span`), a module and a number, such as `log-m01-1`. Each step that uses a token check has a slot of its own, so a token from one step never passes another.
+
+## Where this token is
+
+For the `log` channel, the beacon writes one log line a minute for every log slot to Loki, as the service `beacon`. The line is JSON: `{"msg":"beacon token","slot":"log-m01-1","payload":{"token":"..."}}`. The slot is kept with the line as a field, not as a stream label.
+
+## The query, explained only briefly
+
+This step gives you the query whole. The modules on Loki and LogQL explain each part; for now it is enough to know what it does:
+
+<Query lang="logql">{`{service_name="beacon"} | slot="log-m01-1" | json | line_format "{{.payload_token}}"`}</Query>
+
+The part in braces picks the beacon's log stream. `| slot="log-m01-1"` keeps the lines of this step's slot. `| json` reads the JSON fields, and `line_format` prints only the token. Later modules use the same idea with PromQL for the `metric` channel and TraceQL for `span`.
+
+<InLab>
+The beacon runs as the Deployment `beacon` in `lab-tools` and is switched on in `lgtm/lab/helm/lab-glue/values.yaml`; `lgtm/lab/docs/beacon.md` describes it.
+</InLab>
+
+<Trap>
+The seed is yours. Two labs have two different seeds, so a token copied from someone else's notes fails here, by design.
+</Trap>
+
+<Remember>
+Seed once in Settings, query the slot the step names, paste the token.
+</Remember>
+
+<Do>
+1. In WSL (bash), in `lgtm/lab`, print the lab's status. Its last lines show the lab seed:
+   <Cmd>{`make status`}</Cmd>
+2. In this site, open Settings, paste the 16 characters into Lab seed, and select Save.
+3. In <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, choose the data source `loki` in the picker at the top.
+4. Select the Code tab of the query editor, so you can paste a query as text.
+5. Paste this query and select Run query. Set the time range to the last 15 minutes if it shows nothing:
+   <Query lang="logql">{`{service_name="beacon"} | slot="log-m01-1" | json | line_format "{{.payload_token}}"`}</Query>
+6. Each line of the result is the same 8 characters, one line per minute. Copy one and paste it below.
+</Do>
+
+<Done>
+The check accepts the token, and the same query shows the same token every minute.
+</Done>
+
+<Trap practice>
+If the check says the token is wrong, compare the seed in Settings with the one `make status` prints: a missing character changes every token. If the query returns nothing, check that `kubectl -n lab-tools get deploy beacon` is ready.
+</Trap>
+
+<Question id="q-m01-s19" answer="c">
+How does the site know that the token you paste for log-m01-1 is right, when it never talks to your lab?
+
+- It asks Loki through Grafana for the latest beacon line
+
+  The site has no network path to the lab; it checks the token on its own.
+
+- It accepts any 8 hexadecimal characters
+
+  Only the one token for this slot and your seed passes.
+
+- It computes the token for log-m01-1 from your lab seed and compares
+
+  The site and the beacon run the same calculation on the same seed and slot.
+
+- It compares the token with a list sent by make lab to the site's server
+
+  make lab sends nothing to the site. The seed you type is the only shared value.
+</Question>

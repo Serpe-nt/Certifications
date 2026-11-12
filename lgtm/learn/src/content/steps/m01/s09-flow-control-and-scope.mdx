@@ -1,0 +1,105 @@
+---
+id: m01-s09
+title: "Flow control and scope: if, range, with"
+kind: concept
+minutes: 15
+order: 9
+exam:
+  - cert: none
+tags: [helm-templates]
+outcome: You can read and write if, with and range blocks, predict which values count as false, and keep the whitespace of the output valid YAML.
+terms:
+  - term: Scope
+    def: What the dot means at a point in a template; with and range change it.
+  - term: $
+    def: A variable that always points to the top-level scope, even inside with and range.
+  - term: Whitespace chomping
+    def: "{{- and -}} remove the spaces and newlines before or after an action."
+sources:
+  - title: Flow control
+    url: https://helm.sh/docs/chart_template_guide/control_structures/
+    checked: 2026-11-12
+  - title: Variables
+    url: https://helm.sh/docs/chart_template_guide/variables/
+    checked: 2026-11-12
+---
+
+<Problem>
+A chart must add a debug setting only when asked, write one ConfigMap key per colour in a list, and add custom labels only if the user gave some. With plain YAML you would need three copies of the file. With careless templates you get stray blank lines and YAML that no longer parses.
+</Problem>
+
+<Idea>
+Helm templates have three blocks. `if` includes text when a condition is true, `range` repeats text for each item of a list or map, and `with` runs a block only when a value is not empty and makes that value the dot inside it. Dashes inside the braces, `{{-` and `-}}`, remove the whitespace that the blocks leave behind.
+</Idea>
+
+## if, and what counts as false
+
+```yaml
+{{- if .Values.debug }}
+logLevel: debug
+{{- end }}
+```
+
+The block is printed only when the condition is true. A condition is false when it is `false`, the number 0, an empty string, `nil` (missing or null), or an empty list or map; everything else is true. So an unset value and an empty one behave the same. `else if` and `else` add more branches, and functions such as `eq`, `and` and `not` build conditions: `{{ if eq .Values.mode "prod" }}`.
+
+## range repeats
+
+```yaml
+{{- range $i, $color := .Values.colors }}
+color-{{ $i }}: {{ $color | quote }}
+{{- end }}
+```
+
+With `colors: ["#34577c", "#2f6f4f"]` this prints `color-0` and `color-1`. Over a map, the two variables get each key and value. Without variables, the dot inside `range` is the current item.
+
+## with changes the dot
+
+```yaml
+{{- with .Values.extraLabels }}
+{{- toYaml . | nindent 4 }}
+{{- end }}
+```
+
+The block runs only when `extraLabels` is not empty, and inside it `.` is `extraLabels` itself. That is shorter than `.Values.extraLabels` every time, and saves a separate `if`. The cost: inside `with` and `range`, `.Release` and `.Chart` are out of reach, because the dot moved. `$` always points to the top-level scope, so `{{ $.Release.Name }}` works anywhere.
+
+<Compare caption="Three blocks">
+  <Col title="if">Include or skip text. The dot does not change.</Col>
+  <Col title="range">Repeat text per item. The dot is the item.</Col>
+  <Col title="with" hot>Skip when empty, else make the value the dot.</Col>
+</Compare>
+
+## Whitespace
+
+Every action leaves its line behind, so blocks create blank lines and wrong indentation. `{{-` removes whitespace, newlines included, to the left of the action, and `-}}` to the right. The usual pattern puts `{{-` on block lines, as above. Use `-}}` with care: with dashes on both sides, `food: "PIZZA"` and `mug: "true"` can end up on one line. Note the space after the dash: `{{- 3 }}` prints 3, while `{{-3 }}` prints -3.
+
+<InLab>
+The chart you write in the next step uses all three: `if .Values.debug`, `range` over `colors`, and `with .Values.extraLabels`.
+</InLab>
+
+<Trap>
+`if .Values.replicaCount` is false when someone sets 0 replicas on purpose, because 0 counts as false. When zero is a valid value, test with `hasKey` or compare explicitly.
+</Trap>
+
+<Remember>
+`if` decides, `range` repeats, `with` skips empty values and moves the dot; `$` gets you back to the top.
+</Remember>
+
+<Question id="q-m01-s09" answer="d">
+Inside `{{- with .Values.extraLabels }} ... {{- end }}` you need the release name. Which expression works?
+
+- `{{ .Release.Name }}`
+
+  Inside with, the dot is extraLabels, which has no Release field.
+
+- `{{ .Values.Release.Name }}`
+
+  The dot is extraLabels here, and the release is not under Values anyway.
+
+- `{{ Release.Name }}`
+
+  Objects are reached through a scope, so the leading dot or dollar sign is needed.
+
+- `{{ $.Release.Name }}`
+
+  `$` always points to the top-level scope, where Release lives.
+</Question>

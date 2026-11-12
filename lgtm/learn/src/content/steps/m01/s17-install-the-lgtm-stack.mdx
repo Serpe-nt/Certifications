@@ -1,0 +1,124 @@
+---
+id: m01-s17
+title: Install the LGTM stack and the shop, one release at a time
+kind: lab
+minutes: 30
+order: 17
+exam:
+  - cert: none
+tags: [lab-install]
+check:
+  kind: exact
+  prompt: Paste the CHART column that helm list -A shows for the release loki.
+  answer: loki-21.1.0
+outcome: You can install the observability stack and the shop with make lab, read the main values of each release, and install or upgrade a single release with TAGS.
+terms:
+  - term: Microservices mode
+    def: Running Loki, Mimir or Tempo as many small components, each scaled on its own.
+  - term: Ingest storage
+    def: Mimir's design where writes go through Kafka before the ingesters read them.
+  - term: Alloy Operator
+    def: A Kubernetes operator that runs Grafana Alloy instances from the Alloy Helm chart.
+sources:
+  - title: helm list
+    url: https://helm.sh/docs/helm/helm_list/
+    checked: 2026-11-12
+  - title: helm get metadata
+    url: https://helm.sh/docs/helm/helm_get_metadata/
+    checked: 2026-11-12
+  - title: Alloy Operator (GitHub)
+    url: https://github.com/grafana/alloy-operator
+    checked: 2026-11-12
+---
+
+<Problem>
+Nine more charts, each with hundreds of values: three storage backends in microservices mode, two collectors, Prometheus, Grafana, the lab's own glue chart and a 13-service shop. Installed in the wrong order, the shop's first telemetry has nowhere to go; installed without reading, you will not know why Loki deletes logs after two days.
+</Problem>
+
+<Idea>
+`make lab` installs the nine releases in a fixed order and prints the addresses and the lab seed at the end. Read a few values of each first, so you know what you are getting. Afterwards `make lab TAGS=<release>` installs or upgrades one of them alone.
+</Idea>
+
+## Values worth reading before you install
+
+- Loki (`helm/loki/values.yaml`): `deploymentMode: Distributed` runs Loki in microservices mode, `auth_enabled: true` turns on tenants, and `retention_period: 48h` is why logs older than two days disappear.
+- Mimir (`helm/mimir/values.yaml`): `ingest_storage.enabled: true` sends every write through Kafka, and `compactor_blocks_retention_period: 7d` keeps metrics for a week.
+- Prometheus (`helm/kube-prometheus-stack/values.yaml`): `retention: 1d` keeps only a day on Prometheus itself, and its `remoteWrite` sends everything to Mimir with the header `X-Scope-OrgID: prom`.
+- The Collector (`helm/otel-gateway/values.yaml`): `mode: deployment` and `replicaCount: 2` run it as a gateway of two pods, not as an agent on every node.
+- Grafana (`helm/grafana/values.yaml`): `admin.existingSecret: grafana-admin` reads the admin password from a Secret the playbook makes, so no password is in the values.
+
+<Figures caption="How long each store keeps data" unit="Hours">
+  <Stat label="Prometheus, local" value="24 h" amount={24} max={168} />
+  <Stat label="Loki logs" value="48 h" amount={48} max={168} />
+  <Stat label="Tempo traces" value="48 h" amount={48} max={168} />
+  <Stat label="Mimir metrics" value="7 days" amount={168} max={168} hot />
+</Figures>
+
+## make lab, then one release at a time
+
+`make lab` runs the roles in the order of step 15 and waits for each release. On the first run it also creates the Grafana admin password and the lab seed, and it ends by printing the addresses, the seed and where the password is. On the owner's cluster the first run took about nine minutes. A second run reports `changed=0`.
+
+To change one release later, edit its values file and run `make lab TAGS=loki`, or another tag: `prometheus`, `mimir`, `tempo`, `otel-gateway`, `alloy`, `grafana`, `glue` or `shop`.
+
+## Reading the result with Helm
+
+`helm list -A` now shows 17 releases: the 6 of the platform, the 9 of `make lab`, and two more in `alloy`, `k8s-monitoring-alloy-logs` and `k8s-monitoring-alloy-singleton`. Those two come from the Alloy Operator, which the `k8s-monitoring` chart installs: it runs each Alloy instance from the Alloy Helm chart, so each instance is a release too. `helm get metadata loki -n loki` shows the chart, its version and `APPLY_METHOD: server-side apply`.
+
+<InLab>
+`helm list -A` shows Mimir with APP VERSION 3.2.3 and the Collector with 0.163.2, while the pods run `grafana/mimir:3.2.4` and `opentelemetry-collector-contrib:0.165.0`. The lab's values set the image tags, and the column shows only the chart's `appVersion`.
+</InLab>
+
+<Trap>
+`make lab` needs the platform. Run without it, the stores wait for volumes and Kafka that do not exist, and Helm's wait times out after 15 minutes.
+</Trap>
+
+<Remember>
+Read the main values, run `make lab`, check with `helm list -A`; afterwards change one release with its values file and `TAGS`.
+</Remember>
+
+<Do>
+1. In WSL (bash), in `lgtm/lab`, read the values named above:
+   <Cmd>{`grep -n 'deploymentMode\|auth_enabled\|retention_period' helm/loki/values.yaml
+grep -n -A1 'ingest_storage:' helm/mimir/values.yaml
+grep -n 'retention:\|X-Scope-OrgID' helm/kube-prometheus-stack/values.yaml
+grep -n '^mode\|^replicaCount' helm/otel-gateway/values.yaml`}</Cmd>
+2. Install the stack. It ends with the addresses and the lab seed; keep the seed for step 19:
+   <Cmd>{`make lab`}</Cmd>
+3. List every release and compare the charts with the `VERSION` files:
+   <Cmd>{`helm list -A
+cat helm/loki/VERSION`}</Cmd>
+4. Read one release's metadata and history:
+   <Cmd>{`helm get metadata loki -n loki
+helm history loki -n loki`}</Cmd>
+5. Run the smoke test. It follows one shop request from a metric to a trace to a log and ends with `LAB CHECK PASSED`:
+   <Cmd>{`make lab-check`}</Cmd>
+6. Paste the CHART column of the release `loki` below.
+</Do>
+
+<Done>
+`helm list -A` shows every lab release `deployed`, and `make lab-check` prints `LAB CHECK PASSED`.
+</Done>
+
+<Trap practice>
+If one release fails, the playbook stops there. Read its pods (`kubectl get pods -n <namespace>`), fix the cause, and run `make lab` again: finished releases are skipped. `lgtm/lab/docs/runbook.md` lists the faults seen so far.
+</Trap>
+
+<Question id="q-m01-s17" answer="a">
+You changed one value in `lgtm/lab/helm/grafana/values.yaml`. Which command applies it and leaves every other release alone?
+
+- `make lab TAGS=grafana`
+
+  The tag runs only the Grafana role, which upgrades that one release.
+
+- `make lab`
+
+  It works, but it walks through every release; the others report no change.
+
+- `make reset`, then `make lab`
+
+  A reset uninstalls every release and deletes their data, far more than one value needs.
+
+- `helm upgrade grafana grafana-community/grafana -n grafana`
+
+  It bypasses the lab's files: without --version it takes the newest stable chart, and the next make lab puts back what the files say.
+</Question>

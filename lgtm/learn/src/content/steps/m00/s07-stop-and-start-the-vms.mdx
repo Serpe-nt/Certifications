@@ -1,0 +1,96 @@
+---
+id: m00-s07
+title: Stop and start the VMs safely
+kind: lab
+minutes: 10
+order: 7
+exam:
+  - cert: none
+tags: [lab-setup]
+check:
+  kind: choice
+  prompt: Which VM does lab-vms.ps1 start bring up first?
+  options: [lb, master1, worker1, worker4]
+  answer: lb
+outcome: You can shut the lab down and bring it back in the right order, and tell normal start-up noise from a real fault.
+terms:
+  - term: Graceful shutdown
+    def: The guest OS stops its services itself before the VM turns off.
+  - term: Quorum
+    def: The majority of etcd members that must answer before the cluster accepts a change.
+sources:
+  - title: Operating etcd clusters for Kubernetes
+    url: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/
+    checked: 2026-11-12
+---
+
+<Problem>
+The lab uses a large part of your PC's memory, and you will not study every evening. You need to switch it off and on again without a broken etcd, volumes stuck on a missing node, or an hour of repairs before you can study.
+</Problem>
+
+<Idea>
+The script stops and starts the VMs in a fixed order. Stop shuts the guests down cleanly, workers first and `lb` last. Start runs the other way: `lb` first, then the masters, then the workers. After a start the cluster heals itself; you wait and check.
+</Idea>
+
+## Why the order matters
+
+Every node reaches the API and the lab's names through `lb`, so `lb` must come up first. The three masters come next, so etcd gets back its majority quickly. The workers come last, when there is an API to register with. On stop, the order is reversed, so the masters keep the API up while the workers shut down.
+
+<Timeline caption="Start, from the script to a healthy cluster">
+  <Event at="1" title="lb">HAProxy and the lab DNS answer again.</Event>
+  <Event at="2" title="master1 to master3">The API servers start and etcd regains its majority.</Event>
+  <Event at="3" title="worker1 to worker4">The kubelets register and pods start again.</Event>
+  <Event at="+3 min" title="Check">make cluster-check passes.</Event>
+</Timeline>
+
+## A clean shutdown, not a power cut
+
+`stop` asks each guest to shut down, so Ubuntu stops its services before the VM turns off. The VMs are set to shut down the same way when Windows shuts down, and to stay off after Windows starts again until you run `start`. You never need to drain nodes for a planned stop of the whole lab.
+
+## What a slow start looks like
+
+For the first minutes after a start, some pods show `Unknown` or restart while their dependencies come back. With the whole lab installed, the record in `acceptance-lab.md` shows every pod Ready about eight minutes after the reboot, with nothing done by hand. Wait before you act; look at a pod only if it is still down ten minutes after the nodes are `Ready`.
+
+<Trap>
+Do not restart the Windows host with the VMs still running and assume they come back. They shut down cleanly, but they stay off until you run `start` in an elevated PowerShell.
+</Trap>
+
+<Remember>
+Stop: workers, masters, lb. Start: lb, masters, workers. Then wait a few minutes and check.
+</Remember>
+
+<Do>
+1. In an elevated PowerShell, in the folder `lgtm\lab\vm\hyperv`, stop the lab:
+   <Cmd>{`powershell -NoProfile -ExecutionPolicy Bypass -File .\\lab-vms.ps1 stop`}</Cmd>
+   Read the order in which it shuts the VMs down.
+2. Start it again:
+   <Cmd>{`powershell -NoProfile -ExecutionPolicy Bypass -File .\\lab-vms.ps1 start`}</Cmd>
+   Read the order of the `Started` lines.
+3. Wait three minutes, then check from WSL (bash) in `lgtm/lab`:
+   <Cmd>{`make cluster-check`}</Cmd>
+4. Pick below the VM that `start` brought up first.
+</Do>
+
+<Done>
+`make cluster-check` passes again, with seven nodes `Ready`.
+</Done>
+
+<Question id="q-m00-s07" answer="c">
+Why does `start` bring up the three masters before the four workers?
+
+- The workers need more memory, so they start once the masters have finished
+
+  Memory is reserved per VM when it starts. The order is about what each node needs to talk to.
+
+- Workers cannot boot without a master on the same Hyper-V switch
+
+  A worker boots on its own. It needs the API only to register and run pods.
+
+- The masters carry the API and etcd, which the workers must reach to register
+
+  The masters bring back the API and etcd's majority, so the workers find a working API.
+
+- The masters hold the Longhorn disks the workers mount
+
+  The Longhorn disks are on the workers. The masters run the control plane.
+</Question>

@@ -1,0 +1,115 @@
+---
+id: m00-s06
+title: Look around the empty cluster with kubectl
+kind: lab
+minutes: 15
+order: 6
+exam:
+  - cert: none
+tags: [lab-setup]
+check:
+  kind: exact
+  prompt: How many etcd pods run in the namespace kube-system?
+  answer: "3"
+outcome: You can confirm with read-only kubectl commands that the lab cluster is healthy and highly available before you install anything on it.
+terms:
+  - term: Static pod
+    def: A pod the kubelet starts from a file on its node; kubeadm runs the control plane this way.
+  - term: Taint
+    def: A mark on a node that keeps pods off it unless they tolerate the mark.
+sources:
+  - title: Static Pods (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/workloads/pods/static-pods/
+    checked: 2026-11-12
+  - title: Operating etcd clusters for Kubernetes
+    url: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/
+    checked: 2026-11-12
+  - title: Options for highly available topology (Kubernetes)
+    url: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/
+    checked: 2026-11-12
+  - title: Command line tool (kubectl)
+    url: https://kubernetes.io/docs/reference/kubectl/
+    checked: 2026-11-12
+---
+
+<Problem>
+`make cluster` ended without an error. Before you put a whole observability stack on top, you want proof: seven nodes, three API servers, three etcd members, and kubectl talking to the cluster through the load balancer, not to one master by chance.
+</Problem>
+
+<Idea>
+A few read-only kubectl commands answer all of it. They show where kubectl connects, which versions run, which nodes are ready, and that each control-plane node runs its own API server and etcd member. Nothing here changes the cluster.
+</Idea>
+
+## Where kubectl connects
+
+`kubectl cluster-info` prints the API address. In this lab it must be `https://cluster-endpoint.k8s.local:6443`, the name that points at `lb`. If it shows a master's own address, you are not testing the load balancer. `kubectl version` prints the client and the server version; both should be 1.35.
+
+## Seven nodes, two roles
+
+`kubectl get nodes -o wide` lists master1 to master3 with the role `control-plane` and worker1 to worker4 with no role, all `Ready`, with addresses from 10.10.0.11 to 10.10.0.33 and containerd as runtime. The masters carry the taint `node-role.kubernetes.io/control-plane:NoSchedule`, so ordinary pods land on the workers only.
+
+## The control plane runs as pods
+
+kubeadm starts the control plane as static pods: the kubelet on each master runs them from files on that node. Their names end with the node name: `kube-apiserver-master1`, `etcd-master2` and so on. Each of the three masters runs an API server, a controller manager, a scheduler and an etcd member.
+
+<Figures caption="What a healthy empty lab shows" unit="Count">
+  <Stat label="Nodes Ready" value="7" amount={7} max={7} hot />
+  <Stat label="API server pods" value="3" amount={3} max={7} />
+  <Stat label="etcd pods" value="3" amount={3} max={7} />
+  <Stat label="kube-proxy pods, one per node" value="7" amount={7} max={7} />
+</Figures>
+
+Three etcd members matter. The etcd cluster fails when a majority of its members is lost. With three members, losing one leaves two of three, still a majority. Kubernetes asks for at least three stacked control-plane nodes for this reason.
+
+<InLab>
+At this point the cluster holds only Kubernetes itself and Calico, in `kube-system`, `calico-system` and `tigera-operator`. Everything else comes in module m01.
+</InLab>
+
+<Trap>
+Use labels, not pod counts, to check the control plane. Later modules add their own pods to `kube-system`, so "how many pods in kube-system" changes, while the etcd and API server pods stay at three.
+</Trap>
+
+<Remember>
+One endpoint through `lb`, seven nodes `Ready`, and three of each control-plane pod: that is a healthy lab.
+</Remember>
+
+<Do>
+1. In WSL (bash), with the lab kubeconfig selected:
+   <Cmd>{`export KUBECONFIG=~/.kube/lgtm-lab.config`}</Cmd>
+2. Check the endpoint and the versions:
+   <Cmd>{`kubectl cluster-info
+kubectl version`}</Cmd>
+   The control plane runs at `https://cluster-endpoint.k8s.local:6443`, and both versions start with v1.35.
+3. List the nodes:
+   <Cmd>{`kubectl get nodes -o wide`}</Cmd>
+4. See the taint on a master:
+   <Cmd>{`kubectl describe node master1 | grep Taints`}</Cmd>
+5. List the control-plane pods with the node each runs on:
+   <Cmd>{`kubectl get pods -n kube-system -l tier=control-plane -o wide`}</Cmd>
+6. Count the etcd members and enter the number below:
+   <Cmd>{`kubectl get pods -n kube-system -l component=etcd`}</Cmd>
+</Do>
+
+<Done>
+Seven nodes are `Ready`, the endpoint is the `lb` name, and each master runs its own `etcd-` and `kube-apiserver-` pod.
+</Done>
+
+<Question id="q-m00-s06" answer="a">
+`kubectl cluster-info` prints `https://10.10.0.11:6443`. What does that tell you?
+
+- kubectl talks to master1 directly, so losing master1 cuts you off
+
+  10.10.0.11 is master1's own address. The lab's endpoint is the lb name.
+
+- kubectl talks to the load balancer, which is fine
+
+  The load balancer has the address 10.10.0.5 and the name cluster-endpoint.k8s.local.
+
+- etcd on master1 is the leader
+
+  cluster-info prints the API address. It says nothing about the etcd leader.
+
+- The cluster has only one control-plane node
+
+  The address shows where kubectl connects, not how many masters exist.
+</Question>

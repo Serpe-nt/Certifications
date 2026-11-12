@@ -1,0 +1,104 @@
+---
+id: m00-s04
+title: Create the VMs
+kind: lab
+minutes: 30
+order: 4
+exam:
+  - cert: none
+tags: [lab-setup]
+check:
+  kind: exact
+  prompt: How many rows of lab-vms.ps1 status show State Running and SSH open?
+  answer: "8"
+outcome: You can create, start and check the eight lab VMs from one file, and say what the script changed on your PC.
+terms:
+  - term: Cloud image
+    def: A ready-made Ubuntu disk image that sets itself up on first boot.
+  - term: cloud-init
+    def: The tool in the image that reads a seed disk on first boot and sets the name, user, key and address.
+  - term: Seed disk
+    def: A small disk labelled CIDATA that holds the cloud-init settings of one VM.
+  - term: NAT
+    def: Network address translation; it lets the private VMs reach the internet through the PC.
+---
+
+<Problem>
+Eight VMs by hand means eight disks, eight network cards, eight addresses, eight users with an SSH key, and one typo somewhere that costs an evening. You also want to tear it all down and build it again the same way next month.
+</Problem>
+
+<Idea>
+One file, `lgtm/lab/vm/nodes.yml`, lists every machine: name, address, CPUs, memory and disks. A PowerShell script reads it and builds the network and the VMs. Each VM boots from an Ubuntu cloud image and sets itself up from its own seed disk on the first boot.
+</Idea>
+
+## One file describes the lab
+
+`nodes.yml` holds the network (10.10.0.0/24, gateway 10.10.0.1), the SSH user and key, the Ubuntu image with its SHA-256, and one entry per machine. The script reads it to build the VMs, and Ansible reads it later to build its inventory. To change a size or add a worker, you change this file and run both again.
+
+<Figures caption="Memory per VM in nodes.yml" unit="GB">
+  <Stat label="lb" value="2" amount={2} max={6} />
+  <Stat label="Each control-plane node" value="4" amount={4} max={6} />
+  <Stat label="Each worker" value="6" amount={6} max={6} hot />
+</Figures>
+
+## What create builds on your PC
+
+`create` makes a Hyper-V internal switch `lgtm-lab`, gives Windows the address 10.10.0.1 on it, and adds a NAT so the VMs reach the internet. It downloads the Ubuntu 24.04 cloud image once, checks its SHA-256, and converts it to a Hyper-V disk. Then it builds the eight VMs. With `-ConfigureDns`, it also tells Windows to ask the lab's DNS on 10.10.0.5 for every name under `.k8s.local`.
+
+Every VM carries the note `lgtm-lab`. `destroy` removes only what has that note or what `create` recorded, so it cannot delete a VM of another project. `create` keeps what already exists, so you can run it again after an error.
+
+## The first boot
+
+Each VM gets a seed disk labelled `CIDATA`. On the first boot cloud-init reads it and sets the host name, the user `vaka` with your public key, and a static address. Password login stays off. `create` does not start the VMs, so `start` comes next, and the first boot takes one to two minutes.
+
+<Trap>
+Hyper-V needs an elevated PowerShell for `create`, `start`, `stop`, `destroy` and `status`. In a normal window the script stops at the first Hyper-V call and says so. Only `plan` runs without administrator rights.
+</Trap>
+
+<Remember>
+`nodes.yml` is the one source of truth for the machines. The script and Ansible both read it.
+</Remember>
+
+<Do>
+1. Read the prerequisites in `lgtm/lab/docs/bootstrap-windows11.md`, section 2: Hyper-V, WSL with mirrored networking, the SSH key `~/.ssh/ansible`, `qemu-img` and free memory and disk.
+2. In a normal PowerShell, go from the repository folder to the script folder and print the plan. Nothing changes yet:
+   <Cmd>{`cd lgtm\\lab\\vm\\hyperv
+powershell -NoProfile -ExecutionPolicy Bypass -File .\\lab-vms.ps1 plan -ConfigureDns`}</Cmd>
+   Check the table of eight VMs and that no line starts with `WARNING:`.
+3. Open PowerShell as administrator in the same folder and create everything:
+   <Cmd>{`powershell -NoProfile -ExecutionPolicy Bypass -File .\\lab-vms.ps1 create -ConfigureDns`}</Cmd>
+   It ends with `Create finished. Next: lab-vms.ps1 start`.
+4. Start the VMs:
+   <Cmd>{`powershell -NoProfile -ExecutionPolicy Bypass -File .\\lab-vms.ps1 start`}</Cmd>
+5. Wait two minutes for the first boot, then look at them:
+   <Cmd>{`powershell -NoProfile -ExecutionPolicy Bypass -File .\\lab-vms.ps1 status`}</Cmd>
+6. Count the rows with State `Running` and SSH `open`, and enter the number below.
+</Do>
+
+<Done>
+`status` shows lb, master1 to master3 and worker1 to worker4, each `Running` with SSH `open`.
+</Done>
+
+<Trap practice>
+If a VM shows SSH `closed` after five minutes, open its console in Hyper-V Manager. Section 7 of the bootstrap guide lists what each message means, including a Secure Boot failure and a missing seed.
+</Trap>
+
+<Question id="q-m00-s04" answer="d">
+You want a fifth worker. Where do you make the change first?
+
+- In Hyper-V Manager, by copying worker4
+
+  A copy by hand has worker4's address and seed. The script builds VMs from the file.
+
+- In the Ansible inventory file `hosts.yml`
+
+  That file is generated from `nodes.yml` and must not be edited by hand.
+
+- In the cloud-init seed of worker4
+
+  A seed describes one VM. It is written by the script from the file.
+
+- In `nodes.yml`, then run create and the cluster build again
+
+  The script and Ansible both read `nodes.yml`, so a new entry there reaches both.
+</Question>
