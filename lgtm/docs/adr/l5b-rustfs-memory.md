@@ -1,6 +1,6 @@
 # L5b: RustFS gets the memory it uses; Kafka's replicas and Longhorn
 
-Status: proposed by worker L5 on 2026-11-12. The values are in the lab's files; they are not
+Status: proposed by worker L5 on 2026-11-12. The changes are in the lab's files; they are not
 applied to the lab yet (see "Not done").
 
 ## RustFS memory
@@ -33,8 +33,11 @@ The memory, from the lab's Prometheus (`container_memory_rss` and
 
 The jump started at 11:13, 30 minutes before the Kafka repair changed anything, with a burst of
 reads from Loki: 40 warnings `GetObject streaming body dropped before expected length` on
-`loki-chunks/lab/...` in one minute, the reader closing the streams before the end (most likely a
-large Loki query that was cancelled). Network, disk reads and CPU stayed near zero before and
+`loki-chunks/lab/...` in one minute, the reader closing the streams before the end. The planner
+identified it: two read-only Loki queries during QA, at about 11:14 and 11:16, each a regex line
+filter over 90 minutes of the namespace `kafka` (the crash-looping brokers had logged a lot),
+through a port-forward closed as soon as the answer came, which cut the reads off. One heavy log
+query, of the kind learners run in the Loki module, took RustFS from about 670 to about 900 MiB. Network, disk reads and CPU stayed near zero before and
 after, yet RSS stayed near 770 MiB for 50 minutes: the memory taken for the burst was not given
 back. The work that came back with ingest at 12:02 (Mimir and Tempo writing blocks again, a
 scanner cycle at 12:03:41) added the last part. Tenant `prom`'s 6,000 samples per second are not
@@ -52,11 +55,32 @@ what grows it: RustFS's traffic stays under 0.3 MiB/s.
 ### Decision
 
 `helm/platform/rustfs/values.yaml`: memory request 768Mi (was 512Mi; covers the working set of a
-whole day, at most 668 MiB), limit 1536Mi (was 1Gi; the peak RSS of 772 MiB with room for a
-second burst on top). That adds 256 MiB of requests on the worker that runs RustFS. On
+whole day, at most 668 MiB), limit 1536Mi (was 1Gi). One heavy query added about 300 MiB of RSS
+that stayed; the limit holds the steady state, the page cache and two such queries in a row (668
++ 2 x 300 = about 1270 MiB) before the kernel has to reclaim cache. That adds 256 MiB of requests on the worker that runs RustFS. On
 2026-11-12 the workers had 77 to 88% of their memory requested; worker4, where RustFS runs, would
 go from 88% to 93%, over the 90% the owner accepts, so after the restart RustFS should land on
 worker2 (77%) or worker3 (79%); the default scheduler scores less requested nodes higher, but this is not certain. Check it after the apply.
+
+### Would Loki's limits be the better place?
+
+For the load, yes; for RustFS's memory, only partly. The lab's Loki runs with the defaults of
+these limits (https://grafana.com/docs/loki/v3.7.x/configure/):
+
+- `tsdb_max_query_parallelism` 128 and `max_query_parallelism` 32: how many pieces the
+  query-frontend splits one query into and schedules at once.
+- `max_concurrent` 4 per querier, with 2 queriers: at most 8 pieces run at the same time, each
+  fetching chunks from S3. This is what RustFS sees as concurrent `GetObject` calls.
+- `max_query_bytes_read` 0 (no limit): the most bytes one query may fetch. It applies to log
+  queries with a filter and to metric queries on TSDB, which covers the query of 11:14.
+- `max_chunks_per_query` 2,000,000.
+
+A cap on `max_query_bytes_read` (a few hundred MB fits the lab's 4 GiB of chunks) would stop one
+query from reading most of the bucket, and the learner would get a clear error instead of a slow
+query; a lower `max_concurrent` or parallelism would spread the reads out over time. Neither
+bounds RustFS itself: Mimir's store-gateway and compactor and Tempo's queriers read from it too.
+So the RustFS limit stays sized for a heavy query, and Loki's limits are a separate choice for the
+Loki module, which may want to show these very errors. Nothing is changed in Loki here.
 
 The liveness probe that killed RustFS on 2026-11-11 is not changed here; if long listings of
 `tempo-traces` recur, a longer probe timeout is the next thing to try.
@@ -80,11 +104,26 @@ What does not help: Replica Auto Balance (setting `replica-auto-balance`, or
 already has its two replicas on two different nodes, so it would move nothing. Its "disk pressure
 threshold" moves replicas between disks of the same node, and each worker has one disk.
 
-What would: for each Kafka volume in turn, raise its replica count from 2 to 3 (Longhorn puts the
-third on a node without a replica of it, worker1 or worker4), wait until it is healthy, delete
-the replica on worker2 or worker3, and set the count back to 2. Two healthy replicas exist at
-every step. For a rebuilt lab, the lab's files need to place them the same way, for example with
-Longhorn node and disk tags on a StorageClass for Kafka. That choice is open.
+What does: data locality. Longhorn's page names this case: for distributed applications "in
+which high availability is achieved at the application level", "each volume should be scheduled
+on the same node as the pod that uses it", and with `best-effort` Longhorn "will try to keep a
+replica on the same node as the attached volume"
+(https://longhorn.io/docs/1.13.0/high-availability/data-locality/). The three brokers run on
+three different workers (worker4, worker1, worker3 today, by the pod anti-affinity of the
+KafkaNodePool), so each Kafka volume keeps one replica there and the second wherever the balance
+score puts it.
+
+Decision: the role `platform_kafka` sets `dataLocality: best-effort` on each Kafka volume in turn
+after the cluster is Ready (real cluster only), and waits until that volume has two running
+replicas, one on its broker's node, before it moves to the next. A rebuilt lab gets it from the
+same run of `make platform`. It does not touch the StorageClass or Longhorn's global settings, so
+no other volume changes. A server-side dry run of the patch was accepted on 2026-11-12.
+
+Expected on today's lab: the volume of broker 0 gets a replica on worker4 and the volume of
+broker 1 one on worker1, each losing one on worker2 or worker3; the volume of broker 2 already
+has one on worker3. Longhorn's page does not say whether it builds the local replica before it
+removes another; the role's wait checks the end state (two running, one local), and the commands
+in the pull request watch that each volume stays `healthy` in between.
 
 ## Not done
 
