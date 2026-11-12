@@ -1,0 +1,108 @@
+---
+id: m06-s07
+title: "The k8s-monitoring chart: features, collectors, destinations"
+kind: concept
+minutes: 14
+order: 7
+exam:
+  - cert: none
+tags: [k8s-monitoring-chart]
+outcome: You can read a k8s-monitoring values file and say which features are on, which Alloy collector runs each, where the data goes, and what this lab switched off.
+terms:
+  - term: Feature
+    def: One monitoring task of the k8s-monitoring chart, such as cluster events or pod logs, switched on with enabled.
+  - term: Collector
+    def: A Grafana Alloy instance that the Alloy Operator runs as a DaemonSet, Deployment or StatefulSet.
+  - term: Preset
+    def: A named set of settings that gives a collector its shape, such as daemonset or filesystem-log-reader.
+  - term: Destination
+    def: Where a feature sends its data, named by protocol (prometheus, loki, otlp) and an address.
+  - term: Alloy Operator
+    def: The operator the chart installs; it turns each collector into a running Alloy workload.
+sources:
+  - title: k8s-monitoring chart README, 4.6.0 (GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/main/charts/k8s-monitoring/README.md
+    checked: 2026-11-12
+  - title: Overview of the Kubernetes Monitoring Helm chart (Grafana)
+    url: https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/helm-chart-config/helm-chart/
+    checked: 2026-11-12
+  - title: Collector reference (Grafana)
+    url: https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/helm-chart-config/helm-chart/collector-reference/
+    checked: 2026-11-12
+  - title: loki.source.kubernetes_events (Grafana Alloy)
+    url: https://grafana.com/docs/alloy/latest/reference/components/loki/loki.source.kubernetes_events/
+    checked: 2026-11-12
+  - title: Feature Pod Logs via Loki (GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/main/charts/k8s-monitoring/charts/feature-pod-logs-via-loki/README.md
+    checked: 2026-11-12
+  - title: Feature Cluster Metrics (GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/main/charts/k8s-monitoring/charts/feature-cluster-metrics/README.md
+    checked: 2026-11-12
+---
+
+<Problem>
+Logs from your pods disappear when the pods do, and last week's events are gone after an hour. You want both in Loki. Someone suggests "the Grafana chart", and its values file has thirty top-level keys: `clusterMetrics`, `hostMetrics`, `podLogsViaLoki`, `clusterEvents`, `collectors`, `destinations`. Which ones do you need?
+</Problem>
+
+The chart is built from a few ideas that repeat. Once you see them, the long values file becomes short.
+
+<Idea>
+The k8s-monitoring chart turns a list of features into Grafana Alloy collectors. You switch on the features you want, give each one a collector whose presets decide how it runs, and name the destinations it sends to. The Alloy Operator, which the chart installs, then deploys each collector.
+</Idea>
+
+## Features, collectors, destinations
+
+A feature is one monitoring task. Among them: cluster metrics (the kubelet, cAdvisor, kube-state-metrics and the control plane), host metrics (node exporter), cluster events from the API server, pod logs, node logs, and the objects of the Prometheus Operator. Each one is off until you set `enabled: true`.
+
+A collector is a Grafana Alloy instance. You name it yourself, and you give it presets that set its shape: `daemonset` runs one pod per node, `singleton` makes sure only one replica runs, `statefulset` and `clustered` let several replicas share a large scrape load, and `filesystem-log-reader` mounts the node's `/var/log` so Alloy can read the pods' log files. Each feature names the collector that does its work.
+
+A destination is where the data goes, named by protocol rather than product: `prometheus` sends with remote write, `loki` sends logs, `otlp` sends metrics, logs or traces over OTLP.
+
+<Flow caption="How the chart turns values into running Alloy">
+  <Stage title="Features" kicker="You switch on">podLogsViaLoki, clusterEvents</Stage>
+  <Stage title="Collectors" kicker="With presets">alloy-logs as a DaemonSet, alloy-singleton as one replica</Stage>
+  <Stage title="Alloy Operator" kicker="Deploys">One Alloy workload per collector, with its configuration</Stage>
+  <Stage title="Destinations" kicker="Receive">Loki, tenant lab</Stage>
+</Flow>
+
+## Why the shape matters
+
+Pod logs live in files on each node, so the collector that reads them must run on every node and see `/var/log`: the `daemonset` and `filesystem-log-reader` presets. Events come from the API server, and two replicas watching them would send every event twice, so the event collector is a `singleton` unless you turn on the feature's clustering option, which splits the events between replicas. Cluster metrics are scraped over the network, which any replica can do, so a large cluster gives them a clustered StatefulSet.
+
+The Pod Logs feature sets `service_name` on every log line: from the pod annotation `resource.opentelemetry.io/service.name` if there is one, then the pod label `app.kubernetes.io/name`, then the container name. That label is how you will find a pod's logs in step 8.
+
+## What this lab switched off, and why
+
+The chart can collect cluster metrics, but this lab already has kube-prometheus-stack doing that, with Prometheus remote-writing to Mimir. Turning `clusterMetrics` on as well would send the same series to Mimir by a second route. So the lab uses the chart for logs and events only. It also leaves the namespace `shop` out of pod logs, because the shop's services already send their logs over OTLP through the collector gateway, and file collection would store each shop line twice.
+
+<InLab>
+The lab's release `k8s-monitoring` (chart 4.6.0) in `alloy` enables `podLogsViaLoki` on the collector `alloy-logs` (presets `daemonset`, `filesystem-log-reader`, seven pods) and `clusterEvents` on `alloy-singleton` (preset `singleton`, one pod), both to the destination `loki`, tenant `lab`. `helm list -n alloy` also shows the releases `k8s-monitoring-alloy-logs` and `k8s-monitoring-alloy-singleton`: the Alloy Operator installs each collector as a Helm release of its own.
+</InLab>
+
+<Trap>
+Two collectors that both scrape the same targets double your series and your bill. Before you switch on `clusterMetrics` or `hostMetrics`, check whether a Prometheus stack in the cluster already scrapes the kubelet, kube-state-metrics or node exporter.
+</Trap>
+
+<Remember>
+Features say what to collect, collectors with presets say how it runs, destinations say where it goes. In this lab Alloy carries logs and events; Prometheus carries the cluster metrics.
+</Remember>
+
+<Question id="q-m06-s07" answer="c">
+You add the `clusterEvents` feature to a k8s-monitoring values file and assign it to a collector with the `daemonset` preset on a cluster of six nodes. What goes wrong?
+
+- Nothing; events are read from each node's log files
+
+  Events are API objects. The feature collects them from the Kubernetes API server, not from files on the nodes.
+
+- The collector cannot reach the API server from a DaemonSet
+
+  A DaemonSet pod reaches the API server like any other pod.
+
+- Each event reaches Loki six times, once per pod
+
+  Every pod of a DaemonSet watches the same events from the API server, which is why the event collector should be a singleton.
+
+- Loki refuses events because they have no service_name label
+
+  service_name belongs to the Pod Logs feature; nothing makes Loki refuse events without it.
+</Question>

@@ -1,0 +1,116 @@
+---
+id: m06-s09
+title: "Drill: USE for a node, RED for a workload"
+kind: drill
+minutes: 25
+order: 9
+exam:
+  - cert: none
+tags: [k8s-use-red]
+check:
+  kind: choice
+  prompt: Which CoreDNS response code belongs in the Errors line of its RED view?
+  options: [NOERROR, NXDOMAIN, SERVFAIL]
+  answer: SERVFAIL
+outcome: You can write the USE queries for one node from node exporter and the RED queries for one workload from its own metrics, and say what each number means for that node or workload.
+terms:
+  - term: Utilization
+    def: How busy a resource is over a time, such as the share of time a CPU was not idle.
+  - term: Saturation
+    def: How much work waits because a resource is full, such as tasks waiting for a CPU.
+  - term: rcode
+    def: The response code of a DNS answer; CoreDNS counts responses by it.
+sources:
+  - title: Dashboard best practices, USE and RED (Grafana)
+    url: https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/best-practices/
+    checked: 2026-11-12
+  - title: node_exporter README, v1.12.1 (GitHub)
+    url: https://github.com/prometheus/node_exporter/blob/v1.12.1/README.md
+    checked: 2026-11-12
+  - title: CoreDNS metrics plugin
+    url: https://coredns.io/plugins/metrics/
+    checked: 2026-11-12
+  - title: DNS for Services and Pods (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/services-networking/dns-pod-service/
+    checked: 2026-11-12
+  - title: Query functions, histogram_quantile (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+---
+
+<Problem>
+"The cluster is slow" arrives in the team chat with nothing else. You have two minutes before someone asks for an answer. Clicking through dashboards at random wastes them. A fixed checklist for the machine and one for the service would let you rule things in or out one line at a time.
+</Problem>
+
+Module m02 named the two checklists. Here you write them against this cluster's real metrics, from the components of steps 2 to 4.
+
+<Idea>
+USE asks of every resource on a node: how busy is it, how much work waits for it, and are there errors. RED asks of every service: how many requests, how many fail, and how long they take. Node exporter answers USE for the node; a workload's own request metrics answer RED.
+</Idea>
+
+## USE for one node
+
+Take worker1, whose node exporter address you found in step 4. For CPU, utilization is the share of time not spent idle, and saturation is the time tasks waited for a CPU, from the pressure collector. For memory, utilization is the share not available, and saturation shows as major page faults. For errors, the network devices count receive errors. The node mixin's own USE dashboard makes the same choices for memory, and it also uses the load average per CPU as a second measure of CPU saturation.
+
+<Compare caption="USE for worker1, from node exporter">
+  <Col title="Utilization">CPU: 1 minus the idle rate. Memory: 1 minus MemAvailable over MemTotal.</Col>
+  <Col title="Saturation" hot>CPU: rate of node_pressure_cpu_waiting_seconds_total. Memory: rate of node_vmstat_pgmajfault.</Col>
+  <Col title="Errors">Network: rate of node_network_receive_errs_total per device.</Col>
+</Compare>
+
+Saturation is the line people forget. A CPU at 70% with no waiting has room left; a CPU at 70% while tasks wait a quarter of every second already slows requests down.
+
+## RED for one workload
+
+A workload needs metrics of its own requests for RED; Kubernetes does not make them for it. CoreDNS has them, and the lab's Prometheus scrapes it, so it is a good workload to try. Rate is `coredns_dns_requests_total`. Duration is the histogram `coredns_dns_request_duration_seconds`. Errors need thought: `coredns_dns_responses_total` counts answers by `rcode`. `NOERROR` is a good answer. `NXDOMAIN` means the name does not exist, which is often not a fault at all: a pod's DNS search list in Kubernetes tries the name with several suffixes first, and each miss is an `NXDOMAIN`. `SERVFAIL` means the server failed to answer, and that is an error.
+
+<InLab>
+The lab's Grafana has the dashboard "Node Exporter / USE Method / Node" in the folder Kubernetes, built from the node mixin's recording rules, such as `instance:node_cpu_utilisation:rate5m` and `instance:node_vmstat_pgmajfault:rate5m`. Pick `Prometheus` in its Data source menu. The drill below builds the same view by hand, so that you know what each panel means.
+</InLab>
+
+<Trap>
+Do not count `NXDOMAIN` as failed requests. On this lab it is about two thirds of all CoreDNS answers, and an error rate of 66% would page someone for normal search-list traffic.
+</Trap>
+
+<Do>
+1. On <LabLink to="prometheus" path="/query">the query page</LabLink>, CPU utilization of worker1: <Query lang="promql">{`1 - avg(rate(node_cpu_seconds_total{instance="10.10.0.30:9100", mode="idle"}[5m]))`}</Query>
+2. CPU saturation, seconds of waiting per second: <Query lang="promql">{`rate(node_pressure_cpu_waiting_seconds_total{instance="10.10.0.30:9100"}[5m])`}</Query>
+3. Memory utilization and memory saturation: <Query lang="promql">{`1 - node_memory_MemAvailable_bytes{instance="10.10.0.30:9100"} / node_memory_MemTotal_bytes{instance="10.10.0.30:9100"}`}</Query> <Query lang="promql">{`rate(node_vmstat_pgmajfault{instance="10.10.0.30:9100"}[5m])`}</Query>
+4. Errors on the network devices; expect zeros: <Query lang="promql">{`sum(rate(node_network_receive_errs_total{instance="10.10.0.30:9100"}[5m]))`}</Query>
+5. Now RED for CoreDNS. Rate: <Query lang="promql">{`sum(rate(coredns_dns_requests_total[5m]))`}</Query>
+6. Answers by response code: <Query lang="promql">{`sum by (rcode) (rate(coredns_dns_responses_total[5m]))`}</Query> Compare `NOERROR`, `NXDOMAIN` and `SERVFAIL`.
+7. Duration, the 99th percentile: <Query lang="promql">{`histogram_quantile(0.99, sum by (le) (rate(coredns_dns_request_duration_seconds_bucket[5m])))`}</Query> A healthy lab answers in well under a millisecond.
+8. Pick, in the check below, the response code that belongs in the Errors line of CoreDNS's RED.
+</Do>
+
+<Done>
+You have six numbers for worker1 and three for CoreDNS, and for each you can say whether it shows a busy resource, waiting work, or failing requests.
+</Done>
+
+<Trap practice>
+In action 1, `avg` without `by` gives one number for the node. Leave it out and you get one series per CPU, which is useful to spot one hot CPU but not for the node's line.
+</Trap>
+
+<Remember>
+USE for the node from node exporter: busy, waiting, errors. RED for the workload from its own request metrics: rate, failures, duration. Decide what counts as an error from what the code means, not from its name.
+</Remember>
+
+<Question id="q-m06-s09" answer="d">
+A node's CPU utilization is 65%, and `rate(node_pressure_cpu_waiting_seconds_total[5m])` on it is 0.4. Users of the pods on that node report slow requests. What do the two numbers say together?
+
+- The node is fine, because 65% leaves a third of the CPU free
+
+  Utilization alone hides waiting. Tasks are waiting for a CPU 40% of the time.
+
+- The pressure counter is broken, because waiting needs 100% use
+
+  Tasks can wait for a CPU long before the average use reaches 100%, for example in bursts.
+
+- Memory is short, because pressure always means paging
+
+  This counter is the CPU pressure counter. Memory has its own pressure and paging metrics.
+
+- The CPU is saturated: work waits for it though it is not fully busy
+
+  Saturation, the waiting work, explains the slow requests even at 65% utilization.
+</Question>

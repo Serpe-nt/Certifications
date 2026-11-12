@@ -1,0 +1,131 @@
+---
+id: m06-s12
+title: "A pod that fails its readiness probe"
+kind: lab
+minutes: 25
+order: 12
+exam:
+  - cert: none
+tags: [k8s-probes]
+flags: [failedReadinessProbe]
+check:
+  kind: exact
+  prompt: Paste the reason of the event that reports the failed readiness probe of the cart pod.
+  answers: ["Unhealthy"]
+outcome: You can find a pod that fails its readiness probe from the metrics and the events, explain why it is running but gets no traffic, and tell it apart from a failing liveness probe.
+terms:
+  - term: Readiness probe
+    def: A check the kubelet runs on a container; while it fails, the pod is taken out of its Services' endpoints but not restarted.
+  - term: Liveness probe
+    def: A check the kubelet runs on a container; when it fails, the kubelet kills the container and restarts it.
+  - term: Startup probe
+    def: A check that holds back the other probes until the application has started.
+  - term: failureThreshold
+    def: How many probe failures in a row the kubelet waits for before it acts on them.
+sources:
+  - title: Pod lifecycle, container probes (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
+    checked: 2026-11-12
+  - title: Configure liveness, readiness and startup probes (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+    checked: 2026-11-12
+  - title: EndpointSlices, conditions (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/
+    checked: 2026-11-12
+  - title: Kubernetes metrics reference, prober_probe_total (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/reference/instrumentation/metrics/
+    checked: 2026-11-12
+  - title: kube-state-metrics pod metrics, v2.20.0 (GitHub)
+    url: https://github.com/kubernetes/kube-state-metrics/blob/v2.20.0/docs/metrics/workload/pod-metrics.md
+    checked: 2026-11-12
+  - title: KubePodNotReady runbook
+    url: https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodnotready/
+    checked: 2026-11-12
+---
+
+<Problem>
+Customers cannot add anything to their cart. The cart pod is `Running`, its restart count has not moved, its CPU and memory look normal, and its logs show no error. Every quick check says "healthy", yet the shop's front end gets no answer from cart at all.
+</Problem>
+
+A pod can run and still be out of service. The kubelet decided that, and it left traces in three places.
+
+<Idea>
+A readiness probe tells the kubelet whether a container can take requests. While it fails, the pod's Ready condition is false, the pod's address is marked not ready in its Services' EndpointSlices, and traffic stops; the container keeps running. You see it in the kubelet's probe counters, in kube-state-metrics' ready metrics, and in `Unhealthy` events.
+</Idea>
+
+## Three probes, three reactions
+
+The kubelet can run three kinds of probe on a container. A failing liveness probe gets the container killed and restarted. A failing readiness probe only takes the pod out of service: the EndpointSlice controller marks its address as not ready in every Service that selects it, and the Service stops sending it traffic. A startup probe holds the other two back until the application has started. Each probe runs every `periodSeconds` and acts after `failureThreshold` failures in a row.
+
+<Compare caption="What a failing probe does">
+  <Col title="Liveness">Kills the container. Restarts rise; logs end and start again.</Col>
+  <Col title="Readiness" hot>Takes the pod out of the Service. Restarts stay; the pod runs with Ready 0/1.</Col>
+</Compare>
+
+## Where it shows
+
+Each source of steps 2 to 8 sees a different part of it:
+
+- The kubelet's `/metrics/probes` endpoint counts every probe result in `prober_probe_total`, with `probe_type="Readiness"` and `result="failed"`.
+- kube-state-metrics reports the pod's Ready condition as `kube_pod_status_ready{condition="true"}` with the value 0, and the container's as `kube_pod_container_status_ready`. A Deployment's available replicas drop with it.
+- The kubelet writes an event with reason `Unhealthy` and the probe's message, and Alloy copies it to Loki.
+
+The stack's `KubePodNotReady` alert reads the kube-state-metrics side: a running pod that has not been Ready for 15 minutes. Until then it is pending, so the probe counters and the events are the faster signal.
+
+<Timeline caption="The cart pod on the lab, flag switched on at 0:00">
+  <Event at="0:00" title="Flag on">The cart service starts answering its health check with NOT_SERVING.</Event>
+  <Event at="0:34" title="Not ready">kubectl shows the pod 0/1 Running; its EndpointSlice address has ready=false.</Event>
+  <Event at="0:55" title="Metrics agree">kube_pod_status_ready with condition true is 0; available replicas 0; KubePodNotReady pending.</Event>
+  <Event at="2:54" title="Ready again">21 seconds after the flag went off, the pod is 1/1 and ready=true.</Event>
+</Timeline>
+
+<InLab>
+The shop's chart gives cart a gRPC readiness probe every 10 seconds with `failureThreshold: 3`, and cart has one replica. The flag `failedReadinessProbe` makes cart's health check answer `NOT_SERVING`, so the whole cart Service loses its only endpoint.
+</InLab>
+
+<Trap>
+"Running" is not "serving". `kubectl get pods` shows Running for a pod that fails readiness; the READY column, the Ready condition and the endpoints are what tell you it gets no traffic.
+</Trap>
+
+<Do>
+1. On <LabLink to="prometheus" path="/query">the query page</LabLink>, list the shop pods that are not Ready. On a healthy shop the result is empty: <Query lang="promql">{`kube_pod_status_ready{namespace="shop", condition="true"} == 0`}</Query>
+2. Open the <LabLink to="flags" path="/feature">flag screen</LabLink>, find `failedReadinessProbe`, and set it to `on`. Note the time. The flag takes more than a minute to show everywhere.
+3. After a minute, in WSL: <Cmd>kubectl -n shop get pods -l app.kubernetes.io/name=cart</Cmd> READY is `0/1`, STATUS `Running`, and RESTARTS has not changed.
+4. Run the query of action 1 again: the cart pod is there. Then find which pod's readiness probe fails, from the kubelet's counters: <Query lang="promql">{`sum by (pod) (rate(prober_probe_total{namespace="shop", probe_type="Readiness", result="failed"}[2m])) > 0`}</Query> About 0.1 per second: one failure every 10 seconds.
+5. See the Service lose the pod: <Cmd>{`kubectl -n shop get endpointslices -l kubernetes.io/service-name=cart -o jsonpath='{.items[*].endpoints[*].conditions}'`}</Cmd> `ready` is `false`.
+6. Read the events in <LabLink to="grafana" path="/explore">Explore</LabLink>, data source `loki`: <Query lang="logql">{`{job="integrations/kubernetes/eventhandler", namespace="shop", reason="Unhealthy"}`}</Query> The message says `Readiness probe failed: service unhealthy (responded with "NOT_SERVING")`. Without Grafana, `kubectl -n shop get events` shows the same while it is less than an hour old.
+7. Switch the flag back: on the flag screen set `failedReadinessProbe` to `off`, then reload the page and check that it shows `off`. Within half a minute, `kubectl -n shop get pods -l app.kubernetes.io/name=cart` shows `1/1`, and the query of action 1 is empty again.
+8. Paste the event's reason from action 6 in the check below.
+</Do>
+
+<Done>
+You found the not-ready cart pod from the kubelet's probe counters, kube-state-metrics and the events, saw that it never restarted, and the flag is off again with cart Ready.
+</Done>
+
+<Trap practice>
+Switch the flag off before you leave the step, even if the check is already passed. The shop's other users and lessons share it, and with the flag on, nobody can put anything in a cart.
+</Trap>
+
+<Remember>
+A failing readiness probe leaves the pod running and takes it out of service. Look for `prober_probe_total` failures, `kube_pod_status_ready` at 0 and `Unhealthy` events; restarts stay flat.
+</Remember>
+
+<Question id="q-m06-s12" answer="a">
+A container has a liveness probe and a readiness probe, and no startup probe. Its pod shows READY 0/1 and STATUS Running for twenty minutes, and its restart count has not changed. Which probe is failing?
+
+- Its readiness probe
+
+  A failing readiness probe takes the pod out of service but never restarts it, so it runs with READY 0/1.
+
+- Its liveness probe
+
+  A failing liveness probe gets the container killed and restarted, so the restart count would rise.
+
+- Both its liveness and its readiness probe
+
+  Twenty minutes of a failing liveness probe would have got the container killed and restarted.
+
+- None; the Service's selector does not match the pod
+
+  A wrong selector stops traffic, but it does not change the pod's READY column; the pod would show 1/1.
+</Question>

@@ -1,0 +1,120 @@
+---
+id: m06-s06
+title: "Mixins: the dashboards and alerts you did not write"
+kind: lab
+minutes: 22
+order: 6
+exam:
+  - cert: none
+tags: [k8s-prometheus-stack]
+check:
+  kind: exact
+  prompt: Paste the name of the recording rule that KubeCPUOvercommit reads for the CPU requests.
+  answers: ["namespace_cpu:kube_pod_container_resource_requests:sum"]
+outcome: You can say where the stack's dashboards and alerts come from, and follow an alert back through its recording rules to the raw metrics.
+terms:
+  - term: Mixin
+    def: A package of Grafana dashboards and Prometheus recording and alerting rules for one system, written in jsonnet.
+  - term: jsonnet
+    def: A data templating language that produces JSON; mixins are written in it so you can change selectors before you build them.
+  - term: Recording rule
+    def: A rule that runs a query on a schedule and stores the result as a new series, under a name of the form level:metric:operations.
+  - term: Runbook
+    def: A page that says what an alert means and what to check first; each stack alert links one in its runbook_url annotation.
+sources:
+  - title: Prometheus Monitoring Mixins
+    url: https://monitoring.mixins.dev/
+    checked: 2026-11-12
+  - title: kubernetes-mixin README (GitHub)
+    url: https://github.com/kubernetes-sigs/kubernetes-mixin
+    checked: 2026-11-12
+  - title: Node Mixin README (GitHub)
+    url: https://github.com/prometheus/node_exporter/blob/master/docs/node-mixin/README.md
+    checked: 2026-11-12
+  - title: kube-prometheus-stack README, dashboards (GitHub)
+    url: https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/README.md
+    checked: 2026-11-12
+  - title: Recording rules, naming (Prometheus)
+    url: https://prometheus.io/docs/practices/rules/
+    checked: 2026-11-12
+  - title: KubeCPUOvercommit runbook
+    url: https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubecpuovercommit
+    checked: 2026-11-12
+---
+
+<Problem>
+At 02:00 the pager says `KubeCPUOvercommit`. Nobody on the team wrote that alert, and its expression is eight lines of PromQL around a series named `namespace_cpu:kube_pod_container_resource_requests:sum`. Before you can decide whether to wake someone, you need to know what it measures.
+</Problem>
+
+The stack came with more than a hundred alerts and two dozen dashboards. They were written once, upstream, for every cluster.
+
+<Idea>
+A mixin is a package of dashboards, recording rules and alerts for one system, kept in its own repository and written in jsonnet. kube-prometheus-stack ships the rules and dashboards of the Kubernetes and node mixins as PrometheusRule objects and ConfigMaps. Many alerts read recording rules, and each recording rule reads raw metrics, so you can trace any alert back to the component that reported it.
+</Idea>
+
+## Where they come from
+
+The kubernetes-mixin is a set of Grafana dashboards and Prometheus alerts for Kubernetes; the node mixin does the same for node exporter. Both are written in jsonnet and installed with jsonnet-bundler, so a team can change the job selectors or the dashboard names before it builds them. Building one gives you files of alerts and recording rules for Prometheus and a folder of dashboards for Grafana.
+
+The kube-prometheus-stack README says that its dashboards and rules are copies: scripts in the chart's `hack/` folder fetch them from kube-prometheus and the mixins, and a change to them belongs in the original repository. For your own cluster, the chart's values give you a way around that: `defaultRules.disabled` switches off a single alert by name, and `additionalPrometheusRulesMap` adds rules of your own, such as your version of that alert. A hand edit to the copy in the cluster is in no values file, so the next install of the chart does not have it.
+
+## From alert to raw metric
+
+Recording rules follow a naming scheme, `level:metric:operations`. The level says which labels are kept, the metric is the name it came from, and the operations say what was done to it, newest first. So `namespace_cpu:kube_pod_container_resource_requests:sum` is the sum of `kube_pod_container_resource_requests` for CPU, kept per namespace.
+
+<Flow caption="Tracing KubeCPUOvercommit back to its source">
+  <Stage title="Alert" kicker="kubernetes-resources">KubeCPUOvercommit: CPU requests above what the cluster can lose a node and still give.</Stage>
+  <Stage title="Recording rule" kicker="k8s.rules.container_resource">namespace_cpu:kube_pod_container_resource_requests:sum, every 30 seconds.</Stage>
+  <Stage title="Raw metrics" kicker="kube-state-metrics">kube_pod_container_resource_requests and kube_pod_status_phase.</Stage>
+</Flow>
+
+The alert compares the summed requests with `kube_node_status_allocatable` minus the largest node. It fires when the pods could not all be placed again if one node were lost. Every stack alert carries a `runbook_url` that explains this and what to check first. The dashboards use the same recording rules: the "Kubernetes / Compute Resources" dashboards read `node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m`, a recording rule over the cAdvisor CPU counter.
+
+<InLab>
+The lab's release brought 30 PrometheusRule objects with 134 alerting and 86 recording rules, and 25 dashboard ConfigMaps that the lab's Grafana shows in the folder Kubernetes, among them "Kubernetes / Compute Resources / Namespace (Pods)" and "Node Exporter / USE Method / Node". Their Data source menu starts on the Grafana default, `mimir`; pick `Prometheus`.
+</InLab>
+
+<Trap>
+An alert that reads a recording rule depends on the rule's group running. If you drop the recording rules to save series, the dashboards go blank and the alerts that read them never fire, without any error.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/alerts">the Alerts page</LabLink> and type `KubeCPUOvercommit` in the search box. Open the rule. Read its expression, its `for: 10m`, its `severity="warning"` label and its `runbook_url`.
+2. In the expression, find the series name with colons in it. That is a recording rule.
+3. Open <LabLink to="prometheus" path="/rules">Rule health</LabLink> (under Status) and search for `namespace_cpu`. Open `namespace_cpu:kube_pod_container_resource_requests:sum` in the group `k8s.rules.container_resource`, and read which metrics its expression uses.
+4. On <LabLink to="prometheus" path="/query">the query page</LabLink>, check that the rule gives the same number as the raw metric for one namespace: <Query lang="promql">{`namespace_cpu:kube_pod_container_resource_requests:sum{namespace="shop"}`}</Query> <Query lang="promql">{`sum(kube_pod_container_resource_requests{namespace="shop", resource="cpu"})`}</Query>
+5. In <LabLink to="grafana" path="/dashboards">Grafana's dashboards</LabLink>, open the folder Kubernetes and the dashboard "Kubernetes / Compute Resources / Namespace (Pods)". Set Data source to `Prometheus` (the lab's default data source is `mimir`, tenant `lab`, which holds no cluster metrics) and namespace to `shop`. Open the menu of the CPU usage panel, choose Edit, and find the recording rule in its query.
+6. Paste the recording rule's name from action 2 in the check below.
+</Do>
+
+<Done>
+You followed one alert to a recording rule and that rule to the kube-state-metrics series it sums, and both queries in action 4 gave the same number.
+</Done>
+
+<Trap practice>
+The two queries in action 4 can differ for a few seconds after a pod starts or stops, because the recording rule runs every 30 seconds. Run them again; they settle on the same value.
+</Trap>
+
+<Remember>
+The stack's alerts and dashboards come from mixins. Follow the colons: alert to recording rule to raw metric, and you know which component to look at.
+</Remember>
+
+<Question id="q-m06-s06" answer="a">
+Your team wants `KubePodNotReady` to wait 5 minutes instead of 15, in every cluster that installs kube-prometheus-stack from your values file. What do you change?
+
+- Turn it off in `defaultRules.disabled`, add yours in `additionalPrometheusRulesMap`
+
+  Both are chart values, so every install from the file gets the change, and the chart's copy no longer fires.
+
+- Run `kubectl edit` on the PrometheusRule `prom-kubernetes-apps` in each cluster
+
+  The edit lives only in that cluster's object; nothing in the values file carries it to the next install.
+
+- Edit the rule file that the operator writes into the Prometheus pod
+
+  The operator generates that file from the PrometheusRule objects and writes it again from them.
+
+- Add a route in Alertmanager that waits 10 minutes before it sends the alert
+
+  Alertmanager can only delay a notification. It cannot make the rule fire before its 15 minutes.
+</Question>

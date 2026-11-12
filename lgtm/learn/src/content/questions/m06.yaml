@@ -1,0 +1,629 @@
+# Module m06 Kubernetes monitoring: quiz pool. Card C5, 2026-11-12.
+# Sources: Kubernetes v1.35 pages, the kube-state-metrics, node_exporter, cAdvisor,
+# kube-prometheus and k8s-monitoring repositories, Grafana, Loki and etcd docs, fetched
+# on 2026-11-12. The log is lgtm/docs/verification/m06.md. No question repeats one of
+# the mock pools.
+
+- id: q-m06-001
+  tags: [k8s-what-to-watch]
+  exam: {cert: none}
+  q: "A worker node is evicting pods for DiskPressure. You want to see which file system filled up, and since when. Which component reports that?"
+  options:
+    - text: "node exporter, from the host's own mounts"
+      why: "Its filesystem collector reports size and free space per mount point of the whole machine."
+    - text: "kube-state-metrics, from the node object"
+      why: "It reports the node's DiskPressure condition from the API, not how full each file system is."
+    - text: "metrics-server, from the Metrics API"
+      why: "The Metrics API holds current CPU and memory only, for autoscaling."
+    - text: "cAdvisor, from the container cgroups"
+      why: "cAdvisor reports what containers use, not the node's own mount points."
+  answer: [0]
+  source: https://github.com/prometheus/node_exporter/blob/v1.12.1/README.md
+
+- id: q-m06-002
+  tags: [k8s-what-to-watch]
+  exam: {cert: none}
+  q: "A team asks how many replicas their StatefulSet wants and how many are ready. Which component reports both numbers as metrics?"
+  options:
+    - text: "The kubelet on each node"
+      why: "The kubelet reports the pods on its own node and knows nothing about a StatefulSet's spec."
+    - text: "kube-state-metrics"
+      why: "It turns the spec and status of objects such as StatefulSets into metrics."
+    - text: "node exporter on each node"
+      why: "Node exporter reports the machine, not Kubernetes objects."
+    - text: "The scheduler's metrics"
+      why: "The scheduler reports on scheduling, not on the replicas a StatefulSet wants."
+  answer: [1]
+  source: https://github.com/kubernetes/kube-state-metrics/blob/v2.20.0/README.md
+
+- id: q-m06-003
+  tags: [k8s-what-to-watch]
+  exam: {cert: none}
+  q: "At 09:00 you run <code>kubectl get events</code> to see why a rollout failed at 02:00. Nothing that old is listed. Why?"
+  options:
+    - text: "Events are only kept while their pod still exists"
+      why: "Events expire by age, set on the API server, not with their pod."
+    - text: "kubectl get events shows only Warning events"
+      why: "It shows Normal and Warning events alike."
+    - text: "The API server keeps events for one hour by default"
+      why: "The kube-apiserver flag --event-ttl defaults to one hour, so older events are gone."
+    - text: "Events are written to the node's log files instead"
+      why: "Events are API objects kept by the API server, not lines in a file on a node."
+  answer: [2]
+  source: https://v1-35.docs.kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+
+- id: q-m06-004
+  tags: [k8s-what-to-watch]
+  exam: {cert: none}
+  q: "A pod has written 40 MiB of logs, and the kubelet rotates its log after 10 MiB. What does <code>kubectl logs</code> return?"
+  options:
+    - text: "All 40 MiB, read from every rotated file"
+      why: "kubectl logs reads only the newest file, not the rotated ones."
+    - text: "Nothing until the next rotation finishes"
+      why: "The newest file can be read at any time."
+    - text: "The first 10 MiB the container ever wrote"
+      why: "The oldest lines are in rotated files, which kubectl logs does not read."
+    - text: "At most 10 MiB, from the newest log file"
+      why: "Only the latest log file is available through kubectl logs."
+  answer: [3]
+  source: https://v1-35.docs.kubernetes.io/docs/concepts/cluster-administration/logging/
+
+- id: q-m06-005
+  tags: [k8s-kubelet-cadvisor]
+  exam: {cert: pca, domain: P2, competency: "Configuration and Scraping"}
+  q: "kube-prometheus-stack runs with its default values. From which kubelet path does Prometheus get per-container CPU and memory usage?"
+  options:
+    - text: "/metrics/cadvisor"
+      why: "The chart scrapes this path for container usage by default."
+    - text: "/metrics/resource"
+      why: "The chart leaves this path off by default, because cAdvisor already has the container numbers."
+    - text: "/metrics/probes"
+      why: "This path holds probe results, not usage."
+    - text: "/stats/summary"
+      why: "This is the kubelet's Summary API in JSON, not a path the chart scrapes."
+  answer: [0]
+  source: https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.1.1/charts/kube-prometheus-stack/values.yaml
+
+- id: q-m06-006
+  tags: [k8s-kubelet-cadvisor]
+  exam: {cert: pca, domain: P2, competency: "Configuration and Scraping"}
+  q: "A team installs kube-prometheus on a cluster whose kubelets accept client certificates only. What does the kube-prometheus README say the kubelets need, so that Prometheus can scrape them with a token?"
+  options:
+    - text: "A Service in front of the kubelets, made by hand"
+      why: "The operator creates that Service; it does not change how the kubelet checks callers."
+    - text: "Webhook token authentication and webhook authorization"
+      why: "With both, the kubelet accepts service account tokens and asks the API server whether the caller may read /metrics."
+    - text: "Plain HTTP on port 10255 instead of HTTPS"
+      why: "The README asks for token checks on the secure port, not for an open port."
+    - text: "A ClusterRole that allows list on all nodes"
+      why: "The kubelet maps /metrics to the subresource nodes/metrics, so the role needs get on that, not list on nodes."
+  answer: [1]
+  source: https://github.com/prometheus-operator/kube-prometheus
+
+- id: q-m06-007
+  tags: [k8s-kubelet-cadvisor]
+  exam: {cert: none}
+  q: "<code>container_memory_working_set_bytes{pod=\"api-7c9\"}</code> returns three series: one with <code>container=\"api\"</code>, one with an empty container label, and one with the pause image. What are the last two?"
+  options:
+    - text: "Two older containers of the pod that have exited"
+      why: "Exited containers' series go stale; these two belong to the running pod."
+    - text: "Copies of one series from two kubelet endpoints"
+      why: "All three come from the cAdvisor endpoint; the difference is the container label."
+    - text: "The total of the whole pod, and its sandbox"
+      why: "cAdvisor reports the pod's cgroup as a whole and the pause container beside each real container."
+    - text: "Init containers that ran before the pod started"
+      why: "Init containers have names of their own; they do not show an empty container label."
+  answer: [2]
+  source: https://github.com/google/cadvisor/blob/master/docs/storage/prometheus.md
+
+- id: q-m06-008
+  tags: [k8s-kubelet-cadvisor, k8s-kube-state-metrics]
+  exam: {cert: none}
+  q: "A team wants a graph of how close each container is to its CPU limit. cAdvisor gives the usage. Which metric gives the limit as written in the pod spec?"
+  options:
+    - text: "container_cpu_usage_seconds_total"
+      why: "That counter is the usage itself, not the limit."
+    - text: "node_cpu_seconds_total"
+      why: "Node exporter reports the machine's CPUs, not a container's limit."
+    - text: "kube_node_status_allocatable{resource=\"cpu\"}"
+      why: "That is the CPU the node offers to pods, not one container's limit."
+    - text: "kube_pod_container_resource_limits"
+      why: "kube-state-metrics reports the limits from the pod spec, with resource and unit labels."
+  answer: [3]
+  source: https://github.com/kubernetes/kube-state-metrics/blob/v2.20.0/docs/metrics/workload/pod-metrics.md
+
+- id: q-m06-009
+  tags: [k8s-kube-state-metrics, exporter-standard]
+  exam: {cert: pca, domain: P4, competency: "Exporters"}
+  q: "A pod has been Pending for twenty minutes because no node has room. cAdvisor has no series for it. Which kube-state-metrics series shows the problem?"
+  options:
+    - text: "kube_pod_status_phase with phase=\"Pending\" at 1"
+      why: "kube-state-metrics reports the phase from the API, whether or not a container ever started."
+    - text: "kube_pod_container_status_restarts_total rising"
+      why: "A pod that never started has nothing to restart."
+    - text: "kube_pod_container_status_last_terminated_reason"
+      why: "Nothing has terminated; the containers never ran."
+    - text: "kube_node_status_condition, condition=\"Ready\""
+      why: "The nodes are Ready; they only lack room for this pod."
+  answer: [0]
+  source: https://github.com/kubernetes/kube-state-metrics/blob/v2.20.0/docs/metrics/workload/pod-metrics.md
+
+- id: q-m06-010
+  tags: [k8s-kube-state-metrics, exporter-standard]
+  exam: {cert: pca, domain: P4, competency: "Exporters"}
+  q: "You want each pod's Kubernetes label <code>team</code> in PromQL, but <code>kube_pod_labels</code> returns nothing. What is missing?"
+  options:
+    - text: "A relabeling rule in the kube-state-metrics ServiceMonitor"
+      why: "Relabeling cannot add labels that kube-state-metrics never exposed."
+    - text: "The key team in --metric-labels-allowlist for pods"
+      why: "Labels metrics are off by default; the allowlist names the keys to expose."
+    - text: "A newer kube-state-metrics that supports pod labels"
+      why: "The feature exists; it stays off until you list the keys."
+    - text: "A PodMonitor that scrapes the pods' own labels"
+      why: "Pod labels come from the API, which kube-state-metrics reads, not from the pods."
+  answer: [1]
+  source: https://github.com/kubernetes/kube-state-metrics/blob/v2.20.0/docs/developer/cli-arguments.md
+
+- id: q-m06-011
+  tags: [k8s-kube-state-metrics, exporter-standard]
+  exam: {cert: pca, domain: P4, competency: "Exporters"}
+  q: "On <code>kube_deployment_spec_replicas{deployment=\"cart\"}</code> the <code>pod</code> label names the kube-state-metrics pod, while on <code>kube_pod_info</code> it names the cart pod. Why?"
+  options:
+    - text: "kube-state-metrics puts its own pod name on every series"
+      why: "On pod metrics it writes the object's pod name, and that value is kept."
+    - text: "The Deployment series is left over from a deleted pod"
+      why: "Series of deleted objects leave the page; this one is current."
+    - text: "It has no pod label, so the target's own pod label is added"
+      why: "Prometheus attaches target labels where a scraped series has none; honor_labels only matters on a conflict."
+    - text: "Prometheus renamed the object's pod label to exported_pod"
+      why: "With honor_labels true nothing is renamed, and kube_pod_info keeps the cart pod."
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m06-012
+  tags: [k8s-node-exporter, exporter-standard]
+  exam: {cert: pca, domain: P4, competency: "Exporters"}
+  q: "Which node exporter metric tells you how long tasks on a node waited for a CPU, rather than how busy the CPUs were?"
+  options:
+    - text: "node_cpu_seconds_total with mode=\"idle\""
+      why: "Idle time measures how busy the CPUs were, not waiting."
+    - text: "node_load1 divided by the number of CPUs"
+      why: "The load average counts tasks; it is not a time spent waiting."
+    - text: "node_memory_MemAvailable_bytes"
+      why: "That is free memory, not CPU."
+    - text: "node_pressure_cpu_waiting_seconds_total"
+      why: "The pressure collector reads stall time from /proc/pressure: time tasks waited for a CPU."
+  answer: [3]
+  source: https://github.com/prometheus/node_exporter/blob/v1.12.1/README.md
+
+- id: q-m06-013
+  tags: [k8s-node-exporter, exporter-standard]
+  exam: {cert: pca, domain: P4, competency: "Exporters"}
+  q: "On a node, <code>node_memory_MemTotal_bytes</code> is 5.79 GiB and <code>kube_node_status_allocatable{resource=\"memory\"}</code> is 5.69 GiB. Why do they differ?"
+  options:
+    - text: "Allocatable keeps back reserves and an eviction margin"
+      why: "Allocatable is capacity minus any reserves and the hard eviction threshold, which is 100Mi of memory by default."
+    - text: "Node exporter counts swap space into the total"
+      why: "MemTotal is the kernel's memory figure, not swap."
+    - text: "kube-state-metrics rounds memory down to whole MiB"
+      why: "The difference is about 100 MiB, far more than rounding."
+    - text: "Allocatable leaves out what pods use right now"
+      why: "Allocatable is a fixed amount from the node's status, not current use."
+  answer: [0]
+  source: https://v1-35.docs.kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/
+
+- id: q-m06-014
+  tags: [k8s-node-exporter, exporter-standard]
+  exam: {cert: pca, domain: P4, competency: "Exporters"}
+  q: "Node exporter series in the lab carry <code>instance=\"10.10.0.30:9100\"</code> and no node name. Which node exporter series gives you the node's name?"
+  options:
+    - text: "node_exporter_build_info, from its pod label"
+      why: "The pod label names the exporter's own pod, not the node."
+    - text: "node_uname_info, from its nodename label"
+      why: "The uname collector exposes the system information that includes the host name."
+    - text: "node_cpu_seconds_total, from its cpu label"
+      why: "The cpu label numbers the CPUs; it does not name the machine."
+    - text: "node_filesystem_avail_bytes, from its device"
+      why: "The device label names disks, not the node."
+  answer: [1]
+  source: https://github.com/prometheus/node_exporter/blob/v1.12.1/README.md
+
+- id: q-m06-015
+  tags: [k8s-prometheus-stack]
+  exam: {cert: pca, domain: P2, competency: "Configuration and Scraping"}
+  q: "After <code>helm uninstall</code> of kube-prometheus-stack, <code>kubectl get crd</code> still lists servicemonitors.monitoring.coreos.com. Why?"
+  options:
+    - text: "The uninstall failed half-way and must be run again"
+      why: "The uninstall worked; the CRDs stay on purpose."
+    - text: "Another release in the cluster still owns the CRD"
+      why: "Nothing else needs to own it for it to stay."
+    - text: "The chart's CRDs are not removed on uninstall"
+      why: "The chart's README says its CRDs stay and must be deleted by hand."
+    - text: "The operator puts the CRD back every few minutes"
+      why: "The operator left with the release; the CRD stayed on its own."
+  answer: [2]
+  source: https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/README.md
+
+- id: q-m06-016
+  tags: [k8s-prometheus-stack]
+  exam: {cert: none}
+  q: "kube-prometheus-stack installs the core of the kube-prometheus project. Which two of its components does the chart leave out?"
+  options:
+    - text: "Alertmanager and node exporter on every node"
+      why: "The chart installs both."
+    - text: "kube-state-metrics and the Grafana subchart"
+      why: "Both are dependencies the chart installs by default."
+    - text: "The Prometheus Operator and its ten CRDs"
+      why: "The operator is the centre of the chart."
+    - text: "The Prometheus Adapter and the blackbox exporter"
+      why: "The README names these two as not installed."
+  answer: [3]
+  source: https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/README.md
+
+- id: q-m06-017
+  tags: [k8s-prometheus-stack, prom-operator]
+  exam: {cert: pca, domain: P2, competency: "Configuration and Scraping"}
+  q: "<code>helm get manifest</code> of kube-prometheus-stack lists a <code>Prometheus</code> object but no StatefulSet, yet a Prometheus StatefulSet runs. Where does it come from?"
+  options:
+    - text: "The operator, from the Prometheus resource"
+      why: "For each Prometheus resource the operator deploys StatefulSets in the same namespace."
+    - text: "A post-install hook of the chart created it"
+      why: "Hooks belong to the release; the operator made this object."
+    - text: "Helm hides StatefulSets from the manifest output"
+      why: "helm get manifest shows every object the chart rendered."
+    - text: "The kubelet started it from a static pod file"
+      why: "Static pods are for the control plane, not for Prometheus."
+  answer: [0]
+  source: https://prometheus-operator.dev/docs/getting-started/design/
+
+- id: q-m06-018
+  tags: [k8s-prometheus-stack]
+  exam: {cert: none}
+  q: "What does the first part, <code>node_namespace_pod_container</code>, of the recording rule <code>node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m</code> tell you?"
+  options:
+    - text: "The order in which the rule's queries run"
+      why: "A rule's name does not describe run order."
+    - text: "The labels kept in the rule's result"
+      why: "The level part names the aggregation level and the labels of the rule's output."
+    - text: "The jobs whose targets the rule reads"
+      why: "Jobs are chosen in the expression, not named in the level."
+    - text: "The dashboards that use the rule's result"
+      why: "Dashboard use is not part of a rule's name."
+  answer: [1]
+  source: https://prometheus.io/docs/practices/rules/
+
+- id: q-m06-019
+  tags: [k8s-prometheus-stack]
+  exam: {cert: none}
+  q: "To save series, a team drops the stack's recording rules. The next day the Compute Resources dashboards are blank. Why?"
+  options:
+    - text: "Grafana caches each panel's query for a day"
+      why: "Grafana runs the queries again on every refresh."
+    - text: "Dropping the rules deleted the dashboards' ConfigMaps"
+      why: "The ConfigMaps are separate objects and stay."
+    - text: "The mixins' dashboards read the recording rules"
+      why: "Mixin dashboards need their recording rules; without them the panels have no data."
+    - text: "Prometheus refuses queries once rules are removed"
+      why: "Prometheus answers; the series those panels ask for no longer exist."
+  answer: [2]
+  source: https://github.com/prometheus/node_exporter/blob/master/docs/node-mixin/README.md
+
+- id: q-m06-020
+  tags: [k8s-prometheus-stack]
+  exam: {cert: none}
+  q: "Where do most of the alerts and dashboards that kube-prometheus-stack installs come from originally?"
+  options:
+    - text: "The chart's maintainers write them for the chart"
+      why: "The chart copies them; its README says changes belong upstream."
+    - text: "The operator generates them from ServiceMonitors"
+      why: "ServiceMonitors become scrape jobs, not alerts or dashboards."
+    - text: "They ship with the Grafana and Prometheus releases"
+      why: "Neither application ships Kubernetes alerts or dashboards."
+    - text: "Monitoring mixins such as the kubernetes-mixin"
+      why: "kube-prometheus takes many of its dashboards and alerts from the kubernetes-mixin."
+  answer: [3]
+  source: https://github.com/prometheus-operator/kube-prometheus
+
+- id: q-m06-021
+  tags: [k8s-monitoring-chart]
+  exam: {cert: none}
+  q: "In the k8s-monitoring chart, a collector for pod logs runs as a DaemonSet but finds no log files. Which preset is it missing?"
+  options:
+    - text: "filesystem-log-reader"
+      why: "This preset mounts the node's /var/log, so the collector can read the pods' log files."
+    - text: "clustered and statefulset"
+      why: "These share scrape work between replicas of a StatefulSet; they mount nothing."
+    - text: "deployment and singleton"
+      why: "These run one replica as a Deployment; a logs collector needs one pod per node."
+    - text: "privileged"
+      why: "Privileged gives root and host PID access for profilers; it mounts no log directory."
+  answer: [0]
+  source: https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/helm-chart-config/helm-chart/collector-reference/
+
+- id: q-m06-022
+  tags: [k8s-monitoring-chart]
+  exam: {cert: none}
+  q: "A team already writes ServiceMonitors and wants Alloy from the k8s-monitoring chart to scrape them. Which feature does that?"
+  options:
+    - text: "clusterMetrics"
+      why: "Cluster metrics covers the kubelet, cAdvisor, kube-state-metrics and the control plane."
+    - text: "prometheusOperatorObjects"
+      why: "This feature gathers metrics from objects such as ServiceMonitors and PodMonitors."
+    - text: "annotationAutodiscovery"
+      why: "This feature looks for special annotations on pods and Services."
+    - text: "applicationObservability"
+      why: "This feature opens receivers for telemetry that applications push."
+  answer: [1]
+  source: https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/helm-chart-config/helm-chart/
+
+- id: q-m06-023
+  tags: [k8s-monitoring-chart]
+  exam: {cert: none}
+  q: "A k8s-monitoring destination has <code>type: prometheus</code>. What does that type name?"
+  options:
+    - text: "The product the data must end up in"
+      why: "The type names a protocol, not a product."
+    - text: "The format the logs are written in"
+      why: "A prometheus destination carries metrics."
+    - text: "A protocol: remote write of metrics"
+      why: "Destination types name a protocol; prometheus sends with remote write."
+    - text: "A Prometheus server the chart installs"
+      why: "A destination only points at an address; it installs nothing."
+  answer: [2]
+  source: https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/helm-chart-config/helm-chart/
+
+- id: q-m06-024
+  tags: [k8s-monitoring-chart, k8s-logs-events]
+  exam: {cert: none}
+  q: "Pods of the Deployment checkout carry the label <code>app.kubernetes.io/name=checkout</code> and the annotation <code>resource.opentelemetry.io/service.name=shop-checkout</code>. Which service_name does the Pod Logs feature give their lines?"
+  options:
+    - text: "checkout, from the pod label"
+      why: "The label comes second; the annotation wins."
+    - text: "The name of the container"
+      why: "The container name is the last fallback."
+    - text: "checkout, from the Deployment's name"
+      why: "The default chain does not use the owner's name."
+    - text: "shop-checkout, from the annotation"
+      why: "The annotation comes first and takes precedence in every mode."
+  answer: [3]
+  source: https://github.com/grafana/k8s-monitoring-helm/blob/main/charts/k8s-monitoring/charts/feature-pod-logs-via-loki/README.md
+
+- id: q-m06-025
+  tags: [k8s-logs-events]
+  exam: {cert: none}
+  q: "In Loki, <code>{pod=\"web-5d8\"}</code> returns nothing, but <code>{namespace=\"web\"} | pod=\"web-5d8\"</code> returns the pod's lines. What does that show?"
+  options:
+    - text: "pod is structured metadata, not a stream label"
+      why: "Structured metadata is filtered after the stream selector, as the second query does."
+    - text: "The pod's logs are still in the kubelet's buffer"
+      why: "The second query found them, so they are in Loki."
+    - text: "Loki needs a namespace in every stream selector"
+      why: "Any stream label works; pod just is not one here."
+    - text: "The first query ran over the wrong time range"
+      why: "Both queries cover the same range; only the selector differs."
+  answer: [0]
+  source: https://grafana.com/docs/loki/latest/get-started/labels/structured-metadata/
+
+- id: q-m06-026
+  tags: [k8s-logs-events]
+  exam: {cert: none}
+  q: "A team wants last week's Kubernetes events searchable next to their logs. Which feature of the k8s-monitoring chart do they switch on?"
+  options:
+    - text: "podLogsViaLoki"
+      why: "That feature reads the pods' log files; events are not in those files."
+    - text: "clusterEvents"
+      why: "It collects events from the API server and sends them as log lines."
+    - text: "nodeLogs"
+      why: "Node logs come from the node itself, not from the event API."
+    - text: "clusterMetrics"
+      why: "Cluster metrics are numbers; events need a logs destination."
+  answer: [1]
+  source: https://github.com/grafana/k8s-monitoring-helm/blob/main/charts/k8s-monitoring/charts/feature-cluster-events/README.md
+
+- id: q-m06-027
+  tags: [k8s-use-red]
+  exam: {cert: none}
+  q: "Two thirds of a cluster's CoreDNS answers have <code>rcode=\"NXDOMAIN\"</code>. A colleague wants every answer other than NOERROR to count as an error in CoreDNS's RED view. What is wrong with that?"
+  options:
+    - text: "CoreDNS does not count its answers by response code"
+      why: "coredns_dns_responses_total has an rcode label."
+    - text: "RED does not apply to DNS servers"
+      why: "DNS has requests and responses, so rate, errors and duration all apply."
+    - text: "Search-list misses are NXDOMAIN, not failures"
+      why: "A pod's search list tries several suffixes first, and each miss is an NXDOMAIN, so most of them are normal traffic."
+    - text: "NXDOMAIN answers are cached and never counted"
+      why: "They are counted; the counter shows two thirds of all answers."
+  answer: [2]
+  source: https://v1-35.docs.kubernetes.io/docs/concepts/services-networking/dns-pod-service/
+
+- id: q-m06-028
+  tags: [k8s-use-red]
+  exam: {cert: none}
+  q: "In the USE method, which of these is a saturation measure of a node's CPU?"
+  options:
+    - text: "The share of time the CPUs were not idle"
+      why: "That is utilization: how busy the resource is."
+    - text: "The number of CPUs the node has"
+      why: "That is capacity, not saturation."
+    - text: "The number of failed requests on the node"
+      why: "Requests and their failures belong to RED."
+    - text: "The load average per CPU"
+      why: "Saturation is work that waits, such as a queue length or the load."
+  answer: [3]
+  source: https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/best-practices/
+
+- id: q-m06-029
+  tags: [k8s-use-red, k8s-kubelet-cadvisor]
+  exam: {cert: none}
+  q: "An application exposes no metrics of its own. What can cAdvisor give you for its RED view?"
+  options:
+    - text: "Nothing for RED; only resource usage"
+      why: "cAdvisor sees CPU, memory, disk and network per container, not requests."
+    - text: "Rate and duration, but no errors"
+      why: "cAdvisor never sees requests, so it has neither."
+    - text: "Errors only, from the restart count"
+      why: "Restarts are not request errors, and cAdvisor does not count them."
+    - text: "All three, from network bytes per container"
+      why: "Bytes are not requests; they say nothing of failures or latency."
+  answer: [0]
+  source: https://github.com/google/cadvisor/blob/master/docs/storage/prometheus.md
+
+- id: q-m06-030
+  tags: [k8s-control-plane]
+  exam: {cert: none}
+  q: "On a kubeadm cluster with kube-prometheus-stack, <code>up{job=\"kube-scheduler\"}</code> returns no series at all, and no scheduler alert exists. What is the most likely cause?"
+  options:
+    - text: "The scheduler binds to 127.0.0.1, so its target is down"
+      why: "A down target still has up at 0; here the job does not exist."
+    - text: "kubeScheduler.enabled is false in the chart's values"
+      why: "With the switch off, the chart creates neither the ServiceMonitor nor the scheduler's alert rules."
+    - text: "The scheduler has crashed on all three masters"
+      why: "Without a ServiceMonitor there is no job, healthy scheduler or not."
+    - text: "Prometheus may not read the scheduler's metrics"
+      why: "A permission error leaves a target that is down, not a missing job."
+  answer: [1]
+  source: https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.1.1/charts/kube-prometheus-stack/values.yaml
+
+- id: q-m06-031
+  tags: [k8s-control-plane]
+  exam: {cert: none}
+  q: "etcd's own metrics are not scraped. Which API server metric still tells you how long etcd takes to answer?"
+  options:
+    - text: "apiserver_request_total"
+      why: "This counts the API server's own requests by code, not etcd's latency."
+    - text: "apiserver_request_duration_seconds"
+      why: "That is the API server's own request latency, which covers more than etcd."
+    - text: "etcd_request_duration_seconds"
+      why: "The API server records the latency of its etcd requests per operation and object type."
+    - text: "etcd_server_has_leader"
+      why: "That is etcd's own metric, available only when etcd is scraped."
+  answer: [2]
+  source: https://v1-35.docs.kubernetes.io/docs/reference/instrumentation/metrics/
+
+- id: q-m06-032
+  tags: [k8s-control-plane]
+  exam: {cert: none}
+  q: "One etcd member reports <code>etcd_server_has_leader 0</code>. What does that mean for the member?"
+  options:
+    - text: "It is the leader and has no followers"
+      why: "The metric is 1 when a leader exists, including on the leader."
+    - text: "Its disk is slow and its fsyncs are late"
+      why: "Disk latency shows in the etcd_disk_* histograms."
+    - text: "It holds the newest copy of the data"
+      why: "The metric is about leadership, not data."
+    - text: "It has no leader and is unavailable"
+      why: "A member without a leader is totally unavailable."
+  answer: [3]
+  source: https://etcd.io/docs/v3.6/metrics/
+
+- id: q-m06-033
+  tags: [k8s-resources]
+  exam: {cert: none}
+  q: "A container's CPU usage is flat at 0.2 cores, its limit is 0.2, and the ratio of throttled to total CFS periods is 0.6. Requests are slow. Which change helps?"
+  options:
+    - text: "Raise or remove the CPU limit"
+      why: "The kernel holds the container to its limit; a higher limit lets it run longer in each period."
+    - text: "Raise only the CPU request"
+      why: "The request decides placement and sharing under contention, not the ceiling."
+    - text: "Raise the memory limit"
+      why: "Memory does not cause CPU throttling."
+    - text: "Add a liveness probe to restart it"
+      why: "A restart keeps the same limit, so the throttling comes back."
+  answer: [0]
+  source: https://v1-35.docs.kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+- id: q-m06-034
+  tags: [k8s-resources]
+  exam: {cert: none}
+  q: "A pod restarts every few minutes. <code>kube_pod_container_status_last_terminated_reason</code> says OOMKilled, but its working set graph never gets near the 64Mi limit. How do both fit?"
+  options:
+    - text: "The working set is in KiB and the limit in MiB"
+      why: "Both are in bytes."
+    - text: "It dies between scrapes, so no sample shows the peak"
+      why: "Usage is sampled on a schedule; a container killed seconds after it starts leaves no sample of its peak."
+    - text: "kube-state-metrics reports another container's reason"
+      why: "The reason belongs to this container in this pod."
+    - text: "A node-wide shortage killed it, not its limit"
+      why: "A node-wide shortage would hit other pods too; the reason and the restarts point at this container."
+  answer: [1]
+  source: https://v1-35.docs.kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/
+
+- id: q-m06-035
+  tags: [k8s-resources]
+  exam: {cert: none}
+  q: "<code>kubectl describe pod</code> shows Last State Terminated, Reason OOMKilled, Exit Code 137. What happened?"
+  options:
+    - text: "A failed liveness probe made the kubelet kill it"
+      why: "A probe kill has its own event; OOMKilled names the memory limit."
+    - text: "The node ran out of disk and evicted the pod"
+      why: "An eviction ends the pod, and its reason says Evicted."
+    - text: "It went over its memory limit and was killed"
+      why: "The kernel killed it for using more memory than its limit."
+    - text: "It used more CPU than its CPU limit allowed"
+      why: "A CPU limit throttles; it never kills."
+  answer: [2]
+  source: https://v1-35.docs.kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/
+
+- id: q-m06-036
+  tags: [k8s-probes]
+  exam: {cert: none}
+  q: "A container's restart count rises every half minute, and its events say <code>Liveness probe failed</code>. What is the kubelet doing?"
+  options:
+    - text: "Taking the pod out of its Service, then back in"
+      why: "That is what a readiness probe does, and it never restarts."
+    - text: "Waiting for a startup probe before the others"
+      why: "A startup probe holds the others back; it does not explain restarts after the start."
+    - text: "Evicting the pod because the node is short of memory"
+      why: "An eviction ends the pod; it does not restart one container."
+    - text: "Killing the container, which restarts by its policy"
+      why: "A failing liveness probe gets the container killed and restarted."
+  answer: [3]
+  source: https://v1-35.docs.kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
+
+- id: q-m06-037
+  tags: [k8s-probes]
+  exam: {cert: none}
+  q: "A Deployment has three replicas. <code>prober_probe_total{probe_type=\"Readiness\", result=\"failed\"}</code> rises for one of its pods only. What happens to the Service's traffic?"
+  options:
+    - text: "It goes to the two pods that pass their probe"
+      why: "The failing pod leaves the Service's endpoints; the other two keep serving."
+    - text: "It stops for all three pods until the probe passes"
+      why: "Readiness is per pod; the other two stay in the endpoints."
+    - text: "It reaches all three, because the pod is Running"
+      why: "Running is not Ready; the failing pod gets no traffic through the Service."
+    - text: "It moves to a new pod the Deployment starts"
+      why: "A failing readiness probe does not make the Deployment start a replacement."
+  answer: [0]
+  source: https://v1-35.docs.kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
+
+- id: q-m06-038
+  tags: [k8s-probes]
+  exam: {cert: none}
+  q: "A Java service needs two minutes to start. Its liveness probe kills it after 30 seconds, again and again. What does the Kubernetes documentation suggest?"
+  options:
+    - text: "Remove the liveness probe and rely on readiness"
+      why: "Readiness never restarts a container that hangs later."
+    - text: "Add a startup probe for the slow start"
+      why: "The other probes wait until the startup probe succeeds, so liveness no longer kills the start."
+    - text: "Lower the memory limit so it starts faster"
+      why: "Less memory does not make a slow start faster."
+    - text: "Raise periodSeconds of the readiness probe"
+      why: "The readiness probe does not kill the container."
+  answer: [1]
+  source: https://v1-35.docs.kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+
+- id: q-m06-039
+  tags: [k8s-control-plane]
+  exam: {cert: none}
+  q: "<code>KubeSchedulerDown</code> fires on a kubeadm cluster where the scheduler pods run and pods get scheduled. Its expression is <code>absent(up{job=\"kube-scheduler\"})</code>. What does Prometheus see?"
+  options:
+    - text: "Scheduler targets that it finds but cannot connect to"
+      why: "Targets that do not answer have up at 0, and 0 is not absent; that is what TargetDown reports."
+    - text: "No scheduler target at all, for instance a Service matching no pod"
+      why: "absent() is true only when no series with that job exists: discovery found nothing to scrape."
+    - text: "Scheduler targets that answer with an HTTP 403 error"
+      why: "A refused scrape still makes a target with up at 0, so absent() stays empty."
+    - text: "A scheduler that crashed and lost its leader lease"
+      why: "The pods run and pods get scheduled, so the scheduler is working."
+  answer: [1]
+  source: https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.1.1/charts/kube-prometheus-stack/templates/prometheus/rules-1.14/kubernetes-system-scheduler.yaml
