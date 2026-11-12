@@ -1,0 +1,131 @@
+---
+id: m04-s07
+title: Classic histograms and histogram_quantile()
+kind: lab
+minutes: 25
+order: 7
+exam:
+  - cert: pca
+    domain: P3
+    competency: Histograms
+tags: [promql-histograms]
+check:
+  kind: range
+  prompt: What does the histogram_quantile() query of action 4 return, in seconds?
+  min: 0.085
+  max: 0.1
+outcome: You can estimate a percentile from a classic histogram with histogram_quantile(), aggregate it correctly across instances, compute an average and a share under a threshold, and judge how far the estimate can be off.
+terms:
+  - term: histogram_quantile()
+    def: A function that estimates a quantile from the bucket counters of a histogram.
+  - term: le
+    def: The label of a bucket series that holds the bucket's inclusive upper bound, "less or equal".
+  - term: Quantile
+    def: The value below which a given share of observations falls; the 0.9-quantile is the 90th percentile.
+  - term: Linear interpolation
+    def: The assumption that observations are spread evenly inside a bucket, used to estimate a quantile.
+sources:
+  - title: Query functions, histogram_quantile() (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+  - title: Histograms and summaries (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/histograms/
+    checked: 2026-11-12
+---
+
+<Problem>
+Users say the Prometheus screen feels slow. The average request time is half a millisecond, which looks fine, but an average hides the slow tail. You want the 90th percentile: the time that nine requests out of ten stay under. Prometheus keeps no list of request times, only bucket counters.
+</Problem>
+
+<Idea>
+A classic histogram counts observations into cumulative buckets, one counter series per upper bound, in the label `le`. `histogram_quantile()` takes the per-second rate of those buckets and estimates where a quantile falls, by assuming that observations are spread evenly inside each bucket. The estimate is only as precise as the buckets are narrow.
+</Idea>
+
+## Buckets are counters, so start with rate()
+
+Module m03 showed the three kinds of series a classic histogram writes: `_bucket` with an `le` label per bound, `_sum` and `_count`. Each bucket counts every observation at or below its bound since the process started, so the `+Inf` bucket always equals `_count`.
+
+Totals since start-up say nothing about the last five minutes, so the first move is the one from step 3: take `rate()` of the buckets. That gives, per bucket, how many observations per second fell at or below each bound recently. The documentation's pattern for the 90th percentile over ten minutes is:
+
+<Query lang="promql">{`histogram_quantile(0.9, rate(http_request_duration_seconds_bucket[10m]))`}</Query>
+
+The first argument is the quantile as a number between 0 and 1. This gives one result per series apart from `le`: per handler, per instance, per pod.
+
+## Aggregate with le kept
+
+To get one percentile for a whole service, you add up the buckets of all its instances before the function, after the rate. The function needs the `le` label to know which bucket is which, so `le` must survive the aggregation:
+
+<Query lang="promql">{`histogram_quantile(0.9, sum by (le) (rate(prometheus_http_request_duration_seconds_bucket[5m])))`}</Query>
+
+Add any label you want to keep per result, as in `sum by (job, le)`. If you write `sum(...)` without `le`, all buckets collapse into one series. The function then finds no bucket bounds and returns nothing; the query page shows a warning that the label `le` is missing.
+
+<Compare caption="Two ways to aggregate the buckets">
+  <Col title="sum(rate(..._bucket[5m]))">Buckets added into one series. le is gone, and histogram_quantile() returns nothing.</Col>
+  <Col title="sum by (le) (rate(..._bucket[5m]))" hot>One series per bound, all instances added up. histogram_quantile() can read the buckets.</Col>
+</Compare>
+
+## How the estimate is made, and how far off it can be
+
+The function finds the bucket where the quantile falls and assumes the observations inside it are spread evenly from its lower to its upper bound. The lowest bucket is assumed to start at 0. The true value can lie anywhere in that bucket, so the error is limited by the bucket's width.
+
+The lab shows how large that can be. Nearly all of Prometheus's HTTP requests take well under a millisecond, and its first bucket ends at 0.1 seconds. All of them land in that bucket, so the 90th percentile comes out at about 0.09 seconds: nine tenths of the way through a bucket from 0 to 0.1. With an average of half a millisecond, the real 90th percentile is almost certainly far lower. The answer is a fact about the buckets more than about the requests.
+
+Two more rules are easy to miss. The highest bucket must be `+Inf`. If the quantile falls into it, the function returns the upper bound of the second highest bucket, because a bucket without an upper bound cannot be interpolated. A target with no observations in the window gives NaN.
+
+## The average and a share under a threshold
+
+The `_sum` and `_count` series answer two other questions. The average duration is the rate of the sum divided by the rate of the count, and that division can be aggregated in the same way:
+
+<Query lang="promql">{`sum(rate(prometheus_http_request_duration_seconds_sum[5m])) / sum(rate(prometheus_http_request_duration_seconds_count[5m]))`}</Query>
+
+The share of requests faster than a bound is one bucket divided by the count: `sum(rate(x_bucket{le="0.1"}[5m])) / sum(rate(x_count[5m]))`. This works only if a bucket has exactly that bound. If it does not, the query returns nothing, with no estimate and no warning.
+
+<InLab>
+`prometheus_http_request_duration_seconds` has ten buckets in the lab: 0.1, 0.2, 0.4, 1, 3, 8, 20, 60 and 120 seconds, and `+Inf`. The API server's `apiserver_request_duration_seconds` is another classic histogram, with bounds of its own.
+</InLab>
+
+<Trap>
+A quantile from a classic histogram is an estimate within one bucket, never a measured value. When most observations sit in one wide bucket, the estimate lands near that bucket's upper end, even if the real values are much smaller.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. List the buckets of one handler: <Query lang="promql">{`prometheus_http_request_duration_seconds_bucket{handler="/-/ready"}`}</Query> Read the `le` values. The counts never fall from one bucket to the next.
+2. Compare the `+Inf` bucket with the count: <Query lang="promql">{`prometheus_http_request_duration_seconds_count{handler="/-/ready"}`}</Query> The two values are equal.
+3. Compute the average request time over five minutes: <Query lang="promql">{`sum(rate(prometheus_http_request_duration_seconds_sum[5m])) / sum(rate(prometheus_http_request_duration_seconds_count[5m]))`}</Query> It is a small fraction of a millisecond.
+4. Estimate the 90th percentile for the whole server: <Query lang="promql">{`histogram_quantile(0.9, sum by (le) (rate(prometheus_http_request_duration_seconds_bucket[5m])))`}</Query>
+5. Make the classic mistake: change `sum by (le)` to `sum`. The result is empty, and a warning says the label `le` is missing.
+6. Keep one percentile per handler: change `sum by (le)` to `sum by (le, handler)`. Handlers without requests in the window show NaN.
+7. Paste the result of action 4 in the check below.
+</Do>
+
+<Done>
+The 90th percentile came out near 0.09 seconds while the average was far below a millisecond, and dropping `le` from the aggregation emptied the result.
+</Done>
+
+<Trap practice>
+If action 4 is empty, look for `le` in the brackets after `by`. If it is NaN, there were no requests in the window: run any query once more and wait a minute.
+</Trap>
+
+<Remember>
+`histogram_quantile(φ, sum by (le) (rate(x_bucket[5m])))`: rate first, keep `le`, then estimate. The result is accurate only to the width of the bucket it falls in.
+</Remember>
+
+<Question id="q-m04-s07" answer="c">
+A latency histogram has the buckets 0.05, 0.1, 0.5, 1 and +Inf seconds. Almost every request takes between 0.12 and 0.15 seconds. About what does histogram_quantile(0.5, ...) return?
+
+- About 0.135 seconds, the middle of the real values
+
+  The function does not know the real values. It only knows that the observations are in the bucket from 0.1 to 0.5.
+
+- 0.5 seconds, the upper bound of the bucket
+
+  The function interpolates inside the bucket. It returns the upper bound only for a quantile in the +Inf bucket.
+
+- About 0.3 seconds, the middle of the bucket from 0.1 to 0.5
+
+  With almost all observations in that bucket, the median lands near its middle, because the function assumes an even spread.
+
+- 0.1 seconds, the lower bound of the bucket
+
+  0.1 would be returned only if the quantile fell at the very start of the bucket.
+</Question>
