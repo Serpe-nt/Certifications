@@ -1,0 +1,180 @@
+---
+id: m03-s08
+title: "Prometheus Operator: ServiceMonitor and PodMonitor"
+kind: lab
+minutes: 25
+order: 8
+exam:
+  - cert: pca
+    domain: P2
+    competency: Configuration and Scraping
+  - cert: pca
+    domain: P1
+    competency: Service Discovery
+tags: [prom-operator, prom-service-discovery]
+check:
+  kind: exact
+  prompt: Paste the value of the job label on the up series of your new target.
+  answers: ["example-app"]
+outcome: You can make Prometheus scrape a new service in Kubernetes by writing a ServiceMonitor, and find out why a target does not appear.
+terms:
+  - term: Prometheus Operator
+    def: A Kubernetes operator that runs Prometheus and writes its configuration from custom resources.
+  - term: Custom resource
+    def: A Kubernetes object of a kind that an extension adds to the API, such as ServiceMonitor.
+  - term: ServiceMonitor
+    def: A custom resource that tells Prometheus to scrape the pods behind Services that match its label selector.
+  - term: PodMonitor
+    def: A custom resource that tells Prometheus to scrape pods that match its label selector, without a Service.
+  - term: serviceMonitorSelector
+    def: The field of a Prometheus resource that decides which ServiceMonitors it uses.
+sources:
+  - title: Introduction (Prometheus Operator)
+    url: https://prometheus-operator.dev/docs/getting-started/introduction/
+    checked: 2026-11-12
+  - title: Design (Prometheus Operator)
+    url: https://prometheus-operator.dev/docs/getting-started/design/
+    checked: 2026-11-12
+  - title: Getting started, ServiceMonitor and PodMonitor (Prometheus Operator)
+    url: https://prometheus-operator.dev/docs/developer/getting-started/
+    checked: 2026-11-12
+  - title: Troubleshooting (Prometheus Operator)
+    url: https://prometheus-operator.dev/docs/platform/troubleshooting/
+    checked: 2026-11-12
+---
+
+<Problem>
+Your team deploys a new service with Helm. In the old setup, someone then opened a ticket so that the monitoring team would add a scrape job and its relabel rules to `prometheus.yml`. With twenty teams, that file became a queue. You want the scrape setup to ship with the service, in the same chart.
+</Problem>
+
+<Idea>
+The Prometheus Operator runs Prometheus in Kubernetes and writes its configuration for you. You describe what to scrape with Kubernetes objects, such as a ServiceMonitor that selects Services by label, and the operator turns them into scrape jobs with the discovery and relabeling of steps 6 and 7.
+</Idea>
+
+## Two kinds of custom resources
+
+The operator adds custom resources to the Kubernetes API. Some describe a running component: a `Prometheus` resource becomes a StatefulSet that runs Prometheus, an `Alertmanager` resource one that runs Alertmanager, and a `PrometheusAgent` resource runs Prometheus in agent mode (step 13). Others describe configuration:
+
+- `ServiceMonitor`: scrape the pods behind Services that match a label selector.
+- `PodMonitor`: scrape pods that match a label selector directly, without a Service.
+- `Probe`: probe ingresses or static targets through a prober, usually the blackbox exporter.
+- `ScrapeConfig`: anything the three above cannot express, such as targets outside the cluster.
+- `PrometheusRule`: recording and alerting rules. The operator loads them without restarting Prometheus.
+
+## How a ServiceMonitor finds pods
+
+A ServiceMonitor does not point at pods. It selects Services by their labels, and it names a port of that Service by its name. Kubernetes already keeps the list of pod addresses behind each Service, and Prometheus discovers those addresses. So one ServiceMonitor follows a Service through every scale-up and rollout.
+
+The `Prometheus` resource decides which ServiceMonitors it uses, with two fields: `serviceMonitorSelector` for their labels and `serviceMonitorNamespaceSelector` for their namespaces. An empty selector, `{}`, matches every object. A selector that is left out matches none, and a namespace selector that is left out means the Prometheus resource's own namespace only.
+
+<Flow caption="From a ServiceMonitor to a target">
+  <Stage title="ServiceMonitor" kicker="You write">Select Services by label, name a port.</Stage>
+  <Stage title="Operator" kicker="Generates">A scrape job with discovery and relabel rules.</Stage>
+  <Stage title="Prometheus" kicker="Reloads">Discovers the endpoints behind the Service.</Stage>
+  <Stage title="Target" kicker="Scraped">One per pod address, with namespace, pod and job labels.</Stage>
+</Flow>
+
+## What the operator writes
+
+For each endpoint of each ServiceMonitor, the operator adds one scrape job named `serviceMonitor/<namespace>/<name>/<index>`. The job keeps only the Services that match the selector and the port with the given name, and it copies the namespace, the Service, the pod and the container into labels. Unless the ServiceMonitor sets `jobLabel`, the `job` label gets the Service's name. The whole configuration lives in a Secret named after the Prometheus resource with the prefix `prometheus-`, and Prometheus loads each new version without a restart.
+
+A PodMonitor works the same way with the pod's labels and the pod's port names. Use it when there is no Service to select.
+
+<InLab>
+The lab's `Prometheus` resource, `prom-prometheus` in the namespace `prom`, has every selector set to `{}`. It uses every ServiceMonitor, PodMonitor, Probe, ScrapeConfig and PrometheusRule in every namespace, whatever their labels.
+</InLab>
+
+<Trap>
+With its default values, the `kube-prometheus-stack` chart's Prometheus only picks up ServiceMonitors that carry the same release label as the chart's own release. A ServiceMonitor without that label is ignored without an error. The lab turns that filter off; in your job, check `serviceMonitorSelector` first.
+</Trap>
+
+<Do>
+1. In your WSL terminal, with `KUBECONFIG` pointing at the lab, create the namespace for this step: <Cmd>kubectl create namespace learn-m03</Cmd>
+2. Save this as `m03-app.yaml`. It runs a small example application that serves metrics on port 8080, and a Service whose port is named `web`: <Cmd>{`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: example-app
+  namespace: learn-m03
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: example-app
+  template:
+    metadata:
+      labels:
+        app: example-app
+    spec:
+      containers:
+        - name: example-app
+          image: quay.io/brancz/prometheus-example-app:v0.5.0
+          ports:
+            - name: web
+              containerPort: 8080
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-app
+  namespace: learn-m03
+  labels:
+    app: example-app
+spec:
+  selector:
+    app: example-app
+  ports:
+    - name: web
+      port: 8080`}</Cmd>
+3. Apply it and wait for the pod: <Cmd>kubectl apply -f m03-app.yaml</Cmd> <Cmd>kubectl -n learn-m03 rollout status deploy/example-app</Cmd> On <LabLink to="prometheus" path="/targets">the targets page</LabLink>, nothing from `learn-m03` appears yet: no scrape job asks for it.
+4. Save this as `m03-servicemonitor.yaml`. It selects Services with the label `app: example-app` and scrapes their port named `web` every 15 seconds: <Cmd>{`apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: example-app
+  namespace: learn-m03
+spec:
+  selector:
+    matchLabels:
+      app: example-app
+  endpoints:
+    - port: web
+      interval: 15s`}</Cmd>
+5. Apply it: <Cmd>kubectl apply -f m03-servicemonitor.yaml</Cmd> Within a minute or two, <LabLink to="prometheus" path="/config">the configuration page</LabLink> shows a new job, `serviceMonitor/learn-m03/example-app/0`.
+6. Reload the targets page and type `learn-m03` in its search box. One target appears, with the state UP and the address of the pod on port 8080.
+7. On <LabLink to="prometheus" path="/query">the query page</LabLink>, run <Query lang="promql">{`up{namespace="learn-m03"}`}</Query> Read the labels of the result: `namespace`, `pod`, `service`, `endpoint` and `job`. Paste the value of `job` in the check below.
+8. Clean up: <Cmd>kubectl delete namespace learn-m03</Cmd> Within a minute or two the job disappears from the configuration page.
+</Do>
+
+<Done>
+A target from `learn-m03` was UP on the targets page, and its series carried `namespace`, `pod` and `job` labels you never wrote yourself.
+</Done>
+
+<Trap practice>
+The ServiceMonitor names the Service port by its name, `web`. Writing `port: "8080"` does not match it. If the target does not appear after two minutes, check that the Service has the label `app: example-app` and a port named `web`: <Cmd>kubectl -n learn-m03 get service example-app --show-labels</Cmd>
+</Trap practice>
+
+<Remember>
+A ServiceMonitor selects Services by label and a port by name; the operator turns it into a scrape job named `serviceMonitor/<namespace>/<name>/<index>`. Whether Prometheus uses it depends on the selectors of the Prometheus resource.
+</Remember>
+
+<Question id="q-m03-s08" answer="d">
+A batch of worker pods serves `/metrics` on a named port, but no Service selects them because nothing calls them. How do you have the Prometheus Operator scrape them?
+
+- Create a Service only so that a ServiceMonitor can select it
+
+  That works, but it adds an object nobody needs. The operator has a resource made for pods without a Service.
+
+- Add the pods' addresses to a Probe
+
+  A Probe sends targets to a prober, such as the blackbox exporter. It does not scrape the pods' own metrics.
+
+- Add a recording rule in a PrometheusRule
+
+  A PrometheusRule holds rules that run on stored data. It does not create scrape targets.
+
+- Write a PodMonitor that selects the pods by label
+
+  A PodMonitor selects pods directly and needs no Service in front of them.
+</Question>
