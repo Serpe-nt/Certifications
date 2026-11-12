@@ -525,7 +525,7 @@
 - id: q-m01-033
   tags: [ helm-repositories ]
   exam: { cert: none }
-  q: Your security team wants the chart's exact bytes pinned, not only its version name. What does Helm 4 offer?
+  q: Your security team wants the exact chart pinned, not only its version name. What does Helm 4 offer?
   options:
     - text: Install the OCI chart by its sha256 digest
       why: Helm 4 installs by digest and refuses a chart whose digest does not match.
