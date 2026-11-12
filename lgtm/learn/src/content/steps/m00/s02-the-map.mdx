@@ -1,0 +1,121 @@
+---
+id: m00-s02
+title: "The map: what each product does"
+kind: concept
+minutes: 10
+order: 2
+exam:
+  - cert: none
+tags: [lgtm-map]
+outcome: You can say which product in this course stores metrics, logs or traces, which one collects them, and which one shows them.
+terms:
+  - term: Telemetry
+    def: Data a system sends about itself, such as metrics, logs and traces.
+  - term: Backend
+    def: The service that stores telemetry and answers queries on it.
+  - term: Collector
+    def: A program that receives telemetry, changes it if needed, and sends it on.
+  - term: LGTM
+    def: Loki, Grafana, Tempo and Mimir, the four products of the stack.
+sources:
+  - title: What is OpenTelemetry?
+    url: https://opentelemetry.io/docs/what-is-opentelemetry/
+    checked: 2026-11-12
+  - title: Collector (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/
+    checked: 2026-11-12
+  - title: Introduction to Grafana Alloy
+    url: https://grafana.com/docs/alloy/latest/introduction/
+    checked: 2026-11-12
+  - title: Introduction to Grafana Mimir
+    url: https://grafana.com/docs/mimir/latest/introduction/
+    checked: 2026-11-12
+  - title: Loki overview
+    url: https://grafana.com/docs/loki/latest/get-started/overview/
+    checked: 2026-11-12
+  - title: About Grafana
+    url: https://grafana.com/docs/grafana/latest/introduction/
+    checked: 2026-11-12
+  - title: Prometheus overview
+    url: https://prometheus.io/docs/introduction/overview/
+    checked: 2026-11-12
+---
+
+<Problem>
+A colleague says: "The shop sends OTLP to the Collector, metrics land in Mimir, logs in Loki, traces in Tempo, and we look at all of it in Grafana." Six names in one sentence. If you cannot place each one, every later step starts with confusion.
+</Problem>
+
+This step is a map, not the course. It puts each name in its place so that later steps can go deep on one of them at a time.
+
+<Idea>
+The products split into three jobs. Some send or collect telemetry, some store it, and one shows it. OpenTelemetry and Alloy collect, Mimir, Loki and Tempo store, and Grafana shows.
+</Idea>
+
+## Collecting: OpenTelemetry and Alloy
+
+OpenTelemetry is an open standard and a set of tools for producing telemetry: traces, metrics and logs. Code and libraries use its SDKs to create telemetry, and they send it in its protocol, OTLP. OpenTelemetry does not store anything. It is not a backend.
+
+The OpenTelemetry Collector receives telemetry, processes it and exports it to one or more backends. It works with any vendor's backend. Grafana Alloy is Grafana's distribution of the Collector. It adds Prometheus pipelines and native support for Loki, so one Alloy can collect metrics, logs, traces and profiles.
+
+## Storing: one backend per signal
+
+Each signal has its own store, because each is shaped differently and is queried differently.
+
+- Mimir stores metrics for the long term. It speaks the Prometheus protocols, so you query it with PromQL, and it spreads its work over many machines.
+- Loki stores logs. It indexes only a small set of labels per log stream, not the text of each line, which keeps it cheap. You query it with LogQL.
+- Tempo stores traces: the path of one request through many services, made of spans.
+
+Prometheus is in the course too. It scrapes metrics from targets, stores them on its own disk and evaluates alert rules. In this lab it also sends what it scrapes on to Mimir.
+
+## Showing: Grafana
+
+Grafana stores no telemetry of its own. It queries the backends, draws dashboards, runs alerts and lets you explore metrics, logs and traces side by side. LGTM is short for the four Grafana Labs products: Loki, Grafana, Tempo and Mimir.
+
+<Layers caption="Three jobs, from the code to the screen">
+  <Layer title="Produce and collect">OpenTelemetry SDKs, the Collector, Alloy, Prometheus scraping.</Layer>
+  <Layer title="Store">Mimir for metrics, Loki for logs, Tempo for traces.</Layer>
+  <Layer title="Show" hot>Grafana: dashboards, Explore, alerts.</Layer>
+</Layers>
+
+## How the pieces connect
+
+A request in the shop makes a span, a few log lines and some counter updates. They travel as OTLP to a Collector, which splits them by signal and sends each to its store. You then open Grafana, which reads all three stores.
+
+<Flow caption="One signal's way through the stack">
+  <Stage title="Shop service" kicker="Produce">The OpenTelemetry SDK records spans, metrics and logs.</Stage>
+  <Stage title="Collector" kicker="Collect">Receives OTLP, adds labels, sends each signal on.</Stage>
+  <Stage title="Mimir, Loki, Tempo" kicker="Store">One backend per signal.</Stage>
+  <Stage title="Grafana" kicker="Show">Queries all three and links them.</Stage>
+</Flow>
+
+<InLab>
+The lab's Collector is called `otel-gateway` and runs in the namespace `otel`. Alloy runs in `alloy` and collects pod logs and Kubernetes events.
+</InLab>
+
+<Trap>
+Grafana is not a database. When a panel is empty, the data is missing in Mimir, Loki or Tempo, or the query is wrong. Grafana itself lost nothing.
+</Trap>
+
+<Remember>
+Collectors move telemetry, Mimir, Loki and Tempo store it, Grafana shows it.
+</Remember>
+
+<Question id="q-m00-s02" answer="b">
+Traces from the shop stop showing up in Grafana, while metrics and logs still arrive. Which part of the stack do you look at first?
+
+- Mimir, because it stores all three signals
+
+  Mimir stores metrics only. Traces have their own store.
+
+- Tempo, the backend that stores traces
+
+  Each signal has its own backend, and Tempo is the one for traces.
+
+- Grafana, because it keeps a copy of every trace
+
+  Grafana stores no telemetry. It queries the backends.
+
+- Loki, because traces are written as log lines
+
+  Loki stores logs. Traces go to their own backend.
+</Question>
