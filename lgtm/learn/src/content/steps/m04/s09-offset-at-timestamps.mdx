@@ -1,0 +1,126 @@
+---
+id: m04-s09
+title: "Time: offset, @ and timestamps"
+kind: lab
+minutes: 20
+order: 9
+exam:
+  - cert: pca
+    domain: P3
+    competency: Timestamp Metrics
+tags: [promql-time]
+check:
+  kind: range
+  prompt: What does the query of action 5 return, in seconds?
+  min: 59.9
+  max: 60.1
+outcome: You can compare now with the past using offset, pin a query to a fixed moment with @, and compute ages and durations from timestamps and metrics that hold Unix times.
+terms:
+  - term: offset
+    def: A modifier that shifts one selector back in time, such as x offset 1h.
+  - term: "@ modifier"
+    def: A modifier that evaluates one selector at a fixed Unix time, or at start() or end() of a range query.
+  - term: Unix time
+    def: Seconds since 1 January 1970 UTC, the unit of every timestamp in PromQL.
+  - term: time()
+    def: The evaluation time of the query, as a Unix time.
+  - term: timestamp()
+    def: The time of each sample of a vector, as a Unix time.
+sources:
+  - title: Querying basics, offset and @ modifiers (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/basics/
+    checked: 2026-11-12
+  - title: Query functions, time() and timestamp() (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+---
+
+<Problem>
+The Prometheus server answers 0.6 requests a second. Is that more than usual? You cannot tell from one number. You want the same rate as it was an hour ago, next to the current one. And for a node, you want to know how long ago it booted, but its exporter only gives a timestamp.
+</Problem>
+
+<Idea>
+PromQL measures time in seconds since 1970, and lets you move a selector in time. `offset` shifts it back by a duration, `@` pins it to a fixed moment, and `time()` and `timestamp()` give the current evaluation time and the time of each sample. With them, "compared with an hour ago" and "how long since" become subtractions.
+</Idea>
+
+## offset: the same selector, earlier
+
+`offset` follows a selector and shifts it back by a duration:
+
+<Query lang="promql">{`sum(rate(prometheus_http_requests_total[5m] offset 1h))`}</Query>
+
+This is the request rate as it was one hour ago. Subtract it from the current rate and you see the change. `offset` must come directly after the selector, inside the function. `sum(x) offset 5m` is refused, because an offset applies to a selector, not to the result of an expression. A negative offset looks forward in time, which is useful only when you evaluate a query in the past.
+
+## @: a fixed moment
+
+The `@` modifier evaluates one selector at a fixed Unix time instead of the query's own time. `up @ 1794480000` returns the value `up` had at that moment, however late you run the query. In a range query, `@ start()` and `@ end()` refer to the start and the end of the whole range, so every step of a graph can be compared with the same reference point. `@` and `offset` can be used together; the offset is then counted back from the `@` time.
+
+Like `offset`, `@` follows the selector directly. It is useful mainly in dashboards and in reports about a known incident.
+
+## Timestamps are numbers too
+
+Every timestamp in PromQL is a Unix time in seconds. `time()` returns the moment the query is evaluated. In a range query that is the time of each step, not the time you pressed the button. `timestamp(v)` returns, for each series, the time of the sample the query picked.
+
+Many metrics hold a Unix time as their value: `node_boot_time_seconds` is when the node booted, `process_start_time_seconds` is when a process started, `kube_node_created` is when the Kubernetes node object was created. A subtraction turns such a value into an age:
+
+<Query lang="promql">{`time() - node_boot_time_seconds`}</Query>
+
+This is each node's uptime in seconds. Divide by 3600 for hours.
+
+Functions such as `hour()`, `day_of_week()` and `day_of_month()` turn a Unix time into a part of a calendar date, in UTC. With no argument they use `time()`, so `hour()` is the current hour in UTC.
+
+<Timeline caption="Where offset and @ move a selector">
+  <Event at="@ 1794480000" title="Pinned">A fixed moment, whenever you run the query.</Event>
+  <Event at="offset 1h" title="One hour back">Counted from the evaluation time.</Event>
+  <Event at="time()" title="Now">The evaluation time, or each step of a graph.</Event>
+</Timeline>
+
+<InLab>
+The lab's Prometheus keeps about one day of data, so offsets of a few hours work and an offset of a week finds nothing. kube-state-metrics exposes `kube_node_created` for each of the seven nodes.
+</InLab>
+
+<Trap>
+`time()` is not the clock on the wall. In a graph, it is the time of each step, so `time() - x` is computed again for every point.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. Compare the current request rate with the one an hour ago: <Query lang="promql">{`sum(rate(prometheus_http_requests_total[5m])) - sum(rate(prometheus_http_requests_total[5m] offset 1h))`}</Query> A positive value means more requests now.
+2. Move the offset outside the function, as in `sum(rate(prometheus_http_requests_total[5m])) offset 1h`, and read the parse error.
+3. Compute the uptime of every node in hours: <Query lang="promql">{`(time() - node_boot_time_seconds) / 3600`}</Query>
+4. See how old the newest sample of kube-state-metrics is: <Query lang="promql">{`time() - timestamp(up{job="kube-state-metrics"})`}</Query> The value lies between 0 and 30 seconds, the scrape interval.
+5. Measure the gap between the newest sample and the newest sample one minute earlier: <Query lang="promql">{`timestamp(up{job="kube-state-metrics"}) - timestamp(up{job="kube-state-metrics"} offset 1m)`}</Query>
+6. Read the current hour in UTC with `hour()`, and compare it with your own clock.
+7. Paste the result of action 5 in the check below.
+</Do>
+
+<Done>
+You compared a rate with an hour ago, turned a boot time into an uptime, and measured the distance between two samples with `timestamp()` and `offset`.
+</Done>
+
+<Trap practice>
+If action 5 returns 0, both selectors have no offset. If it returns about 30, you wrote `offset 30s`. Without `timestamp()`, you subtract two values of `up` and get 0.
+</Trap>
+
+<Remember>
+`offset` and `@` follow a selector directly and move it in time. Timestamps are Unix seconds: subtract a timestamp from `time()` to get an age.
+</Remember>
+
+<Question id="q-m04-s09" answer="b">
+`cert_expiry_timestamp_seconds` holds the Unix time when a certificate expires. Which expression gives the number of days left?
+
+- `(cert_expiry_timestamp_seconds - time()) * 86400`
+
+  Multiplying turns seconds into a much larger number. A day has 86,400 seconds, so you divide.
+
+- `(cert_expiry_timestamp_seconds - time()) / 86400`
+
+  The difference is the seconds left until expiry, and 86,400 seconds make one day.
+
+- `(time() - cert_expiry_timestamp_seconds) / 86400`
+
+  This is negative while the certificate is still valid. It counts the days since expiry.
+
+- `timestamp(cert_expiry_timestamp_seconds) / 86400`
+
+  timestamp() returns when the sample was scraped, not the expiry time stored as its value.
+</Question>
