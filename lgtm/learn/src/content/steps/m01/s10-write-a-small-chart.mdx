@@ -1,0 +1,223 @@
+---
+id: m01-s10
+title: Write a small chart of your own
+kind: lab
+minutes: 30
+order: 10
+exam:
+  - cert: none
+tags: [helm-chart-structure, helm-templates]
+check:
+  kind: exact
+  prompt: Paste the greeting that the ConfigMap m01-hello-greeter holds.
+  answer: HELLO, HELM
+outcome: You can write a chart with values, a named template and if, range and with blocks, lint it, render it and install it.
+terms:
+  - term: helm lint
+    def: Checks a chart for errors and broken conventions before you install it.
+  - term: fullname
+    def: The usual name of a chart's objects, built from the release and the chart name.
+sources:
+  - title: Getting started with a chart template
+    url: https://helm.sh/docs/chart_template_guide/getting_started/
+    checked: 2026-11-12
+  - title: Named templates
+    url: https://helm.sh/docs/chart_template_guide/named_templates/
+    checked: 2026-11-12
+  - title: Flow control
+    url: https://helm.sh/docs/chart_template_guide/control_structures/
+    checked: 2026-11-12
+  - title: helm lint
+    url: https://helm.sh/docs/helm/helm_lint/
+    checked: 2026-11-12
+  - title: Labels and annotations (chart best practices)
+    url: https://helm.sh/docs/chart_best_practices/labels/
+    checked: 2026-11-12
+---
+
+<Problem>
+Reading templates is one thing. In a job you will be asked to package a small service of your own: a Deployment and its configuration, with a few settings that differ per environment. You learn the template language for real only by writing a chart, breaking it and fixing it.
+</Problem>
+
+<Idea>
+You write a chart called `greeter` with five files. It stores a greeting in a ConfigMap and runs the podinfo image, which shows that greeting. The templates use a named template for names and labels, a pipeline, and the `if`, `range` and `with` blocks from step 9.
+</Idea>
+
+## What the chart does
+
+`values.yaml` offers a greeting, a replica count, an image, a list of colours, extra labels, a debug switch and resources. The ConfigMap stores the greeting in upper case and one key per colour, and adds `logLevel: debug` only when `debug` is true. The Deployment runs `ghcr.io/stefanprodan/podinfo` and passes the greeting to it through the environment variable `PODINFO_UI_MESSAGE`, read from the ConfigMap. Its pod asks for 10m of CPU and 32Mi of memory.
+
+## Names and labels in one place
+
+`_helpers.tpl` defines `greeter.fullname`, the release name and the chart name joined by a dash and cut to 63 characters, because some Kubernetes name fields allow no more. The starter chart of `helm create` cuts its names the same way. It also defines `greeter.labels`, the standard labels Helm's best practices recommend: `app.kubernetes.io/name`, `app.kubernetes.io/instance`, `app.kubernetes.io/managed-by` and `helm.sh/chart`. Both templates use the same helpers, so the names always agree.
+
+<Flow caption="How one value reaches the page">
+  <Stage title="values.yaml" kicker="Value">greeting: hello, helm</Stage>
+  <Stage title="ConfigMap" kicker="Template">upper and quote give "HELLO, HELM"</Stage>
+  <Stage title="Deployment" kicker="Template">Env PODINFO_UI_MESSAGE from the ConfigMap.</Stage>
+</Flow>
+
+## Lint, render, install
+
+`helm lint` reads the chart and reports errors that would break the install and warnings about conventions. For this chart it reports one note, that `Chart.yaml` has no icon, and no error. `helm template` shows the YAML, and `--set debug=true` lets you see the `if` block switch on. Then install it like any chart, from the folder.
+
+<Trap>
+YAML indentation inside templates is easy to break. When a block of labels lands at the wrong depth, the fault is almost always a missing or wrong `nindent` number or a missing dash in `{{-`. Render with `helm template` and read the output before you install.
+</Trap>
+
+<Remember>
+A chart of your own is a few files: metadata, defaults, a helper for names and labels, and templates that read the values.
+</Remember>
+
+<Do>
+1. Make a folder for the chart in your WSL home:
+   <Cmd>{`mkdir -p ~/m01/greeter/templates && cd ~/m01`}</Cmd>
+2. Write `Chart.yaml` and `values.yaml`:
+   <Cmd>{`cat > greeter/Chart.yaml <<'EOF'
+apiVersion: v2
+name: greeter
+description: A small chart written in module m01.
+type: application
+version: 0.1.0
+appVersion: "6.17.0"
+EOF
+cat > greeter/values.yaml <<'EOF'
+# The text the web page shows. The chart stores it in upper case.
+greeting: hello, helm
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/stefanprodan/podinfo
+  # Empty means the chart's appVersion.
+  tag: ""
+
+# One ConfigMap key per colour: color-0, color-1, ...
+colors:
+  - "#34577c"
+  - "#2f6f4f"
+
+# Extra labels for the Deployment. Leave empty for none.
+extraLabels:
+  team: learners
+
+debug: false
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+EOF`}</Cmd>
+3. Write the helpers:
+   <Cmd>{`cat > greeter/templates/_helpers.tpl <<'EOF'
+{{- define "greeter.fullname" -}}
+{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "greeter.labels" -}}
+app.kubernetes.io/name: {{ .Chart.Name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
+{{- end -}}
+EOF`}</Cmd>
+4. Write the ConfigMap template:
+   <Cmd>{`cat > greeter/templates/configmap.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "greeter.fullname" . }}
+  labels:
+    {{- include "greeter.labels" . | nindent 4 }}
+data:
+  greeting: {{ .Values.greeting | upper | quote }}
+  {{- if .Values.debug }}
+  logLevel: debug
+  {{- end }}
+  {{- range $i, $color := .Values.colors }}
+  color-{{ $i }}: {{ $color | quote }}
+  {{- end }}
+EOF`}</Cmd>
+5. Write the Deployment template and the notes:
+   <Cmd>{`cat > greeter/templates/deployment.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "greeter.fullname" . }}
+  labels:
+    {{- include "greeter.labels" . | nindent 4 }}
+    {{- with .Values.extraLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          ports:
+            - containerPort: 9898
+          env:
+            - name: PODINFO_UI_MESSAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "greeter.fullname" . }}
+                  key: greeting
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+EOF
+cat > greeter/templates/NOTES.txt <<'EOF'
+The greeting of {{ .Release.Name }} is stored in the ConfigMap {{ include "greeter.fullname" . }}.
+Read it with:
+  kubectl -n {{ .Release.Namespace }} get configmap {{ include "greeter.fullname" . }} -o jsonpath='{.data.greeting}'
+EOF`}</Cmd>
+6. Lint the chart and render it, once as it is and once with debug on:
+   <Cmd>{`helm lint ./greeter
+helm template m01-hello ./greeter -n learn-m01
+helm template m01-hello ./greeter -n learn-m01 --set debug=true --show-only templates/configmap.yaml`}</Cmd>
+   Lint ends with `1 chart(s) linted, 0 chart(s) failed`. The second render has `logLevel: debug`.
+7. Install it and wait for the pod:
+   <Cmd>{`helm install m01-hello ./greeter -n learn-m01 --wait`}</Cmd>
+   The notes print the command for the next action.
+8. Read the greeting from the ConfigMap and paste it below:
+   <Cmd>{`kubectl -n learn-m01 get configmap m01-hello-greeter -o jsonpath='{.data.greeting}'; echo`}</Cmd>
+</Do>
+
+<Done>
+`helm list -n learn-m01` shows `m01-hello` with chart `greeter-0.1.0`, and the Deployment `m01-hello-greeter` has its pod `Running` with the label `team=learners`.
+</Done>
+
+<Trap practice>
+If `helm lint` reports `unclosed action`, a `}}` is missing in the file and line it names. If kubectl finds no ConfigMap, check the release name: the object is named `<release>-greeter`.
+</Trap practice>
+
+<Question id="q-m01-s10" answer="a">
+You install the greeter chart with `--set extraLabels=null`. What happens to the Deployment's labels?
+
+- Only the four standard labels remain, because with skips the empty value
+
+  null removes the key, so with sees nothing and prints no extra labels.
+
+- The chart fails to render, because extraLabels is missing
+
+  with handles a missing value by skipping its block.
+
+- The label team: learners stays, because defaults cannot be removed
+
+  Setting a key to null removes it from the merged values.
+
+- Kubernetes rejects the Deployment for having an empty label
+
+  No empty label is written; the block is skipped completely.
+</Question>
