@@ -85,7 +85,7 @@ helm get values m01-podinfo -n learn-m01`}</Cmd>
    <Cmd>{`kubectl -n learn-m01 port-forward svc/m01-podinfo 18100:9898 >/dev/null &
 sleep 2
 curl -s http://127.0.0.1:18100/api/info | grep -E '"version"|"message"'
-kill %1`}</Cmd>
+kill $!`}</Cmd>
    The answer shows `"version": "6.17.0"` and your message.
 4. Now change only the colour, as a colleague might:
    <Cmd>{`helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01 --set ui.color="#7a3b3b" --wait

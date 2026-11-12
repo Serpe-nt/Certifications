@@ -103,7 +103,7 @@ helm history m01-podinfo -n learn-m01 | tail -2`}</Cmd>
    The last line is `deployed` with `Rollback to ...`.
 6. Leave a release stuck: start an upgrade in the background, kill Helm hard, and try another operation:
    <Cmd>{`helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01 --set image.tag=0.0.0-missing --wait --timeout 5m &
-sleep 8; kill -9 %1
+sleep 8; kill -9 $!
 helm status m01-podinfo -n learn-m01 | head -5
 helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01`}</Cmd>
    The status is `pending-upgrade`, and the upgrade is refused.
