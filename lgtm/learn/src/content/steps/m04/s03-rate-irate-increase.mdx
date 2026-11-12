@@ -1,0 +1,132 @@
+---
+id: m04-s03
+title: Counters and rate(), irate(), increase()
+kind: lab
+minutes: 25
+order: 3
+exam:
+  - cert: pca
+    domain: P3
+    competency: Rates and Derivatives
+tags: [promql-rate]
+check:
+  kind: range
+  prompt: What does the increase() query of action 4 return for the rule group node-exporter.rules?
+  min: 19
+  max: 21
+outcome: You can turn a counter into a per-second rate or an increase over a window, choose between rate() and irate(), and avoid the mistakes that give wrong numbers without an error.
+terms:
+  - term: rate()
+    def: The average per-second increase of a counter over a range, adjusted for resets.
+  - term: irate()
+    def: The per-second increase between the last two samples of a range.
+  - term: increase()
+    def: The increase of a counter over a range; rate() multiplied by the seconds of the range.
+  - term: Counter reset
+    def: A counter falling back towards zero, usually because its process restarted.
+  - term: Extrapolation
+    def: rate() and increase() stretch the change they see to cover the whole range.
+sources:
+  - title: Query functions, rate(), irate(), increase() (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+  - title: Querying basics, samples (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/basics/
+    checked: 2026-11-12
+  - title: Recording rules (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
+    checked: 2026-11-12
+---
+
+<Problem>
+A dashboard shows `prometheus_http_requests_total` as a line that climbs from 4,000 to 9,000 over the day, with a sudden drop to zero at noon. Nobody can tell from it whether the server is busy now. The total since the process started is the wrong question. You want to know how fast it grows.
+</Problem>
+
+<Idea>
+A counter's value only matters through its change. `rate()` turns a window of counter samples into the average increase per second, `increase()` gives the same change as a total for the window, and `irate()` looks only at the last two samples. All three notice when a counter restarts at zero and correct for it.
+</Idea>
+
+## rate(): per second, averaged over a window
+
+`rate()` takes a range vector of a counter and returns an instant vector: one number per series, the average increase per second over the window. To answer "how many rule evaluations per second does Prometheus run for the group node-exporter.rules", you write:
+
+<Query lang="promql">{`rate(prometheus_rule_group_iterations_total{rule_group=~".*;node-exporter.rules"}[5m])`}</Query>
+
+In the lab the answer is 0.0333. The group is evaluated every 30 seconds, so the counter grows by one every 30 seconds, which is one thirtieth per second.
+
+The function does two things that a plain subtraction would not. When a value drops, it treats the drop as a counter reset, and it counts the value after the drop as new growth. And it extrapolates: samples rarely sit exactly at the edges of the window, so it stretches the change it saw to cover the whole window. That is also why a window must hold at least two samples. With a scrape interval of 30 seconds, `[30s]` usually holds only one, and the query returns nothing.
+
+The documentation says `rate()` is best for alerts and for graphs of slow-moving counters.
+
+## increase(): the same change, as a total
+
+Often you want a count, not a speed: "how many requests in the last hour". `increase()` answers that. It is defined as `rate()` multiplied by the number of seconds in the window, so it handles resets and extrapolates in the same way. Because of the extrapolation, `increase()` can return 4.8 for a counter that only ever grows by whole numbers.
+
+The documentation calls `increase()` syntactic sugar for readability, and asks you to use `rate()` in recording rules, so stored results are always per second.
+
+## irate(): the last two samples only
+
+`irate()` also takes a window, but it uses only the last two samples inside it. The window just sets how far back it may look for them. The result reacts at once to a short burst, which makes it fit for graphs of volatile, fast-moving counters. The documentation advises against it in alerts: a brief dip in the rate can reset the `for` clause of an alert, and a graph of nothing but short spikes is hard to read.
+
+<Compare caption="Three functions on the same counter">
+  <Col title="rate()" hot>Average per second over the whole window. For alerts and most graphs.</Col>
+  <Col title="irate()">Per second between the last two samples. For graphs of fast, jumpy counters.</Col>
+  <Col title="increase()">Total change over the window. For "how many in the last hour". It is rate() times the seconds of the window.</Col>
+</Compare>
+
+## Two mistakes that return a number anyway
+
+The first is `rate()` of a gauge. A gauge goes up and down, and `rate()` reads every fall as a counter reset. `rate(node_load1[5m])` returns a value without any warning, and the value means nothing. For a gauge you want `deriv()` or `delta()`, which step 10 shows. Prometheus cannot warn you here, because a float sample does not store whether it is a counter or a gauge. The `_total` at the end of a name is the convention that tells you.
+
+The second is to aggregate before the rate. A sum of counters from several pods is not a counter any more: when one pod restarts, the sum drops a little, and `rate()` cannot tell that drop from a real reset. The rule from the documentation is to take `rate()` first, then aggregate: `sum(rate(x[5m]))`, never a rate of a sum. Step 4 explains `sum`. If you try `rate(sum(x)[5m])`, Prometheus refuses it, because a range can only follow a selector.
+
+<InLab>
+The lab's Prometheus evaluates its rule groups every 30 seconds (`evaluation_interval: 30s`), and its own counter `prometheus_rule_group_iterations_total` has one series per group. That makes it a counter whose rate you can predict.
+</InLab>
+
+<Trap>
+`rate()` never fails on the wrong input. Feed it a gauge, or a sum of counters, and it returns a plausible number. Check that the metric is a counter, usually a name ending in `_total`, and that `rate()` sits directly on the selector.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab and look at the raw counter: <Query lang="promql">{`prometheus_rule_group_iterations_total{rule_group=~".*;node-exporter.rules"}`}</Query> The value is the number of evaluations since Prometheus started. Run it again after 30 seconds: it has grown by one.
+2. Turn it into a rate: <Query lang="promql">{`rate(prometheus_rule_group_iterations_total{rule_group=~".*;node-exporter.rules"}[5m])`}</Query> The result is about 0.0333 per second, one evaluation every 30 seconds.
+3. Shorten the window to `[30s]` and run it again. The result is empty: the window holds fewer than two samples.
+4. Ask for the increase over ten minutes: <Query lang="promql">{`increase(prometheus_rule_group_iterations_total{rule_group=~".*;node-exporter.rules"}[10m])`}</Query> Compare the answer with 0.0333 times 600 seconds.
+5. Read a counter of seconds. The node exporter counts CPU seconds per CPU and mode: <Query lang="promql">{`rate(node_cpu_seconds_total{instance="10.10.0.30:9100", mode="idle"}[5m])`}</Query> Each of worker1's CPUs shows a value between 0 and 1: the share of each second that the CPU was idle.
+6. See the gauge mistake: <Query lang="promql">{`rate(node_load1{instance="10.10.0.30:9100"}[5m])`}</Query> You get a number and no warning, although `node_load1` is a gauge.
+7. See the order mistake: <Query lang="promql">{`rate(sum(prometheus_http_requests_total)[5m])`}</Query> Read the error, then run the right order: <Query lang="promql">{`sum(rate(prometheus_http_requests_total[5m]))`}</Query>
+8. Paste the result of action 4 in the check below.
+</Do>
+
+<Done>
+The rate of the rule group's counter was one thirtieth per second, its increase over ten minutes was about 20, and you saw one wrong query return a number and the other one refused.
+</Done>
+
+<Trap practice>
+If action 4 returns a number in the thousands, you left out `increase()` and read the counter itself. If it returns 0.0333, you ran `rate()` again.
+</Trap>
+
+<Remember>
+Counters are read through `rate()` (per second), `increase()` (total for a window) or `irate()` (last two samples). Rate first, then aggregate, and only ever on counters.
+</Remember>
+
+<Question id="q-m04-s03" answer="a">
+A graph of `irate(http_requests_total[10m])` shows one spike after another. A teammate says the 10-minute window should smooth it. Why does it not?
+
+- irate() uses only the last two samples in the window
+
+  The window only limits how far back irate() looks for its two samples. To average over ten minutes, use rate().
+
+- irate() skips counter resets, so every restart becomes a spike
+
+  irate() does adjust for counter resets, like rate().
+
+- A 10-minute window holds too few samples for irate()
+
+  Ten minutes holds many samples at a usual scrape interval. irate() simply ignores all but the last two.
+
+- irate() returns the increase over the window, not a rate per second
+
+  That describes increase(). irate() returns a per-second rate.
+</Question>
