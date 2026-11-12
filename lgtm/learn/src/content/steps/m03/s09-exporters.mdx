@@ -1,0 +1,111 @@
+---
+id: m03-s09
+title: "Exporters: node exporter, kube-state-metrics, blackbox"
+kind: concept
+minutes: 16
+order: 9
+exam:
+  - cert: pca
+    domain: P4
+    competency: Exporters
+tags: [exporter-standard, exporter-writing]
+outcome: You can choose the exporter that answers a question about a machine, a Kubernetes object or an endpoint, and judge an exporter against the guidelines for writing one.
+terms:
+  - term: node exporter
+    def: The official exporter for machine metrics on Linux and other Unix systems.
+  - term: kube-state-metrics
+    def: A service that turns the state of Kubernetes objects, read from the API server, into metrics.
+  - term: Blackbox exporter
+    def: An exporter that probes endpoints over HTTP, HTTPS, DNS, TCP, ICMP or gRPC and reports the result.
+  - term: Textfile collector
+    def: A node exporter collector that serves metrics written to .prom files in a directory.
+  - term: Multi-target exporter
+    def: An exporter that is told on each scrape which target to check, through a URL parameter.
+sources:
+  - title: Exporters and integrations (Prometheus)
+    url: https://prometheus.io/docs/instrumenting/exporters/
+    checked: 2026-11-12
+  - title: Writing exporters (Prometheus)
+    url: https://prometheus.io/docs/instrumenting/writing_exporters/
+    checked: 2026-11-12
+  - title: node_exporter README (GitHub)
+    url: https://github.com/prometheus/node_exporter
+    checked: 2026-11-12
+  - title: kube-state-metrics README (GitHub)
+    url: https://github.com/kubernetes/kube-state-metrics
+    checked: 2026-11-12
+  - title: blackbox_exporter README (GitHub)
+    url: https://github.com/prometheus/blackbox_exporter
+    checked: 2026-11-12
+---
+
+<Problem>
+You need three answers before lunch: is the disk of worker 3 filling up, does the Deployment `cart` have all its replicas, and does the shop's home page answer from outside the cluster? None of these programs has a `/metrics` page that tells you, and you cannot change Linux, the Kubernetes API server or a web page.
+</Problem>
+
+<Idea>
+An exporter is a small program that reads numbers from a system you cannot instrument and serves them as Prometheus metrics. Three exporters answer most questions in Kubernetes: node exporter for machines, kube-state-metrics for Kubernetes objects, and the blackbox exporter for endpoints seen from outside.
+</Idea>
+
+## Node exporter: the machine
+
+Node exporter is the official exporter for Linux and other Unix machines. It reports CPU, memory, disks, file systems, network and much more, grouped into collectors that you can switch on and off. It listens on port 9100 by default, and in Kubernetes it runs as a DaemonSet, one pod per node.
+
+One of its collectors, the textfile collector, reads files ending in `.prom` from a directory you name with `--collector.textfile.directory`. A script or a cron job writes metrics in the text format of step 4 into such a file, and node exporter serves them with its own. That suits facts tied to one machine, such as the role of a host. Facts about a whole service belong in the Pushgateway instead.
+
+## kube-state-metrics: the objects
+
+kube-state-metrics listens to the Kubernetes API server and turns the state of objects into metrics: Deployments and their replicas, pods and their phase, nodes and their conditions. It serves them on `/metrics`, port 8080 by default. It does not measure how well the API server or the kubelet run. It reports what the API says about each object, without changing it, so a value can differ from what `kubectl` prints, because `kubectl` applies its own rules to make output readable. When an object is deleted, its metrics disappear from the page.
+
+## Blackbox exporter: endpoints from outside
+
+The blackbox exporter does not sit beside the thing it checks. It probes endpoints over HTTP, HTTPS, DNS, TCP, ICMP and gRPC, and reports whether the probe worked (`probe_success`) and how long its parts took. It follows the multi-target pattern: Prometheus scrapes the exporter's `/probe` path and passes the endpoint to check, and a module that says how to check it, as URL parameters. So one blackbox exporter can check thousands of URLs, and service discovery still happens in Prometheus.
+
+<Compare caption="Which exporter answers which question">
+  <Col title="node exporter">Is the disk of worker 3 filling up? Machine metrics from each node.</Col>
+  <Col title="kube-state-metrics">Does the Deployment cart have all its replicas? State of Kubernetes objects.</Col>
+  <Col title="blackbox exporter">Does the home page answer from outside? Probes of endpoints.</Col>
+</Compare>
+
+## Rules for a good exporter
+
+The Prometheus documentation lists a long catalogue of exporters, most of them written outside the project. Its guidelines for writing one help you judge them:
+
+- One exporter watches one instance of an application and runs beside it. All service discovery stays in Prometheus. The blackbox and SNMP exporters are the main exceptions, because there is nothing to run on.
+- Metrics are read when Prometheus scrapes, never on a timer of the exporter's own, and they carry no timestamps.
+- Labels that describe your infrastructure, such as region or cluster, belong in the scrape configuration, not in the exporter.
+- When the application does not answer, the exporter either returns an HTTP 5xx error or exposes a metric such as `haproxy_up` set to 0.
+- Machine metrics that node exporter already provides should be dropped, not repeated.
+- Each exporter gets its own port number, recorded on a public list in the Prometheus wiki.
+
+<InLab>
+The lab runs node exporter as a DaemonSet in `prom`, one pod per node, on port 9100 of the node's own address, and one kube-state-metrics pod. There is no blackbox exporter in the lab.
+</InLab>
+
+<Trap>
+kube-state-metrics does not report CPU or memory use of pods. It reports object state from the API, such as requests and limits as written in the spec. Usage comes from the kubelet and its cAdvisor endpoint, which the lab scrapes at `/metrics/cadvisor`.
+</Trap>
+
+<Remember>
+Node exporter for machines, kube-state-metrics for Kubernetes objects, the blackbox exporter for endpoints from outside. A good exporter sits beside one instance, reads on scrape, and leaves discovery and infrastructure labels to Prometheus.
+</Remember>
+
+<Question id="q-m03-s09" answer="b">
+An alert should fire when a Deployment has fewer available replicas than it wants. Which exporter provides the metrics for it?
+
+- node exporter
+
+  Node exporter reports machine metrics such as CPU, memory and disks. It knows nothing about Deployments.
+
+- kube-state-metrics
+
+  It reads Deployments from the API server and exposes their desired and available replicas.
+
+- blackbox exporter
+
+  The blackbox exporter probes endpoints from outside. It cannot see how many replicas a Deployment wants.
+
+- The textfile collector of node exporter
+
+  The textfile collector serves metrics that local scripts write to files. Nothing writes replica counts there.
+</Question>
