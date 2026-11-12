@@ -27,6 +27,13 @@ spec:
     "-Xms": {{ platform_kafka_settings.jvm_heap }}
     "-Xmx": {{ platform_kafka_settings.jvm_heap }}
   template:
+    persistentVolumeClaim:
+      metadata:
+        labels:
+          # Longhorn takes recurring jobs from these labels: the volumes join the group
+          # kafka, trimmed every hour by the RecurringJob kafka-trim (below).
+          recurring-job.longhorn.io/source: enabled
+          recurring-job-group.longhorn.io/kafka: enabled
     pod:
       # One Kafka node per worker where possible, so one worker down costs one node.
       affinity:
@@ -63,3 +70,23 @@ spec:
       resources: {{ platform_kafka_settings.entity_operator_resources | to_json }}
     userOperator:
       resources: {{ platform_kafka_settings.entity_operator_resources | to_json }}
+{% if lab_profile == 'full' %}
+---
+# Kafka deletes old segments all the time, but Longhorn keeps every block a volume has ever
+# written until the filesystem is trimmed, so a replica would grow to the whole volume (and
+# to more, with the snapshot Longhorn takes when a volume grows). An hourly trim gives the
+# freed blocks back; it covers the volume head and the system snapshots before it.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: kafka-trim
+  namespace: longhorn-system
+spec:
+  task: filesystem-trim
+  cron: "7 * * * *"
+  groups:
+    - kafka
+  # Longhorn sets 0 for this task; 0 here keeps a second run without changes.
+  retain: 0
+  concurrency: 1
+{% endif %}

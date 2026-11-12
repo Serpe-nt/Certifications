@@ -6,7 +6,11 @@
 # Mimir 3 (ingest storage) and Tempo 3 write to it and read from it. Three nodes that
 # are both KRaft controller and broker: one may be down without losing writes.
 replicas: 3
-storage_size: 5Gi
+# Each node holds a replica of every partition (replication factor 3 on 3 nodes), so the
+# volume must hold every partition at its size limit (see config below). Raised from
+# 5Gi after the volumes filled on 2026-11-11 (lgtm/docs/adr/l5-kafka-disk.md). Strimzi
+# can grow a volume in place; Kubernetes never shrinks one.
+storage_size: 10Gi
 # Measured on the lab cluster: about 470 MiB per node idle with a 768 MiB heap,
 # 768 to 827 MiB after 30 minutes of load with a 512 MiB heap (the rest is page
 # cache of the log segments). A 512 MiB heap is plenty for the lab's write rate;
@@ -26,8 +30,15 @@ config:
   transaction.state.log.replication.factor: 3
   transaction.state.log.min.isr: 2
   # The ingest topics only bridge the gap until Mimir and Tempo store blocks in S3.
+  # Kafka deletes a closed segment when it is older than the time limit or when the
+  # partition is above the size limit, whichever comes first. The size limit is per
+  # partition and Kafka never deletes the open segment, so the worst case on one node is
+  # 8 partitions (mimir-ingest 6, tempo-traces 2) x (640 MiB + 64 MiB) = 5.5 GiB, plus
+  # five minutes of writes between two retention checks and the internal topics: about
+  # 58% of the 10Gi volume (lgtm/docs/adr/l5-kafka-disk.md).
   log.retention.hours: 24
-  log.segment.bytes: 134217728
+  log.retention.bytes: 671088640
+  log.segment.bytes: 67108864
   auto.create.topics.enable: true
 entity_operator_resources:
   requests:

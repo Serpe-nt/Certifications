@@ -473,3 +473,78 @@ logs** in Grafana 13.3; the dashboard has a fourth (logs) panel; **Open trace** 
 "Links" in the log details. Trace ids from Tempo's search API and from exemplar labels can
 lose leading zeros (seen: a 31-character `traceID` label); the 32-character id in the trace
 header is the one to paste.
+
+## Kafka ran out of disk (2026-11-11 17:57 to 2026-11-12 12:02, card L5)
+
+The lab was accepted after about a day of running. Its Kafka volumes filled a few hours later.
+
+### What happened
+
+- From 12:15 on 2026-11-11, Prometheus's remote write to Mimir (tenant `prom`) sent about 6,100
+  samples per second. The Kafka volumes, which had grown about 90 MiB an hour until then, grew
+  640 MiB an hour on each node (`kubelet_volume_stats_used_bytes` of `data-0-telemetry-dual-role-0`
+  went from 1288 MiB at 12:15 to 4792 MiB at 17:45). Every node holds a replica of every
+  partition, so each node grows by the whole write rate.
+- Retention was by time only (`log.retention.hours: 24`), so nothing was deleted. At 17:55 the
+  three 5 GiB volumes were 98.9% full.
+- 17:57:39: brokers 0 and 1 logged `Error while appending records to mimir-ingest-1` and
+  `Shutdown broker because all log dirs in /var/lib/kafka/data-0/kafka-log0 have failed`. From
+  then on the three pods crash-looped (about 200 restarts each), each run ending with
+  `java.io.IOException: No space left on device` in the KRaft thread and `Shutting down because
+  we were unable to register with the controller quorum`. The `Kafka` resource was `NotReady`,
+  reason `FatalProblem`.
+- Mimir's distributors logged `failed to write to partitions [0 1 2]`, Tempo's `failed to write
+  to kafka`, Prometheus `Failed to send batch, retrying ... context deadline exceeded`. Loki and
+  Prometheus itself kept working.
+
+### Repair (2026-11-12, 11:36 to 12:03)
+
+1. `helm/platform/strimzi/kafka-cluster.yaml`: `storage_size: 10Gi` (was 5Gi),
+   `log.retention.bytes: 671088640` (640 MiB per partition, new), `log.segment.bytes: 67108864`
+   (64 MiB, was 128 MiB). Why these numbers: `lgtm/docs/adr/l5-kafka-disk.md`.
+2. `make platform TAGS=kafka` (11:45 to 12:02, `ok=9 changed=1 failed=0`). Strimzi raised the three
+   claims at 11:49:47; Longhorn grew the volumes and their filesystems while attached
+   (`FileSystemResizeSuccessful` at 11:50:00, 11:50:24 and 11:50:51; `df`: 9.8G, 50% used).
+3. The brokers still did not form a quorum: each restarted on its own back-off timer, ran about
+   70 seconds alone and stopped. At 12:01:28 the three pods were deleted together
+   (`kubectl -n kafka delete pod -l strimzi.io/cluster=telemetry,strimzi.io/pool-name=dual-role`);
+   Strimzi recreated them, and the `Kafka` resource was `Ready` at 12:02:22. The playbook's
+   wait ended at 12:02:26. This manual step is in `runbook.md`, "Kafka's disks are full".
+4. At 12:02:41 the brokers began deleting old segments:
+   `Deleting segment LogSegment(baseOffset=0, size=134204839, ...) due to log retention size
+   671088640 breach. Log size after deletion will be 1346908842.` (node 1, 18 segments of
+   `mimir-ingest` in the first check). The volumes went from 50% to 27% used.
+5. A second `make platform TAGS=kafka` (12:06 to 12:08): `changed=0`.
+6. `make platform TAGS=kafka` with the Longhorn RecurringJob `kafka-trim` (12:16 to 12:18,
+   `changed=1`); one run started by hand at 12:19 took each Kafka replica from 6.1 GB to
+   3.9 GB (`budget.md`, "Volumes and buckets").
+
+### Ingest is back
+
+```
+Kafka telemetry                Ready since 12:02:22; topics mimir-ingest and tempo-traces Ready
+Mimir tenant lab               max(timestamp(lab_beacon_value)) = 12:02:49
+Mimir tenant prom              max(timestamp(up)) = 12:03:22, count(up) = 21
+Tempo                          beacon.slot spans at 12:02:49
+Prometheus remote write        12:05:54: 18 s behind, 5,740 samples/s sent, 0 failed, 0 retried
+make lab-check (12:05:45)      LAB CHECK PASSED, including check 8: every volume under 85%
+```
+
+The gap: no metrics in Mimir (either tenant) and no traces in Tempo from 2026-11-11 17:57 to
+2026-11-12 12:02 UTC, except a few `up` series of tenant `lab` from 04:10 onwards. Tenant `prom`
+has samples again from 12:05 (the first 5-minute step after the repair); nothing older came back
+from Prometheus's queue.
+
+### The new check and alert
+
+```
+make lab-check LAB_VOLUME_FULL_RATIO=0.30
+==> 8. No volume of the lab is fuller than 0.30 of its size
+  FAIL  volume prom/prometheus-prom-prometheus-db-prometheus-prom-prometheus-0 is 37% full (threshold 30%)
+LAB CHECK FAILED: 1 check(s)
+```
+
+`make lab TAGS=glue` (12:04 to 12:05, `changed=1`; the beacon was not restarted) installed the
+PrometheusRule `lab-tools/lab-glue-volumes`; the lab's Prometheus loaded the rule
+`LabVolumeFillingUp` (group `lab-volumes`) at 12:05, and at 12:21 it reported it `health: ok`,
+`state: inactive` (no volume above 85%).

@@ -16,3 +16,6 @@ config:
   offsets.topic.replication.factor: 1
   transaction.state.log.replication.factor: 1
   transaction.state.log.min.isr: 1
+  # 8 partitions x (100 MiB + 32 MiB) is about 1.1 GiB, under 70% of the 2Gi volume.
+  log.retention.bytes: 104857600
+  log.segment.bytes: 33554432
