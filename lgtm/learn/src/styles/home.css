@@ -1,0 +1,3677 @@
+/*
+  The overview, module start, module end, 404 and settings pages, and the module icons
+  (ModuleIcon.astro). Every page opens with PageHead on the console; what follows sits on the screen.
+  Motion only runs under prefers-reduced-motion: no-preference and stops with data-motion="off".
+*/
+
+/* ================================================================ shared: section heads, prose */
+.ov-sh {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--lg-space-2) var(--lg-space-4);
+  margin: 0 0 var(--lg-space-6);
+  padding-bottom: var(--lg-space-3);
+  border-bottom: 3px solid var(--lg-ink);
+}
+.ov-sh::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -3px;
+  width: 64px;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, var(--lg-signal) 0 10px, var(--lg-ink) 10px 14px);
+}
+.ov-sh-n,
+.ov-sh-c {
+  color: var(--lg-ink-3);
+}
+.page-glass .ov-sh-t {
+  margin: 0;
+  font-size: var(--lg-text-h2);
+  line-height: 1.1;
+}
+.ov-sh-c {
+  margin-left: auto;
+}
+.ov-sec {
+  margin-top: var(--lg-space-12);
+}
+.ov-prose {
+  max-width: 40rem;
+  margin: 0 0 var(--lg-space-6);
+  font-size: var(--lg-text-ui);
+  color: var(--lg-ink-2);
+}
+.page-glass .mono {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* One cell per step (Overview.tsx StepCells) and the meter bars (StudyPanels.tsx Meter) */
+.cells,
+.meter {
+  display: block;
+  width: 100%;
+  height: 10px;
+}
+.cells .cell {
+  fill: var(--lg-screen-2);
+}
+.cells .cell-done {
+  fill: var(--lg-ink);
+}
+.cells .cell-next {
+  fill: var(--lg-signal);
+}
+.meter {
+  height: 8px;
+}
+.meter-track {
+  fill: var(--lg-bezel-2);
+}
+.meter-fill {
+  fill: var(--lg-ink-on-dark);
+}
+.meter-hot .meter-fill {
+  fill: var(--lg-signal);
+}
+
+/* ================================================================ overview: hero */
+.ov-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: var(--lg-space-8) var(--lg-space-12);
+  align-items: center;
+  padding-bottom: var(--lg-space-8);
+}
+.ov-index {
+  display: flex;
+  align-items: center;
+  gap: var(--lg-space-3);
+  margin: 0 0 var(--lg-space-4);
+  color: var(--lg-ink-3);
+}
+.ov-index::after {
+  content: "";
+  width: 72px;
+  height: 3px;
+  background: var(--lg-ink);
+}
+.ov-kicker {
+  width: fit-content;
+  margin: 0 0 var(--lg-space-3);
+  padding: 3px 10px;
+  background: var(--lg-ink);
+  color: var(--lg-ink-on-dark);
+}
+.page-glass .ov-hero-title {
+  max-width: 20ch;
+  margin: 0;
+  font-size: var(--lg-text-page);
+  line-height: 1.04;
+}
+.ov-hero-lead {
+  max-width: 36rem;
+  margin: var(--lg-space-6) 0 0;
+  font-size: var(--lg-text-body);
+  line-height: 1.6;
+  color: var(--lg-ink-2);
+}
+.ov-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lg-space-3);
+  margin: var(--lg-space-8) 0 0;
+}
+.ov-go {
+  min-width: 13rem;
+  min-height: 3.25rem;
+  font-size: var(--lg-text-lead);
+}
+.ov-hero-art {
+  position: relative;
+  min-width: 0;
+}
+.hero-art svg {
+  display: block;
+  width: 100%;
+  max-width: 34rem;
+  height: auto;
+  margin-inline: auto;
+  color: var(--lg-ink);
+  overflow: visible;
+}
+.hero-art .hx-top {
+  fill: var(--lg-paper);
+}
+.hero-art .hx-l {
+  fill: var(--lg-screen-2);
+}
+.hero-art .hx-r {
+  fill: var(--lg-rule);
+}
+.hero-art .hx-pat * {
+  vector-effect: non-scaling-stroke;
+}
+.hero-art .hx-faint {
+  opacity: 0.55;
+}
+.hero-art text {
+  fill: var(--lg-ink);
+  stroke: none;
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-label);
+  letter-spacing: 0.14em;
+}
+.hero-art .hx-t {
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: var(--lg-text-ui);
+  letter-spacing: 0.04em;
+}
+.hero-art .hx-s {
+  fill: var(--lg-ink-3);
+}
+.hero-art .hot {
+  fill: var(--lg-signal);
+  stroke: var(--lg-ink);
+}
+.ov-readout {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+}
+.ov-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lg-space-4);
+  max-width: 34rem;
+  margin: var(--lg-space-3) auto 0;
+  padding-top: var(--lg-space-2);
+  border-top: 1px solid var(--lg-ink);
+  color: var(--lg-ink-3);
+}
+@media (max-width: 1000px) {
+  .ov-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ov-hero-art {
+    max-width: 30rem;
+  }
+}
+@media (max-width: 560px) {
+  .ov-go {
+    flex: 1 1 100%;
+  }
+  .ov-actions .btn {
+    flex: 1 1 100%;
+  }
+  .ov-readout {
+    position: static;
+    width: fit-content;
+    margin-bottom: var(--lg-space-3);
+  }
+}
+
+/* ================================================================ overview: module cards */
+.ov-mods {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: var(--lg-space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ov-mod {
+  container-type: inline-size;
+}
+.ov-mod-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  background: var(--lg-paper);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+}
+@container (min-width: 40rem) {
+  .ov-mod-card {
+    grid-template-columns: 15rem minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+}
+.ov-mod-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 11rem;
+  padding: var(--lg-space-8) var(--lg-space-4);
+  border: 2px solid var(--lg-ink);
+  /* A field of measuring dots behind the icon, like the bezel's unlit matrix. */
+  background-color: var(--lg-screen);
+  background-image: radial-gradient(circle, var(--lg-rule) 1.5px, transparent 2px);
+  background-size: 16px 16px;
+  background-position: center;
+  color: var(--lg-ink);
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.ov-mod-no,
+.ov-mod-state {
+  position: absolute;
+  top: 8px;
+  padding: 2px 8px;
+}
+.ov-mod-no {
+  left: 8px;
+  background: var(--lg-ink);
+  color: var(--lg-ink-on-dark);
+}
+.ov-mod-state {
+  right: 8px;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+}
+.ov-mod[data-state="current"] .ov-mod-state {
+  background: var(--lg-signal);
+  color: var(--lg-signal-ink);
+}
+.ov-mod[data-state="done"] .ov-mod-state {
+  background: var(--lg-ink);
+  color: var(--lg-ink-on-dark);
+}
+.ov-mod-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lg-space-3);
+  padding: var(--lg-space-6);
+}
+.page-glass .ov-mod-title {
+  margin: 0;
+  font-size: var(--lg-text-lead);
+  line-height: 1.2;
+}
+.ov-mod-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--lg-ink);
+  text-decoration: none;
+}
+/* The whole card answers to the title link. */
+.ov-mod-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.ov-arrow {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  align-self: center;
+  transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+}
+.ov-mod-card:hover .ov-mod-art {
+  background-color: var(--lg-ink);
+  color: var(--lg-ink-on-dark);
+}
+.ov-mod-card:hover .ov-arrow,
+.ov-mod-link:focus-visible .ov-arrow {
+  transform: translateX(6px);
+}
+.ov-mod-card:hover .ov-mod-link {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+.ov-mod-goal {
+  max-width: 34rem;
+  margin: 0 0 var(--lg-space-2);
+  font-size: var(--lg-text-ui);
+  line-height: 1.5;
+  color: var(--lg-ink-2);
+}
+.ov-mod-meta {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--lg-space-2) var(--lg-space-4);
+  margin: 0;
+  font-size: var(--lg-text-small);
+  color: var(--lg-ink-3);
+}
+.ov-mod-meta [data-progress] {
+  color: var(--lg-ink);
+  font-weight: 600;
+}
+.ov-mod-quiz {
+  margin: 0;
+  color: var(--lg-ink-3);
+}
+.ov-mod[data-state="done"] .ov-mod-quiz {
+  color: var(--lg-ink);
+}
+
+/* ================================================================ overview: status and badges */
+.ov-status-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: var(--lg-space-6);
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .ov-status-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ov-status {
+  padding: var(--lg-space-6) var(--lg-space-6) 0;
+  background: var(--lg-bezel);
+  color: var(--lg-ink-on-dark);
+  clip-path: polygon(0 14px, 14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+}
+.page-glass .ov-status-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lg-space-4);
+  margin: 0 0 var(--lg-space-6);
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: inherit;
+}
+.ov-status .ov-status-head span:last-child {
+  color: var(--lg-signal);
+}
+.ov-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--lg-space-6) var(--lg-space-8);
+  margin: 0 0 var(--lg-space-6);
+}
+.ov-stat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "label value" "bar bar" "note note";
+  align-items: end;
+  gap: 6px var(--lg-space-3);
+  min-width: 0;
+}
+.ov-stat[data-stat="level"] {
+  grid-column: 1 / -1;
+}
+.ov-stat dt {
+  grid-area: label;
+  color: var(--lg-ash-mark);
+}
+.ov-stat dd {
+  margin: 0;
+}
+.ov-stat-value {
+  grid-area: value;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-h2);
+  line-height: 1;
+  color: var(--lg-paper);
+}
+.ov-stat[data-stat="level"] .ov-stat-value {
+  font-size: var(--lg-text-stat);
+}
+.ov-stat-bar {
+  grid-area: bar;
+}
+.ov-stat-note {
+  grid-area: note;
+  font-size: var(--lg-text-small);
+  color: var(--lg-ink-on-dark);
+}
+.ov-strip {
+  margin: 0 calc(var(--lg-space-6) * -1);
+  padding: var(--lg-space-3) var(--lg-space-6);
+  background: var(--lg-signal);
+  color: var(--lg-signal-ink);
+  font-size: var(--lg-text-ui);
+  font-weight: 600;
+}
+.ov-strip a {
+  display: inline-block;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+.ov-strip-due {
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+  box-shadow: inset 6px 0 0 var(--lg-signal);
+}
+@media (max-width: 560px) {
+  .ov-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ov-status {
+    padding-inline: var(--lg-space-4);
+  }
+  .ov-strip {
+    margin-inline: calc(var(--lg-space-4) * -1);
+    padding-inline: var(--lg-space-4);
+  }
+}
+
+.ov-badges {
+  padding: var(--lg-space-6);
+  background: var(--lg-screen-2);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--lg-cut)), calc(100% - var(--lg-cut)) 100%, 0 100%);
+}
+.ov-badges .ov-status-head {
+  color: var(--lg-ink-3);
+}
+.ov-badge-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: var(--lg-space-4);
+  margin: 0 0 var(--lg-space-6);
+  padding: 0;
+  list-style: none;
+}
+.ov-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lg-space-3);
+}
+.ov-badge-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--lg-ink);
+  color: var(--lg-paper);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+.ov-badge-mark svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.ov-badge-title {
+  display: block;
+  font-family: var(--lg-font-display);
+  font-weight: 400;
+  font-size: var(--lg-text-ui);
+  line-height: 1.2;
+}
+.ov-badge-how {
+  display: block;
+  font-size: var(--lg-text-small);
+  line-height: 1.4;
+  color: var(--lg-ink-3);
+}
+.ov-badge-none {
+  margin: 0 0 var(--lg-space-4);
+  font-size: var(--lg-text-ui);
+  color: var(--lg-ink-2);
+}
+.ov-badge-next {
+  padding: var(--lg-space-4) var(--lg-space-6);
+  border: 2px dashed var(--lg-ink);
+  background: var(--lg-screen);
+}
+.ov-badge-next p {
+  margin: 0;
+}
+.ov-badge-next-label {
+  color: var(--lg-ink-3);
+}
+.ov-badge-next-title {
+  margin-top: var(--lg-space-2) !important;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-lead);
+  line-height: 1.2;
+  color: var(--lg-ink);
+}
+.ov-badge-next-how {
+  font-size: var(--lg-text-ui);
+  color: var(--lg-ink-2);
+}
+
+/* ================================================================ overview: readiness */
+.ov-ready-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--lg-space-8) var(--lg-space-12);
+}
+@media (max-width: 1100px) {
+  .ov-ready-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ov-exam {
+  min-width: 0;
+  padding-top: var(--lg-space-4);
+  border-top: 1px solid var(--lg-ink);
+}
+.page-glass .ov-exam-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "code value" "name band";
+  align-items: end;
+  gap: 4px var(--lg-space-4);
+  margin: 0 0 var(--lg-space-4);
+  font-size: var(--lg-text-h3);
+  line-height: 1;
+}
+.ov-exam-code {
+  grid-area: code;
+}
+.ov-exam-value {
+  grid-area: value;
+  font-size: var(--lg-text-stat);
+  text-align: right;
+}
+.ov-exam-name {
+  grid-area: name;
+  font-family: var(--lg-font-sans);
+  font-size: var(--lg-text-small);
+  line-height: 1.4;
+  color: var(--lg-ink-3);
+}
+.ov-exam-band {
+  grid-area: band;
+  justify-self: end;
+  padding: 2px 8px;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+}
+.ov-exam[data-band="ready"] .ov-exam-band {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.ov-table {
+  width: 100%;
+  font-size: var(--lg-text-small);
+}
+.page-glass .ov-table th,
+.page-glass .ov-table td {
+  text-align: right;
+  white-space: nowrap;
+}
+.page-glass .ov-table th:first-child,
+.page-glass .ov-table tbody th {
+  text-align: left;
+  white-space: normal;
+}
+.page-glass .ov-table tbody th {
+  padding: 7px 10px 7px 0;
+  border-bottom: 1px solid var(--lg-rule);
+  font-family: var(--lg-font-sans);
+  font-weight: 500;
+  font-size: var(--lg-text-small);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--lg-ink-2);
+}
+.ov-dom-id {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  color: var(--lg-ink);
+}
+.ov-table tr[data-band="ready"] .ov-verdict {
+  font-weight: 700;
+  color: var(--lg-ink);
+}
+.ov-exam-link {
+  margin-top: var(--lg-space-4);
+}
+.ov-mock-note {
+  max-width: 40rem;
+  margin: var(--lg-space-6) 0 0;
+  font-size: var(--lg-text-small);
+  color: var(--lg-ink-3);
+}
+/* On a phone each domain is a small block: its name, then the four figures with their labels. */
+@media (max-width: 560px) {
+  .ov-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+  .ov-table tr {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px var(--lg-space-2);
+    padding: 10px 0;
+    border-bottom: 1px solid var(--lg-rule);
+  }
+  .page-glass .ov-table tbody th {
+    grid-column: 1 / -1;
+    padding: 0 0 4px;
+    border: 0;
+  }
+  .page-glass .ov-table td {
+    padding: 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+  }
+  .ov-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--lg-font-mono);
+    font-weight: 600;
+    font-size: var(--lg-text-label);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--lg-ink-3);
+  }
+}
+
+/* ================================================================ overview: how the course works */
+/* A circuit: five dark tiles on one track, joined by arrows, each with a large outlined number. */
+.ov-method-list {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--lg-space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ov-method-list::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 31px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--lg-ink) 0 10px, transparent 10px 14px) 0 0 / 14px 100% repeat-x;
+}
+.ov-method-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lg-space-3);
+  min-width: 0;
+}
+.ov-method-tile {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  background: var(--lg-bezel);
+  color: var(--lg-paper);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+.ov-method-tile .micon {
+  width: 40px;
+  height: 40px;
+}
+/* The arrow into each tile after the first, on the track. */
+.ov-method-item + .ov-method-item::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: -14px;
+  top: 25px;
+  width: 10px;
+  height: 14px;
+  background: var(--lg-signal);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.ov-method-n {
+  position: absolute;
+  right: 0;
+  top: -6px;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-stat);
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--lg-ink-3);
+  pointer-events: none;
+}
+.ov-method-title {
+  display: grid;
+  margin: var(--lg-space-2) 0 0;
+  padding-top: var(--lg-space-3);
+  border-top: 3px solid var(--lg-ink);
+}
+.ov-method-title span:last-child {
+  color: var(--lg-ink-3);
+}
+.ov-method-text {
+  max-width: 30ch;
+  margin: 0;
+  font-size: var(--lg-text-small);
+  line-height: 1.5;
+  color: var(--lg-ink-2);
+}
+/* The last tile, the mock exam, is where the course leads: yellow. */
+.ov-method-item:last-child .ov-method-tile {
+  background: var(--lg-signal);
+  color: var(--lg-ink);
+}
+.ov-method-item:last-child .ov-method-title {
+  border-top-color: var(--lg-signal);
+}
+@media (max-width: 1100px) {
+  .ov-method-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ov-method-list::before {
+    left: 31px;
+    right: auto;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    height: auto;
+    background: linear-gradient(180deg, var(--lg-ink) 0 10px, transparent 10px 14px) 0 0 / 100% 14px repeat-y;
+  }
+  .ov-method-item {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    gap: 4px var(--lg-space-4);
+  }
+  .ov-method-tile {
+    grid-row: 1 / span 2;
+  }
+  .ov-method-item + .ov-method-item::before {
+    left: 25px;
+    top: -14px;
+    width: 14px;
+    height: 10px;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+  .ov-method-title {
+    margin: 0;
+  }
+}
+
+/* ================================================================ overview: readiness charts */
+/* Each exam opens with a dark scope: the gauge, the domain radar and the exam's own weights. */
+.ov-scope {
+  margin: 0 0 var(--lg-space-6);
+  padding: var(--lg-space-6) var(--lg-space-6) var(--lg-space-4);
+  background: var(--lg-bezel);
+  color: var(--lg-ink-on-dark);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+}
+.page-glass .ov-scope .ov-exam-head {
+  color: var(--lg-paper);
+}
+.ov-scope .ov-exam-name {
+  color: var(--lg-ink-on-dark);
+}
+.ov-scope .ov-exam-value {
+  color: var(--lg-signal);
+}
+.ov-scope .ov-exam-band {
+  border-color: var(--lg-paper);
+  background: transparent;
+  color: var(--lg-paper);
+}
+.ov-exam[data-band="ready"] .ov-scope .ov-exam-band {
+  border-color: var(--lg-signal);
+  background: var(--lg-signal);
+  color: var(--lg-ink);
+}
+.ov-scope-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--lg-space-4);
+  align-items: center;
+  padding: var(--lg-space-4) 0;
+  border-top: 1px dashed var(--lg-bezel-2);
+  border-bottom: 1px dashed var(--lg-bezel-2);
+}
+.ov-chart {
+  margin: 0;
+  text-align: center;
+}
+.ov-chart svg {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+}
+.ov-chart figcaption {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: var(--lg-space-2);
+  color: var(--lg-ink-on-dark);
+}
+.ov-key {
+  display: inline-block;
+  width: 14px;
+  height: 8px;
+}
+.ov-key-acc {
+  background: var(--lg-signal);
+}
+.ov-key-reach {
+  border: 1.5px dashed var(--lg-paper);
+}
+.ov-blueprint {
+  padding-top: var(--lg-space-3);
+}
+.ov-blueprint p {
+  margin: 0 0 6px;
+  color: var(--lg-ink-on-dark);
+}
+.rc-blueprint {
+  display: block;
+  width: 100%;
+}
+.rc-seg {
+  fill: var(--lg-paper);
+}
+.rc-seg-alt {
+  fill: var(--lg-screen-2);
+}
+.rc-seg-text {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: 10px;
+  fill: var(--lg-ink);
+}
+@media (max-width: 560px) {
+  .ov-scope {
+    padding: var(--lg-space-4);
+  }
+  .ov-scope-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The gauge */
+.rc-track {
+  fill: none;
+  stroke: var(--lg-bezel-2);
+  stroke-width: 12;
+}
+.rc-arc {
+  fill: none;
+  stroke: var(--lg-signal);
+  stroke-width: 12;
+}
+.rc-tick {
+  stroke: var(--lg-ash-mark);
+  stroke-width: 1.5;
+}
+.rc-mark {
+  stroke: var(--lg-paper);
+  stroke-width: 2.5;
+}
+.rc-gauge-value {
+  font-family: var(--lg-font-display);
+  font-size: 40px;
+  fill: var(--lg-paper);
+}
+.rc-gauge-unit {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  fill: var(--lg-ink-on-dark);
+}
+
+/* The radar */
+.rc-ring {
+  fill: none;
+  stroke: var(--lg-bezel-2);
+  stroke-width: 1;
+}
+.rc-ring-mark {
+  stroke: var(--lg-ash-mark);
+  stroke-dasharray: 3 3;
+}
+.rc-spoke {
+  stroke: var(--lg-bezel-2);
+  stroke-width: 1;
+}
+.rc-reach {
+  fill: none;
+  stroke: var(--lg-paper);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+.rc-acc {
+  fill: var(--lg-signal);
+  fill-opacity: 0.3;
+  stroke: var(--lg-signal);
+  stroke-width: 2;
+}
+.rc-dot {
+  fill: var(--lg-signal);
+  stroke: var(--lg-bezel);
+  stroke-width: 1.5;
+}
+.rc-axis {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  fill: var(--lg-paper);
+}
+
+/* Bars in the table cells and the verdict marks */
+.ov-table td[data-seen],
+.ov-table td[data-correct] {
+  min-width: 5.5rem;
+}
+.rc-bar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  margin-top: 4px;
+}
+.rc-bar-track {
+  fill: var(--lg-screen-2);
+}
+.rc-bar-fill {
+  fill: var(--lg-ink);
+}
+.rc-bar-mark {
+  stroke: var(--lg-ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.ov-table tr[data-band="ready"] .rc-bar-fill {
+  fill: var(--lg-good);
+}
+.rc-verdict {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: -3px;
+}
+.rc-verdict-shape {
+  fill: none;
+  stroke: var(--lg-ink);
+  stroke-width: 1.5;
+}
+.rc-verdict[data-band="unmeasured"] .rc-verdict-shape {
+  stroke: var(--lg-ink-3);
+  stroke-dasharray: 2 2;
+}
+.rc-verdict[data-band="ready"] .rc-verdict-shape {
+  fill: var(--lg-signal);
+}
+.rc-verdict-half {
+  fill: var(--lg-signal);
+  stroke: var(--lg-ink);
+  stroke-width: 1.5;
+}
+.rc-verdict-x {
+  stroke: var(--lg-bad);
+  stroke-width: 2;
+}
+@keyframes rc-sweep {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+@keyframes rc-bloom {
+  from {
+    transform: scale(0);
+  }
+}
+
+/* ================================================================ module start */
+.ms {
+  display: grid;
+  grid-template-columns: minmax(0, var(--lg-measure)) minmax(16rem, 20rem);
+  justify-content: space-between;
+  gap: var(--lg-space-12);
+}
+@media (max-width: 1000px) {
+  .ms {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--lg-space-8);
+  }
+  /* On a tablet or phone the button comes before the list. */
+  .ms-side {
+    order: -1;
+  }
+  .ms-icon {
+    display: none;
+  }
+}
+.ms-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ms-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--lg-space-2) var(--lg-space-4);
+  min-height: 3.5rem;
+  padding: var(--lg-space-3) 0;
+  border-bottom: 1px solid var(--lg-rule);
+}
+.ms-no {
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-h3);
+  line-height: 1;
+  color: var(--lg-ink-3);
+}
+.ms-title {
+  font-size: var(--lg-text-body);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--lg-ink);
+  text-decoration: none;
+}
+.ms-title:hover {
+  text-decoration: underline;
+}
+.ms-title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.ms-meta {
+  display: flex;
+  gap: var(--lg-space-2);
+  color: var(--lg-ink-3);
+}
+.ms-kind {
+  padding: 1px 8px;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+}
+.ms-step[data-kind="lab"] .ms-kind,
+.ms-step[data-kind="drill"] .ms-kind {
+  background: var(--lg-ink);
+  color: var(--lg-paper);
+}
+.ms-done {
+  display: none;
+}
+.ms-step[data-done] .ms-no {
+  color: var(--lg-ink);
+}
+.ms-step[data-done] .ms-done {
+  display: inline;
+  color: var(--lg-ink);
+}
+.ms-step[data-next] {
+  background: linear-gradient(90deg, var(--lg-signal) 0 6px, transparent 6px);
+  padding-left: var(--lg-space-4);
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+}
+.ms-step[data-next] .ms-no {
+  color: var(--lg-ink);
+}
+@media (max-width: 640px) {
+  .ms-step {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+  }
+  .ms-meta {
+    grid-column: 2;
+  }
+}
+.ms-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lg-space-6);
+  align-self: start;
+  padding: var(--lg-space-6);
+  background: var(--lg-paper);
+  border-left: 6px solid var(--lg-ink);
+}
+@media (min-width: 1001px) {
+  .ms-side {
+    position: sticky;
+    top: var(--lg-space-6);
+  }
+}
+.ms-icon {
+  align-self: center;
+}
+.ms-total {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--lg-space-4);
+  margin: 0;
+  padding-top: var(--lg-space-4);
+  border-top: 3px solid var(--lg-ink);
+}
+.ms-total dt {
+  color: var(--lg-ink-3);
+}
+.ms-total dd {
+  margin: 0;
+}
+.ms-big {
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-stat);
+  line-height: 1;
+}
+.ms-kinds {
+  margin: 0;
+}
+.ms-progress {
+  margin: 0;
+  font-size: var(--lg-text-ui);
+  color: var(--lg-ink-2);
+}
+.ms-progress[hidden] {
+  display: none;
+}
+.ms-go {
+  width: 100%;
+  min-height: 3.25rem;
+  font-size: var(--lg-text-lead);
+}
+.ms-quiz {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-size: var(--lg-text-ui);
+  font-weight: 600;
+}
+
+/* ================================================================ module end */
+.me-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--lg-space-6);
+}
+.me-result,
+.me-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lg-space-4);
+  padding: var(--lg-space-6);
+}
+.me-result {
+  background: var(--lg-paper);
+  border-left: 6px solid var(--lg-ink);
+}
+.me-result-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lg-space-6);
+}
+.me-quiz {
+  background: var(--lg-screen-2);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+}
+.page-glass .me-label {
+  margin: 0;
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lg-ink-3);
+}
+.me-big {
+  margin: 0;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-stat);
+  line-height: 1;
+  color: var(--lg-ink);
+}
+.me-big span {
+  color: var(--lg-ink-3);
+}
+.me-text {
+  max-width: 40rem;
+  margin: 0;
+  font-size: var(--lg-text-ui);
+  line-height: 1.55;
+  color: var(--lg-ink-2);
+}
+.me-text a {
+  font-weight: 600;
+}
+.me-done {
+  width: fit-content;
+  margin: 0;
+  padding: 3px 10px;
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.me-go {
+  align-self: flex-start;
+  min-width: 12rem;
+  margin-top: auto;
+}
+.me-next {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--lg-space-6);
+  margin-top: var(--lg-space-8);
+  padding: var(--lg-space-6) 0;
+  border-top: 3px solid var(--lg-ink);
+  border-bottom: 1px solid var(--lg-rule);
+}
+.me-next-art {
+  display: grid;
+  place-items: center;
+  padding: var(--lg-space-3);
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+}
+.me-next-body {
+  display: grid;
+  gap: var(--lg-space-2);
+}
+.me-next-title {
+  margin: 0;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-h3);
+  line-height: 1.15;
+}
+.me-next-title a {
+  text-decoration: none;
+}
+.me-next-title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.me-next:hover .me-next-title a {
+  text-decoration: underline;
+}
+.me-last {
+  margin-top: var(--lg-space-8);
+}
+.me-actions {
+  margin: var(--lg-space-6) 0 0;
+}
+@media (max-width: 560px) {
+  .me-next {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .me-next-art {
+    justify-self: start;
+  }
+  .me-go {
+    width: 100%;
+  }
+}
+
+/* ================================================================ 404 and settings */
+.nf {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lg-space-6) var(--lg-space-8);
+}
+.nf-body {
+  flex: 1 1 20rem;
+}
+.nf-text {
+  max-width: 36rem;
+  margin: 0;
+  font-size: var(--lg-text-body);
+  color: var(--lg-ink-2);
+}
+.nf-actions {
+  margin: var(--lg-space-6) 0 0;
+}
+
+.settings-page [data-settings] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--lg-space-6);
+  align-items: start;
+}
+.settings-page [data-settings] > .box {
+  margin: 0;
+}
+.settings-page [data-settings] > [data-settings-message] {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.settings-page [data-settings] > [data-settings-message]:empty {
+  display: none;
+}
+
+/* ================================================================ module icons (ModuleIcon.astro) */
+.micon {
+  display: inline-block;
+  flex: none;
+  line-height: 0;
+  color: inherit;
+}
+.micon svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.micon-sm {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.micon-md {
+  width: 4rem;
+  height: 4rem;
+}
+.micon-lg {
+  width: 6rem;
+  height: 6rem;
+}
+.micon-xl {
+  width: 9rem;
+  height: 9rem;
+}
+.micon .hot {
+  fill: var(--lg-signal);
+  stroke: var(--lg-ink);
+}
+.micon .mi-fill {
+  fill: var(--lg-paper);
+}
+.ov-mod-art .micon .mi-fill {
+  fill: var(--lg-screen);
+}
+.ov-mod-card:hover .micon .mi-fill {
+  fill: var(--lg-ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .micon .mi-steer,
+  .micon .mi-meridian,
+  .micon .mi-flicker,
+  .micon .mi-needle,
+  .micon .mi-bar,
+  .micon .mi-scan,
+  .micon .mi-grow,
+  .micon .mi-pulse,
+  .micon .mi-spin,
+  .micon .mi-lift,
+  .micon .mi-swing,
+  .micon .mi-ring,
+  .micon .mi-grow-out,
+  .micon .mi-wave,
+  .micon .mi-bubble,
+  .micon .mi-hand {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .micon .mi-blink {
+    animation: mi-blink 1.6s steps(2) infinite;
+  }
+  .micon .mi-blink.mi-d1 {
+    animation-delay: 0.4s;
+  }
+  .micon .mi-steer {
+    animation: mi-steer 7s var(--lg-ease-out) infinite alternate;
+  }
+  .micon .mi-meridian {
+    animation: mi-meridian 12s linear infinite;
+  }
+  .micon .mi-meridian.mi-d1 {
+    animation-delay: -3s;
+  }
+  .micon .mi-meridian.mi-d2 {
+    animation-delay: -6s;
+  }
+  .micon .mi-meridian.mi-d3 {
+    animation-delay: -9s;
+  }
+  .micon .mi-flicker {
+    transform-origin: 50% 100%;
+    animation: mi-flicker 1.4s ease-in-out infinite alternate;
+  }
+  .micon .mi-flicker.mi-d1 {
+    animation-duration: 0.9s;
+  }
+  .micon .mi-slide {
+    animation: mi-slide 5s ease-in-out infinite alternate;
+  }
+  .micon .mi-needle {
+    transform-origin: 50% 100%;
+    animation: mi-needle 3.2s ease-in-out infinite alternate;
+  }
+  .micon .mi-bar {
+    transform-origin: 50% 100%;
+    animation: mi-bar 1.8s ease-in-out infinite alternate;
+  }
+  .micon .mi-bar.mi-d1 {
+    animation-delay: -0.5s;
+  }
+  .micon .mi-bar.mi-d2 {
+    animation-delay: -1.1s;
+  }
+  .micon .mi-bar.mi-d3 {
+    animation-delay: -1.5s;
+  }
+  .micon .mi-flow {
+    animation: mi-flow 42s linear infinite;
+  }
+  .micon .mi-scan {
+    animation: mi-scan 3.6s ease-in-out infinite alternate;
+  }
+  .micon .mi-grow {
+    transform-origin: 0 50%;
+    animation: mi-grow 6s var(--lg-ease-out) infinite;
+  }
+  .micon .mi-grow.mi-d1 {
+    animation-delay: 0.25s;
+  }
+  .micon .mi-grow.mi-d2 {
+    animation-delay: 0.5s;
+  }
+  .micon .mi-grow.mi-d3 {
+    animation-delay: 0.75s;
+  }
+  .micon .mi-grow.mi-d4 {
+    animation-delay: 1s;
+  }
+  .micon .mi-pulse {
+    animation: mi-pulse 1.4s ease-in-out infinite alternate;
+  }
+  .micon .mi-spin {
+    animation: mi-spin 24s linear infinite;
+  }
+  .micon .mi-spin.mi-rev {
+    animation-direction: reverse;
+  }
+  .micon .mi-lift {
+    animation: mi-lift 2.6s ease-in-out infinite alternate;
+  }
+  .micon .mi-lift.mi-d1 {
+    animation-delay: -1.2s;
+  }
+  .micon .mi-step {
+    animation: mi-step 5.6s steps(7, jump-none) infinite;
+  }
+  .micon .mi-swing {
+    transform-origin: 50% 100%;
+    animation: mi-swing 1.2s ease-in-out infinite alternate;
+  }
+  .micon .mi-ring {
+    transform-origin: 50% 0;
+    animation: mi-ring 4s ease-in-out infinite;
+  }
+  .micon .mi-grow-out {
+    animation: mi-grow-out 3s var(--lg-ease-out) infinite;
+  }
+  .micon .mi-wave {
+    transform-origin: 0 50%;
+    animation: mi-wave 1.2s ease-in-out infinite alternate;
+  }
+  .micon .mi-bubble {
+    animation: mi-bubble 3s ease-in infinite;
+  }
+  .micon .mi-bubble.mi-d1 {
+    animation-delay: -1s;
+  }
+  .micon .mi-bubble.mi-d2 {
+    animation-delay: -2s;
+  }
+  .micon .mi-draw {
+    animation: mi-draw 4s var(--lg-ease-out) infinite;
+  }
+  .micon .mi-hand {
+    transform-origin: 50% 100%;
+    animation: mi-spin 12s linear infinite;
+  }
+
+}
+/* Effects off in Settings: the drawings stand still in their first frame. */
+:root[data-motion="off"] .micon *,
+:root[data-motion="off"] .hero-art * {
+  animation: none !important;
+}
+
+@keyframes mi-blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+@keyframes mi-steer {
+  from {
+    transform: rotate(-35deg);
+  }
+  to {
+    transform: rotate(35deg);
+  }
+}
+/* A meridian's width follows the sine of its longitude as the globe turns. */
+@keyframes mi-meridian {
+  0% {
+    transform: scaleX(0.02);
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  50% {
+    transform: scaleX(1);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  100% {
+    transform: scaleX(0.02);
+  }
+}
+@keyframes mi-flicker {
+  from {
+    transform: scale(1, 1);
+  }
+  to {
+    transform: scale(0.96, 1.06) skewX(-2deg);
+  }
+}
+@keyframes mi-slide {
+  from {
+    transform: translateX(-22px);
+  }
+  to {
+    transform: translateX(18px);
+  }
+}
+@keyframes mi-needle {
+  from {
+    transform: rotate(-70deg);
+  }
+  to {
+    transform: rotate(70deg);
+  }
+}
+@keyframes mi-bar {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes mi-flow {
+  to {
+    stroke-dashoffset: -504;
+  }
+}
+@keyframes mi-scan {
+  to {
+    transform: translateY(84px);
+  }
+}
+@keyframes mi-grow {
+  0% {
+    transform: scaleX(0);
+  }
+  35%,
+  85% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+@keyframes mi-pulse {
+  to {
+    transform: scale(1.35);
+  }
+}
+@keyframes mi-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes mi-lift {
+  to {
+    transform: translateY(-6px);
+  }
+}
+@keyframes mi-step {
+  to {
+    transform: translateY(60px);
+  }
+}
+@keyframes mi-swing {
+  from {
+    transform: rotate(-22deg);
+  }
+  to {
+    transform: rotate(22deg);
+  }
+}
+@keyframes mi-ring {
+  0%,
+  40%,
+  100% {
+    transform: rotate(0);
+  }
+  8% {
+    transform: rotate(14deg);
+  }
+  16% {
+    transform: rotate(-12deg);
+  }
+  24% {
+    transform: rotate(8deg);
+  }
+  32% {
+    transform: rotate(-4deg);
+  }
+}
+@keyframes mi-grow-out {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(2.35);
+    opacity: 0;
+  }
+}
+@keyframes mi-wave {
+  to {
+    transform: scaleX(0.82) skewY(6deg);
+  }
+}
+@keyframes mi-bubble {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-46px);
+    opacity: 0;
+  }
+}
+@keyframes mi-draw {
+  0% {
+    stroke-dashoffset: 70;
+  }
+  40%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes hx-float {
+  to {
+    transform: translateY(var(--hx-lift, 0px));
+  }
+}
+
+/* ================================================================ motion: the console comes alive
+   Everything that moves below sits under prefers-reduced-motion: no-preference and behind
+   :root:not([data-motion="off"]), so with Effects off every part rests in its final frame.
+   Entrances below the fold run on scroll (view timelines); the hero runs once on load.
+   The rules outside the media query are the still hover states and the decorative parts. */
+
+/* Still hover states: colour and frame changes that work without motion and on touch. */
+.ov-mod-brk,
+.ov-mod-ring {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+}
+.ov-mod-brk {
+  inset: 10px;
+  background:
+    linear-gradient(var(--lg-ink-on-dark) 0 0) 0 0 / 14px 2px,
+    linear-gradient(var(--lg-ink-on-dark) 0 0) 0 0 / 2px 14px,
+    linear-gradient(var(--lg-ink-on-dark) 0 0) 100% 0 / 14px 2px,
+    linear-gradient(var(--lg-ink-on-dark) 0 0) 100% 0 / 2px 14px,
+    linear-gradient(var(--lg-ink-on-dark) 0 0) 0 100% / 14px 2px,
+    linear-gradient(var(--lg-ink-on-dark) 0 0) 0 100% / 2px 14px,
+    linear-gradient(var(--lg-ink-on-dark) 0 0) 100% 100% / 14px 2px,
+    linear-gradient(var(--lg-ink-on-dark) 0 0) 100% 100% / 2px 14px;
+  background-repeat: no-repeat;
+}
+.ov-mod-ring {
+  top: 50%;
+  left: 50%;
+  width: 8.5rem;
+  height: 8.5rem;
+  margin: -4.25rem 0 0 -4.25rem;
+}
+/* A dashed outer ring and two inner arcs, drawn with conic gradients through ring-shaped masks. */
+.ov-mod-ring::before,
+.ov-mod-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(var(--lg-ash-mark) 0 5deg, transparent 5deg 12deg);
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 1.5px), var(--lg-ink) calc(100% - 1.5px) 100%, transparent 100%);
+  mask: radial-gradient(closest-side, transparent calc(100% - 1.5px), var(--lg-ink) calc(100% - 1.5px) 100%, transparent 100%);
+}
+.ov-mod-ring::after {
+  inset: 10px;
+  background: conic-gradient(var(--lg-ink-on-dark) 0 60deg, transparent 60deg 180deg, var(--lg-ink-on-dark) 180deg 240deg, transparent 240deg);
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 2px), var(--lg-ink) calc(100% - 2px) 100%, transparent 100%);
+  mask: radial-gradient(closest-side, transparent calc(100% - 2px), var(--lg-ink) calc(100% - 2px) 100%, transparent 100%);
+}
+.ov-mod-art .micon {
+  position: relative;
+}
+.ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-brk,
+.ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-ring {
+  opacity: 1;
+}
+.ov-mod-card:focus-within .ov-mod-art {
+  background-color: var(--lg-ink);
+  color: var(--lg-ink-on-dark);
+}
+.ov-hero-art:hover .ov-readout {
+  background: var(--lg-ink);
+  color: var(--lg-ink-on-dark);
+}
+.ov-hero-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ov-strip {
+  position: relative;
+  padding-right: 4.5rem;
+}
+.ov-strip::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3rem;
+  background: repeating-linear-gradient(135deg, var(--lg-ink) 0 6px, var(--lg-signal) 6px 12px);
+  pointer-events: none;
+}
+.ov-strip-due::after {
+  background: repeating-linear-gradient(135deg, var(--lg-ink) 0 6px, var(--lg-paper) 6px 12px);
+}
+.ov-badge:hover .ov-badge-mark {
+  background: var(--lg-signal);
+  color: var(--lg-ink);
+}
+.rc-orbit {
+  fill: none;
+  stroke: var(--lg-bezel-2);
+  stroke-width: 1.5;
+}
+.rc-beam {
+  stroke: var(--lg-paper);
+  stroke-width: 1.5;
+  opacity: 0;
+}
+.meter-glint {
+  stroke: var(--lg-paper);
+  stroke-width: 10;
+  stroke-opacity: 0.6;
+  opacity: 0;
+}
+.rc-blueprint g:hover .rc-seg {
+  fill: var(--lg-signal);
+}
+.ov-table tbody tr:hover {
+  background-color: var(--lg-screen-2);
+}
+.ov-table tbody th {
+  position: relative;
+}
+.ov-table tbody th::before,
+.ms-step::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  width: 9px;
+  height: 14px;
+  margin-top: -7px;
+  background: var(--lg-signal);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events: none;
+}
+.ov-table tbody tr:hover th::before {
+  transform: scaleX(1);
+}
+.ov-method-item:hover .ov-method-tile {
+  background: var(--lg-ink-2);
+  color: var(--lg-signal);
+}
+.ov-method-item:last-child:hover .ov-method-tile {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.ov-method-fill {
+  color: var(--lg-ink);
+  -webkit-text-stroke: 1.5px var(--lg-ink);
+  clip-path: inset(100% 0 0 0);
+}
+.ov-method-item:hover .ov-method-fill {
+  clip-path: inset(0 0 0 0);
+}
+.ov-method-title {
+  position: relative;
+}
+.ov-method-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 3px;
+  background: var(--lg-signal);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.ov-method-item:last-child .ov-method-title::before {
+  background: var(--lg-ink);
+}
+.ov-method-item:hover .ov-method-title::before {
+  transform: scaleX(1);
+}
+.ms-step::before {
+  left: -16px;
+}
+.ms-step:hover {
+  background-color: var(--lg-screen-2);
+}
+.ms-step:hover::before {
+  transform: scaleX(1);
+}
+.ms-step:hover .ms-no {
+  color: var(--lg-ink);
+}
+.me-next {
+  padding-right: 5rem;
+}
+.me-next-go {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 3.5rem;
+  margin-top: -0.75rem;
+  color: var(--lg-ink-3);
+  line-height: 0;
+  pointer-events: none;
+}
+.me-next-go svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.me-next:hover .me-next-go {
+  color: var(--lg-ink);
+}
+.me-next:hover .me-next-art {
+  background: var(--lg-ink);
+  color: var(--lg-ink-on-dark);
+}
+.me-next:hover .me-next-art .micon .mi-fill {
+  fill: var(--lg-ink);
+}
+@media (max-width: 560px) {
+  .me-next {
+    padding-right: 0;
+  }
+  .me-next-go {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Section heads */
+  :root:not([data-motion="off"]) .ov-sh {
+    view-timeline: --hm-sh block;
+    border-bottom-color: transparent;
+  }
+  :root:not([data-motion="off"]) .ov-sh::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -3px;
+    height: 3px;
+    background: var(--lg-ink);
+    transform-origin: left center;
+    animation: lg-grow 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-sh;
+    animation-range: entry 0% cover 40%;
+  }
+  :root:not([data-motion="off"]) .ov-sh::after {
+    animation: lg-wipe 1s steps(6) both;
+    animation-timeline: --hm-sh;
+    animation-range: cover 25% cover 45%;
+  }
+  :root:not([data-motion="off"]) .ov-sh-n {
+    animation: lg-wipe 1s steps(3) both;
+    animation-timeline: --hm-sh;
+    animation-range: entry 0% entry 100%;
+  }
+  :root:not([data-motion="off"]) .ov-sh-t {
+    animation: hm-glitch-in 1s linear both;
+    animation-timeline: --hm-sh;
+    animation-range: entry 20% cover 35%;
+  }
+  :root:not([data-motion="off"]) .ov-sh-c {
+    animation: hm-flicker 1s linear both;
+    animation-timeline: --hm-sh;
+    animation-range: cover 25% cover 40%;
+  }
+  /* The hero: text boots, the stack assembles slab by slab, then the request falls through it */
+  :root:not([data-motion="off"]) .ov-index {
+    animation: lg-wipe 0.4s steps(3) both;
+  }
+  :root:not([data-motion="off"]) .ov-index::after {
+    order: 2;
+    transform-origin: left center;
+    animation: lg-grow 0.6s var(--lg-ease-out) 0.15s both;
+  }
+  :root:not([data-motion="off"]) .ov-kicker {
+    animation: lg-wipe 0.45s var(--lg-ease-out) 0.15s both;
+  }
+  :root:not([data-motion="off"]) .page-glass .ov-hero-title {
+    animation: lg-wipe var(--lg-dur-slow) var(--lg-ease-out) 0.2s both;
+  }
+  :root:not([data-motion="off"]) .ov-hero-lead {
+    animation: lg-rise 0.6s var(--lg-ease-out) 0.45s both;
+  }
+  :root:not([data-motion="off"]) .ov-actions {
+    animation: lg-rise 0.6s var(--lg-ease-out) 0.6s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-corners {
+    transform-box: view-box;
+    transform-origin: 50% 50%;
+    animation: hm-snap 0.35s steps(3) both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-plus {
+    animation: hm-flicker 0.6s linear 0.2s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-feed {
+    stroke-dasharray: 26;
+    animation: hm-draw-26 0.4s var(--lg-ease-out) 1.2s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-run {
+    animation: hm-fade-in 0.6s linear 0.1s both, mi-flow 60s linear infinite;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d3 {
+    --hx-lift: -14px;
+    transition: translate 0.5s var(--lg-ease-out);
+    animation: hm-slab-in 0.7s cubic-bezier(0.3, 0, 0.2, 1) 0.15s both, hx-float 7s ease-in-out 0.85s infinite alternate;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d3 .hx-lead {
+    stroke-dasharray: 130;
+    animation: hm-draw-130 0.45s var(--lg-ease-out) 0.75s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d3 text {
+    animation: lg-wipe 0.5s steps(6) 1.00s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d3 .hx-top {
+    animation: hm-hit-3 6s linear 1.6s infinite;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d2 {
+    --hx-lift: -9px;
+    transition: translate 0.5s var(--lg-ease-out);
+    animation: hm-slab-in 0.7s cubic-bezier(0.3, 0, 0.2, 1) 0.3s both, hx-float 7s ease-in-out 1.00s infinite alternate;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d2 .hx-lead {
+    stroke-dasharray: 130;
+    animation: hm-draw-130 0.45s var(--lg-ease-out) 0.90s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d2 text {
+    animation: lg-wipe 0.5s steps(6) 1.15s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d2 .hx-top {
+    animation: hm-hit-2 6s linear 1.6s infinite;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d1 {
+    --hx-lift: -4px;
+    transition: translate 0.5s var(--lg-ease-out);
+    animation: hm-slab-in 0.7s cubic-bezier(0.3, 0, 0.2, 1) 0.45s both, hx-float 7s ease-in-out 1.15s infinite alternate;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d1 .hx-lead {
+    stroke-dasharray: 130;
+    animation: hm-draw-130 0.45s var(--lg-ease-out) 1.05s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d1 text {
+    animation: lg-wipe 0.5s steps(6) 1.30s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d1 .hx-top {
+    animation: hm-hit-1 6s linear 1.6s infinite;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d0 {
+    --hx-lift: 0px;
+    transition: translate 0.5s var(--lg-ease-out);
+    animation: hm-slab-in 0.7s cubic-bezier(0.3, 0, 0.2, 1) 0.6s both, hx-float 7s ease-in-out 1.30s infinite alternate;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d0 .hx-lead {
+    stroke-dasharray: 130;
+    animation: hm-draw-130 0.45s var(--lg-ease-out) 1.20s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d0 text {
+    animation: lg-wipe 0.5s steps(6) 1.45s both;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-d0 .hx-top {
+    animation: hm-hit-0 6s linear 1.6s infinite;
+  }
+  :root:not([data-motion="off"]) .ov-hero-art:hover .hx-d0 {
+    translate: 0 -18px;
+  }
+  :root:not([data-motion="off"]) .ov-hero-art:hover .hx-d1 {
+    translate: 0 -6px;
+  }
+  :root:not([data-motion="off"]) .ov-hero-art:hover .hx-d2 {
+    translate: 0 6px;
+  }
+  :root:not([data-motion="off"]) .ov-hero-art:hover .hx-d3 {
+    translate: 0 18px;
+  }
+  :root:not([data-motion="off"]) .hero-art .hx-drop {
+    animation: hm-hx-drop 6s linear 1.6s infinite both;
+  }
+  :root:not([data-motion="off"]) .ov-hero-scan {
+    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--lg-ink) 8%, transparent) 85%, var(--lg-ink-3) 85% calc(85% + 1px), transparent calc(85% + 1px)) 0 -96px / 100% 96px no-repeat;
+    animation: hm-scan-y 5s linear 1.4s infinite;
+  }
+  :root:not([data-motion="off"]) .ov-readout {
+    animation: lg-wipe 0.6s steps(8) 0.9s both;
+  }
+  :root:not([data-motion="off"]) .ov-caption {
+    animation: lg-wipe 0.7s steps(10) 1.1s both;
+  }
+  /* Module cards: they boot in on scroll, then lift off an ink block on hover */
+  :root:not([data-motion="off"]) .ov-mod {
+    position: relative;
+    view-timeline: --hm-card block;
+  }
+  :root:not([data-motion="off"]) .ov-mod::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--lg-ink);
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+    animation: hm-fade-in 1s steps(2) both;
+    animation-timeline: --hm-card;
+    animation-range: entry 0% entry 15%;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card {
+    z-index: 1;
+    transition: translate 0.22s var(--lg-ease-out);
+    animation: hm-card-in 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-card;
+    animation-range: entry 5% entry 65%;
+  }
+  :root:not([data-motion="off"]) .ov-mod:nth-child(3n + 2) .ov-mod-card {
+    animation-range: entry 15% entry 75%;
+  }
+  :root:not([data-motion="off"]) .ov-mod:nth-child(3n + 3) .ov-mod-card {
+    animation-range: entry 25% entry 85%;
+  }
+  :root:not([data-motion="off"]) .ov-mod-no {
+    animation: lg-wipe 1s steps(5) both;
+    animation-timeline: --hm-card;
+    animation-range: entry 40% entry 70%;
+  }
+  :root:not([data-motion="off"]) .ov-mod-state {
+    overflow: hidden;
+    animation: hm-glitch-in 1s linear both;
+    animation-timeline: --hm-card;
+    animation-range: entry 50% entry 85%;
+  }
+  :root:not([data-motion="off"]) .ov-mod[data-state="current"] .ov-mod-state::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--lg-paper) 70%, transparent) 50%, transparent 70%);
+    transform: translateX(-110%);
+    animation: hm-sheen 3.2s var(--lg-ease-out) 1s infinite;
+  }
+  :root:not([data-motion="off"]) .ov-mod-title {
+    animation: hm-glitch-in 1s linear both;
+    animation-timeline: --hm-card;
+    animation-range: entry 35% entry 75%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: hm-cell-in 1s steps(3) both;
+    animation-timeline: --hm-card;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(1) {
+    animation-range: entry 25% entry 45%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(2) {
+    animation-range: entry 30% entry 50%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(3) {
+    animation-range: entry 35% entry 55%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(4) {
+    animation-range: entry 40% entry 60%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(5) {
+    animation-range: entry 45% entry 65%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(6) {
+    animation-range: entry 50% entry 70%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(7) {
+    animation-range: entry 55% entry 75%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(8) {
+    animation-range: entry 60% entry 80%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(9) {
+    animation-range: entry 65% entry 85%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(10) {
+    animation-range: entry 70% entry 90%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(11) {
+    animation-range: entry 75% entry 95%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells rect:nth-child(n + 12) {
+    animation-range: entry 80% entry 100%;
+  }
+  :root:not([data-motion="off"]) .ov-mod .cells .cell-next {
+    animation: hm-cell-in 1s steps(3) both, hm-beacon 1.2s linear infinite;
+    animation-timeline: --hm-card, auto;
+    animation-range: entry 60% entry 90%, normal;
+  }
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card {
+    translate: -6px -6px;
+  }
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-art {
+    animation: hm-dots 1.6s linear infinite;
+  }
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-brk {
+    animation: hm-snap 0.28s steps(3) both;
+  }
+  :root:not([data-motion="off"]) .ov-mod-ring {
+    scale: 0.55;
+    transition: scale 0.35s var(--lg-ease-out), opacity 0.2s linear;
+  }
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-ring {
+    scale: 1;
+    animation: lg-spin 9s linear infinite;
+  }
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-ring::after {
+    animation: lg-spin 2.4s linear infinite reverse;
+  }
+  :root:not([data-motion="off"]) .ov-mod-art .micon {
+    transition: scale 0.3s var(--lg-ease-out);
+  }
+  :root:not([data-motion="off"]) .ov-mod:is(:hover, :focus-within) .ov-mod-card .ov-mod-art .micon {
+    scale: 1.1;
+    animation: hm-glitch 0.45s linear both;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .ov-arrow,
+  :root:not([data-motion="off"]) .ov-mod-link:focus-visible .ov-arrow {
+    animation: hm-arrow-shoot 0.45s var(--lg-ease-out) both;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect {
+    animation: hm-cell-ping 0.5s linear both;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(2) {
+    animation-delay: 45ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(3) {
+    animation-delay: 90ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(4) {
+    animation-delay: 135ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(5) {
+    animation-delay: 180ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(6) {
+    animation-delay: 225ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(7) {
+    animation-delay: 270ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(8) {
+    animation-delay: 315ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(9) {
+    animation-delay: 360ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(10) {
+    animation-delay: 405ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(11) {
+    animation-delay: 450ms;
+  }
+  :root:not([data-motion="off"]) .ov-mod-card:hover .cells rect:nth-child(n + 12) {
+    animation-delay: 495ms;
+  }
+  /* System status: a screen that switches on, values that decode, bars that charge */
+  :root:not([data-motion="off"]) .ov-status {
+    position: relative;
+    view-timeline: --hm-status block;
+    animation: hm-crt-14 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 0% entry 50%;
+  }
+  :root:not([data-motion="off"]) .ov-status::before,
+  :root:not([data-motion="off"]) .ov-scope::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(180deg, transparent 0 3px, color-mix(in srgb, var(--lg-paper) 4%, transparent) 3px 4px);
+    pointer-events: none;
+  }
+  :root:not([data-motion="off"]) .ov-status::after,
+  :root:not([data-motion="off"]) .ov-scope::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--lg-paper) 7%, transparent) 90%, color-mix(in srgb, var(--lg-paper) 22%, transparent) 90% calc(90% + 1px), transparent calc(90% + 1px)) 0 -120px / 100% 120px no-repeat;
+    pointer-events: none;
+    animation: hm-scan-y 4.2s linear infinite;
+  }
+  :root:not([data-motion="off"]) .ov-scope::after {
+    animation-duration: 5.4s;
+  }
+  :root:not([data-motion="off"]) .ov-status .ov-status-head span:first-child,
+  :root:not([data-motion="off"]) .ov-scope .ov-exam-code {
+    animation: lg-wipe 1s steps(8) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 30% entry 70%;
+  }
+  :root:not([data-motion="off"]) .ov-status .ov-status-head span:last-child {
+    animation: hm-flicker 1s linear both;
+    animation-timeline: --hm-status;
+    animation-range: entry 50% entry 80%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(1) dt {
+    animation: lg-wipe 1s steps(6) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 33% entry 53%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(1) .ov-stat-value {
+    animation: hm-decode 1s linear both;
+    animation-timeline: --hm-status;
+    animation-range: entry 43% entry 61%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(1) .meter-fill {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: lg-grow 1s steps(10) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 43% entry 68%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(2) dt {
+    animation: lg-wipe 1s steps(6) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 41% entry 61%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(2) .ov-stat-value {
+    animation: hm-decode 1s linear both;
+    animation-timeline: --hm-status;
+    animation-range: entry 51% entry 69%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(2) .meter-fill {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: lg-grow 1s steps(10) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 51% entry 76%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(3) dt {
+    animation: lg-wipe 1s steps(6) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 49% entry 69%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(3) .ov-stat-value {
+    animation: hm-decode 1s linear both;
+    animation-timeline: --hm-status;
+    animation-range: entry 59% entry 77%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(3) .meter-fill {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: lg-grow 1s steps(10) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 59% entry 84%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(4) dt {
+    animation: lg-wipe 1s steps(6) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 57% entry 77%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(4) .ov-stat-value {
+    animation: hm-decode 1s linear both;
+    animation-timeline: --hm-status;
+    animation-range: entry 67% entry 85%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(4) .meter-fill {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: lg-grow 1s steps(10) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 67% entry 92%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(5) dt {
+    animation: lg-wipe 1s steps(6) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 65% entry 85%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(5) .ov-stat-value {
+    animation: hm-decode 1s linear both;
+    animation-timeline: --hm-status;
+    animation-range: entry 75% entry 93%;
+  }
+  :root:not([data-motion="off"]) .ov-stat:nth-child(5) .meter-fill {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: lg-grow 1s steps(10) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 75% entry 100%;
+  }
+  :root:not([data-motion="off"]) .meter-glint {
+    animation: hm-glint 2.8s var(--lg-ease-out) 1.2s infinite;
+  }
+  :root:not([data-motion="off"]) .ov-strip {
+    animation: lg-wipe 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-status;
+    animation-range: entry 70% entry 100%;
+  }
+  :root:not([data-motion="off"]) .ov-strip::after {
+    animation: hm-hazard 0.9s linear infinite;
+  }
+  /* Badges: the panel rolls down, earned marks spin in and shine, the next badge pulses */
+  :root:not([data-motion="off"]) .ov-badges {
+    view-timeline: --hm-badges block;
+    animation: hm-shutter-cut 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-badges;
+    animation-range: entry 0% entry 60%;
+  }
+  :root:not([data-motion="off"]) .ov-badge-mark {
+    position: relative;
+    transition: rotate 0.5s var(--lg-ease-out), background-color var(--lg-dur-fast) linear;
+    animation: hm-spin-in 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-badges;
+  }
+  :root:not([data-motion="off"]) .ov-badge-mark::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--lg-paper) 55%, transparent) 50%, transparent 70%);
+    transform: translateX(-110%);
+    animation: hm-sheen 4s var(--lg-ease-out) 1.5s infinite;
+  }
+  :root:not([data-motion="off"]) .ov-badge-tick {
+    stroke-dasharray: 24;
+    animation: hm-draw-24 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-badges;
+  }
+  :root:not([data-motion="off"]) .ov-badge > span:last-child {
+    animation: hm-glitch-in 1s linear both;
+    animation-timeline: --hm-badges;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(1) .ov-badge-mark {
+    animation-range: entry 27% entry 52%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(1) .ov-badge-tick {
+    animation-range: entry 42% entry 62%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(1) > span:last-child {
+    animation-range: entry 32% entry 57%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(1) .ov-badge-mark::after {
+    animation-delay: 1.50s;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(2) .ov-badge-mark {
+    animation-range: entry 34% entry 59%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(2) .ov-badge-tick {
+    animation-range: entry 49% entry 69%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(2) > span:last-child {
+    animation-range: entry 39% entry 64%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(2) .ov-badge-mark::after {
+    animation-delay: 1.85s;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(3) .ov-badge-mark {
+    animation-range: entry 41% entry 66%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(3) .ov-badge-tick {
+    animation-range: entry 56% entry 76%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(3) > span:last-child {
+    animation-range: entry 46% entry 71%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(3) .ov-badge-mark::after {
+    animation-delay: 2.20s;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(4) .ov-badge-mark {
+    animation-range: entry 48% entry 73%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(4) .ov-badge-tick {
+    animation-range: entry 63% entry 83%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(4) > span:last-child {
+    animation-range: entry 53% entry 78%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(4) .ov-badge-mark::after {
+    animation-delay: 2.55s;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(5) .ov-badge-mark {
+    animation-range: entry 55% entry 80%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(5) .ov-badge-tick {
+    animation-range: entry 70% entry 90%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(5) > span:last-child {
+    animation-range: entry 60% entry 85%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(5) .ov-badge-mark::after {
+    animation-delay: 2.90s;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(6) .ov-badge-mark {
+    animation-range: entry 62% entry 87%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(6) .ov-badge-tick {
+    animation-range: entry 77% entry 97%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(6) > span:last-child {
+    animation-range: entry 67% entry 92%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(6) .ov-badge-mark::after {
+    animation-delay: 3.25s;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(7) .ov-badge-mark {
+    animation-range: entry 69% entry 94%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(7) .ov-badge-tick {
+    animation-range: entry 84% entry 104%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(7) > span:last-child {
+    animation-range: entry 74% entry 99%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(7) .ov-badge-mark::after {
+    animation-delay: 3.60s;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(n + 8) .ov-badge-mark {
+    animation-range: entry 76% entry 101%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(n + 8) .ov-badge-tick {
+    animation-range: entry 91% entry 111%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(n + 8) > span:last-child {
+    animation-range: entry 81% entry 106%;
+  }
+  :root:not([data-motion="off"]) .ov-badge:nth-child(n + 8) .ov-badge-mark::after {
+    animation-delay: 3.95s;
+  }
+  :root:not([data-motion="off"]) .ov-badge:hover .ov-badge-mark {
+    rotate: 1turn;
+  }
+  :root:not([data-motion="off"]) .ov-badge-next {
+    position: relative;
+    border-color: transparent;
+    background-image:
+    linear-gradient(90deg, var(--lg-ink) 50%, transparent 0),
+    linear-gradient(90deg, var(--lg-ink) 50%, transparent 0),
+    linear-gradient(0deg, var(--lg-ink) 50%, transparent 0),
+    linear-gradient(0deg, var(--lg-ink) 50%, transparent 0);
+    background-size: 12px 2px, 12px 2px, 2px 12px, 2px 12px;
+    background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+    background-position: 0 0, 0 100%, 0 0, 100% 0;
+    background-origin: border-box;
+    animation: hm-ants 0.9s linear infinite;
+  }
+  :root:not([data-motion="off"]) .ov-badge-next::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border: 2px solid var(--lg-ink);
+    pointer-events: none;
+    animation: hm-ping 2.4s var(--lg-ease-out) infinite;
+  }
+  /* Readiness: the scope switches on, the gauge sweeps, the radar blooms and its beam turns */
+  :root:not([data-motion="off"]) .ov-exam {
+    view-timeline: --hm-exam block;
+  }
+  :root:not([data-motion="off"]) .ov-scope {
+    position: relative;
+    animation: hm-crt-18 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-exam;
+    animation-range: entry 0% entry 25%;
+  }
+  :root:not([data-motion="off"]) .ov-scope .ov-exam-code {
+    animation-timeline: --hm-exam; animation-range: entry 10% entry 25%;
+  }
+  :root:not([data-motion="off"]) .ov-scope .ov-exam-name {
+    animation: hm-fade-in 1s linear both;
+    animation-timeline: --hm-exam;
+    animation-range: entry 15% entry 30%;
+  }
+  :root:not([data-motion="off"]) .ov-scope .ov-exam-value {
+    animation: hm-decode 1s linear both;
+    animation-timeline: --hm-exam;
+    animation-range: entry 15% entry 35%;
+  }
+  :root:not([data-motion="off"]) .ov-scope .ov-exam-band {
+    animation: hm-glitch-in 1s linear both;
+    animation-timeline: --hm-exam;
+    animation-range: entry 20% entry 35%;
+  }
+  :root:not([data-motion="off"]) .rc-arc {
+    animation: rc-sweep 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-exam;
+    animation-range: entry 15% entry 45%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line {
+    animation: hm-fade-in 1s steps(2) both;
+    animation-timeline: --hm-exam;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(1) {
+    animation-range: entry 14% entry 17%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(2) {
+    animation-range: entry 16% entry 19%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(3) {
+    animation-range: entry 18% entry 21%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(4) {
+    animation-range: entry 20% entry 23%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(5) {
+    animation-range: entry 22% entry 25%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(6) {
+    animation-range: entry 24% entry 27%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(7) {
+    animation-range: entry 26% entry 29%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(8) {
+    animation-range: entry 28% entry 31%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(9) {
+    animation-range: entry 30% entry 33%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(10) {
+    animation-range: entry 32% entry 35%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(11) {
+    animation-range: entry 34% entry 37%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(12) {
+    animation-range: entry 36% entry 39%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge line:nth-of-type(13) {
+    animation-range: entry 38% entry 41%;
+  }
+  :root:not([data-motion="off"]) .rc-gauge-value {
+    animation: hm-decode 1s linear both;
+    animation-timeline: --hm-exam;
+    animation-range: entry 25% entry 45%;
+  }
+  :root:not([data-motion="off"]) .rc-orbit {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: lg-spin 24s linear infinite;
+  }
+  :root:not([data-motion="off"]) .rc-acc,
+  :root:not([data-motion="off"]) .rc-reach {
+    transform-box: view-box;
+    transform-origin: 50% 50%;
+    animation: rc-bloom 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-exam;
+    animation-range: entry 20% entry 50%;
+  }
+  :root:not([data-motion="off"]) .rc-reach {
+    animation-range: entry 15% entry 45%;
+  }
+  :root:not([data-motion="off"]) .rc-dot {
+    animation: hm-fade-in 1s steps(3) both;
+    animation-timeline: --hm-exam;
+    animation-range: entry 40% entry 55%;
+  }
+  :root:not([data-motion="off"]) .rc-axis {
+    animation: hm-flicker 1s linear both;
+    animation-timeline: --hm-exam;
+    animation-range: entry 25% entry 45%;
+  }
+  :root:not([data-motion="off"]) .rc-beam {
+    opacity: 0.4;
+    transform-box: view-box;
+    transform-origin: 50% 50%;
+    animation: lg-spin 4s linear infinite;
+  }
+  :root:not([data-motion="off"]) .rc-ring {
+    transform-box: view-box;
+    transform-origin: 50% 50%;
+  }
+  :root:not([data-motion="off"]) .ov-chart:hover .rc-ring {
+    animation: hm-ripple 0.9s var(--lg-ease-out) both;
+  }
+  :root:not([data-motion="off"]) .ov-chart:hover .rc-ring:nth-of-type(2) {
+    animation-delay: 90ms;
+  }
+  :root:not([data-motion="off"]) .ov-chart:hover .rc-ring:nth-of-type(3) {
+    animation-delay: 180ms;
+  }
+  :root:not([data-motion="off"]) .ov-chart:hover .rc-ring:nth-of-type(4) {
+    animation-delay: 270ms;
+  }
+  :root:not([data-motion="off"]) .ov-chart:hover .rc-ring-mark {
+    animation-delay: 360ms;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint rect {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: lg-grow 1s steps(6) both;
+    animation-timeline: --hm-exam;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint text {
+    animation: hm-fade-in 1s steps(2) both;
+    animation-timeline: --hm-exam;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(1) rect {
+    animation-range: entry 31% entry 37%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(1) text {
+    animation-range: entry 36% entry 39%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(2) rect {
+    animation-range: entry 34% entry 40%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(2) text {
+    animation-range: entry 39% entry 42%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(3) rect {
+    animation-range: entry 37% entry 43%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(3) text {
+    animation-range: entry 42% entry 45%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(4) rect {
+    animation-range: entry 40% entry 46%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(4) text {
+    animation-range: entry 45% entry 48%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(5) rect {
+    animation-range: entry 43% entry 49%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(5) text {
+    animation-range: entry 48% entry 51%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(6) rect {
+    animation-range: entry 46% entry 52%;
+  }
+  :root:not([data-motion="off"]) .rc-blueprint g:nth-of-type(6) text {
+    animation-range: entry 51% entry 54%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr {
+    background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--lg-signal) 40%, transparent) 50%, transparent);
+    background-size: 35% 100%;
+    background-repeat: no-repeat;
+    background-position: -60% 0;
+    animation: hm-row-in 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-exam;
+  }
+  :root:not([data-motion="off"]) .ov-table .rc-bar-fill {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: lg-grow 1s steps(8) both;
+    animation-timeline: --hm-exam;
+  }
+  :root:not([data-motion="off"]) .rc-verdict {
+    transition: rotate 0.5s var(--lg-ease-out);
+    animation: hm-spin-in 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-exam;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(1) {
+    animation-range: entry 61% entry 73%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(1) .rc-bar-fill {
+    animation-range: entry 65% cover 46%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(1) .rc-verdict {
+    animation-range: entry 67% cover 51%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(2) {
+    animation-range: entry 67% entry 79%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(2) .rc-bar-fill {
+    animation-range: entry 71% cover 52%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(2) .rc-verdict {
+    animation-range: entry 73% cover 57%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(3) {
+    animation-range: entry 73% entry 85%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(3) .rc-bar-fill {
+    animation-range: entry 77% cover 58%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(3) .rc-verdict {
+    animation-range: entry 79% cover 63%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(4) {
+    animation-range: entry 79% entry 91%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(4) .rc-bar-fill {
+    animation-range: entry 83% cover 60%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(4) .rc-verdict {
+    animation-range: entry 85% cover 65%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(5) {
+    animation-range: entry 85% entry 97%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(5) .rc-bar-fill {
+    animation-range: entry 89% cover 60%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(5) .rc-verdict {
+    animation-range: entry 91% cover 65%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(6) {
+    animation-range: entry 91% entry 100%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(6) .rc-bar-fill {
+    animation-range: entry 94% cover 60%;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:nth-child(6) .rc-verdict {
+    animation-range: entry 95% cover 65%;
+  }
+  :root:not([data-motion="off"]) .rc-verdict[data-band="unmeasured"] .rc-verdict-shape {
+    animation: hm-march-dash 1.2s linear infinite;
+  }
+  :root:not([data-motion="off"]) .rc-verdict-x {
+    stroke-dasharray: 8;
+    animation: hm-draw-8 0.6s var(--lg-ease-out) 0.2s both;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:hover {
+    animation: hm-row-scan 0.7s var(--lg-ease-out) both;
+  }
+  :root:not([data-motion="off"]) .ov-table tbody th::before {
+    transition: transform 0.22s var(--lg-ease-out);
+  }
+  :root:not([data-motion="off"]) .ov-table tbody tr:hover .rc-verdict {
+    rotate: 1turn;
+  }
+  /* How the course works: the arrows fire in turn; the track itself stands still */
+  :root:not([data-motion="off"]) .ov-method-item {
+    view-timeline: --hm-step block;
+    animation: lg-rise 1s var(--lg-ease-out) both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 70%;
+  }
+  :root:not([data-motion="off"]) .ov-method-item:nth-child(2) {
+    animation-range: entry 8% entry 78%;
+  }
+  :root:not([data-motion="off"]) .ov-method-item:nth-child(3) {
+    animation-range: entry 16% entry 86%;
+  }
+  :root:not([data-motion="off"]) .ov-method-item:nth-child(4) {
+    animation-range: entry 24% entry 94%;
+  }
+  :root:not([data-motion="off"]) .ov-method-item:nth-child(5) {
+    animation-range: entry 30% entry 100%;
+  }
+  :root:not([data-motion="off"]) .ov-method-tile {
+    animation: hm-tile-in 1s var(--lg-ease-out) both;
+    animation-timeline: --hm-step;
+    animation-range: entry 30% entry 90%;
+  }
+  :root:not([data-motion="off"]) .ov-method-n:not(.ov-method-fill) {
+    animation: hm-glitch-in 1s linear both;
+    animation-timeline: --hm-step;
+    animation-range: entry 50% entry 100%;
+  }
+  :root:not([data-motion="off"]) .ov-method-fill {
+    transition: clip-path 0.45s var(--lg-ease-out);
+  }
+  :root:not([data-motion="off"]) .ov-method-item:hover .ov-method-tile {
+    animation: hm-flip 0.6s var(--lg-ease-out) both;
+  }
+  :root:not([data-motion="off"]) .ov-method-title::before {
+    transition: transform 0.3s var(--lg-ease-out);
+  }
+  :root:not([data-motion="off"]) .ov-method-item + .ov-method-item::before {
+    animation: hm-arrow-x 3.2s linear infinite;
+  }
+  :root:not([data-motion="off"]) .ov-method-item:nth-child(2)::before {
+    animation-delay: 0.64s;
+  }
+  :root:not([data-motion="off"]) .ov-method-item:nth-child(3)::before {
+    animation-delay: 1.28s;
+  }
+  :root:not([data-motion="off"]) .ov-method-item:nth-child(4)::before {
+    animation-delay: 1.92s;
+  }
+  :root:not([data-motion="off"]) .ov-method-item:nth-child(5)::before {
+    animation-delay: 2.56s;
+  }
+  @media (max-width: 1100px) {
+  :root:not([data-motion="off"]) .ov-method-item + .ov-method-item::before {
+      animation-name: hm-arrow-y;
+    }
+  }
+  /* Module start: the rows scan in, a hover slides the row along a yellow tab */
+  :root:not([data-motion="off"]) .ms-step {
+    animation: hm-row-in 0.5s var(--lg-ease-out) both;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(2) {
+    animation-delay: 45ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(3) {
+    animation-delay: 90ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(4) {
+    animation-delay: 135ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(5) {
+    animation-delay: 180ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(6) {
+    animation-delay: 225ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(7) {
+    animation-delay: 270ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(8) {
+    animation-delay: 315ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(9) {
+    animation-delay: 360ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(10) {
+    animation-delay: 405ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(11) {
+    animation-delay: 450ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(12) {
+    animation-delay: 495ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(13) {
+    animation-delay: 540ms;
+  }
+  :root:not([data-motion="off"]) .ms-step:nth-child(n + 14) {
+    animation-delay: 585ms;
+  }
+  :root:not([data-motion="off"]) .ms-step {
+    transition: background-color var(--lg-dur-fast) linear;
+  }
+  :root:not([data-motion="off"]) .ms-step > *,
+  :root:not([data-motion="off"]) .me-next > * {
+    transition: translate 0.22s var(--lg-ease-out);
+  }
+  :root:not([data-motion="off"]) .ms-step:hover > * {
+    translate: 8px 0;
+  }
+  :root:not([data-motion="off"]) .ms-step::before {
+    transition: transform 0.22s var(--lg-ease-out);
+  }
+  :root:not([data-motion="off"]) .ms-step::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--lg-ink) 9%, transparent) 50%, transparent) -60% 0 / 35% 100% no-repeat;
+    pointer-events: none;
+  }
+  :root:not([data-motion="off"]) .ms-step:hover::after {
+    animation: hm-row-scan 0.6s var(--lg-ease-out) both;
+  }
+  :root:not([data-motion="off"]) .ms-step:hover .ms-no {
+    animation: hm-glitch 0.35s linear both;
+  }
+  :root:not([data-motion="off"]) .ms-step[data-next] {
+    background:
+    linear-gradient(180deg, transparent, color-mix(in srgb, var(--lg-paper) 85%, transparent) 50%, transparent) 0 -64px / 6px 64px no-repeat,
+    linear-gradient(90deg, var(--lg-signal) 0 6px, transparent 6px);
+    animation: hm-row-in 0.5s var(--lg-ease-out) both, hm-edge 2.2s linear 0.8s infinite;
+  }
+  :root:not([data-motion="off"]) .ms-step[data-next]:hover {
+    background-color: var(--lg-screen-2);
+  }
+  :root:not([data-motion="off"]) .ms-side {
+    animation: lg-wipe 0.6s var(--lg-ease-out) 0.1s both;
+  }
+  :root:not([data-motion="off"]) .ms-icon {
+    animation: hm-spin-in 0.8s var(--lg-ease-out) 0.3s both;
+  }
+  :root:not([data-motion="off"]) .ms-icon:hover > * {
+    animation: hm-glitch 0.45s linear both;
+  }
+  :root:not([data-motion="off"]) .ms-total {
+    animation: lg-wipe 0.5s steps(6) 0.45s both;
+  }
+  :root:not([data-motion="off"]) .ms-total div:first-child .ms-big {
+    animation: hm-decode 0.6s linear 0.55s both;
+  }
+  :root:not([data-motion="off"]) .ms-total div:last-child .ms-big {
+    animation: hm-decode 0.6s linear 0.7s both;
+  }
+  :root:not([data-motion="off"]) .ms-kinds .chip {
+    animation: hm-glitch-in 0.5s linear 0.8s both;
+  }
+  :root:not([data-motion="off"]) .ms-kinds .chip:nth-child(2) {
+    animation-delay: 0.9s;
+  }
+  :root:not([data-motion="off"]) .ms-kinds .chip:nth-child(n + 3) {
+    animation-delay: 1s;
+  }
+  :root:not([data-motion="off"]) .ms-progress,
+  :root:not([data-motion="off"]) .ms-go,
+  :root:not([data-motion="off"]) .ms-quiz {
+    animation: lg-rise 0.5s var(--lg-ease-out) 0.9s both;
+  }
+  /* Module end: the result slides in, the numbers decode, the next module answers a hover */
+  :root:not([data-motion="off"]) .me-result {
+    animation: lg-wipe 0.6s var(--lg-ease-out) both;
+  }
+  :root:not([data-motion="off"]) .me-quiz {
+    animation: hm-shutter-quiz 0.7s var(--lg-ease-out) 0.15s both;
+  }
+  :root:not([data-motion="off"]) .me-result .me-big {
+    animation: hm-decode 0.7s linear 0.35s both;
+  }
+  :root:not([data-motion="off"]) .me-quiz .me-big {
+    animation: hm-decode 0.7s linear 0.55s both;
+  }
+  :root:not([data-motion="off"]) .me-result-head .micon {
+    animation: hm-spin-in 0.8s var(--lg-ease-out) 0.2s both;
+  }
+  :root:not([data-motion="off"]) .me .cells rect {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: hm-cell-in 0.3s steps(3) 0.5s both;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(2) {
+    animation-delay: 0.56s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(3) {
+    animation-delay: 0.62s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(4) {
+    animation-delay: 0.68s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(5) {
+    animation-delay: 0.74s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(6) {
+    animation-delay: 0.80s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(7) {
+    animation-delay: 0.86s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(8) {
+    animation-delay: 0.92s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(9) {
+    animation-delay: 0.98s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(10) {
+    animation-delay: 1.04s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(11) {
+    animation-delay: 1.10s;
+  }
+  :root:not([data-motion="off"]) .me .cells rect:nth-child(n + 12) {
+    animation-delay: 1.16s;
+  }
+  :root:not([data-motion="off"]) .me .cells .cell-next {
+    animation: hm-cell-in 0.3s steps(3) 0.7s both, hm-beacon 1.2s linear 1s infinite;
+  }
+  :root:not([data-motion="off"]) .me-done {
+    position: relative;
+    overflow: hidden;
+    animation: lg-wipe 0.5s var(--lg-ease-out) 0.9s both;
+  }
+  :root:not([data-motion="off"]) .me-done::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--lg-paper) 45%, transparent) 50%, transparent 70%);
+    transform: translateX(-110%);
+    animation: hm-sheen 3.6s var(--lg-ease-out) 1.6s infinite;
+  }
+  :root:not([data-motion="off"]) .me-next {
+    border-top-color: transparent;
+    animation: lg-rise 0.6s var(--lg-ease-out) 0.35s both;
+  }
+  :root:not([data-motion="off"]) .me-next::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -3px;
+    height: 3px;
+    background: var(--lg-ink);
+    transform-origin: left center;
+    animation: lg-grow 0.8s var(--lg-ease-out) 0.5s both;
+  }
+  :root:not([data-motion="off"]) .me-next::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--lg-ink) 8%, transparent) 50%, transparent) -60% 0 / 35% 100% no-repeat;
+    pointer-events: none;
+  }
+  :root:not([data-motion="off"]) .me-next:hover::after {
+    animation: hm-row-scan 0.7s var(--lg-ease-out) both;
+  }
+  :root:not([data-motion="off"]) .me-next {
+    transition: translate 0.25s var(--lg-ease-out);
+  }
+  :root:not([data-motion="off"]) .me-next-art {
+    transition: background-color var(--lg-dur-fast) linear, color var(--lg-dur-fast) linear;
+  }
+  :root:not([data-motion="off"]) .me-next:hover > * {
+    translate: 8px 0;
+  }
+  :root:not([data-motion="off"]) .me-next:hover .me-next-art .micon {
+    animation: hm-glitch 0.45s linear both;
+  }
+  :root:not([data-motion="off"]) .me-next-go path {
+    animation: hm-chevron 1.5s linear infinite;
+  }
+  :root:not([data-motion="off"]) .me-next-go path:nth-child(2) {
+    animation-delay: 0.18s;
+  }
+  :root:not([data-motion="off"]) .me-next-go path:nth-child(3) {
+    animation-delay: 0.36s;
+  }
+  :root:not([data-motion="off"]) .me-next:hover .me-next-go path {
+    animation-duration: 0.7s;
+  }
+  /* 404 and settings */
+  :root:not([data-motion="off"]) .nf .micon {
+    animation: hm-spin-in 0.8s var(--lg-ease-out) both, hm-glitch-loop 4.5s linear 1s infinite;
+  }
+  :root:not([data-motion="off"]) .nf-body {
+    animation: lg-rise 0.6s var(--lg-ease-out) 0.2s both;
+  }
+  :root:not([data-motion="off"]) .settings-page [data-settings] > .box {
+    animation: hm-shutter-box 0.6s var(--lg-ease-out) both;
+  }
+  :root:not([data-motion="off"]) .settings-page [data-settings] > .box:nth-child(2) {
+    animation-delay: 90ms;
+  }
+  :root:not([data-motion="off"]) .settings-page [data-settings] > .box:nth-child(3) {
+    animation-delay: 180ms;
+  }
+  :root:not([data-motion="off"]) .settings-page [data-settings] > .box:nth-child(4) {
+    animation-delay: 270ms;
+  }
+  :root:not([data-motion="off"]) .settings-page [data-settings] > .box:nth-child(5) {
+    animation-delay: 360ms;
+  }
+  :root:not([data-motion="off"]) .settings-page [data-settings] > .box:nth-child(6) {
+    animation-delay: 450ms;
+  }
+}
+
+@keyframes hm-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes hm-flicker {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  35% {
+    opacity: 0.1;
+  }
+  55% {
+    opacity: 0.9;
+  }
+  65% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+/* Text arrives with two hard sideways slips, as if the signal locked on. */
+@keyframes hm-glitch-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-14px);
+    clip-path: inset(0 100% 0 0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateX(5px);
+    clip-path: inset(0 35% 0 0);
+  }
+  45% {
+    transform: translateX(-3px);
+    clip-path: inset(40% 0 20% 0);
+  }
+  60% {
+    transform: translateX(2px);
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    transform: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+/* A figure decodes: it types in from the left in hard steps and settles. */
+@keyframes hm-decode {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+    transform: translateY(6px);
+  }
+  15% {
+    opacity: 1;
+    clip-path: inset(0 75% 0 0);
+    transform: translateY(-3px);
+  }
+  30% {
+    clip-path: inset(0 55% 0 0);
+    transform: translateY(2px);
+  }
+  45% {
+    clip-path: inset(0 30% 0 0);
+    transform: translateY(-1px);
+  }
+  60%,
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+/* An icon jolts: slices of it jump sideways for a moment. */
+@keyframes hm-glitch {
+  0% {
+    transform: translate(-4px, 0);
+    clip-path: inset(20% 0 40% 0);
+  }
+  16% {
+    transform: translate(5px, -2px);
+    clip-path: inset(60% 0 4% 0);
+  }
+  32% {
+    transform: translate(-3px, 2px);
+    clip-path: inset(0 0 70% 0);
+  }
+  48% {
+    transform: translate(2px, 0);
+    clip-path: inset(30% 0 30% 0);
+  }
+  64%,
+  100% {
+    transform: none;
+    clip-path: inset(-20% -20% -20% -20%);
+  }
+}
+@keyframes hm-glitch-loop {
+  0%,
+  88%,
+  100% {
+    transform: none;
+    clip-path: inset(-20% -20% -20% -20%);
+  }
+  90% {
+    transform: translate(-5px, 0);
+    clip-path: inset(15% 0 50% 0);
+  }
+  92% {
+    transform: translate(6px, 2px);
+    clip-path: inset(55% 0 10% 0);
+  }
+  94% {
+    transform: translate(-2px, -2px);
+    clip-path: inset(0 0 65% 0);
+  }
+}
+@keyframes hm-snap {
+  0% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes hm-march-dash {
+  to {
+    stroke-dashoffset: -8;
+  }
+}
+@keyframes hm-scan-y {
+  to {
+    background-position: 0 calc(100% + 120px);
+  }
+}
+@keyframes hm-draw-8 {
+  from {
+    stroke-dashoffset: 8;
+  }
+}
+@keyframes hm-draw-24 {
+  from {
+    stroke-dashoffset: 24;
+  }
+}
+@keyframes hm-draw-26 {
+  from {
+    stroke-dashoffset: 26;
+  }
+}
+@keyframes hm-draw-130 {
+  from {
+    stroke-dashoffset: 130;
+  }
+}
+/* A slab of the hero stack drops into place. */
+@keyframes hm-slab-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-90px);
+  }
+  55% {
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* The request falls, stopping at each layer; each layer lights while the request is on it. */
+@keyframes hm-hx-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  5% {
+    opacity: 1;
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  15%,
+  22% {
+    transform: translateY(82px);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  32%,
+  39% {
+    transform: translateY(180px);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  49%,
+  56% {
+    transform: translateY(278px);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  66%,
+  73% {
+    opacity: 1;
+    transform: translateY(376px);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  85%,
+  100% {
+    opacity: 0;
+    transform: translateY(440px);
+  }
+}
+@keyframes hm-hit-0 {
+  0%,
+  14.5%,
+  25%,
+  100% {
+    fill: var(--lg-paper);
+  }
+  15%,
+  22% {
+    fill: var(--lg-signal);
+  }
+}
+@keyframes hm-hit-1 {
+  0%,
+  31.5%,
+  42%,
+  100% {
+    fill: var(--lg-paper);
+  }
+  32%,
+  39% {
+    fill: var(--lg-signal);
+  }
+}
+@keyframes hm-hit-2 {
+  0%,
+  48.5%,
+  59%,
+  100% {
+    fill: var(--lg-paper);
+  }
+  49%,
+  56% {
+    fill: var(--lg-signal);
+  }
+}
+@keyframes hm-hit-3 {
+  0%,
+  65.5%,
+  76%,
+  100% {
+    fill: var(--lg-paper);
+  }
+  66%,
+  73% {
+    fill: var(--lg-signal);
+  }
+}
+@keyframes hm-card-in {
+  0% {
+    clip-path: polygon(0 0, 0 0, 0 0, 0 100%, 0 100%);
+  }
+  100% {
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+  }
+}
+@keyframes hm-cell-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+}
+@keyframes hm-cell-ping {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  35% {
+    opacity: 0.25;
+  }
+}
+@keyframes hm-beacon {
+  0%,
+  49.9% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.35;
+  }
+}
+@keyframes hm-sheen {
+  0% {
+    transform: translateX(-110%);
+  }
+  30%,
+  100% {
+    transform: translateX(110%);
+  }
+}
+@keyframes hm-dots {
+  from {
+    background-position: center;
+  }
+  to {
+    background-position: calc(50% + 16px) calc(50% + 16px);
+  }
+}
+@keyframes hm-arrow-shoot {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  45% {
+    transform: translateX(18px);
+    opacity: 0;
+  }
+  46% {
+    transform: translateX(-12px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(6px);
+    opacity: 1;
+  }
+}
+/* A dark panel switches on like a screen: a line, then the full height. */
+@keyframes hm-crt-14 {
+  0% {
+    clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%);
+  }
+  35% {
+    clip-path: polygon(0 50%, 14px 50%, 100% 50%, 100% 50%, calc(100% - 14px) 50%, 0 50%);
+  }
+  100% {
+    clip-path: polygon(0 14px, 14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+  }
+}
+@keyframes hm-crt-18 {
+  0% {
+    clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%);
+  }
+  35% {
+    clip-path: polygon(0 50%, 100% 50%, 100% 50%, 100% 50%, 18px 50%, 0 50%);
+  }
+  100% {
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  }
+}
+@keyframes hm-shutter-cut {
+  from {
+    clip-path: polygon(0 0, 100% 0, 100% 0, 100% 0, 0 0);
+  }
+  to {
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--lg-cut)), calc(100% - var(--lg-cut)) 100%, 0 100%);
+  }
+}
+@keyframes hm-shutter-box {
+  from {
+    opacity: 0;
+    clip-path: polygon(0 0, 100% 0, 100% 0, 100% 0, 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--lg-cut)), calc(100% - var(--lg-cut)) 100%, 0 100%);
+  }
+}
+@keyframes hm-shutter-quiz {
+  from {
+    clip-path: polygon(0 0, 0 0, 0 0, 0 100%, 0 100%);
+  }
+  to {
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+  }
+}
+@keyframes hm-glint {
+  0% {
+    opacity: 1;
+    stroke-dashoffset: 14;
+  }
+  45% {
+    opacity: 1;
+    stroke-dashoffset: -100;
+  }
+  46%,
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -100;
+  }
+}
+@keyframes hm-hazard {
+  to {
+    background-position: 16.97px 0;
+  }
+}
+@keyframes hm-spin-in {
+  from {
+    opacity: 0;
+    transform: rotate(-135deg) scale(0.3);
+  }
+}
+@keyframes hm-ants {
+  to {
+    background-position: 12px 0, -12px 100%, 0 -12px, 100% 12px;
+  }
+}
+@keyframes hm-ping {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.05, 1.18);
+  }
+}
+@keyframes hm-ripple {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  45% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+  46% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes hm-row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes hm-row-scan {
+  from {
+    background-position: -60% 0;
+  }
+  to {
+    background-position: 160% 0;
+  }
+}
+@keyframes hm-tile-in {
+  from {
+    clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%);
+  }
+  to {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  }
+}
+@keyframes hm-flip {
+  from {
+    transform: perspective(240px) rotateY(0);
+  }
+  to {
+    transform: perspective(240px) rotateY(360deg);
+  }
+}
+@keyframes hm-arrow-x {
+  0%,
+  14%,
+  100% {
+    transform: none;
+  }
+  5% {
+    transform: translateX(5px) scale(1.35);
+  }
+}
+@keyframes hm-arrow-y {
+  0%,
+  14%,
+  100% {
+    transform: none;
+  }
+  5% {
+    transform: translateY(5px) scale(1.35);
+  }
+}
+@keyframes hm-edge {
+  to {
+    background-position: 0 calc(100% + 64px), 0 0;
+  }
+}
+@keyframes hm-chevron {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateX(-3px);
+  }
+  30% {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+}
+
+/* Readiness tables: each figure sits over its own bar, left-aligned like the bar; the bars keep clear
+   of the next column; every cell centres on the row. */
+.page-glass .ov-table td,
+.page-glass .ov-table tbody th {
+  vertical-align: middle;
+}
+.page-glass .ov-table td[data-seen],
+.page-glass .ov-table td[data-correct],
+.page-glass .ov-table thead th:nth-child(2),
+.page-glass .ov-table thead th:nth-child(3) {
+  text-align: left;
+  padding-right: var(--lg-space-4);
+}
+@media (max-width: 560px) {
+  .ov-table tr {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .page-glass .ov-table td.ov-verdict {
+    grid-column: 1 / -1;
+  }
+}
+
+.settings-page [data-settings] > .box > h2 {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.settings-page [data-settings] > .box > .flex + p {
+  margin-top: var(--lg-space-3);
+}

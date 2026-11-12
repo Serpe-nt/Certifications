@@ -9,35 +9,74 @@ exam:
     domain: P1
     competency: Metrics
 tags: [sample-metrics]
+outcome: You can see every part a step in the article form can have.
+terms:
+  - term: Sample
+    def: A step that exists to test the site, not to teach.
 sources:
   - title: Prometheus overview
     url: https://prometheus.io/docs/introduction/overview/
     checked: 2026-11-09
 ---
 
-<Why>
-A service slows down at night and nobody can say why, because nothing recorded how it behaved. This sample card stands in for a real lesson and shows each part a card can have.
-</Why>
+<Problem>
+A service slows down at night and nobody can say why, because nothing recorded how it behaved. This sample step stands in for a real lesson and shows each part a step can have.
+</Problem>
+
+Running text sits between the parts and carries the story from one to the next.
 
 <Idea>
-Record numbers about the service over time, then ask questions of them. This card exists to test the site, not to teach.
+Record numbers about the service over time, then ask questions of them. This step exists to test the site, not to teach.
 </Idea>
 
-<Points>
-  <Point label="Points tell the story">Each point has a label that says what it says.</Point>
-  <Point label="Queries can be copied">
-    <Query lang="promql">{`sum by (job) (rate(http_requests_total{job="shop"}[5m]))`}</Query>
-  </Point>
-  <Point label="Lab links follow the setting">Open <LabLink to="grafana" path="/explore">Explore in Grafana</LabLink> in the lab.</Point>
-</Points>
+## Parts that hold data
+
+A query can be copied:
+
+<Query lang="promql">{`sum by (job) (rate(http_requests_total{job="shop"}[5m]))`}</Query>
+
+<Figures caption="Sample figures" unit="Count">
+  <Stat label="small" value="4" amount={4} max={100} />
+  <Stat label="large" value="100" amount={100} max={100} hot note="The highlighted row." />
+</Figures>
+
+<Flow caption="Sample flow">
+  <Stage title="First" kicker="One">The start.</Stage>
+  <Stage title="Second" kicker="Two">The end.</Stage>
+</Flow>
+
+<Compare caption="Sample comparison">
+  <Col title="Left">One side.</Col>
+  <Col title="Right" hot>The other side.</Col>
+</Compare>
+
+## More parts
+
+<Layers caption="Sample layers">
+  <Layer title="Top">The first layer.</Layer>
+  <Layer title="Bottom" hot>The last layer.</Layer>
+</Layers>
+
+<Timeline caption="Sample timeline">
+  <Event at="First" title="It starts">Something happens.</Event>
+  <Event at="Then" title="It ends">Something else happens.</Event>
+</Timeline>
 
 <Figure id="m90-s01-flow" alt="Requests flow from a shop into a metrics store and a dashboard." brief="Test scene: a dot moves along a line while the figure is on screen." />
 
 <Figure id="m90-s01-later" alt="A dashboard panel shows a latency line rising at night." brief="A fake Grafana panel draws a latency line that rises at night; the learner notices the rise." />
 
+<InLab>
+Lab links follow the setting: open <LabLink to="grafana" path="/explore">Explore in Grafana</LabLink> in the lab.
+</InLab>
+
 <Trap>
-A sample is not a lesson. Real cards come from the content cards.
+A sample is not a lesson. Real steps come from the content cards.
 </Trap>
+
+<Remember>
+Every part of the article form appears on this step once.
+</Remember>
 
 <Question id="q-m90-s01" answer="b">
 Which of these is a number recorded over time?

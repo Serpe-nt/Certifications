@@ -1,7 +1,19 @@
 ---
-// <Done> block of a step card (content contract). Label: "How you know it worked".
+// <Done>: how you know the lab work worked. Shown on the Practice tab. On a step with a lab check,
+// the check follows right after it (the step page passes the check through Astro.locals).
+import CheckWidget from '../islands/CheckWidget.tsx';
+
+const lab = Astro.locals.stepCheck;
 ---
-<section class="box box-done" data-block="done">
-  <h2>How you know it worked</h2>
-  <slot />
+<section class="part part-done" data-block="done" data-practice>
+  <p class="part-label mono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>How you know it worked</p>
+  <div class="part-body"><slot /></div>
+  <svg class="st-donecheck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path pathLength="1" d="M4 12l5 5L20 6"/></svg>
 </section>
+{
+  lab && (
+    <div class="part part-check" data-practice>
+      <CheckWidget client:load stepId={lab.stepId} check={lab.check} settingsHref={lab.settingsHref} />
+    </div>
+  )
+}

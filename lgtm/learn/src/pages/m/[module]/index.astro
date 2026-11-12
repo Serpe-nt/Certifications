@@ -1,21 +1,155 @@
 ---
-// Module start: the module's goal and one button to its first step.
+// Module start: the module's goal, its steps with their kinds and minutes, the total, and one button
+// to the first step (or, once a step is complete, to the next open one).
 import Base from '../../../layouts/Base.astro';
+import ModuleIcon from '../../../components/ModuleIcon.astro';
+import PageHead from '../../../components/PageHead.astro';
 import { href, loadCourse } from '../../../lib/course.ts';
 
 export async function getStaticPaths() {
-  const { modules } = await loadCourse();
-  return modules.map((m) => ({ params: { module: m.id }, props: { module: m } }));
+  const { modules, steps } = await loadCourse();
+  return modules.map((m) => ({
+    params: { module: m.id },
+    props: { module: m, kinds: Object.fromEntries(steps.filter((e) => e.data.id.startsWith(`${m.id}-`)).map((e) => [e.data.id, e.data.kind])) as Record<string, string> },
+  }));
 }
-const { module } = Astro.props;
+const { module, kinds } = Astro.props;
 const first = module.steps[0];
+const total = module.steps.length;
+const minutes = module.steps.reduce((n, s) => n + s.minutes, 0);
+const no = module.id.replace(/\D/g, '').padStart(2, '0') || '00';
+const two = (n: number) => String(n).padStart(2, '0');
+const KIND: Record<string, string> = { concept: 'Concept', lab: 'Lab', drill: 'Drill', recap: 'Recap' };
+const kindCount = Object.keys(KIND)
+  .map((k) => ({ k, n: module.steps.filter((s) => kinds[s.id] === k).length }))
+  .filter((x) => x.n > 0);
 ---
 <Base title={module.title}>
-  <article class="rounded-lg border border-line bg-surface p-6 shadow-card">
-    <h1 class="mt-0">{module.title}</h1>
-    <p>{module.goal}</p>
-    <p class="text-sm text-ink-3">{module.steps.length} steps, about {module.steps.reduce((n, s) => n + s.minutes, 0)} minutes.</p>
-    {first ? <a class="btn btn-primary" href={first.href}>Start the first step</a> : <p>No steps yet.</p>}
-  </article>
-  <p class="mt-6"><a class="btn" href={href.home}>Overview</a></p>
+  <PageHead
+    icon={module.id}
+    slot="head"
+    tag="Module"
+    crumbText={`MOD_${no} //`}
+    crumb={{ label: 'Overview', href: href.home }}
+    title={module.title}
+    lead={module.goal}
+    leadStyle="plain"
+    chips={[
+      { text: `${total} ${total === 1 ? 'step' : 'steps'}` },
+      { text: `About ${minutes} min` },
+      ...(module.quiz ? [{ text: 'Quiz at the end' }] : []),
+      ...module.exams.map((e) => ({ text: e.toUpperCase(), dark: true })),
+    ]}
+    plate={{ value: no, label: `Module ${no}`, foot: ['Module', `${total} steps`] }}
+  />
+
+  <div class="ms" data-module-start={module.id}>
+    <section class="ms-list" aria-labelledby="ms-steps">
+      <div class="ov-sh">
+        <span class="ov-sh-n mono" aria-hidden="true">/01</span>
+        <h2 class="ov-sh-t" id="ms-steps">Steps</h2>
+        <span class="ov-sh-c mono">{two(total)} steps</span>
+      </div>
+      {
+        total > 0 ? (
+          <ol class="ms-steps">
+            {module.steps.map((s, i) => (
+              <li class="ms-step" data-step-row={s.id} data-kind={kinds[s.id]}>
+                <span class="ms-no" aria-hidden="true">{two(i + 1)}</span>
+                <a class="ms-title" href={s.href}>{s.title}</a>
+                <span class="ms-meta mono">
+                  <span class="ms-kind">{KIND[kinds[s.id]] ?? 'Step'}</span>
+                  <span>{s.minutes} min</span>
+                  <span class="ms-done">Complete</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p class="ov-prose">No steps yet.</p>
+        )
+      }
+    </section>
+
+    <aside class="ms-side" aria-label="This module">
+      <ModuleIcon id={module.id} size="xl" class="ms-icon" />
+      <dl class="ms-total">
+        <div>
+          <dt class="mono">Minutes</dt>
+          <dd class="ms-big">{minutes}</dd>
+        </div>
+        <div>
+          <dt class="mono">Steps</dt>
+          <dd class="ms-big">{two(total)}</dd>
+        </div>
+      </dl>
+      {
+        kindCount.length > 0 && (
+          <p class="chips mono ms-kinds">
+            {kindCount.map((x) => (
+              <span class="chip">
+                {x.n} {KIND[x.k].toLowerCase()}
+              </span>
+            ))}
+          </p>
+        )
+      }
+      <p class="ms-progress" data-ms-progress hidden></p>
+      {
+        first ? (
+          <a class="btn btn-primary ms-go" href={first.href} data-ms-go data-end={module.endHref}>
+            Start the first step
+          </a>
+        ) : (
+          <p class="ov-prose">No steps yet.</p>
+        )
+      }
+      {module.quiz && <a class="ms-quiz" href={module.endHref}>Module end and quiz</a>}
+    </aside>
+  </div>
 </Base>
+
+<script>
+  // Progress on this device: marks the complete steps and points the button at the next open step.
+  // Only text and addresses built into this page are used; nothing from the state becomes HTML.
+  import { getStore } from '../../../lib/store.ts';
+  import type { State } from '../../../lib/state.ts';
+
+  const rows = [...document.querySelectorAll<HTMLElement>('[data-step-row]')];
+  const go = document.querySelector<HTMLAnchorElement>('[data-ms-go]');
+  const note = document.querySelector<HTMLElement>('[data-ms-progress]');
+  const render = (s: State) => {
+    let open: HTMLElement | undefined;
+    let done = 0;
+    for (const row of rows) {
+      const isDone = Object.hasOwn(s.done, row.dataset.stepRow ?? '');
+      row.toggleAttribute('data-done', isDone);
+      row.removeAttribute('data-next');
+      if (isDone) done++;
+      else if (!open) open = row;
+    }
+    open?.setAttribute('data-next', '');
+    if (!go || !note) return;
+    const link = open?.querySelector<HTMLAnchorElement>('.ms-title');
+    if (done === 0) {
+      go.textContent = 'Start the first step';
+      go.href = rows[0]?.querySelector<HTMLAnchorElement>('.ms-title')?.href ?? go.href;
+      note.hidden = true;
+    } else if (link) {
+      go.textContent = 'Continue';
+      go.href = link.href;
+      note.textContent = `${done} of ${rows.length} steps complete. Next: ${link.textContent ?? ''}`;
+      note.hidden = false;
+    } else {
+      go.textContent = 'See the module end';
+      go.href = go.dataset.end ?? go.href;
+      note.textContent = `All ${rows.length} steps are complete.`;
+      note.hidden = false;
+    }
+  };
+  if (rows.length) {
+    const store = getStore();
+    store.subscribe(render);
+    render(store.get());
+  }
+</script>

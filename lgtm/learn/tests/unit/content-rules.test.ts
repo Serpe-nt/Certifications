@@ -87,6 +87,16 @@ describe('rules', () => {
     expect(rulesFor({ 'steps/m90/s07-recap.mdx': html })).toEqual(['steps/m90/s07-recap.mdx raw-html']);
   });
 
+  it('the article form: Problem first, outcome, items and stat scales', () => {
+    const f = 'steps/m90/s01-concept.mdx';
+    expect(rulesFor({ [f]: edit(f, /^outcome: .*\n/m, '') })).toEqual([`${f} missing-outcome`]);
+    const ideaFirst = edit(f, /(<Problem>[\s\S]*?<\/Problem>)([\s\S]*?)(<Idea>[\s\S]*?<\/Idea>)/, '$3$2$1');
+    expect(rulesFor({ [f]: ideaFirst })).toEqual([`${f} problem-first`]);
+    expect(rulesFor({ [f]: edit(f, '<Idea>', '<Why>A why block that belongs to the old form, long enough to pass the length rule of the old form.</Why>\n\n<Idea>') })).toEqual([`${f} mixed-form`]);
+    expect(rulesFor({ [f]: edit(f, /\s*<Stage title="Second"[^\n]*/, '') })).toEqual([`${f} info-items`]);
+    expect(rulesFor({ [f]: edit(f, 'amount={4} max={100}', 'amount={400} max={100}') })).toEqual([`${f} stat-scale`]);
+  });
+
   it('HTML inside code does not count', () => {
     const code = edit('steps/m90/s07-recap.mdx', '<Idea>\n', '<Idea>\nUse `<div>` and\n\n```html\n<span>x</span>\n```\n\n');
     expect(rulesFor({ 'steps/m90/s07-recap.mdx': code })).toEqual([]);

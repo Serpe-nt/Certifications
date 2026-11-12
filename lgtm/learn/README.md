@@ -6,7 +6,8 @@ Built with Astro (static pages), React islands for the interactive parts, Tailwi
 
 ## What the learner gets
 
-- One step per screen, with Back, Mark complete and Next, and a paste-the-answer lab check on lab steps.
+- One step per screen, laid out as an article with a sidebar (contents, terms, exam domains, sources), with Back, Mark complete and Next. Lab steps have Learn and Practice tabs; Practice holds the lab work and the paste-the-answer check.
+- Settings and Practice open as dialogs over the page you are on.
 - A quiz at the end of every module (`/m/<id>/quiz/`): 15 questions from the module's pool, pass at 80%. A module is done when all its steps are complete and its quiz is passed.
 - Practice (`/practice/`): the review queue (a missed question comes back after 1, 2 and 4 days), three questions from a step, and weak-spot practice.
 - Readiness per exam domain on the overview, and the OTCA and PCA mock exams (`/exam/otca/`, `/exam/pca/`): 60 questions by the domain weights, 90 minutes, pass at 75%.
@@ -55,7 +56,7 @@ src/content/steps/m04/s07-rate.mdx    one file per step; the file name starts wi
 src/content/questions/m04.yaml        the module's quiz pool
 ```
 
-Steps use the components without importing them: `Why`, `Idea`, `Points`, `Point`, `Do`, `Done`, `Trap`, `Question`, `LabLink`, `Cmd`, `Query`, `Figure`. Two details the contract leaves open:
+Steps use the components without importing them. The article form (`../docs/adr/dz-article-format.md`): `Problem`, `Idea`, `InLab`, `Trap` (`<Trap practice>` on lab work), `Remember`, `Do`, `Done`, `Question`, and the information parts `Flow`/`Stage`, `Compare`/`Col`, `Figures`/`Stat`, `Layers`/`Layer`, `Timeline`/`Event`. The old form (`Why`, `Points`, `Point`) still builds until the module is rewritten. In both: `LabLink`, `Cmd`, `Query`, `Figure`. Two details the contract leaves open:
 
 - The card question: the question text, then a list of four items; each item is the option, a blank line, and its explanation indented under it. `answer="b"` names the second item in the file.
 - Braces start JavaScript in MDX, so write queries and commands as a string: ``<Query lang="promql">{`rate(x{job="shop"}[5m])`}</Query>``.

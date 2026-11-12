@@ -1,0 +1,247 @@
+---
+name: LGTM course
+description: A study site for the Grafana LGTM stack, drawn as an ash-grey console with a light reading screen.
+colors:
+  ash: "#5e6367"
+  ash-line: "#666b6f"
+  ash-mark: "#898e93"
+  ash-ink: "#26292b"
+  bezel: "#141516"
+  screen: "#d4d8da"
+  screen-2: "#c5cacc"
+  rule: "#b3b8bb"
+  paper: "#f4f5f2"
+  ink: "#141516"
+  ink-2: "#2f3336"
+  ink-3: "#4e5357"
+  ink-on-dark: "#e8eaeb"
+  signal: "#f2d40c"
+  good: "#1d6b3a"
+  bad: "#a3241c"
+typography:
+  display:
+    fontFamily: "Control Freak Upset, Archivo Variable, sans-serif"
+    fontSize: "clamp(2.5rem, 4.6vw, 4.875rem)"
+    fontWeight: 400
+    lineHeight: 1.04
+    letterSpacing: "0.01em"
+  heading:
+    fontFamily: "Control Freak Upset, Archivo Variable, sans-serif"
+    fontSize: "2rem"
+    fontWeight: 400
+    lineHeight: 1.1
+  body:
+    fontFamily: "Archivo Variable, system-ui, sans-serif"
+    fontSize: "1.1875rem"
+    fontWeight: 400
+    lineHeight: 1.7
+  label:
+    fontFamily: "JetBrains Mono Variable, ui-monospace, monospace"
+    fontSize: "0.75rem"
+    fontWeight: 600
+    letterSpacing: "0.14em"
+rounded:
+  none: "0px"
+  sm: "3px"
+  screen: "22px"
+spacing:
+  xs: "4px"
+  sm: "8px"
+  md: "16px"
+  lg: "24px"
+  xl: "32px"
+  xxl: "48px"
+components:
+  button-primary:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.signal}"
+    typography: "{typography.heading}"
+    rounded: "{rounded.none}"
+    padding: "8px 32px 8px 24px"
+    height: "44px"
+  button:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.none}"
+    padding: "8px 24px"
+    height: "44px"
+  button-hover:
+    backgroundColor: "{colors.screen-2}"
+  nav-button:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    typography: "{typography.label}"
+    height: "36px"
+  nav-button-hover:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.signal}"
+  tag:
+    backgroundColor: "{colors.signal}"
+    textColor: "{colors.ink}"
+    padding: "4px 16px"
+  chip:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    typography: "{typography.label}"
+    padding: "4px 10px"
+  chip-dark:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.paper}"
+  screen:
+    backgroundColor: "{colors.screen}"
+    rounded: "{rounded.screen}"
+    padding: "32px 44px 44px"
+  field:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.none}"
+    height: "44px"
+---
+
+# Design System: LGTM course
+
+## Overview
+
+The site is a console. An ash-grey ground with a hairline grid and plus marks fills the window; side rails of thin-line drawings (circuit spines, labelled HUD micrographics, labels such as `_M02;`) hang on the window's own edges; a near-black bezel frames a light grey screen that holds everything a learner reads. Headings are set in a geometric cyberpunk display face, reading text in a plain grotesk, small labels in a mono face in capitals. One signal yellow marks what matters now (the kind tag, the current number, the primary action); everything else is ink, greys and bone.
+
+The owner chose this look at the first design stop on 2026-11-11, after about twenty-five rounds of pre-designs (see `../docs/adr/dz-design-system.md`). The lesson page is a surface to read (an article with a sidebar); the quiz, the mock exam and the settings are surfaces to operate. Both share one theme; there is no light or dark switch.
+
+## Colors
+
+### Primary
+
+- **Signal** `#f2d40c`: the one accent. The kind tag, the current counter digits, the lit dot of the globe, the active part number, the primary button's text, the focus ring, text selection. Never a large field, never body text.
+
+### Neutral
+
+- **Ash** `#5e6367` with **ash-line** `#666b6f` and **ash-mark** `#898e93`: the console ground and its grid.
+- **Ash-ink** `#26292b` and the hairline `#373a3d`: drawings on the ash (rails, globe, tag hatching).
+- **Bezel** `#141516`: the screen's 3px frame and the notches.
+- **Screen** `#d4d8da`, **screen-2** `#c5cacc`, **rule** `#b3b8bb`: the reading surface, its insets and tracks, its rules.
+- **Paper** `#f4f5f2`: labels and light panels (outcome, In this lab, Remember, info parts, chips, nav buttons, fields).
+- **Ink** `#141516`, **ink-2** `#2f3336` (body text, 9.6:1 on screen), **ink-3** `#4e5357` (secondary, 5.4:1 on screen).
+- **Good** `#1d6b3a` and **bad** `#a3241c`: only for right and wrong answers.
+
+### Named Rules
+
+- **No small text on the ash.** Ink on ash is 3.4:1, enough for the large title only. Small text that sits on the console (breadcrumb, chips, brand) gets a paper backing.
+- **One yellow per view-region.** Yellow marks one thing at a time; two neighbouring yellow fills compete.
+- **Decoration is ash-ink only.** Rails, globe and grid never use the signal colour, except the globe's one lit node.
+
+## Typography
+
+**Display:** Control Freak Upset (Graham Meade, Apostrophic Labs; self-hosted TTF). Fallback Archivo.
+**Body:** Archivo Variable (OFL, `@fontsource-variable/archivo`, width axis included).
+**Labels:** JetBrains Mono Variable (OFL, `@fontsource-variable/jetbrains-mono`).
+
+### Hierarchy
+
+- **Step title:** display, clamp(2.5rem, 4.6vw, 4.875rem), line height 1.04, ink on the ash.
+- **Section heading (h2 in an article):** display 2rem with its two-digit number at 2.75rem and a yellow bar between.
+- **Page heading (other pages):** display clamp(2rem, 3.6vw, 3.25rem).
+- **Body:** Archivo 1.1875rem (19px), line height 1.7, paragraphs at most 70 characters wide.
+- **Key idea:** Archivo 1.3125rem, weight 500.
+- **Labels:** JetBrains Mono 0.75rem, weight 600, 0.14em tracking, capitals by CSS (the owner chose capitals for mono labels only; the files keep sentence case).
+- **Numbers that matter** (stats, scores, section numbers, question numbers): display face.
+- **The ramp:** every font size is a token in `src/styles/tokens.css`: `--lg-text-label` 0.75rem, `-small` 0.9375rem, `-ui` 1.0625rem, `-body` 1.1875rem, `-lead` 1.375rem, `-h3` 1.75rem, `-h2` 2rem, `-stat` 2.75rem, `-page` clamp(2rem, 3.6vw, 3.25rem), `-display` clamp(2.5rem, 4.6vw, 4.875rem). No other size is used.
+
+## Layout
+
+- The console: content max 90rem, side padding 116px on wide screens (24px under 1100px, 16px under 640px). The rails live in the outer 110px of the window and hide under 1100px.
+- Every page opens with the same header on the ash (`PageHead.astro`, `head.css`): a yellow tag, a crumb, the title, a lead or the step's outcome, chips, and the dot-matrix plate on the right (the owner chose the plate "on every page", 2026-11-11). Behind it turns the globe, or on module, quiz and step pages the module's own icon.
+- The step page: under that header, under it the screen with a reading column of 47.5rem and a 300px sidebar, 64px apart. Under 1100px the sidebar drops below the article; the header becomes one column under 900px.
+- The end of a step stands under the article on the console: the card question centred, then Back at the start, Mark complete in the middle and Next at the end, across the width (owner, 2026-11-11). The page is up to 104rem wide; the screen's glass is 85% opaque, so the grid shows through while secondary text keeps 4.5:1; dialogs stay solid.
+- Only the page scrolls. The one exception is an open dialog, which scrolls itself while the page behind it is inert.
+- Spacing follows a 4px base (4, 8, 12, 16, 24, 32, 48); more space above a heading (3rem) than below (1.125rem).
+
+## Elevation & Depth
+
+Flat. Depth comes from the bezel and from ink frames, not shadows. The single shadow token (`--lg-shadow`) is kept for the celebration banners. Dialogs dim the page with a 72% ink backdrop.
+
+## Shapes
+
+- **Cut corners**, not rounded ones: buttons cut their top-right corner by 12px; panels (Problem, Trap, boxes, flow stages) cut a corner by 14 to 18px. Only the screen and its bezel are rounded (22px).
+- **Corner brackets** frame the key idea.
+- **Hazard stripes** (ink and yellow at 135 degrees) mark the trap.
+- **Ticket** shape with punched notches and a barcode stub marks Remember.
+- **Octagon dots** form the step number.
+
+## Components
+
+### Buttons
+
+- **Primary** (Mark complete, Start, Submit): ink fill, yellow display text, cut corner.
+- **Secondary** (Back, Next, Practice three questions): 2px ink frame, ink display text, screen-2 on hover.
+- **Nav buttons** (Practice, Settings in the top bar): paper chip with an ink frame and mono capitals; ink with yellow text on hover.
+- **Close** (dialogs): a bold X drawing; on hover a yellow square behind it and the X turns a quarter.
+- Disabled: 50% opacity, not-allowed cursor.
+
+### Chips
+
+Mono capitals with a 2px ink frame on paper; the dark variant (exam domains) is paper text on ink.
+
+### Cards / Containers
+
+There are no soft cards. Article parts:
+- **Problem:** ink panel, light text, yellow label, cut corner, three-dot mark.
+- **Key idea:** screen-2 panel with ink corner brackets, larger text.
+- **In this lab:** paper with a 6px ink edge.
+- **Trap:** screen-2 with a hazard-stripe band.
+- **Remember:** paper ticket with notches and a barcode stub.
+- Every part's label carries a small yellow tab, an icon and a mono name. Only the `##` sections are numbered (the owner chose "Sections only", 2026-11-11).
+- In this lab, Trap and Remember close the article together, after a heavier rule.
+- **Quiz pages fit the window:** on the quiz, practice and mock exam pages the header stands in a column to the left of the quiz on a wide screen (shorter, on top, below 1200px), the running quiz stands straight on the console without the screen box, and the tape sits under the card, so the question, its answers and Submit fit a 1280x680 window; short windows tighten the spacing.
+- **Question box (sticker frame, `sticker.css`):** Check yourself on a step and the question card in quizzes and the mock exam share one shape, after the owner's label-sticker and type-specimen references: a stepped ink tab with the title (or the question number in yellow), a rail running on from it with a node and five SVG chevrons pointing forward (none in the mock exam, where the flag button ends the rail), a paper body framed in 3px ink with a cut bottom-right corner, and on a step a foot with a dashed rule, a barcode and the question's code. Options are lettered rows (A to D), the same on a step as in a quiz.
+- **Lab check:** paper panel with an ink frame, right after How you know it worked on the Practice tab; a primary Check button; a red frame and a message that says what is wrong for each kind of check; a green edge once passed.
+
+Information parts (Flow, Compare, Figures, Layers, Timeline) are drawn in ink and paper; the highlighted item is ink with paper text. See `../docs/adr/dz-article-format.md` for when to use each.
+
+### Inputs / Fields
+
+Paper fill, 2px ink frame, square corners, mono text; checkboxes and radios take the ink accent colour.
+
+### Navigation
+
+- Top bar: the bracketed brand `[ LGTM // LAB ]`, a yellow sync lamp, the two nav buttons.
+- Learn and Practice: cut-corner tabs, 44px tall, with a 2px ink frame; the selected one is ink with yellow text. The tab is in the address (`?tab=practice`).
+- The end of an article: Back, the middle action, Next. While a lab check is open, Learn shows "Go to practice" in the middle (the owner's choice, 2026-11-11) and Practice shows Mark complete, waiting for the check.
+- The sidebar's contents list stays in view and marks the section being read (`aria-current="location"`).
+- Dialogs (Settings, Practice, and on a step page the module outline): native `<dialog>` on a screen, opened over the current page; the open dialog is in the address (`#settings`, `#practice`, `#practice=<step id>`, `#module`). The module name in the step header is a link with a yellow underline that opens the outline.
+- Quiz and mock exam: one question at a time; lettered option rows at least 56px tall; right and wrong shown with a mark and words as well as colour; one primary action at a time. The question map is a tape of numbered cells under the card (44px tall, about 3.5rem wide; 2.75rem on a phone): open cells are paper with a grey bar, right is green, wrong has a red bar and corner, answered (mock exam) is ink, the current cell is yellow with a heavy ink bar. The bottom of the card is one row under a dashed rule: Previous on the left, Submit in the middle, Next on the right. After Submit the Submit button becomes a stamp that says Correct or Wrong (with a check or a cross), and Next turns ink with yellow text and goes to the next open question; once every question is answered it becomes See results. The explanation under each option says why. Check yourself on a step works the same way: Submit in the middle, then the stamp.
+
+### Notifications
+
+Messages appear at the bottom right, lined up with the console (`src/lib/toast.ts`, `toast.css`), inside an open dialog when there is one, never over the top bar or a dialog's close button; the same message twice replaces the first: saved settings (paper, a check), errors (a red edge and icon, they stay longer), finished steps, quizzes and modules, a new level (with its number) and a badge earned (with what earned it), the last three in yellow. Each slides in through a glitch slice, runs a countdown bar, lets clicks pass through to what it covers, and has an X (resting the pointer on the X holds it). The owner asked for them because the line at the bottom of Settings was "almost not noticeable" (2026-11-11). The mock exam stays quiet while it runs.
+
+### Signature components
+
+- **Plate:** one to four characters in a 5 by 7 octagon dot matrix on a bezel plate, with a mono line and a running dashed line (`Matrix.astro`): the step number, the module number, `P`, `60`, `404`. When a step is complete its dots are yellow.
+- **Globe:** a wireframe sphere that turns once every 80 seconds behind the left of the header on pages without a module; its nodes blink.
+- **Module icons:** one line-drawn, slowly animated icon per module (`ModuleIcon.astro`, `src/assets/deco/modules/`; m01 Helm a steering wheel, m02 the globe), on the overview's module cards and, large and faint, behind the module's page headers. One yellow detail, kept grey behind a title.
+- **Readiness charts** (`ReadinessCharts.tsx`): each exam opens with a dark scope holding a 270-degree gauge of the weighted share right (marks at 70% and 80%), a radar of its domains (share right filled yellow, questions met out of 10 dashed) and the exam's weight per domain as a segmented bar. The table cells carry thin bars, and each verdict has a shape: a yellow octagon when ready, half yellow when close, a red cross when not yet, dashed before a verdict. All SVG with attributes only.
+- **How the course works:** five dark tiles on a dashed track joined by yellow arrows, each with a large outlined number; the last tile (the mock exam) is yellow.
+- **Overview hero:** the four LGTM layers drawn as slabs pulled apart, with one yellow request falling through them (`src/assets/deco/hero-stack.svg`).
+- **Side rails:** two tall SVG compositions (`src/assets/deco/rail-left.svg`, `rail-right.svg`) of hairline spines and labelled micrographics, one of each drawing, repeating every 3400px.
+
+## Motion
+
+The owner asked for "maximum amount" of hover, effects and animation in the console style (2026-11-11). The vocabulary: scan bands that sweep, fills that wipe in from one side, labels that type or decode from scrambled glyphs, cut corners that light yellow, brackets that snap in, stamps that slam down, bars that charge in steps, dots that light in sweeps, dashes and chevrons that march, short glitches in ink and yellow offsets, tubes that power on from a line.
+
+- Where it lives: `motion.css` holds the shared controls and the shell (buttons, nav buttons, links, the close X, fields, the Settings switches, focus, dialogs, page boot, the scroll gauge, the rails' parallax, the crosshair and click pings); `src/lib/fx-ui.ts` drives the crosshair, the pings and the decoding labels. Each page's stylesheet holds its own motion: `head.css` (`hd-`), `step.css` (`st-`), `home.css` (`hm-`), `quiz.css` and `sticker.css` (`qz-`, `stk-`). Shared keyframes in `global.css` start with `lg-`, the shell's with `mo-`.
+- Pages boot: the top bar drops in, the notch slides down, the screen opens from its middle line, the header stamps its tag, types its crumb, scans its title and powers on its plate.
+- Below the fold, sections and parts build as they come into view (CSS view timelines, or an observer that adds `.st-seen` on the step page).
+- Controls: buttons sweep a band and light their corner; primary text flickers on; nav buttons fill with ink and decode; links grow a yellow underline; focused fields run a scanner; the focus ring snaps in.
+- Quiz: option rows sweep and punch; Submit turns into a stamp that slams in; the tape's cells boot, lock on and charge; results count up and charge their bars.
+- Mark complete: the plate's dots turn yellow column by column; the celebration particles are yellow, paper and ink.
+- The pointer: on a device with a mouse the crosshair is the cursor (the system cursor is hidden, except the text cursor in text fields). It follows the mouse directly, works inside dialogs, locks on over anything clickable (yellow lines, corner brackets, a little larger), tightens while pressed, and shows its coordinates over the console's ash. With Effects off, reduced motion, or during a mock exam, the system cursor is back.
+- Nothing a click needs moves for longer than about 250ms after load or a click: buttons, option rows and tape cells change colour, clip-path and overlays, not their place (the browser tests click quickly).
+- The running mock exam has no motion beyond hover colour changes, the header's included.
+- Everything stops under the device's reduced-motion setting and when Effects is off in Settings (`data-motion="off"` on `<html>`): the kill rules in `global.css` cut durations, loops and delays, and the crosshair, pings and decoding do not run. Pages read the same without motion. The celebrations keep their own ladder (`src/lib/fx.ts`).
+
+## Do and don't
+
+- Do put new visual values in `src/styles/tokens.css` first and use them through `var(--lg-*)` or the Tailwind theme.
+- Do keep the mock exam quiet: no celebrations while it runs, no decoration inside the exam screen.
+- Don't add a second accent colour, a light or dark theme, rounded cards, or drop shadows on panels.
+- Don't use the display face for paragraphs; it is for titles, headings, numbers and buttons.
+- Don't hard-code colours in components; the side-tab and grid exceptions the detector reports are recorded in `.impeccable/config.json`.

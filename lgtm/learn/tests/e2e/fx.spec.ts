@@ -28,7 +28,7 @@ test('effects off, sound off and reduced motion each silence what they should', 
   await expect(page.locator('canvas[data-fx-canvas]')).toHaveCount(1);
 
   // Effects off: the banner stays, the canvas goes, the sound stays.
-  await setSwitch(page, 'Effects when you finish something', false);
+  await setSwitch(page, 'Effects and motion', false);
   await completeStep(page, 's07');
   expect(await fxLast(page)).toBe('step effects=off sound=on');
   await expect(page.locator('canvas[data-fx-canvas]')).toHaveCount(0);
@@ -65,7 +65,7 @@ test('reduced motion turns the canvas off even with effects on', async ({ page }
 });
 
 test('a passed lab check is a bigger rung than a step', async ({ page }) => {
-  await page.goto('/m/m90/s02/');
+  await page.goto('/m/m90/s02/?tab=practice');
   await page.getByLabel('Type the word the command prints.').fill('Ready');
   await page.getByRole('button', { name: 'Check', exact: true }).click();
   await expect(page.locator('[data-check-result]')).toHaveAttribute('data-check-result', 'pass');

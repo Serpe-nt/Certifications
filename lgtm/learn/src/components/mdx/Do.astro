@@ -1,7 +1,7 @@
 ---
-// <Do> block of a step card (content contract). Label: "Do it".
+// <Do>: numbered actions in the lab. Shown on the Practice tab.
 ---
-<section class="box box-do" data-block="do">
-  <h2>Do it</h2>
-  <slot />
+<section class="part part-do" data-block="do" data-practice>
+  <p class="part-label mono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Do it in the lab</p>
+  <div class="part-body"><slot /></div>
 </section>

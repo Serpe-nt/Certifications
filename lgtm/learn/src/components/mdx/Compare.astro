@@ -1,0 +1,11 @@
+---
+// <Compare caption="..."> holds two or three <Col> items, side by side.
+interface Props {
+  caption?: string;
+}
+const { caption } = Astro.props;
+---
+<figure class="info" data-info="compare">
+  {caption && <figcaption class="info-cap mono"><span>{caption}</span></figcaption>}
+  <div class="compare"><slot /></div>
+</figure>

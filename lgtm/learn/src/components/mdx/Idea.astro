@@ -1,7 +1,7 @@
 ---
-// <Idea> block of a step card (content contract). Label: "The idea".
+// <Idea>: the answer in two or three plain sentences.
 ---
-<section class="box box-idea" data-block="idea">
-  <h2>The idea</h2>
-  <slot />
+<section class="part part-idea" data-block="idea">
+  <p class="part-label mono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><rect x="8" y="8" width="8" height="8" transform="rotate(45 12 12)"/></svg>The key idea</p>
+  <div class="part-body"><slot /></div>
 </section>

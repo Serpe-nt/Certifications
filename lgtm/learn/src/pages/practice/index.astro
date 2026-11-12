@@ -1,9 +1,21 @@
 ---
 // Review, step practice and weak spots. The round in progress lives in the progress document.
 import Base from '../../layouts/Base.astro';
+import PageHead from '../../components/PageHead.astro';
 import Practice from '../../components/islands/Practice.tsx';
+import { href } from '../../lib/links.ts';
 ---
-<Base title="Practice">
-  <h1 class="mt-0">Practice</h1>
+<Base title="Practice" dialogs={false}>
+  <PageHead
+    slot="head"
+    side
+    tag="Practice"
+    crumbText="LGTM //"
+    crumb={{ label: 'Course overview', href: href.home }}
+    title="Practice"
+    lead="Missed questions come back on their review day. You can also drill one step or the topics you miss most."
+    leadStyle="plain"
+    plate={{ value: 'P', label: 'Practice', foot: ['Practice', 'Review'] }}
+  />
   <Practice client:load />
 </Base>

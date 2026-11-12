@@ -1,0 +1,270 @@
+/*
+  Notifications at the right-hand side (src/lib/toast.ts). A stack under the top bar; each card has
+  a kind icon, a mono kicker, a title, an optional line, a countdown bar and an X. Saved and notes
+  are paper; errors carry a red edge; finished things, levels and badges are yellow and larger.
+  They slide in through a glitch slice and leave the same way. Keyframes here start with to-.
+*/
+/* Bottom right: clear of the top bar, page headers and a dialog's close X; on a wide screen it lines
+   up with the console's right edge rather than the window's. */
+.toasts {
+  position: fixed;
+  bottom: var(--lg-space-6);
+  right: max(var(--lg-space-6), calc((100vw - var(--lg-page-max)) / 2 + var(--lg-space-6)));
+  z-index: 60;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: var(--lg-space-3);
+  width: min(24rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+.toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 14px;
+  width: 100%;
+  padding: 14px 12px 18px 16px;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+  box-shadow: 6px 6px 0 var(--lg-bezel);
+  /* Clicks pass through a notification to whatever it covers (Submit, Next); only its X takes them. */
+  pointer-events: none;
+}
+.toast p {
+  margin: 0;
+}
+.toast-icon {
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+  background: var(--lg-ink);
+  fill: none;
+  stroke: var(--lg-signal);
+  stroke-width: 2.4;
+  stroke-linecap: square;
+}
+.toast-kicker {
+  color: var(--lg-ink-3);
+}
+.toast-title {
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-ui);
+  line-height: 1.25;
+}
+.toast-text {
+  margin-top: 4px !important;
+  font-size: var(--lg-text-small);
+  line-height: 1.45;
+  color: var(--lg-ink-2);
+}
+.toast-figure {
+  align-self: center;
+  font-family: var(--lg-font-display);
+  font-size: var(--lg-text-stat);
+  line-height: 1;
+}
+.toast-close {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: -6px -4px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lg-ink);
+  pointer-events: auto;
+}
+.toast-close:hover {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
+}
+.toast-x {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+}
+.toast-timer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--lg-ink);
+  transform-origin: left center;
+}
+
+/* Kinds */
+.toast-error {
+  box-shadow: inset 6px 0 0 var(--lg-bad), 6px 6px 0 var(--lg-bezel);
+}
+.toast-error .toast-icon {
+  background: var(--lg-bad);
+  stroke: var(--lg-paper);
+}
+.toast-error .toast-timer {
+  background: var(--lg-bad);
+}
+.toast-done,
+.toast-level,
+.toast-badge {
+  background: var(--lg-signal);
+  color: var(--lg-signal-ink);
+}
+.toast-done .toast-kicker,
+.toast-level .toast-kicker,
+.toast-badge .toast-kicker {
+  color: var(--lg-ink);
+}
+.toast-done .toast-title,
+.toast-level .toast-title,
+.toast-badge .toast-title {
+  font-size: var(--lg-text-lead);
+}
+.toast-level,
+.toast-badge {
+  background:
+    linear-gradient(135deg, transparent 0 calc(100% - 30px), var(--lg-ink) calc(100% - 30px) calc(100% - 26px), transparent calc(100% - 26px)),
+    var(--lg-signal);
+}
+.toast-badge .toast-icon {
+  fill: var(--lg-signal);
+  stroke: var(--lg-signal);
+}
+
+.toast:has(.toast-figure) {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+@media (max-width: 640px) {
+  .toasts {
+    bottom: var(--lg-space-3);
+    right: var(--lg-space-3);
+    left: var(--lg-space-3);
+    width: auto;
+  }
+}
+
+/* Motion: in through a glitch slice, a scan band, the countdown, a shine on the yellow ones. */
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    /* backwards, not both: a clip-path left on after the entrance would cut off the shadow */
+    animation: to-in 460ms var(--lg-ease-out) backwards;
+  }
+  .toast::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 0 40%, var(--lg-signal) 40% 46%, transparent 46%);
+    opacity: 0.6;
+    transform: translateX(-110%);
+    animation: mo-sweep 700ms var(--lg-ease-out) 200ms both;
+    pointer-events: none;
+  }
+  .toast-done::before,
+  .toast-level::before,
+  .toast-badge::before {
+    background: linear-gradient(100deg, transparent 0 40%, var(--lg-paper) 40% 46%, transparent 46%);
+    animation: mo-sweep 900ms var(--lg-ease-out) 250ms 3 both;
+  }
+  .toast-icon {
+    animation: to-icon 520ms var(--lg-ease-out) 120ms both;
+  }
+  .toast-title {
+    animation: to-type 420ms steps(14) 160ms both;
+  }
+  .toast-figure {
+    animation: to-figure 600ms var(--lg-ease-out) 200ms both;
+  }
+  .toast-timer {
+    animation: to-timer var(--toast-ms, 4000ms) linear both;
+  }
+  /* Resting the pointer on the X holds the notification. */
+  .toast:has(.toast-close:hover) .toast-timer {
+    animation-play-state: paused;
+  }
+  .toast[data-leaving] {
+    animation: to-out 320ms var(--lg-ease-out) both;
+  }
+}
+@keyframes to-in {
+  0% {
+    opacity: 0;
+    transform: translateX(110%);
+    clip-path: inset(0);
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(-8px);
+    clip-path: polygon(0 30%, 100% 30%, 100% 45%, 0 45%);
+  }
+  70% {
+    transform: translateX(4px);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+  100% {
+    transform: translateX(0);
+    clip-path: inset(0);
+  }
+}
+@keyframes to-out {
+  0% {
+    transform: translateX(0);
+  }
+  40% {
+    clip-path: polygon(0 40%, 100% 40%, 100% 55%, 0 55%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(110%);
+    clip-path: polygon(0 48%, 100% 48%, 100% 52%, 0 52%);
+  }
+}
+@keyframes to-icon {
+  from {
+    transform: rotate(-90deg) scale(0.4);
+  }
+}
+@keyframes to-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes to-figure {
+  0% {
+    opacity: 0;
+    transform: scale(2.4) rotate(-8deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.92) rotate(2deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes to-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Saved, error and note messages are sentences: the reading face. Finished things, levels and badges
+   are titles: the display face. */
+.toast-ok .toast-title,
+.toast-error .toast-title,
+.toast-info .toast-title {
+  font-family: var(--lg-font-sans);
+  font-weight: 600;
+  line-height: 1.4;
+}

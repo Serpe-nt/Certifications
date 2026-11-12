@@ -1,0 +1,714 @@
+/*
+  Site-wide motion: the shared controls (buttons, nav buttons, links, the close X, fields, toggles,
+  focus), the dialogs, the page's boot, the scroll gauge, the cursor reticle and click pings
+  (src/lib/fx-ui.ts), and the side rails' parallax. The owner asked for "maximum amount" of hover,
+  effects and animation in the console style (2026-11-11). Page-specific motion lives with each
+  page's stylesheet. Everything that moves sits under prefers-reduced-motion: no-preference, and
+  the kill rules in global.css calm it when Effects is off ([data-motion="off"]).
+  Keyframes here start with mo-.
+*/
+
+/* ================================================================ buttons */
+/* A light band sweeps across on hover, the cut corner lights up yellow, and a press sinks the
+   button. Nothing changes its box, so a click never waits for a button to hold still. */
+.btn:not(.absolute) {
+  position: relative;
+}
+.btn {
+  isolation: isolate;
+  transition:
+    background-color var(--lg-dur-fast) var(--lg-ease-out),
+    color var(--lg-dur-fast) var(--lg-ease-out),
+    border-color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  background: var(--lg-signal);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  transform: scale(0);
+  transform-origin: top right;
+  transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+  pointer-events: none;
+  z-index: 1;
+}
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 0 35%, var(--lg-signal) 35% 41%, transparent 41% 47%, var(--lg-signal) 47% 49%, transparent 49%);
+  opacity: 0.55;
+  transform: translateX(-110%);
+  pointer-events: none;
+}
+.btn-primary::after {
+  opacity: 0.35;
+}
+.btn:hover:not(:disabled):not([aria-disabled="true"])::before,
+.btn:focus-visible::before {
+  transform: scale(1);
+}
+.btn:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(1px) scale(0.98);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .btn:hover:not(:disabled):not([aria-disabled="true"])::after {
+    animation: mo-sweep 0.7s var(--lg-ease-out) both;
+  }
+  .btn-primary:hover:not(:disabled):not([aria-disabled="true"]) {
+    animation: mo-neon 0.9s steps(1) both;
+  }
+}
+@keyframes mo-sweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(110%);
+  }
+}
+/* The yellow text of a primary button flickers on like a tube. */
+@keyframes mo-neon {
+  0%,
+  12%,
+  30% {
+    color: var(--lg-signal);
+  }
+  6%,
+  22% {
+    color: var(--lg-bezel-2);
+  }
+  100% {
+    color: var(--lg-signal);
+  }
+}
+
+/* ================================================================ nav buttons in the top bar */
+/* Ink fills in from the left and the text turns yellow and decodes (fx-ui.ts). */
+.navbtn {
+  position: relative;
+  background-image: linear-gradient(var(--lg-ink), var(--lg-ink));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  background-position: left center;
+  transition:
+    background-size var(--lg-dur) var(--lg-ease-out),
+    color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.navbtn:hover,
+.navbtn:focus-visible,
+.navbtn[aria-current="true"] {
+  background-size: 100% 100%;
+  color: var(--lg-signal) !important;
+}
+
+/* ================================================================ the brand */
+/* Its brackets snap open on hover and the name glitches once, in ink and yellow offsets. */
+.brand::before,
+.brand::after {
+  transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+}
+.brand:hover::before {
+  transform: translateX(-4px);
+}
+.brand:hover::after {
+  transform: translateX(4px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .brand:hover {
+    animation: mo-glitch 0.45s steps(2) 1;
+  }
+}
+@keyframes mo-glitch {
+  0% {
+    text-shadow: 2px 0 var(--lg-signal), -2px 0 var(--lg-ink);
+  }
+  25% {
+    text-shadow: -3px 1px var(--lg-signal), 2px -1px var(--lg-ink);
+  }
+  50% {
+    text-shadow: 3px -1px var(--lg-signal), -1px 1px var(--lg-ink);
+  }
+  75% {
+    text-shadow: -1px 0 var(--lg-signal), 1px 0 var(--lg-ink);
+  }
+  100% {
+    text-shadow: none;
+  }
+}
+
+/* ================================================================ text links */
+/* A yellow bar grows under a link from the left; the link text stays ink. */
+:where(.page-glass, .glass, .modal) a:not([class]) {
+  background-image: linear-gradient(var(--lg-signal), var(--lg-signal));
+  background-repeat: no-repeat;
+  background-size: 0% 40%;
+  background-position: left 92%;
+  transition: background-size var(--lg-dur) var(--lg-ease-out);
+}
+:where(.page-glass, .glass, .modal) a:not([class]):hover,
+:where(.page-glass, .glass, .modal) a:not([class]):focus-visible {
+  background-size: 100% 40%;
+}
+
+/* ================================================================ the close X */
+/* The yellow square opens from the centre and the X turns; a ring pings out once. */
+.closebtn {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+}
+.closebtn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--lg-signal);
+  transform: scale(0);
+  transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+}
+.closebtn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--lg-ink);
+  opacity: 0;
+  pointer-events: none;
+}
+.closebtn:hover {
+  background: transparent;
+}
+.closebtn:hover::before {
+  transform: scale(1);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .closebtn:hover::after {
+    animation: mo-ping 0.6s var(--lg-ease-out) 1;
+  }
+}
+@keyframes mo-ping {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+/* ================================================================ fields */
+/* A focused field gets a yellow base line with a scanner running along it. */
+.field {
+  background-image: linear-gradient(90deg, transparent 0 40%, var(--lg-signal) 40% 60%, transparent 60%);
+  background-repeat: no-repeat;
+  background-size: 0 0;
+  background-position: 100% 100%;
+  transition:
+    box-shadow var(--lg-dur-fast) var(--lg-ease-out),
+    border-color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.field:hover:not(:disabled) {
+  border-color: var(--lg-ink-2);
+  box-shadow: inset 0 -2px 0 var(--lg-ink-3);
+}
+.field:focus {
+  background-size: 200% 4px;
+  box-shadow: inset 0 -4px 0 var(--lg-ink);
+  caret-color: var(--lg-ink);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .field:focus {
+    animation: mo-scanline 1.6s linear infinite;
+  }
+}
+@keyframes mo-scanline {
+  from {
+    background-position: 100% 100%;
+  }
+  to {
+    background-position: -100% 100%;
+  }
+}
+
+/* ================================================================ toggle switches (Settings) */
+/* A checkbox drawn as a switch: an ink track, an octagon knob that slides, OFF and ON in mono. */
+.toggle {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 4.5rem;
+  height: 2rem;
+  margin: 0;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+  transition: background-color var(--lg-dur) var(--lg-ease-out);
+}
+.toggle::before {
+  content: "OFF";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-label);
+  letter-spacing: 0.1em;
+  color: var(--lg-ink-3);
+}
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  background: var(--lg-ink);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  transition:
+    transform var(--lg-dur) var(--lg-ease-out),
+    background-color var(--lg-dur) var(--lg-ease-out);
+}
+.toggle:checked {
+  background: var(--lg-ink);
+}
+.toggle:checked::before {
+  content: "ON";
+  right: auto;
+  left: 10px;
+  color: var(--lg-signal);
+}
+.toggle:checked::after {
+  transform: translateX(2.5rem);
+  background: var(--lg-signal);
+}
+.toggle:hover:not(:disabled)::after {
+  box-shadow: none;
+  background: var(--lg-ink-2);
+}
+.toggle:checked:hover:not(:disabled)::after {
+  background: var(--lg-paper);
+}
+.toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.toggle:focus-visible {
+  outline: 3px solid var(--lg-signal);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .toggle:checked::after {
+    animation: mo-knob 0.5s var(--lg-ease-out) 1;
+  }
+}
+@keyframes mo-knob {
+  0% {
+    transform: translateX(0) rotate(0);
+  }
+  70% {
+    transform: translateX(2.7rem) rotate(90deg);
+  }
+  100% {
+    transform: translateX(2.5rem) rotate(90deg);
+  }
+}
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lg-space-3);
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+/* ================================================================ focus */
+/* The focus ring snaps in from further out. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(a, button, input, select, textarea, summary):focus-visible {
+    animation: mo-focus 0.25s var(--lg-ease-out) 1;
+  }
+}
+@keyframes mo-focus {
+  from {
+    outline-offset: 9px;
+  }
+  to {
+    outline-offset: 2px;
+  }
+}
+
+/* ================================================================ dialogs */
+/* A dialog powers on like a tube: a bright line opens to the full screen, the backdrop rolls
+   scanlines, and the boxes inside boot one after another. It never scrolls sideways. */
+.modal {
+  overflow-x: hidden;
+}
+.modal::backdrop {
+  background:
+    linear-gradient(transparent 0 50%, var(--lg-scanline) 50%) 0 0 / 100% 4px,
+    var(--lg-scrim);
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* The screen inside powers on, not the dialog: a clipped dialog would let clicks through to the
+     backdrop, which closes it. */
+  .modal[open] > .modal-screen {
+    animation: mo-power 0.5s var(--lg-ease-out) both;
+  }
+  .modal[open]::backdrop {
+    animation:
+      mo-fade 0.3s var(--lg-ease-out) both,
+      mo-roll 6s linear infinite;
+  }
+  /* Opacity and clip only: anything that moves inside the dialog while it opens would give it a
+     scrollbar for a moment and make it jump. */
+  .modal[open] .modal-head,
+  .modal[open] .glass > :not(.modal-head),
+  .modal[open] .box {
+    animation: mo-unveil 0.5s var(--lg-ease-out) both;
+  }
+  .modal[open] .glass > :nth-child(2),
+  .modal[open] .box:nth-of-type(2) {
+    animation-delay: 0.12s;
+  }
+  .modal[open] .glass > :nth-child(3),
+  .modal[open] .box:nth-of-type(3) {
+    animation-delay: 0.2s;
+  }
+  .modal[open] .modal-title {
+    animation: lg-wipe 0.6s var(--lg-ease-out) 0.1s both;
+  }
+}
+@keyframes mo-unveil {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes mo-power {
+  0% {
+    clip-path: inset(49.5% 0 49.5% 0);
+    filter: brightness(1.8);
+  }
+  45% {
+    clip-path: inset(49.5% 0 49.5% 0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    filter: none;
+  }
+}
+@keyframes mo-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes mo-roll {
+  to {
+    background-position: 0 100px, 0 0;
+  }
+}
+
+/* ================================================================ page boot */
+/* On load the top bar drops in, the notch slides down, the rails come in from the edges and the
+   screen opens from its middle line. Only opacity and clip-path move inside the screen, so
+   nothing a click needs shifts its place. */
+@media (prefers-reduced-motion: no-preference) {
+  .topbar {
+    animation: mo-drop 0.6s var(--lg-ease-out) both;
+  }
+  .console > .notch {
+    animation: mo-notch 0.5s var(--lg-ease-out) both;
+  }
+  .rail-l {
+    animation: mo-rail-l 1s var(--lg-ease-out) 0.15s both;
+  }
+  .rail-r {
+    animation: mo-rail-r 1s var(--lg-ease-out) 0.15s both;
+  }
+  main > .screen,
+  main > section.screen {
+    animation: mo-open 0.7s var(--lg-ease-out) 0.1s both;
+  }
+  .sync::before {
+    transition: transform var(--lg-dur) var(--lg-ease-out);
+  }
+  .sync:not(:empty)::before {
+    animation: lg-spin 1.2s linear infinite;
+  }
+}
+@keyframes mo-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+}
+@keyframes mo-notch {
+  from {
+    transform: translate(-50%, -100%);
+  }
+}
+@keyframes mo-rail-l {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+}
+@keyframes mo-rail-r {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+@keyframes mo-open {
+  0% {
+    clip-path: inset(50% 0 50% 0 round var(--lg-radius-screen));
+  }
+  100% {
+    clip-path: inset(0 0 0 0 round var(--lg-radius-screen));
+  }
+}
+
+/* ================================================================ scroll gauge and rail parallax */
+/* A yellow gauge along the top edge fills as the page scrolls; the rails drift slower than the page. */
+.scroll-gauge {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  height: 4px;
+  background: var(--lg-signal);
+  box-shadow: 0 1px 0 var(--lg-ink);
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events: none;
+}
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-gauge {
+      animation: mo-gauge linear both;
+      animation-timeline: scroll(root);
+    }
+    .rail {
+      animation: mo-parallax linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+}
+@keyframes mo-gauge {
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes mo-parallax {
+  to {
+    transform: translateY(-260px);
+  }
+}
+:root[data-motion="off"] .scroll-gauge {
+  display: none;
+}
+/* The kill rules tie scroll-driven animations to a short time, which would leave the rails at the
+   end of their drift; with Effects off they simply stay put. */
+:root[data-motion="off"] .rail {
+  animation: none !important;
+}
+
+/* ================================================================ cursor reticle and click ping (fx-ui.ts) */
+/* The crosshair is the pointer (owner, 2026-11-11: "I like the cursor, but it sits after my original
+   one"): the system cursor is hidden while it is on, except the text cursor in text fields. It
+   follows the pointer directly, over the screen and inside dialogs too. Over something you can click
+   it locks on: it grows, turns yellow and shows corner brackets; pressed, it tightens. Over the
+   console's ash it also shows its coordinates. Every click outside a dialog sends a yellow ping. */
+html[data-reticle]:not([data-motion="off"]),
+html[data-reticle]:not([data-motion="off"]) * {
+  cursor: none !important;
+}
+html[data-reticle]:not([data-motion="off"]) :is(input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="file"], [type="range"]), textarea, [contenteditable="true"]) {
+  cursor: text !important;
+}
+.reticle {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.reticle[data-on] {
+  opacity: 1;
+}
+.reticle[data-text] {
+  opacity: 0;
+}
+.reticle-body {
+  position: absolute;
+  left: -22px;
+  top: -22px;
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 0 1px var(--lg-paper)) drop-shadow(0 0 1px var(--lg-paper));
+  transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+}
+.reticle-body::before,
+.reticle-body::after {
+  content: "";
+  position: absolute;
+  background: var(--lg-ink);
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.reticle-body::before {
+  left: 0;
+  right: 0;
+  top: 21px;
+  height: 2px;
+  clip-path: polygon(0 0, 38% 0, 38% 100%, 62% 100%, 62% 0, 100% 0, 100% 100%, 0 100%);
+}
+.reticle-body::after {
+  top: 0;
+  bottom: 0;
+  left: 21px;
+  width: 2px;
+  clip-path: polygon(0 0, 100% 0, 100% 38%, 0 38%, 0 62%, 100% 62%, 100% 100%, 0 100%);
+}
+.reticle-dot {
+  position: absolute;
+  left: 19px;
+  top: 19px;
+  width: 6px;
+  height: 6px;
+  background: var(--lg-signal);
+  box-shadow: 0 0 0 2px var(--lg-ink);
+  transition: transform var(--lg-dur-fast) var(--lg-ease-out);
+}
+/* Corner brackets, shown when locked on. */
+.reticle-lock {
+  position: absolute;
+  inset: 4px;
+  background:
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left top / 9px 2px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left top / 2px 9px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right top / 9px 2px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right top / 2px 9px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left bottom / 9px 2px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) left bottom / 2px 9px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right bottom / 9px 2px no-repeat,
+    linear-gradient(var(--lg-ink), var(--lg-ink)) right bottom / 2px 9px no-repeat;
+  opacity: 0;
+  transform: scale(1.6);
+  transition:
+    opacity var(--lg-dur-fast) var(--lg-ease-out),
+    transform var(--lg-dur-fast) var(--lg-ease-out);
+}
+.reticle[data-hot] .reticle-body {
+  transform: scale(1.25);
+}
+.reticle[data-hot] .reticle-body::before,
+.reticle[data-hot] .reticle-body::after {
+  background: var(--lg-signal);
+}
+.reticle[data-hot] .reticle-lock {
+  opacity: 1;
+  transform: scale(1);
+}
+.reticle[data-down] .reticle-body {
+  transform: scale(0.8);
+}
+.reticle[data-down] .reticle-dot {
+  transform: scale(1.6);
+}
+.reticle-xy {
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  padding: 1px 5px;
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+  white-space: nowrap;
+  opacity: 0;
+}
+.reticle[data-ash] .reticle-xy {
+  opacity: 1;
+}
+.ping {
+  position: fixed;
+  z-index: 31;
+  width: 36px;
+  height: 36px;
+  margin: -18px 0 0 -18px;
+  border: 0;
+  background: var(--lg-signal);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%, 0 30%, 8% 33%, 8% 67%, 33% 92%, 67% 92%, 92% 67%, 92% 33%, 67% 8%, 33% 8%, 8% 33%);
+  pointer-events: none;
+  animation: mo-pingout 0.55s var(--lg-ease-out) both;
+}
+@keyframes mo-pingout {
+  from {
+    opacity: 1;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.8) rotate(45deg);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .reticle {
+    display: none;
+  }
+}
+:root[data-motion="off"] .reticle,
+:root[data-motion="off"] .ping {
+  display: none;
+}
+
+/* ================================================================ the running mock exam stays calm */
+/* Buttons keep their colour change on hover but lose the sweep and the flicker while the clock runs. */
+[data-exam-running] .btn::after,
+[data-exam-running] .btn::before {
+  animation: none !important;
+  transition: none;
+}
+[data-exam-running] .btn {
+  animation: none !important;
+}
+body:has([data-exam-running]) .ping,
+body:has([data-exam-running]) .reticle {
+  display: none;
+}
+
+/* ================================================================ decoding labels (fx-ui.ts) */
+/* While a label decodes, its scrambled glyphs are dimmer than the settled ones. */
+[data-decoding] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A tall dialog shows that it scrolls. */
+.modal {
+  scrollbar-width: thin;
+  scrollbar-color: var(--lg-ink) transparent;
+}
+
+.reticle[data-flip] .reticle-xy {
+  left: auto;
+  right: 14px;
+}
+
+/* The rails slide in from beyond the window's edges; the page never scrolls sideways for it.
+   clip, not hidden: it makes no scroll container, so sticky parts keep working. */
+body {
+  overflow-x: clip;
+}

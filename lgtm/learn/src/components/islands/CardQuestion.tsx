@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import type { RenderedOption } from '../../lib/question-html.ts';
+import { Mark } from './QuestionView.tsx';
 import { updateState, useHydrated, useStoreState } from '../../lib/use-store.ts';
 
 interface Props {
@@ -10,13 +11,18 @@ interface Props {
   answer: number;
 }
 
-/** The one knowledge-check question on a step card. Options are shuffled after hydration. */
+/** An explanation that opens with its own "Right." or "Wrong." (after an optional <p>) loses it: the row prints one. */
+const ownVerdictOff = (html: string) => html.replace(/^(\s*<p>)?\s*(?:Correct|Right|Wrong|Incorrect)\.\s*/, '$1');
+
+/** The one knowledge-check question on a step. Options are shuffled after hydration; a pick is graded only on Submit. */
 export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
   const state = useStoreState();
   const ready = useHydrated();
   const name = useId();
   const [order, setOrder] = useState(() => options.map((_, i) => i));
   const [picked, setPicked] = useState<number | null>(null);
+  // The option the learner has selected but not yet checked.
+  const [choice, setChoice] = useState<number | null>(null);
 
   useEffect(() => {
     const o = options.map((_, i) => i);
@@ -41,32 +47,50 @@ export default function CardQuestion({ id, stemHtml, options, answer }: Props) {
 
   return (
     <div data-question={id}>
-      <div dangerouslySetInnerHTML={{ __html: stemHtml }} />
-      <fieldset className="m-0 border-0 p-0">
-        <legend className="sr-only">Pick one answer</legend>
-        {order.map((i) => {
+      <div className="qv-text" dangerouslySetInnerHTML={{ __html: stemHtml }} />
+      <fieldset className="qv-opts">
+        <legend className="qv-legend mono">Pick one answer</legend>
+        {order.map((i, k) => {
           const o = options[i];
           const right = i === answer;
-          const tone = !answered ? '' : right ? 'border-good' : i === picked ? 'border-bad' : '';
+          const chosen = (answered ? picked : choice) === i;
+          const state = !answered ? (chosen ? 'picked' : 'open') : right ? 'right' : i === picked ? 'wrong' : 'other';
           return (
-            <label key={i} className={`mb-2 block rounded-md border border-line bg-surface p-3 ${tone}`} data-option={right && answered ? 'right' : undefined}>
-              <span className="flex items-start gap-2">
-                <input type="radio" name={name} disabled={answered || !ready} checked={picked === i} onChange={() => submit(i)} className="mt-1" />
-                <span dangerouslySetInnerHTML={{ __html: o.html }} />
+            <label key={i} className="qopt" data-state={state} data-option={right && answered ? 'right' : undefined}>
+              <input type="radio" name={name} className="qopt-input" disabled={answered || !ready} checked={chosen} onChange={() => setChoice(i)} />
+              <span className="qopt-key" aria-hidden="true">
+                {'ABCDEF'[k] ?? k + 1}
               </span>
-              {answered && (
-                <span className="mt-2 block text-sm text-ink-2">
-                  <strong>{right ? 'Right. ' : i === picked ? 'Not this one. ' : ''}</strong>
-                  <span dangerouslySetInnerHTML={{ __html: o.whyHtml }} />
-                </span>
-              )}
+              <span className="qopt-body">
+                <span className="qopt-text" dangerouslySetInnerHTML={{ __html: o.html }} />
+                {answered && (right || i === picked) && (
+                  <span className="qopt-tag mono">
+                    <Mark right={right} />
+                    {right ? (i === picked ? 'Your pick, right' : 'The right answer') : 'Your pick, wrong'}
+                  </span>
+                )}
+                {answered && (
+                  <span className="qopt-why">
+                    <strong>{right ? 'Right.' : 'Wrong.'}</strong> <span dangerouslySetInnerHTML={{ __html: ownVerdictOff(o.whyHtml) }} />
+                  </span>
+                )}
+              </span>
             </label>
           );
         })}
       </fieldset>
-      <p className="text-sm text-ink-3" aria-live="polite" data-question-result>
-        {answered ? (picked === answer ? 'Right.' : 'Not quite: the explanations are under each option.') : last ? `Last time: ${last.right ? 'right' : 'wrong'}.` : ''}
-      </p>
+      <div className="card-actions">
+        {!answered && (
+          <button type="button" className="btn btn-primary" disabled={choice === null || !ready} onClick={() => choice !== null && submit(choice)} data-check-answer-card>
+            Submit
+            <span className="qz-charge" aria-hidden="true" />
+          </button>
+        )}
+        <p className="card-result mono" aria-live="polite" data-question-result data-verdict={answered ? (picked === answer ? 'right' : 'wrong') : undefined}>
+          {answered && <Mark right={picked === answer} />}
+          {answered ? (picked === answer ? 'Correct' : 'Wrong') : last ? `Last time: ${last.right ? 'right' : 'wrong'}` : ''}
+        </p>
+      </div>
     </div>
   );
 }

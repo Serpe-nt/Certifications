@@ -1,0 +1,11 @@
+---
+// <Timeline caption="..."> holds <Event> items in order.
+interface Props {
+  caption?: string;
+}
+const { caption } = Astro.props;
+---
+<figure class="info" data-info="timeline">
+  {caption && <figcaption class="info-cap mono"><span>{caption}</span></figcaption>}
+  <ol class="timeline"><slot /></ol>
+</figure>

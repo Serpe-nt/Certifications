@@ -34,6 +34,7 @@ test('three browser contexts changed offline in different ways converge', async 
   // A completes a step and answers its card question.
   await a.locator('[data-mark-complete]').click();
   await a.getByRole('radio', { name: 'A metric' }).check();
+  await a.getByRole('button', { name: 'Submit' }).click();
   // B starts the module quiz and answers three questions.
   await b.locator('[data-start-quiz]').click();
   for (let k = 0; k < 3; k++) {
