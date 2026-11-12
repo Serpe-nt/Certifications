@@ -1,0 +1,105 @@
+---
+id: m01-s11
+title: Dependencies, sub-charts and global values
+kind: concept
+minutes: 15
+order: 11
+exam:
+  - cert: none
+tags: [helm-dependencies]
+outcome: You can declare a sub-chart, switch it on and off, install the same chart twice under aliases, and set a sub-chart's values from the parent.
+terms:
+  - term: Sub-chart
+    def: A chart that another chart (the parent) depends on and installs with itself.
+  - term: Chart.lock
+    def: The file helm dependency update writes with the exact versions it downloaded.
+  - term: Alias
+    def: Another name for a dependency, so the same chart can be used twice.
+  - term: Global value
+    def: A value under global that the parent and every sub-chart can read by the same name.
+sources:
+  - title: Charts, chart dependencies
+    url: https://helm.sh/docs/topics/charts/
+    checked: 2026-11-12
+  - title: Subcharts and global values
+    url: https://helm.sh/docs/chart_template_guide/subcharts_and_globals/
+    checked: 2026-11-12
+  - title: helm dependency update
+    url: https://helm.sh/docs/helm/helm_dependency_update/
+    checked: 2026-11-12
+  - title: helm dependency build
+    url: https://helm.sh/docs/helm/helm_dependency_build/
+    checked: 2026-11-12
+---
+
+<Problem>
+Your service needs a cache, and a well-kept chart for that cache already exists. You do not want to copy its templates into your chart, nor tell every user to install it first by hand. You want one `helm install` that brings both, with the cache's settings chosen by your chart.
+</Problem>
+
+<Idea>
+A chart lists other charts under `dependencies` in its `Chart.yaml`. `helm dependency update` downloads them into `charts/`, and installing the parent installs them as part of the same release. The parent sets a sub-chart's values under a key named after it, and values under `global` reach every chart.
+</Idea>
+
+## Declaring dependencies
+
+Each entry under `dependencies` gives a `name`, a `version` (an exact version or a range) and a `repository`. `helm dependency update` downloads matching chart archives into `charts/` and writes `Chart.lock` with the exact versions it chose. `helm dependency build` rebuilds `charts/` from the lock file without choosing again, which is what a pipeline should run. Until one of them has run, `helm template` stops with an error that the dependencies are missing from `charts/`.
+
+```yaml
+dependencies:
+  - name: podinfo
+    version: 6.17.0
+    repository: https://stefanprodan.github.io/podinfo
+    alias: frontend
+  - name: podinfo
+    version: 6.17.0
+    repository: https://stefanprodan.github.io/podinfo
+    alias: backend
+    condition: backend.enabled
+```
+
+## Aliases and conditions
+
+`alias` gives a dependency another name. With two aliases, the same chart is installed twice, and its objects are named after the alias: in this example `<release>-frontend` and `<release>-backend`. `condition` names a value that switches a dependency on or off. With `backend.enabled: false` in the parent's values, only the frontend is rendered; `--set backend.enabled=true` adds the backend. `tags` group several dependencies under one switch.
+
+## Values flow down, not up
+
+The parent sets a sub-chart's values under a key named after the sub-chart or its alias. `frontend.replicaCount: 2` in the parent's `values.yaml` becomes `replicaCount: 2` inside the frontend. A sub-chart is meant to work on its own, so it can never read its parent's values. The one shared channel is `global`: `global.team: learners` in the parent can be read as `.Values.global.team` in the parent and in every sub-chart.
+
+<Layers caption="One parent values file, read by three charts">
+  <Layer title="global" hot>Read by the parent and by every sub-chart under the same name.</Layer>
+  <Layer title="frontend">Only the frontend sub-chart sees these, as its own top-level values.</Layer>
+  <Layer title="backend">Only the backend sub-chart, and backend.enabled switches it.</Layer>
+  <Layer title="Everything else">Only the parent chart.</Layer>
+</Layers>
+
+<InLab>
+`kube-prometheus-stack` is a parent chart. In `lgtm/lab/helm/kube-prometheus-stack/values.yaml`, the keys `kube-state-metrics:` and `prometheus-node-exporter:` set the values of two of its sub-charts, and `grafana:` switches its Grafana sub-chart off.
+</InLab>
+
+<Trap>
+A sub-chart is not a release of its own. `helm list` shows only the parent, and uninstalling the parent removes the sub-charts' objects too.
+</Trap>
+
+<Remember>
+Declare in `Chart.yaml`, fetch with `helm dependency update`, rebuild with `build`. Parent values reach a sub-chart under its name or alias; `global` reaches all.
+</Remember>
+
+<Question id="q-m01-s11" answer="c">
+A parent chart depends on a chart aliased as `cache`. Where do you set that cache's replica count from the parent's values file?
+
+- `replicaCount`, at the top level of the parent's values
+
+  Top-level keys belong to the parent. The sub-chart reads its values under its own key.
+
+- `global.replicaCount`, so that the sub-chart can read it
+
+  Global values are read as .Values.global.replicaCount, which the sub-chart's templates do not use for replicas.
+
+- `cache.replicaCount`, under the alias of the dependency
+
+  The parent passes the values under the dependency's alias down to the sub-chart.
+
+- In the sub-chart's own values.yaml, because a parent cannot change it
+
+  A parent can override any value of a sub-chart; only the reverse is not possible.
+</Question>
