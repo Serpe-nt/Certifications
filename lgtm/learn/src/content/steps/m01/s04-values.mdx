@@ -1,0 +1,96 @@
+---
+id: m01-s04
+title: "Values: defaults, -f files, --set, and which one wins"
+kind: concept
+minutes: 15
+order: 4
+exam:
+  - cert: none
+tags: [helm-values]
+outcome: You can predict the value a release ends up with when the chart's defaults, several -f files and --set flags all set the same key.
+terms:
+  - term: Values
+    def: The settings a chart exposes; its templates read them as .Values.
+  - term: values.yaml
+    def: The file inside a chart with the default value of every setting.
+  - term: User-supplied values
+    def: The values given at install or upgrade with -f or --set; Helm stores them with the release.
+  - term: Computed values
+    def: The chart's defaults merged with the user-supplied values; what the templates finally see.
+sources:
+  - title: Values files (chart template guide)
+    url: https://helm.sh/docs/chart_template_guide/values_files/
+    checked: 2026-11-12
+  - title: Using Helm, customizing the chart before installing
+    url: https://helm.sh/docs/intro/using_helm/
+    checked: 2026-11-12
+  - title: helm install
+    url: https://helm.sh/docs/helm/helm_install/
+    checked: 2026-11-12
+  - title: helm get values
+    url: https://helm.sh/docs/helm/helm_get_values/
+    checked: 2026-11-12
+---
+
+<Problem>
+Your team installs one chart with `-f base.yaml -f prod.yaml --set ui.message=hotfix`. All three set the message, and the chart has its own default too. Production shows a message nobody expected, and four people each believe their file is the one in charge.
+</Problem>
+
+<Idea>
+Helm merges values in a fixed order, and the later source wins for every key it sets. The chart's `values.yaml` comes first, then each `-f` file from left to right, then each `--set` from left to right. Keys a later source does not mention keep their earlier value.
+</Idea>
+
+## Where values come from
+
+A chart's templates read their settings from `.Values`. The defaults are in the chart's own `values.yaml`. You override them when you install or upgrade, in two ways. `-f` (long form `--values`) reads a YAML file and can be given several times. `--set` takes `key=value` on the command line and can be given several times as well.
+
+<Layers caption="Who wins, from strongest to weakest">
+  <Layer title="--set, the right-most first" hot>One key at a time on the command line.</Layer>
+  <Layer title="-f files, the right-most first">Whole files of overrides.</Layer>
+  <Layer title="A parent chart's values.yaml">Only when the chart is a sub-chart of another.</Layer>
+  <Layer title="The chart's values.yaml">The defaults.</Layer>
+</Layers>
+
+## Merging key by key
+
+Helm does not replace the whole tree with the last file. It merges maps key by key. If `base.yaml` sets `replicaCount: 2` and `ui.message`, and `prod.yaml` sets only `ui.message`, the result has two replicas and the message from `prod.yaml`. A `--set ui.message=...` on top beats both files for that one key and leaves `replicaCount` alone. To remove a key that the defaults set, give it the value `null`.
+
+## The --set syntax
+
+A dot goes one level down: `--set ui.message=hi` is `ui:` with `message: hi` under it. Commas separate pairs: `--set a=1,b=2`. Braces make a list: `--set tags={a,b}`. An index sets one list item: `--set servers[0].port=80`. A backslash escapes a dot or a comma inside a key or a value, as in `nodeSelector."kubernetes\.io/role"=x`. Deep structures are hard to write this way; put them in a file. `--set-string` forces a string, and `--set-json` takes JSON.
+
+## Seeing what a release got
+
+`helm get values <release>` prints the user-supplied values of a release: only what you passed with `-f` and `--set`, not the defaults. Add `--all` to see the computed values, the full merged tree the templates saw. When a release behaves oddly, this is the first thing to read.
+
+<InLab>
+The lab never uses `--set`. The playbook merges `values.yaml` of a release folder with `values-kind.yaml` for the kind test profile, and a few values it computes, into one set of values. Step 15 shows how.
+</InLab>
+
+<Trap>
+The order of `-f` files is the order on the command line, not the order you wrote them. `-f prod.yaml -f base.yaml` lets the base file win. Put the most specific file last.
+</Trap>
+
+<Remember>
+Defaults, then files left to right, then `--set` left to right; the last one to set a key wins.
+</Remember>
+
+<Question id="q-m01-s04" answer="b">
+The chart's default is `replicaCount: 1`. You run `helm install web ./chart -f a.yaml -f b.yaml --set replicaCount=4`, where `a.yaml` sets `replicaCount: 2` and `b.yaml` sets `replicaCount: 3`. How many replicas does the release get?
+
+- 3, because files always beat the command line
+
+  The order is the other way round: `--set` overrides the values files.
+
+- 4, because --set is applied after all -f files
+
+  `--set` has the highest precedence, so its value wins over both files.
+
+- 2, because the first file is the base
+
+  Files are applied left to right, so a later file overrides an earlier one.
+
+- 1, because the chart's default cannot be overridden twice
+
+  The default is the weakest source; any file or `--set` overrides it.
+</Question>
