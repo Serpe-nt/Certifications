@@ -13,7 +13,7 @@ Model Opus 5.5, high effort. Skills: `caveman`, `humanizer`, `ponytail`, as ever
 - `lgtm/docs/plan/03-content-contract.md`, all of it. It is at version 2: a step is an article.
 - The two finished steps `lgtm/learn/src/content/steps/m02/s10-cardinality.mdx` (concept) and `s06-one-request-three-signals.mdx` (lab). The owner approved the form on these two. Open both in the site as well (see "Check your work") so that you know what each part looks like on the page.
 - `lgtm/docs/adr/dz-article-format.md`: why the form is what it is, and when each part is used.
-- `lgtm/docs/adr/c0-content-notes.md`: what the pilot learned. All of it applies.
+- `lgtm/docs/adr/c0-content-notes.md` and `c1-content-notes.md`: what the pilot and the first modules learned. All of it applies.
 - `lgtm/docs/plan/01-curriculum.md`: your module, and the modules before and after it, so that you neither repeat nor skip.
 - `lgtm/docs/plan/04-tags.md`: the tags your steps must teach.
 - `lgtm/docs/plan/02-lab-contract.md` and `lgtm/lab/docs/reference.md` for every name, address, flag and command of the lab.

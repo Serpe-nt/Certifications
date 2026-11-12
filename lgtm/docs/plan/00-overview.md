@@ -5,6 +5,8 @@ Status on 2026-11-10: waves 1 and 2 are merged (pull requests 22 to 28): the sit
 Status on 2026-11-11: wave 3 is merged (pull requests 34 to 38). The lab is accepted on the real cluster, with masters at 4 GB and workers at 6 GB; the beacon's tokens are proven in Loki, Mimir and Tempo; the pilot module m02 is on main and its lab step was walked on the lab. The owner then read the pilot in the site and rejected its form, not its facts (section 13). No further lesson content is written until the lesson page is redesigned as an article and the content contract follows it.
 
 Status on 2026-11-11, evening: wave 4 is nearly done. Both mock exam pools are merged (pull requests 42 and 43; 113 OTCA and 109 PCA questions). The design session DZ has built the new page and the article form of a step, and the owner approved that form on two specimen steps; its pull request 44 is open while DZ does its last checks. The content contract is at version 2 and the tag list exists (`04-tags.md`). At the owner's request wave 5 (cards C0b, C1 and C2) starts now, on a base branch that holds main plus DZ's branch; its pull requests are merged after pull request 44.
+
+Status on 2026-11-12: pull request 44 is merged (the redesigned site and the article form). Wave 5 is merged after QA: module m02 in the article form (pull request 46), m00 and m01 Helm (49), m03 Prometheus fundamentals (48); 54 steps and 126 module questions are on main. During that QA the planner found the lab's Kafka down since 2026-11-11 17:57 UTC: its three 5 Gi volumes had filled, because retention was set by time only. Mimir and Tempo have stored nothing since. Card L5 repairs it and gives Kafka a ceiling by size; it is the first card of wave 6. One end-to-end test of the site (`tests/e2e/quiz.spec.ts`, the long quiz test) is flaky in CI; the design session was asked to make it robust.
 The research behind the plan is in `../research/`; decisions taken by workers are in `../adr/`.
 
 ## 1. What we are building
@@ -171,8 +173,12 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | 5 | C0b pilot rewrite | module m02 (not its two specimen steps) | The other eleven steps of m02 rewritten to the article form |
 | 5 | C1 setup and Helm | modules m00 and m01 | The course's first two modules; Helm is practised on the live lab in a namespace of its own |
 | 5 | C2 Prometheus fundamentals | module m03 | Written against the lab's Prometheus, every lab action run on it |
-| 6 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
-| 6 to 10 | C3 to C16 content | one module each | Modules m04 to m17, three sessions at a time, in order |
+| 6 | L5 Kafka ran out of disk | `lgtm/lab/helm/platform/strimzi/**`, the role `platform_kafka`, lab docs | The live lab stores metrics and traces again; Kafka's disk use has a ceiling by size; a check and an alert for volumes that fill up |
+| 6 | C3 PromQL | module m04 | 14 steps, most of them with queries run on the lab |
+| 6 | C4 Grafana core | module m05 | 12 steps that build one dashboard a team would keep |
+| 6 | C5 Kubernetes monitoring | module m06 | 12 steps on where cluster metrics and logs come from |
+| 7 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
+| 7 to 10 | C6 to C16 content | one module each | Modules m07 to m17, three sessions at a time, in order |
 | 11 | C17 capstone | module m18 | Game days, interview bank, the exam steps (the mock pools exist since wave 4) |
 | 11 | QA sweep | none (planner) | Full walk-through on the live lab, link check, release |
 
