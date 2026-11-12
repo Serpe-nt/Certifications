@@ -1343,10 +1343,17 @@
     opacity: 0;
   }
 }
+/* The quiz intro, the practice panels and the results board arrive by unfolding in place, not by
+   rising: they hold buttons, and a button that moves while it arrives makes a click wait or miss
+   (DESIGN.md: nothing a click needs moves for longer than about 250 ms). */
 @keyframes qz-rise {
   from {
     opacity: 0;
-    transform: translateY(24px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
   }
 }
 @keyframes qz-type {

@@ -5,6 +5,9 @@ import { answer, at, loadBank, playRun, saved } from './study.ts';
 test.beforeEach(async ({ request }) => resetServer(request));
 
 test('a module quiz is failed, then passed; missed questions come due after 1, 2 and 4 days', async ({ page }) => {
+  // The longest test in the suite: 42 questions over five rounds (a failed quiz, a passed one, three
+  // review days). On a slow CI runner it came close to the default 30 s limit, so it gets twice that.
+  test.setTimeout(60_000);
   await page.clock.setFixedTime(at('2026-11-09'));
   await page.goto('/');
   // Readiness before any answer.
