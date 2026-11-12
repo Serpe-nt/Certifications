@@ -1,0 +1,135 @@
+---
+id: m04-s12
+title: Recording rules
+kind: lab
+minutes: 20
+order: 12
+exam:
+  - cert: pca
+    domain: P3
+    competency: Aggregating over dimensions
+tags: [promql-recording-rules]
+check:
+  kind: exact
+  prompt: The rule instance:node_load1_per_cpu:ratio divides node_load1 by another recorded series. Paste that series' name.
+  answers: ["instance:node_num_cpu:sum"]
+outcome: You can read a recording rule, decode its level:metric:operations name, find the rules a server has loaded, and say when a query should become a rule.
+terms:
+  - term: Recording rule
+    def: A rule that evaluates a PromQL expression at regular intervals and stores the result as new series.
+  - term: Rule group
+    def: A named list of rules, evaluated one after another at the group's interval.
+  - term: level:metric:operations
+    def: The naming pattern for recorded series; the level is the labels left, then the metric, then the operations applied.
+sources:
+  - title: Recording rules (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
+    checked: 2026-11-12
+  - title: Recording rules, naming and aggregation (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/rules/
+    checked: 2026-11-12
+  - title: Data model, metric names (Prometheus)
+    url: https://prometheus.io/docs/concepts/data_model/
+    checked: 2026-11-12
+  - title: Querying basics, avoiding slow queries (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/basics/
+    checked: 2026-11-12
+---
+
+<Problem>
+The node overview dashboard has twelve panels, and each one computes CPU use from 176 raw series with nested `sum` and `rate`. Ten people keep it open, and it refreshes every 30 seconds. The server repeats the same work hundreds of times a minute, and the panels get slower as the cluster grows.
+</Problem>
+
+<Idea>
+A recording rule computes an expression once per evaluation interval and stores the result as a new series with its own name. Dashboards and alerts then read the stored series, which is cheap. The name follows the pattern `level:metric:operations`, so a reader can tell what was computed and what labels are left.
+</Idea>
+
+## A rule is an expression with a name
+
+Rules live in YAML files that the server loads through `rule_files`. Each file holds rule groups; each group has a name, an optional `interval`, and a list of rules. A recording rule has two required fields:
+
+```yaml
+groups:
+  - name: node-exporter.rules
+    rules:
+      - record: instance:node_num_cpu:sum
+        expr: count without (cpu, mode) (node_cpu_seconds_total{job="node-exporter",mode="idle"})
+```
+
+At every evaluation, Prometheus runs `expr` at the current time and stores the result under the name in `record`. An optional `labels` field adds or overwrites labels on the result. Rules inside a group run one after another, all with the same evaluation time, so a later rule in a group can read what an earlier one just stored. When no interval is given, the group uses the global `evaluation_interval`.
+
+If a group takes longer to evaluate than its interval, the next evaluation is skipped, and the recorded series gets a gap. The counter `prometheus_rule_group_iterations_missed_total` records each skip.
+
+## Reading the name
+
+The best-practice name has three parts separated by colons:
+
+- `level` says which labels are left after aggregation, such as `instance` or `cluster`.
+- `metric` is the source metric's name, kept as it is, except that `_total` is dropped when a rate is taken.
+- `operations` lists what was applied, the newest first, such as `rate5m` or `sum`.
+
+So `instance:node_num_cpu:sum` is a sum (here a count) of a CPU metric, with one series per instance. The colons also tell you at a glance that a series is recorded, because colons are reserved for recording rules. The guidelines ask for `without` with the labels being removed, so `job` and other labels survive, and for `rate` rather than `increase` in rules, so stored values are always per second.
+
+<Layers caption="Reading instance:node_cpu_utilisation:rate5m">
+  <Layer title="instance">The level: one series per node exporter target.</Layer>
+  <Layer title="node_cpu_utilisation">The metric: what is measured.</Layer>
+  <Layer title="rate5m" hot>The operation: a rate over five minutes.</Layer>
+</Layers>
+
+## Ratios are aggregated as two sums
+
+A rule that stores a ratio per instance raises a trap when you want the ratio for a whole job. The average of the instance ratios is not statistically valid, because instances with little traffic weigh as much as busy ones. The guidelines say: aggregate the numerator and the denominator separately, then divide. The same holds for averages computed from a histogram's or a summary's `_sum` and `_count`.
+
+## When a query should become a rule
+
+The query basics give the signs. A query that must handle a large amount of data can time out in a graph. A query that a dashboard runs on every refresh, or that is too slow to graph ad hoc, should be recorded. Alerts that use an expensive expression benefit in the same way. The recorded series costs storage, so you record what is read often, not every query you ever write.
+
+<InLab>
+The lab's Prometheus loads 30 rule groups with 86 recording rules from kube-prometheus-stack. They run every 30 seconds, except `kube-apiserver-availability.rules`, which runs every 180 seconds. You will add rules of your own in module m15, for alerts.
+</InLab>
+
+<Trap>
+A recorded series exists only from the moment its rule was first loaded. A dashboard switched to the recorded name shows nothing for the time before. Prometheus does not compute it backwards.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/rules">Rule health</LabLink> in the Status menu. Each group shows its rules, their state, and when they were last evaluated.
+2. Find the group `node-exporter.rules` and read the rule `instance:node_cpu_utilisation:rate5m`. Its expression subtracts the idle share from 1.
+3. On <LabLink to="prometheus" path="/query">the query page</LabLink>, query the recorded series for worker1: <Query lang="promql">{`instance:node_cpu_utilisation:rate5m{instance="10.10.0.30:9100"}`}</Query>
+4. Run the rule's expression yourself, for the same node: <Query lang="promql">{`1 - avg without (cpu) (sum without (mode) (rate(node_cpu_seconds_total{job="node-exporter", mode=~"idle|iowait|steal", instance="10.10.0.30:9100"}[5m])))`}</Query> The value is close to the one in action 3; the small difference comes from the two being computed a few seconds apart.
+5. Count the recorded metric names that have data: <Query lang="promql">{`count(count by (__name__) ({__name__=~".+:.+"}))`}</Query>
+6. See how long the group takes: <Query lang="promql">{`prometheus_rule_group_last_duration_seconds{rule_group=~".*;node-exporter.rules"}`}</Query> A few milliseconds, far below its 30-second interval.
+7. Back on Rule health, find `instance:node_load1_per_cpu:ratio` and paste the name of the recorded series it divides by in the check below.
+</Do>
+
+<Done>
+You found the lab's recording rules, matched a recorded series against its own expression, and checked that a rule group evaluates far within its interval.
+</Done>
+
+<Trap practice>
+Paste the recorded name, which has two colons, not the raw metric. `node_cpu_seconds_total` is what the rule counts, not what the ratio divides by.
+</Trap>
+
+<Remember>
+A recording rule stores `expr` under `record` at every evaluation, named `level:metric:operations`. Record what dashboards and alerts read often, and aggregate ratios as two sums before you divide.
+</Remember>
+
+<Question id="q-m04-s12" answer="a">
+A rule records `rate(http_requests_total{job="api"}[5m])` with one series per instance and path. Which name follows the Prometheus guidelines?
+
+- `instance_path:http_requests:rate5m`
+
+  The level lists the labels left, the metric drops _total because a rate was taken, and the operation is rate5m.
+
+- `http_requests_total:rate5m:instance_path`
+
+  The order is level, then metric, then operations, and _total is dropped after a rate.
+
+- `instance_path:http_requests_total:increase5m`
+
+  The guidelines drop _total for a rate, and rules should record rate, not increase.
+
+- `api:http_requests:rate5m`
+
+  The level names the labels that are left, instance and path here, not the job's value.
+</Question>
