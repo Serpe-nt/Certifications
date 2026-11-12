@@ -95,7 +95,8 @@ storage, computed from what is *scheduled* on each disk, not from what is writte
 Usable Storage"). `make platform` creates RustFS's 25 GiB volume before Kafka's, and its two
 replicas went to worker1 and worker4. When the Kafka volumes came, worker1 and worker4 already had
 25 GiB scheduled, so all six Kafka replicas went to worker2 and worker3. RustFS has written only
-about 5.5 GiB of its 25 GiB, so the score sees space worker1 and worker4 really have free. A
+about 5.5 GiB of its 25 GiB, so the score does not see the space worker1 and worker4 really
+have free. A
 rebuilt lab would do the same.
 
 What does not help: Replica Auto Balance (setting `replica-auto-balance`, or

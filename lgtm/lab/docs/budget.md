@@ -246,13 +246,14 @@ The last row assumes nothing else on these disks grows. Worker3 would then come 
 Longhorn's own floor (`storageMinimalAvailablePercentage: 15`, 5.9 GiB), below which Longhorn
 schedules no new replica there; it does not stop the replicas it already holds. Moving one
 replica of each Kafka volume to worker1 or worker4 (23 and 27 GiB free) would halve the Kafka
-share on worker2 and worker3. That is a Longhorn change (the Longhorn screen, or the setting
-`replica-auto-balance`), which this card did not make.
+share on worker2 and worker3. Longhorn's replica auto-balance would not do it: it balances the
+replicas of one volume across nodes, and each Kafka volume already has its two on two nodes.
 
 Card L5b sets data locality on the Kafka volumes (`platform.md`), which keeps one replica of each
 on its broker's worker (worker4, worker1, worker3 today): expected two Kafka replicas fewer on
-worker2 and worker3 and one more on worker1 and worker4. The free space per disk before and
-after is measured when it is applied (pull request of card L5b).
+worker2 and worker3 and one more on worker1 and worker4. Before, on 2026-11-12 at 15:55 UTC:
+worker1 21.8, worker2 16.6, worker3 15.1, worker4 25.9 GiB free of 39.1 (56, 42, 39 and 66%).
+The numbers after are added when it has run (pull request of card L5b).
 
 RustFS: its memory request is 768Mi and its limit 1536Mi since card L5b (was 512Mi and 1Gi). It
 used 530 to 670 MiB through a day, and one heavy Loki query added about 300 MiB that it kept; at
