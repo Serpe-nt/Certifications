@@ -91,7 +91,7 @@ A stat or a gauge shows one value, so it needs a calculation that reduces a whol
 </Compare>
 
 <InLab>
-The beacon publishes each check token of the course as the value of `lab_beacon_value`, a number up to six digits. That makes it a good test of how Grafana formats a large number.
+The beacon publishes each check token of the course as the value of `lab_beacon_value`, a number of up to six digits. It is a good test of how a unit and the default thresholds change what a reader sees.
 </InLab>
 
 <Trap>
@@ -103,22 +103,22 @@ Every panel gets a unit, and every number that can be good or bad gets threshold
 </Remember>
 
 <Do>
-1. Open your dashboard `Shop service (m05)` in the folder `Learn m05` and click **Edit**. Open the panel **Requests per second** with **Edit** in its menu.
-2. In the options on the right, search for `Unit` and choose **requests/sec (rps)**. In the query options, set **Legend** to **Custom** with `{{span_name}}`. Then, under **Legend**, set **Mode** to **Table**, **Placement** to **Right**, and add the value **Last \***. Click **Back to dashboard**.
-3. Add a new visualization with the data source **Mimir** and this query, the error share of checkout: <Query lang="promql">{`(sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[$__rate_interval])) or vector(0)) / sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))`}</Query>
-4. Choose the visualization **Stat**, title it `Error share`, and set **Unit** to **Percent (0.0-1.0)**. Under **Thresholds**, change 80 to `0.05`, and add a threshold `0.01` in orange. Click **Back to dashboard**.
-5. Add one more visualization with the data source **Mimir** and the query <Query lang="promql">{`lab_beacon_value{slot="metric-m05-1"}`}</Query> Choose **Stat** and title it `Beacon token`. Look at how the number is shown.
-6. If the value is shortened (for example with a K) or has decimals, set **Unit** to **Misc** > **Number** and **Decimals** to `0`, so every digit shows.
-7. Save the dashboard and exit edit mode.
+1. Open your dashboard `Shop service (m05)` and click **Edit**. Open the menu of the panel Requests per second and choose **Edit**.
+2. Click the search icon at the top of the options on the right and type `Unit`. Open the unit list and choose **Throughput** > **requests/sec (rps)**; the axis now reads `req/s`. Search for `Legend` and set **Mode** to **Table**, **Placement** to **Right**, and **Values** to **Last \***. In the query's **Options**, set **Legend** to **Custom** and type `{{span_name}}`. Click **Back**.
+3. Click **Add panel**, then **Configure visualization**, and enter this query on **Mimir**, the error share of checkout. Click **Run queries**: <Query lang="promql">{`(sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[$__rate_interval])) or vector(0)) / sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))`}</Query>
+4. Pick the suggestion **Stat**, title it `Error share`, and set the unit to **Misc** > **Percent (0.0-1.0)**. Search for `Thresholds`: you see the defaults, **80** in red over **Base** in green. Change 80 to `0.05`, click **Add threshold** and set the new one to `0.01`. Grafana sorts them and gives the new one its own colour. With no fault flag on, the panel shows `0%`. Click **Back**.
+5. Add one more panel on **Mimir** with this query and pick **Stat**: <Query lang="promql">{`lab_beacon_value{slot="metric-m05-1"}`}</Query> The token shows in red: the default threshold colours every value from 80 up, although a token is neither good nor bad. Search for `Color mode` and set it to **None**.
+6. Set the unit to **Misc** > **short** and watch the number shrink to something like `350 K`. Set it to **Misc** > **Number**, and every digit shows again. Title the panel `Beacon token`.
+7. Click **Save**, then **Save** in the drawer, then **Back** and **Exit edit**.
 8. Paste the number from the panel Beacon token in the lab check below.
 </Do>
 
 <Done>
-The dashboard shows Requests per second with a unit and a table legend, a coloured Error share, and the beacon's token with every digit.
+The dashboard shows Requests per second in req/s with a table legend, Error share as a percentage with three thresholds, and the beacon's token with every digit and no colour.
 </Done>
 
 <Trap practice>
-The stat shows the result of its calculation, by default the last value. If the token looks wrong, check that the query has exactly one series: a typo in the slot name gives no data, and a missing filter gives one stat per slot.
+A stat shows the result of its calculation, by default the last value. If the token looks wrong, check that the query returns exactly one series: a typo in the slot name gives no data, and a missing filter gives one stat per slot. If it shows a K, the unit is still short.
 </Trap>
 
 <Question id="q-m05-s05" answer="c">
