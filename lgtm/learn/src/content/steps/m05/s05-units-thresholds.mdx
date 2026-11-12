@@ -78,7 +78,7 @@ A stat colours its value or its background. A time series can draw thresholds as
 
 ## Legends name the lines
 
-A time series names each series in its legend. In the query, the **Legend** option decides the name: a custom template such as `{{span_name}}` keeps only what differs between lines. In the panel options, the legend can sit at the bottom or on the right, as a list or as a table, and it can add values such as the last or the maximum.
+A time series names each series in its legend. In the query, the **Legend** option decides the name: **Auto** shows only the labels that differ between lines, and **Custom** prints a template you write, such as `{{span_name}}`. In the panel options, the legend can sit at the bottom or on the right, as a list or as a table, and it can add values such as the last or the maximum.
 
 ## Pick the visualization by the question
 
@@ -118,7 +118,7 @@ The dashboard shows Requests per second in req/s with a table legend, Error shar
 </Done>
 
 <Trap practice>
-A stat shows the result of its calculation, by default the last value. If the token looks wrong, check that the query returns exactly one series: a typo in the slot name gives no data, and a missing filter gives one stat per slot. If it shows a K, the unit is still short.
+A stat shows the result of its calculation. If the token looks wrong, check that the query returns exactly one series: a typo in the slot name gives no data, and a missing filter gives one stat per slot. If it shows a K, the unit is still short.
 </Trap>
 
 <Question id="q-m05-s05" answer="c">

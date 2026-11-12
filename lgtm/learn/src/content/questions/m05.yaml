@@ -147,7 +147,7 @@
     - text: Raise Decimals to 4
       why: More decimals show the mean more precisely. It stays the mean.
   answer: [ 2 ]
-  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/visualizations/stat/
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/query-transform-data/calculation-types/
 
 - id: q-m05-010
   tags: [ dashboard-panels ]
@@ -548,11 +548,11 @@
   q: An externally shared dashboard is posted on a busy forum. What should its owner expect?
   options:
     - text: Nothing, because it shows a stored copy of the data
-      why: That describes a snapshot. An external share stays live.
+      why: That describes a snapshot. An external share is the dashboard itself, not a stored copy.
     - text: Visitors must sign in before they see anything
       why: Anyone with the URL can open it without signing in.
     - text: Many queries to the dashboard's data sources
-      why: Every visit runs the dashboard's queries, so wide sharing can mean many queries.
+      why: Grafana warns that sharing a dashboard externally can cause a large number of queries to its data sources.
     - text: Visitors can edit the panels and save copies
       why: Externally shared dashboards are read only.
   answer: [ 2 ]

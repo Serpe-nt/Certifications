@@ -65,7 +65,7 @@ Grafana's documentation names three dashboard JSON models. The Classic model was
 
 ## What the new engine adds
 
-The V2 schema carries features the classic one could not. Groupings can nest: rows and tabs inside rows and tabs, up to four levels deep. Each grouping has a layout. In **Custom**, you place and size every panel yourself. In **Auto grid**, Grafana sizes and places the panels for you in an even grid.
+The V2 schema carries features the classic one could not. Groupings can nest up to four levels deep: rows inside rows or tabs, and tabs inside rows, but not tabs directly inside a tab. The dashboard and its innermost groupings have a layout. In **Custom**, you place and size every panel yourself. In **Auto grid**, Grafana sizes and places the panels for you in an even grid.
 
 Panels in an auto grid layout can have show/hide rules. A rule can hide a panel when its query returns no data, show a tab only for one value of a variable, or depend on the length of the time range. A dashboard can then hide what does not apply instead of showing empty panels.
 

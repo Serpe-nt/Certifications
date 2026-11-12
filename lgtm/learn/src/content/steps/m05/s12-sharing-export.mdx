@@ -42,7 +42,7 @@ sources:
 Three requests arrive on the same day. A colleague wants the link to your dashboard. A supplier, who has no account, needs to see last night's outage. And the platform team wants your dashboard for their own Grafana, which has different data source names. One "share" button cannot be the right answer to all three.
 </Problem>
 
-Sharing a dashboard means deciding who will see it, whether they sign in, and whether they need the live data or a copy.
+Sharing a dashboard means deciding who will see it, whether they sign in, and whether they need the dashboard itself or a copy of one moment.
 
 <Idea>
 Grafana offers one way of sharing for each audience. An internal link is for people who can sign in. A snapshot or an externally shared dashboard is for people who cannot. An export as code is for another Grafana, which imports the file and asks for its own data sources.
@@ -56,12 +56,12 @@ Grafana offers one way of sharing for each audience. An internal link is for peo
 
 A snapshot is a copy of what the dashboard shows now. Grafana keeps the data and the series names and removes the queries and panel links. Anyone with the link can open it, and you choose when it expires: an hour, a day, a week or never.
 
-An externally shared dashboard, formerly called a public dashboard, stays live: anyone with its URL sees the current data, read only, without signing in. Each visit runs the dashboard's queries against your data sources, so a link that spreads widely can mean many queries. Grafana lists all externally shared dashboards in one place, where you can pause or revoke them.
+An externally shared dashboard, formerly called a public dashboard, is the dashboard itself, not a copy: anyone with its URL can open it, read only, without signing in. Grafana warns that sharing a dashboard this way can cause a large number of queries to your data sources. Grafana lists all externally shared dashboards in one place, where you can pause or revoke them.
 
 <Compare caption="Who is it for, and what do they get?">
-  <Col title="Internal link">People who sign in to your Grafana. Live data, their own permissions.</Col>
+  <Col title="Internal link">People who sign in to your Grafana. The dashboard itself, with their own permissions.</Col>
   <Col title="Snapshot" hot>Anyone with the link. The data at one moment, no queries, an expiry date.</Col>
-  <Col title="External share">Anyone with the URL. Live data, read only, queries run on every visit.</Col>
+  <Col title="External share">Anyone with the URL. The dashboard itself, read only, and possibly many queries.</Col>
 </Compare>
 
 ## To another Grafana: export as code
@@ -123,5 +123,5 @@ A supplier without a Grafana account must see how last night's outage looked, an
 
 - An externally shared dashboard with the default time range
 
-  It shows live data and runs your queries on every visit, which is more than the supplier needs.
+  It opens the dashboard itself to anyone with the URL, and can cause many queries. A copy of one moment is all the supplier needs.
 </Question>
