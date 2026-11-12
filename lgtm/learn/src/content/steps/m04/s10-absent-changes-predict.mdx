@@ -1,0 +1,122 @@
+---
+id: m04-s10
+title: absent(), changes(), resets(), deriv() and predict_linear()
+kind: lab
+minutes: 20
+order: 10
+exam:
+  - cert: pca
+    domain: P3
+    competency: Rates and Derivatives
+tags: [promql-functions]
+check:
+  kind: choice
+  prompt: What does the query of action 1 return on a healthy lab?
+  options:
+    - An empty result
+    - One series with the value 1 and the label job="node-exporter"
+    - Seven series with the value 0
+    - An error, because absent() needs a range vector
+  answer: 0
+outcome: You can detect a series that is missing, count how often a value changed or a counter restarted, and measure and project the trend of a gauge.
+terms:
+  - term: absent()
+    def: Returns one series with the value 1 when its input is empty, and nothing when it has series.
+  - term: changes()
+    def: The number of times the value of each series changed in a window.
+  - term: resets()
+    def: The number of counter resets of each series in a window.
+  - term: deriv()
+    def: The per-second slope of a gauge in a window, found by linear regression.
+  - term: predict_linear()
+    def: The value a gauge will have a given number of seconds from now, if its trend in the window holds.
+sources:
+  - title: Query functions (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+---
+
+<Problem>
+An alert on `rate(errors_total[5m]) > 1` never fires. That looks like good news, until you find that the service stopped exposing `errors_total` a week ago. An empty result raises no alert. Other questions have the same shape: how often did this pod restart, and when will this disk be full?
+</Problem>
+
+<Idea>
+A handful of functions answer questions that rates and sums cannot. `absent()` turns "no data" into a series you can alert on. `changes()` and `resets()` count events inside a window. `deriv()` measures how fast a gauge moves, and `predict_linear()` extends that trend into the future.
+</Idea>
+
+## absent(): when the data is missing
+
+`absent(v)` returns nothing when `v` has series, and one series with the value 1 when `v` is empty. Where it can, it copies the labels of the equality matchers into that series. `absent(nonexistent{job="myjob"})` returns `{job="myjob"}`, so an alert built on it can say which job is missing. `absent_over_time(v[1h])` does the same over a window: it returns 1 only if there was no sample at all during the hour.
+
+`absent()` belongs next to every alert whose condition could go quiet because the metric itself went away.
+
+## changes() and resets(): counting events
+
+`changes(v[1d])` counts how often the value of each series changed in the window. On a gauge that should be stable, such as a configuration hash or a version number, it shows how often it moved. On a restart counter such as kube-state-metrics' `kube_pod_container_status_restarts_total`, it shows in how many scrapes the count grew. When this step was written, the lab's Kafka pods were in a crash loop, and `changes()` returned more than 170 for them over a day.
+
+`resets(v[1d])` counts counter resets: every time a value fell. It is meant for counters only, and it tells you how often a process started again from zero.
+
+<Compare caption="Two ways to count events in a window">
+  <Col title="changes()">Every change of the value, up or down. For gauges that should stay put.</Col>
+  <Col title="resets()">Only falls of the value. For counters, to count restarts of their process.</Col>
+</Compare>
+
+## deriv() and predict_linear(): the trend of a gauge
+
+Step 3 showed that `rate()` is for counters. For a gauge, `deriv(v[1h])` gives the per-second slope over the window, found by simple linear regression over all samples. A negative value means the gauge is falling. `deriv()` needs at least two samples, and it should only be used with gauges.
+
+`predict_linear(v[6h], 4 * 3600)` uses the same regression and returns the value the gauge would reach four hours from now if the trend of the last six hours held. The classic use is a disk: alert when the free space is predicted to reach zero.
+
+<Query lang="promql">{`predict_linear(node_filesystem_avail_bytes{mountpoint="/"}[6h], 24 * 3600) < 0`}</Query>
+
+This returns the root filesystems that would run out of space within a day at their current pace. A short window reacts to every spike; a long one follows the real trend but notices a change late.
+
+<InLab>
+`node_filesystem_avail_bytes` is a gauge from the node exporter, labelled by `mountpoint` and `device`. Kafka's disks filled up in this lab on 2026-11-11, and an alert built on `predict_linear()` over the volume metrics is the kind of check that sees that coming.
+</InLab>
+
+<Trap>
+`absent()` cannot know which labels a missing series would have had. It copies only the labels of equality matchers: a label matched with a regular expression is left out, and `absent(sum(x))` returns a series with no labels at all.
+</Trap>
+
+<Do>
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab and run <Query lang="promql">{`absent(up{job="node-exporter"})`}</Query> Note what comes back.
+2. Ask for a job the lab does not have: <Query lang="promql">{`absent(up{job="shop", team="web"})`}</Query> One series, value 1, with the labels `job` and `team` copied from the matchers.
+3. Find the containers that restarted in the last day: <Query lang="promql">{`changes(kube_pod_container_status_restarts_total[1d]) > 0`}</Query> Read the namespaces and the counts.
+4. Count resets of Prometheus's own request counter: <Query lang="promql">{`sum(resets(prometheus_http_requests_total[1d]))`}</Query> 0 means Prometheus did not restart within the day.
+5. Measure the slope of worker1's free disk space: <Query lang="promql">{`deriv(node_filesystem_avail_bytes{mountpoint="/", instance="10.10.0.30:9100"}[1h])`}</Query> The value is in bytes per second.
+6. Project it one day ahead, then compare with the current free space: <Query lang="promql">{`predict_linear(node_filesystem_avail_bytes{mountpoint="/", instance="10.10.0.30:9100"}[6h], 24 * 3600)`}</Query>
+7. Answer the check below with what action 1 returned.
+</Do>
+
+<Done>
+You saw `absent()` stay empty for a job that exists and return labelled 1 for one that does not, found restarted containers with `changes()`, and projected a disk's free space a day ahead.
+</Done>
+
+<Trap practice>
+In action 6, the second argument is in seconds. `predict_linear(...[6h], 24)` looks 24 seconds ahead, not 24 hours.
+</Trap>
+
+<Remember>
+`absent()` makes missing data visible, `changes()` and `resets()` count events in a window, and `deriv()` and `predict_linear()` measure and extend the trend of a gauge.
+</Remember>
+
+<Question id="q-m04-s10" answer="c">
+A config reloader exposes `config_hash`, a gauge that changes only when the configuration is reloaded. What does `changes(config_hash[1h])` return?
+
+- The new hash value after the last reload
+
+  changes() does not return a value of the series. It returns a count.
+
+- The number of times the hash fell during the hour
+
+  That is closer to what resets() counts. changes() counts every change, up or down.
+
+- How many times the hash changed in the last hour
+
+  changes() counts the changes of the value inside the window, so each reload adds one.
+
+- 1 if the hash changed at all during the hour, otherwise nothing
+
+  changes() returns a number for every series that has samples, including 0 when nothing changed.
+</Question>
