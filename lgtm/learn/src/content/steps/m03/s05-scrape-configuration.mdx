@@ -1,0 +1,127 @@
+---
+id: m03-s05
+title: "Scrape configuration: jobs, targets, intervals"
+kind: concept
+minutes: 15
+order: 5
+exam:
+  - cert: pca
+    domain: P2
+    competency: Configuration and Scraping
+tags: [prom-scrape-config]
+outcome: You can read a scrape job in prometheus.yml and say which targets it scrapes, how often, at which path, and which labels it adds.
+terms:
+  - term: prometheus.yml
+    def: The server's configuration file in YAML, named with the --config.file flag.
+  - term: Scrape job
+    def: One entry of scrape_configs; its job_name becomes the job label of its targets.
+  - term: Scrape interval
+    def: How often Prometheus scrapes each target of a job.
+  - term: Scrape timeout
+    def: How long one scrape may take before it counts as failed.
+  - term: static_configs
+    def: A fixed list of targets written in the configuration, with optional labels.
+sources:
+  - title: Configuration (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+    checked: 2026-11-12
+  - title: Jobs and instances (Prometheus)
+    url: https://prometheus.io/docs/concepts/jobs_instances/
+    checked: 2026-11-12
+  - title: FAQ, reloading the configuration (Prometheus)
+    url: https://prometheus.io/docs/introduction/faq/
+    checked: 2026-11-12
+---
+
+<Problem>
+You add a new service and wait for its metrics. Ten minutes later the query still returns nothing. Is the target wrong, the path, the port, or the interval? Every answer is in one section of one file, and you need to read it fast.
+</Problem>
+
+<Idea>
+Prometheus reads a YAML file, usually called `prometheus.yml`. Its `global` section sets defaults, and each entry in `scrape_configs` is a job: a name, a set of targets, and how to scrape them. Every setting a job leaves out comes from `global` or from a built-in default.
+</Idea>
+
+## The global section sets defaults
+
+The `global` section holds values that every job inherits unless it sets its own. The two you meet first are `scrape_interval`, how often to scrape, and `scrape_timeout`, how long one scrape may take. Their built-in defaults are 1 minute and 10 seconds, and the timeout may not be longer than the interval. `evaluation_interval` says how often rules run; it also defaults to 1 minute. `external_labels` adds labels when data leaves this server, for example in remote write (step 13).
+
+## A job: a name and its targets
+
+A minimal job looks like this:
+
+```yaml
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  - job_name: shop-api
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: ["10.0.0.5:8080", "10.0.0.6:8080"]
+        labels:
+          team: payments
+```
+
+`job_name` becomes the `job` label of every series from these targets. `static_configs` lists targets by hand as `host:port`, and its `labels` are added to all of them. `metrics_path` and `scheme` say how the URL is built; `/metrics` and `http` are the defaults, so you write them only when a target differs. Here Prometheus scrapes `http://10.0.0.5:8080/metrics` and `http://10.0.0.6:8080/metrics` every 30 seconds, and each target's `host:port` becomes its `instance` label.
+
+A static list breaks as soon as pods move. Step 6 replaces `static_configs` with service discovery, and the rest of the job stays the same.
+
+## What every scrape leaves behind
+
+Besides the target's own metrics, each scrape writes a few series of its own, with the target's `job` and `instance`:
+
+- `up`: 1 when the scrape worked, 0 when it failed.
+- `scrape_duration_seconds`: how long the scrape took.
+- `scrape_samples_scraped`: how many samples the target exposed.
+- `scrape_samples_post_metric_relabeling`: how many were left after metric relabeling (step 7).
+- `scrape_series_added`: about how many new series this scrape created.
+
+When a target's metrics are missing, `up` for that target is the first thing to check. If `up` is 0, the Target health page of the Prometheus screen shows the error of the last scrape.
+
+<Flow caption="From a job to stored series">
+  <Stage title="global" kicker="Defaults">Interval, timeout, external labels.</Stage>
+  <Stage title="scrape_configs" kicker="Job">Name, path, scheme, targets.</Stage>
+  <Stage title="Scrape" kicker="Each interval">GET scheme://host:port/path, then add job and instance.</Stage>
+  <Stage title="Storage" kicker="Result">Target series plus up and the scrape_ series.</Stage>
+</Flow>
+
+## When a target sends its own job label
+
+Sometimes the scraped data already has a `job` or `instance` label, for example on a Pushgateway. The `honor_labels` setting decides who wins. With the default, `false`, Prometheus keeps its own labels and renames the target's to `exported_job` and `exported_instance`. With `true`, the target's labels stay and the server's are dropped.
+
+## Changing the configuration
+
+Prometheus reads the file at start. To load a change without a restart, send the process `SIGHUP`, or send an HTTP POST to `/-/reload` when the server runs with the flag `--web.enable-lifecycle`. If the new file is not well formed, the changes are not applied and the server goes on with the configuration it had.
+
+<InLab>
+In the lab nobody edits `prometheus.yml` by hand: the Prometheus Operator writes it from Kubernetes objects (step 8). Open <LabLink to="prometheus" path="/config">the configuration page</LabLink>: `global` sets `scrape_interval: 30s`, and every job has a name such as `serviceMonitor/prom/kube-prometheus-stack-prometheus-node-exporter/0`.
+</InLab>
+
+<Trap>
+A job that sets no interval does not scrape every 15 seconds. Many example files set 15s in `global`, but the built-in default is 1 minute. Check `global` before you assume.
+</Trap>
+
+<Remember>
+`global` gives defaults; each job in `scrape_configs` has a name, targets and how to reach them. The job name becomes the `job` label, `host:port` becomes `instance`, and `up` tells you whether the last scrape worked.
+</Remember>
+
+<Question id="q-m03-s05" answer="b">
+A job sets `scrape_interval: 15s` and `scrape_timeout: 20s`. What happens when Prometheus loads this configuration?
+
+- The timeout is cut to 15 seconds without a message
+
+  Prometheus does not adjust the value for you. The configuration states a rule the job breaks.
+
+- The file is rejected: the timeout exceeds the interval
+
+  The scrape timeout cannot be greater than the scrape interval, so the file does not load.
+
+- Each scrape may run 20 seconds, so scrapes overlap
+
+  The rule that the timeout fits inside the interval exists to prevent this.
+
+- The interval grows to 20 seconds to fit the timeout
+
+  Prometheus does not change the interval either. The file breaks the rule as written.
+</Question>

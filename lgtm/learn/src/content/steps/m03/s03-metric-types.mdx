@@ -1,0 +1,130 @@
+---
+id: m03-s03
+title: "Metric types: counter, gauge, histogram, summary"
+kind: concept
+minutes: 18
+order: 3
+exam:
+  - cert: pca
+    domain: P2
+    competency: Data Model and Labels
+  - cert: pca
+    domain: P4
+    competency: Instrumentation
+tags: [prom-metric-types]
+outcome: You can pick the right metric type for a value, and say which series a classic histogram and a summary produce.
+terms:
+  - term: Counter
+    def: A value that only goes up, or resets to zero when the process restarts.
+  - term: Gauge
+    def: A value that can go up and down, such as memory in use or items in a queue.
+  - term: Histogram
+    def: Observations counted in buckets by size, plus their sum and count.
+  - term: Summary
+    def: Observations with quantiles computed inside the program, plus their sum and count.
+  - term: Bucket
+    def: A counter of the observations at or below one upper bound, given in the label le.
+  - term: Native histogram
+    def: A histogram stored as one series of composite samples with dynamic buckets.
+sources:
+  - title: Metric types (Prometheus)
+    url: https://prometheus.io/docs/concepts/metric_types/
+    checked: 2026-11-12
+  - title: Instrumentation, counter vs. gauge (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/instrumentation/
+    checked: 2026-11-12
+  - title: Histograms and summaries (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/histograms/
+    checked: 2026-11-12
+  - title: Query functions, rate() (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-12
+  - title: Native histograms (Prometheus specification)
+    url: https://prometheus.io/docs/specs/native_histograms/
+    checked: 2026-11-12
+---
+
+<Problem>
+A developer exposes the number of jobs in a queue as a counter, because it "counts jobs". Over four scrapes the queue drains: 80, 70, 50, 3. The query function that turns counters into rates reads each fall as a restart and counts 70, 50 and 3 as new growth, so the dashboard shows the queue growing while it shrinks.
+</Problem>
+
+The value was right. Its type was wrong, and the type decides what the numbers can mean later.
+
+<Idea>
+Prometheus client libraries offer four types. A counter only goes up, a gauge goes up and down, and a histogram and a summary describe many observations, such as request durations. Choose by asking how the value behaves over time, not what it measures.
+</Idea>
+
+## Counter and gauge
+
+A counter is a total that only grows: requests served, errors raised, bytes sent. It may fall back to zero only when the process restarts. Queries depend on that rule. The PromQL function `rate()` treats a drop as a counter reset and counts the value after the drop as new growth. That is what went wrong in the scene above. Module m04 covers `rate()`.
+
+A gauge is a value that can move both ways: memory in use, the temperature of a disk, the number of requests in progress right now. The Prometheus guidelines give a simple test. If the value can go down, it is a gauge.
+
+<Compare caption="Counter or gauge">
+  <Col title="Counter">Only goes up, or resets on restart. Requests served, errors, bytes sent. You read it through rate().</Col>
+  <Col title="Gauge">Goes up and down. Queue length, memory in use, requests in progress. You read its current value.</Col>
+</Compare>
+
+## Histogram: counting observations in buckets
+
+Some values are not one number but many observations: the duration of every request, the size of every response. A histogram counts each observation into buckets and keeps the sum of all values. A classic histogram named `http_request_duration_seconds` produces several series:
+
+- `http_request_duration_seconds_bucket{le="0.5"}`: how many observations were at or below 0.5 seconds. There is one such series per bucket, and the last one is always `le="+Inf"`.
+- `http_request_duration_seconds_sum`: the total of all observed values.
+- `http_request_duration_seconds_count`: how many observations there were. It equals the `+Inf` bucket.
+
+The buckets are cumulative: each one also counts everything in the smaller buckets. A histogram is therefore a set of counters, and you read it with `rate()` too. On the server, the function `histogram_quantile()` estimates a percentile from the buckets, and because buckets from many instances can be added up, you can compute one percentile for a whole service. Module m04 shows how.
+
+<Figures caption="Cumulative buckets of one histogram" unit="Observations">
+  <Stat label="Bucket 0.1" value="33,444" amount={33444} max={144320} />
+  <Stat label="Bucket 0.5" value="129,389" amount={129389} max={144320} />
+  <Stat label="Bucket 1" value="133,988" amount={133988} max={144320} />
+  <Stat label="Bucket +Inf, same as count" value="144,320" amount={144320} max={144320} hot />
+</Figures>
+
+## Native histograms
+
+Prometheus 3 also has native histograms. A native histogram is one series whose samples hold the count, the sum and a dynamic set of buckets, so you do not pick bucket bounds when you write the code. They are more efficient and more precise than classic histograms, and they are stable since Prometheus 3.8. The server still scrapes them only when `scrape_native_histograms` is set to true. Older material describes them as experimental and behind a feature flag; that was true before 3.8.
+
+## Summary: quantiles computed by the program
+
+A summary also records observations and exposes `_sum` and `_count`. Instead of buckets, it computes quantiles inside your program over a sliding time window and exposes each one as a series with a `quantile` label, for example `rpc_duration_seconds{quantile="0.99"}`.
+
+That makes a summary cheap to query but costly to record, and it has one hard limit: you cannot add up quantiles from several instances to get the quantile of the whole service. A histogram can be aggregated; a summary cannot. You also have to choose the quantiles when you write the code.
+
+<Compare caption="Histogram or summary">
+  <Col title="Classic histogram" hot>Buckets chosen in code. Quantiles computed on the server. Can be aggregated across instances.</Col>
+  <Col title="Summary">Quantiles chosen in code and computed in the program. Cheap to query. Cannot be aggregated across instances.</Col>
+</Compare>
+
+<InLab>
+The lab's Prometheus scrapes classic histograms only: its configuration has `scrape_native_histograms: false`. You will see `_bucket`, `_sum` and `_count` series in step 4.
+</InLab>
+
+<Trap>
+The type is a promise about behaviour, not a label on the data. Prometheus does not stop you from exposing a falling value as a counter; it just gives you wrong rates later. If a value can ever decrease, make it a gauge.
+</Trap>
+
+<Remember>
+Counters only go up, gauges move both ways. Histograms put observations into cumulative buckets and can be aggregated; summaries compute quantiles in the program and cannot.
+</Remember>
+
+<Question id="q-m03-s03" answer="c">
+Ten replicas of a service each expose request latency. The team wants one 95th percentile for all ten together. Which type should the replicas use?
+
+- A summary with a 0.95 quantile
+
+  Each replica would compute its own 95th percentile. Quantiles from several summaries cannot be combined into a correct overall one.
+
+- A gauge set to the latest request duration
+
+  A gauge keeps one value at a time. Every request between two scrapes would be lost.
+
+- A histogram
+
+  Buckets from all replicas can be added up, and the server estimates the percentile from the sum.
+
+- A counter of the total time spent
+
+  A total time gives an average when divided by a count. It cannot give a percentile.
+</Question>

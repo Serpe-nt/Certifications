@@ -1,0 +1,6 @@
+id: m03
+title: Prometheus fundamentals
+goal: Read a /metrics page, explain how a target gets scraped in Kubernetes, and say what Prometheus cannot do alone.
+order: 3
+quiz: true
+exams: [pca]

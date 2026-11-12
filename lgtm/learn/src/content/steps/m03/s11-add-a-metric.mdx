@@ -1,0 +1,128 @@
+---
+id: m03-s11
+title: Add metrics to a small service
+kind: lab
+minutes: 25
+order: 11
+exam:
+  - cert: pca
+    domain: P4
+    competency: Instrumentation
+  - cert: pca
+    domain: P4
+    competency: Client Libraries
+tags: [exporter-client-libraries, instrumentation]
+check:
+  kind: exact
+  prompt: After a fresh start and the calls in the steps, paste the value of workshop_http_requests_total for route /inventory/<sku> with code 404.
+  answers: ["2", "2.0"]
+outcome: You can add request, outcome and state metrics to a service with the Prometheus Python client and check them on its own /metrics page.
+terms:
+  - term: Online-serving system
+    def: A service where a person or another system waits for each answer, such as an HTTP API.
+  - term: Route template
+    def: The pattern of a URL with placeholders, such as /inventory/<sku>, instead of the real path.
+  - term: generate_latest()
+    def: The Python client function that renders every registered metric in the text format.
+sources:
+  - title: Instrumentation, online-serving systems (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/instrumentation/
+    checked: 2026-11-12
+  - title: Counter (Prometheus Python client)
+    url: https://prometheus.github.io/client_python/instrumenting/counter/
+    checked: 2026-11-12
+  - title: Labels (Prometheus Python client)
+    url: https://prometheus.github.io/client_python/instrumenting/labels/
+    checked: 2026-11-12
+  - title: Exporting over HTTP (Prometheus Python client)
+    url: https://prometheus.github.io/client_python/exporting/http/
+    checked: 2026-11-12
+  - title: Design, ScrapeConfig (Prometheus Operator)
+    url: https://prometheus-operator.dev/docs/getting-started/design/
+    checked: 2026-11-12
+---
+
+<Problem>
+The workshop service, a small back office for the shop, has no metrics at all. When someone says checkouts feel slow, nobody can tell how many requests it answers, how many fail, or whether the stock is running out. You are going to give it numbers.
+</Problem>
+
+<Idea>
+For a service that answers requests, the Prometheus guidelines name three things to count first: requests, errors and latency. With the Python client that is one counter with route, method and status code labels, and one histogram of durations, updated once per request. A gauge for state, such as the stock, completes it.
+</Idea>
+
+## What to measure in an online service
+
+The guidelines split services into online-serving systems, offline processing and batch jobs. The workshop service is online-serving: a client waits for every answer. For such a system the key metrics are the number of requests, the errors and the latency, and it helps to count each request when it ends, so that the count lines up with its status code and its duration.
+
+A counter of requests with a `code` label gives you both requests and errors: the errors are the requests with a 5xx code. Add a counter for every outcome that matters to the business, such as a checkout that was placed, declined or out of stock.
+
+## The change to the service
+
+The folder `solutions/prometheus-client` holds the finished service. The difference from the starting point is small:
+
+```python
+HTTP_REQUESTS = Counter(
+    "workshop_http_requests", "HTTP requests answered, by route, method and status code.",
+    ["route", "method", "code"])
+HTTP_DURATION = Histogram(
+    "workshop_http_request_duration_seconds", "Time to answer an HTTP request, by route.", ["route"])
+CHECKOUTS = Counter("workshop_checkouts", "Checkouts, by outcome.", ["outcome"])
+STOCK = Gauge("workshop_inventory_stock", "Items in stock, by SKU.", ["sku"])
+```
+
+A Flask hook runs after every request. It takes the route template, such as `/inventory/<sku>`, from the request instead of the real path, so a thousand SKUs still make one label value. It increments the request counter, records the duration in the histogram, and for `/checkout` also counts the outcome. A new route, `/metrics`, sets the stock gauge from the database and returns `generate_latest()`, the text format of step 4.
+
+## Where the numbers go
+
+The service runs on your PC and listens on `127.0.0.1:8000`. The lab's Prometheus runs inside the cluster and cannot reach that address, so in this step you read the metrics on the service's own `/metrics` page, which is exactly what Prometheus would see. To scrape a target outside the cluster, the Prometheus Operator has the `ScrapeConfig` resource of step 8, and the service would have to listen on an address the cluster can reach.
+
+<InLab>
+The service's README is `lgtm/lab/docs/workshop.md`. In modules m07 and m08 the same service gets OpenTelemetry instead, and its metrics then reach Mimir over OTLP.
+</InLab>
+
+<Trap>
+A labelled counter has no series until its first use. Before any checkout, `workshop_checkouts_total` shows only its HELP and TYPE lines, and a query for it returns nothing, not zero.
+</Trap>
+
+<Do>
+1. In a terminal, go to `lgtm/lab/workshop` in your copy of the repository and compare the starting point with the solution: <Cmd>git diff --no-index app.py solutions/prometheus-client/app.py</Cmd> Find the four metrics, the hook `count_request` and the route `/metrics`.
+2. Start the solution. On the first run it creates a virtual environment and installs `prometheus-client`: <Cmd>python run.py solutions/prometheus-client</Cmd> Wait for the line `Running on http://127.0.0.1:8000`.
+3. In a second terminal, read the stock of one product three times, then ask twice for a SKU that does not exist. In PowerShell, type `curl.exe` instead of `curl`. <Cmd>curl http://127.0.0.1:8000/inventory/OLJCESPC7Z</Cmd> <Cmd>curl http://127.0.0.1:8000/inventory/NOPE</Cmd>
+4. Open http://127.0.0.1:8000/metrics in your browser. Find `# TYPE workshop_http_requests_total counter` and the lines under it. The route is `/inventory/<sku>` for both products, with one line for code 200 and one for code 404.
+5. Paste the value of the line with `code="404"` in the check below.
+6. Look at `workshop_checkouts_total`: it has no sample line yet. Now make some traffic for ten seconds, then reload the page: <Cmd>python load.py --rate 5 --duration 10</Cmd> `workshop_checkouts_total` now has a line per outcome, such as `placed` and `declined`, and `workshop_inventory_stock` has fallen for the products that were bought.
+7. Stop the service with Ctrl+C in its terminal. Start it again and reload the page: the request and checkout lines are gone until new requests arrive, and then they count from zero. This is the counter reset that `rate()` handles.
+8. Stop the service again with Ctrl+C.
+</Do>
+
+<Done>
+The service's `/metrics` page showed request counts by route template and code, a duration histogram, checkout outcomes and stock levels, and the counters started over after a restart.
+</Done>
+
+<Trap practice>
+The counters count every request since the service started, including your own mistakes. If your 404 count is not 2, stop the service, start it again and repeat action 3 only. Run `load.py` after you have pasted the value: it also asks for unknown SKUs.
+</Trap>
+
+<Remember>
+For an online service, count requests by route template and status code and record their durations, once per request when it ends. Add counters for business outcomes and gauges for state, and check the result on the service's own `/metrics` page.
+</Remember>
+
+<Question id="q-m03-s11" answer="a">
+A developer labels the request counter with the full path, such as `/inventory/OLJCESPC7Z`, instead of the route template. What happens as the shop grows?
+
+- Each new SKU adds series, so series grow with the catalogue
+
+  Each distinct path is a new label value, and each value makes its own series. The route template keeps it to one.
+
+- Prometheus merges paths with the same prefix into one series
+
+  Prometheus never merges label values. Each distinct value is stored as its own series.
+
+- The client library rejects label values that contain a slash
+
+  Label values may hold any UTF-8 characters, including slashes. Nothing stops the mistake.
+
+- Nothing changes, because labels cost nothing until a query uses them
+
+  Every series costs memory and disk as soon as it is stored, whether anyone queries it or not.
+</Question>

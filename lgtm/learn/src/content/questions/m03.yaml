@@ -1,0 +1,756 @@
+# Module m03 Prometheus fundamentals: quiz pool. Card C2, 2026-11-12.
+# Sources are prometheus.io (Prometheus 3.x), prometheus-operator.dev and the
+# official exporter and client repositories, fetched on 2026-11-12. The log is
+# lgtm/docs/verification/m03.md. No question repeats one of mock-pca.yaml.
+
+- id: q-m03-001
+  tags: [prom-architecture]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: Which of these jobs belongs to Alertmanager rather than to the Prometheus server?
+  options:
+    - text: Grouping alerts and routing them to email or chat
+      why: Alertmanager receives alerts from the server, then groups, silences and routes them to receivers.
+    - text: Deciding when an alert condition is true
+      why: The server evaluates alerting rules on its stored data. Alertmanager only gets the alerts that fire.
+    - text: Scraping the targets that alerting rules depend on
+      why: Scraping is the server's job. Alertmanager never reads targets.
+    - text: Storing the samples that alerting rules read
+      why: Samples live in the server's local storage. Alertmanager stores no time series.
+  answer: [0]
+  source: https://prometheus.io/docs/introduction/overview/
+
+- id: q-m03-002
+  tags: [prom-architecture, prom-scrape-config]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: A target stops answering because its pod is stuck. What does Prometheus record for that target at the next scrape?
+  options:
+    - text: Nothing at all until the target answers again
+      why: Prometheus writes a sample for every scrape attempt, failed or not, in the series up.
+    - text: The last scraped values again, copied with a new timestamp
+      why: Prometheus does not copy old values. The target's series are marked stale, and queries stop returning them.
+    - text: A sample of 0 in the series up for that target
+      why: up is 1 when the scrape worked and 0 when it failed, so a failed scrape is visible at once.
+    - text: An error line in the target's own metrics
+      why: A failed scrape returns no metrics from the target. The failure shows in up and on the targets page.
+  answer: [2]
+  source: https://prometheus.io/docs/concepts/jobs_instances/
+
+- id: q-m03-003
+  tags: [prom-architecture]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: During a load test, a developer wants to watch the production service metrics on their laptop without changing anything in production. What does the pull model allow?
+  options:
+    - text: Asking the production Prometheus to push a copy to the laptop
+      why: The Prometheus server does not push its samples to other servers on request.
+    - text: Running its own Prometheus that scrapes the same targets
+      why: With pull, any extra server can scrape a target. The FAQ names this as an advantage of pull.
+    - text: Reading the samples straight from the production WAL files
+      why: The WAL is internal storage of one server, not an interface for other tools.
+    - text: Adding the laptop as a receiver in the targets configuration
+      why: Targets do not send data anywhere. They wait to be scraped.
+  answer: [1]
+  source: https://prometheus.io/docs/introduction/faq/
+
+- id: q-m03-004
+  tags: [prom-architecture, prom-storage]
+  exam: {cert: pca, domain: P2, competency: Understanding Prometheus Limitations}
+  q: A company wants to bill each customer per API request, to the exact request. What does the Prometheus overview say about using Prometheus for this?
+  options:
+    - text: It is a good fit, because every request is a sample
+      why: Prometheus stores numbers sampled at each scrape, not one record per request.
+    - text: It fits if the scrape interval is short enough
+      why: A shorter interval does not make the data complete. Scrapes can still fail or be missed.
+    - text: It fits once remote write sends the data to a durable store
+      why: A durable copy of incomplete data is still incomplete. The limit is in how the data is collected.
+    - text: It is a poor choice, since the data is not complete enough
+      why: The overview says Prometheus is not a good choice when you need 100% accuracy, such as per-request billing.
+  answer: [3]
+  source: https://prometheus.io/docs/introduction/overview/
+
+- id: q-m03-005
+  tags: [prom-data-model, prom-metric-naming]
+  exam: {cert: pca, domain: P2, competency: Data Model and Labels}
+  q: A developer names a metric <code>api:requests:per_second</code> in application code. What does the data model say about this name?
+  options:
+    - text: Colons are reserved for recording rules, not for instrumentation
+      why: The data model reserves colons for user-defined recording rules. Exporters and direct instrumentation should not use them.
+    - text: Colons are invalid in metric names and the scrape fails
+      why: Colons are allowed characters. The rule is about who should use them.
+    - text: Colons separate the namespace and are required in every name
+      why: The prefix is joined with underscores. No name needs a colon.
+    - text: The name is fine because Prometheus 3 accepts any UTF-8 character
+      why: UTF-8 is allowed, but colons are still reserved for recording rules by convention.
+  answer: [0]
+  source: https://prometheus.io/docs/concepts/data_model/
+
+- id: q-m03-006
+  tags: [prom-data-model]
+  exam: {cert: pca, domain: P2, competency: Data Model and Labels}
+  q: Which selector picks exactly the same series as <code>http_requests_total{code="500"}</code>?
+  options:
+    - text: '<code>{__metric__="http_requests_total", code="500"}</code>'
+      why: The metric name is stored in the label __name__. There is no label called __metric__.
+    - text: '<code>{code="500"}</code>'
+      why: Without the name, this matches every metric that has code="500".
+    - text: '<code>{__name__="http_requests_total", code="500"}</code>'
+      why: The metric name is the label __name__, so this is the same selection written another way.
+    - text: '<code>http_requests_total{__code__="500"}</code>'
+      why: The label is called code. Names with two underscores are reserved for Prometheus itself.
+  answer: [2]
+  source: https://prometheus.io/docs/concepts/data_model/
+
+- id: q-m03-007
+  tags: [prom-data-model, prom-scrape-config]
+  exam: {cert: pca, domain: P2, competency: Data Model and Labels}
+  q: A scrape job named <code>api</code> scrapes the target <code>10.0.0.7:8080</code>, which exposes <code>orders_total 42</code>. Which labels does Prometheus add to this series by itself?
+  options:
+    - text: '<code>job="orders"</code> and <code>instance="10.0.0.7"</code>'
+      why: job comes from the job name, not the metric, and instance keeps the port.
+    - text: '<code>job="api"</code> and <code>instance="10.0.0.7:8080"</code>'
+      why: job is the configured job name and instance is the host and port of the scraped URL.
+    - text: '<code>job="api"</code> and <code>target="10.0.0.7:8080"</code>'
+      why: The label for the scraped address is instance. There is no automatic target label.
+    - text: '<code>service="api"</code> and <code>instance="10.0.0.7:8080"</code>'
+      why: The automatic label is job. A service label comes only from relabeling, as in Kubernetes setups.
+  answer: [1]
+  source: https://prometheus.io/docs/concepts/jobs_instances/
+
+- id: q-m03-008
+  tags: [prom-metric-types]
+  exam: {cert: pca, domain: P4, competency: Instrumentation}
+  q: Which of these values should be exposed as a counter?
+  options:
+    - text: The memory the process uses right now
+      why: Memory in use goes up and down, so it is a gauge.
+    - text: The number of open user sessions
+      why: Sessions open and close, so the number can fall. That makes it a gauge.
+    - text: The temperature of the CPU
+      why: A temperature moves both ways. It is the textbook example of a gauge.
+    - text: Bytes sent since the process started
+      why: A total of bytes sent only grows, and resets only when the process restarts.
+  answer: [3]
+  source: https://prometheus.io/docs/concepts/metric_types/
+
+- id: q-m03-009
+  tags: [prom-metric-types, prom-exposition-format]
+  exam: {cert: pca, domain: P2, competency: Exposition Format}
+  q: A classic histogram without other labels has the buckets 0.1, 0.5 and 1. How many series does it produce on a <code>/metrics</code> page?
+  options:
+    - text: '3: one per configured bucket'
+      why: The +Inf bucket, the sum and the count are series too.
+    - text: '4: the three buckets plus the +Inf bucket at the end'
+      why: The _sum and _count series are part of every classic histogram as well.
+    - text: '6: four buckets with +Inf, then _sum and _count'
+      why: Each bucket is a series, +Inf is always added, and the sum and count make two more.
+    - text: '1: a histogram is a single series'
+      why: Only a native histogram is one series. A classic histogram is a set of float series.
+  answer: [2]
+  source: https://prometheus.io/docs/concepts/metric_types/
+
+- id: q-m03-010
+  tags: [prom-metric-types]
+  exam: {cert: pca, domain: P4, competency: Instrumentation}
+  q: A service exposes request latency as a summary with the quantiles 0.5 and 0.99. Months later the SLO team asks for the 0.95 quantile. What can they get from the existing data?
+  options:
+    - text: The 0.95 quantile, computed with histogram_quantile() at query time
+      why: histogram_quantile() needs buckets. A summary has only its preset quantiles.
+    - text: Nothing new, as a summary has only the quantiles set in code
+      why: The quantiles of a summary are fixed when it is instrumented. Others cannot be computed later.
+    - text: The 0.95 quantile, by averaging the 0.5 and 0.99 series
+      why: An average of two quantiles is not a quantile. The result would be wrong.
+    - text: The 0.95 quantile, after a restart of the service
+      why: A restart does not change which quantiles the code computes.
+  answer: [1]
+  source: https://prometheus.io/docs/practices/histograms/
+
+- id: q-m03-011
+  tags: [prom-metric-types]
+  exam: {cert: pca, domain: P4, competency: Instrumentation}
+  q: A dashboard shows <code>rate(queue_length[5m])</code>, where <code>queue_length</code> is a gauge. Each time the queue drains, the panel shows the queue growing. Why?
+  options:
+    - text: The scrape interval is too short for rate()
+      why: The interval is not the problem. rate() is the wrong function for a gauge.
+    - text: The gauge needs a _total suffix before rate() works
+      why: A suffix does not change the data. The values still fall.
+    - text: Gauges must be read with irate() instead of rate()
+      why: The functions reference says irate() too should only be used with counters.
+    - text: rate() reads each drop as a counter reset
+      why: rate() adjusts for counter resets. Each fall of the gauge is read as a reset and counted as growth.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/
+
+- id: q-m03-012
+  tags: [prom-exposition-format]
+  exam: {cert: pca, domain: P2, competency: Exposition Format}
+  q: Which of these is a valid sample line in the Prometheus text format?
+  options:
+    - text: '<code>http_requests_total{code="200"} 1027</code>'
+      why: The series in the usual notation, a space and the value. The timestamp is optional.
+    - text: '<code>http_requests_total{code=200} 1027</code>'
+      why: Label values must be in double quotes.
+    - text: '<code>http_requests_total code="200" 1027</code>'
+      why: Labels go inside braces after the metric name.
+    - text: '<code>http_requests_total{code="200"}: 1027</code>'
+      why: The value follows the series after blanks. There is no colon.
+  answer: [0]
+  source: https://prometheus.io/docs/instrumenting/exposition_formats/
+
+- id: q-m03-013
+  tags: [prom-exposition-format]
+  exam: {cert: pca, domain: P2, competency: Exposition Format}
+  q: How does an exposition in the OpenMetrics text format end?
+  options:
+    - text: With an empty line
+      why: Empty lines are ignored in the text formats. OpenMetrics needs an explicit end marker.
+    - text: With the line <code># EOF</code>
+      why: OpenMetrics expositions are trailed with # EOF, which the classic text format does not use.
+    - text: With a <code># TYPE end</code> line
+      why: TYPE lines give a metric type. They do not mark the end of a page.
+    - text: With a sample line that has a timestamp
+      why: Timestamps are optional on any sample line. They do not end the exposition.
+  answer: [1]
+  source: https://prometheus.io/docs/instrumenting/exposition_formats/
+
+- id: q-m03-014
+  tags: [prom-exposition-format]
+  exam: {cert: pca, domain: P2, competency: Exposition Format}
+  q: A hand-written exporter prints the first sample of <code>jobs_done_total</code> and only then its <code># TYPE jobs_done_total counter</code> line. What do the format rules say?
+  options:
+    - text: The order does not matter as long as both lines are there
+      why: The format fixes the order of a metric's metadata and samples.
+    - text: The TYPE line may come anywhere on the page
+      why: HELP and TYPE come first in the metric's group, before its samples.
+    - text: TYPE must come before the first sample of the metric
+      why: The format requires the TYPE line before the first sample is reported for that metric name.
+    - text: TYPE lines are optional, so the line is ignored
+      why: TYPE is optional, but when present it must come before the samples.
+  answer: [2]
+  source: https://prometheus.io/docs/instrumenting/exposition_formats/
+
+- id: q-m03-015
+  tags: [prom-scrape-config]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: 'A job sets <code>scheme: https</code>, <code>metrics_path: /stats</code> and the static target <code>db1:9187</code>. Which URL does Prometheus scrape?'
+  options:
+    - text: '<code>https://db1:9187/stats</code>'
+      why: The scheme, the target's host and port, and the metrics path make the URL.
+    - text: '<code>https://db1:9187/metrics</code>'
+      why: metrics_path replaces the default /metrics.
+    - text: '<code>http://db1:9187/stats</code>'
+      why: scheme sets https for this job. http is only the default.
+    - text: '<code>https://db1/stats:9187</code>'
+      why: The port belongs to the host part of the URL, not the path.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-016
+  tags: [prom-scrape-config]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: 'The global section sets <code>scrape_interval: 30s</code>. Job A sets <code>scrape_interval: 10s</code> and job B sets none. How often is job B scraped?'
+  options:
+    - text: Every 10 seconds, the shortest interval in the file
+      why: One job's setting does not affect another job.
+    - text: Every 30 seconds, from the global section
+      why: A job without its own interval inherits the global value.
+    - text: Every minute, the built-in default
+      why: The built-in default applies only when global sets nothing either.
+    - text: Every 15 seconds, the usual example value
+      why: 15 seconds appears in example files, but it is not a default.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-017
+  tags: [prom-scrape-config, prom-relabeling]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: You drop some expensive series with <code>metric_relabel_configs</code>. Which automatic series shows how many samples per scrape are left after that?
+  options:
+    - text: <code>scrape_samples_scraped</code>
+      why: This counts what the target exposed, before metric relabeling.
+    - text: <code>scrape_series_added</code>
+      why: This estimates how many new series a scrape created.
+    - text: <code>scrape_samples_post_metric_relabeling</code>
+      why: It holds the number of samples remaining after metric relabeling.
+    - text: <code>prometheus_remote_storage_samples_pending</code>
+      why: This shows samples waiting to be sent by remote write, not samples left after relabeling.
+  answer: [2]
+  source: https://prometheus.io/docs/concepts/jobs_instances/
+
+- id: q-m03-018
+  tags: [prom-service-discovery]
+  exam: {cert: pca, domain: P1, competency: Service Discovery}
+  q: The Prometheus Operator logs say "v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice". Which Kubernetes discovery role does the Prometheus documentation recommend for new scrape jobs?
+  options:
+    - text: <code>service</code>
+      why: The service role gives one target per service port, not one per pod address.
+    - text: <code>pod</code>
+      why: The pod role is valid, but the recommended replacement for endpoints is endpointslice.
+    - text: <code>node</code>
+      why: The node role finds nodes, not the pods behind a Service.
+    - text: <code>endpointslice</code>
+      why: The documentation recommends switching from the endpoints role to endpointslice.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-019
+  tags: [prom-service-discovery]
+  exam: {cert: pca, domain: P1, competency: Service Discovery}
+  q: A <code>kubernetes_sd_config</code> has no <code>namespaces</code> block. Where does Prometheus look for targets?
+  options:
+    - text: In every namespace of the cluster
+      why: When namespace discovery is omitted, all namespaces are used.
+    - text: Only in the namespace where Prometheus runs
+      why: Its own namespace is an option you set with own_namespace. It is not the default.
+    - text: Only in the default namespace
+      why: The default namespace gets no special treatment.
+    - text: Nowhere, until a namespace is listed
+      why: Omitting the block does not switch discovery off.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-020
+  tags: [prom-service-discovery, prom-relabeling]
+  exam: {cert: pca, domain: P1, competency: Service Discovery}
+  q: A pod has the Kubernetes label <code>app.kubernetes.io/name=cart</code>. Under which meta label does the pod role offer it to relabeling?
+  options:
+    - text: '<code>__meta_kubernetes_pod_label_app.kubernetes.io/name</code>'
+      why: Kubernetes discovery converts characters it does not support in meta label names, such as dots and slashes, to underscores.
+    - text: '<code>__meta_kubernetes_pod_label_app_kubernetes_io_name</code>'
+      why: Dots and slashes become underscores, after the prefix for pod labels.
+    - text: '<code>__meta_kubernetes_label_app_kubernetes_io_name</code>'
+      why: Pod labels carry the prefix __meta_kubernetes_pod_label_.
+    - text: '<code>app_kubernetes_io_name</code>'
+      why: Discovery labels start with __meta_. A plain label exists only if relabeling creates it.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-021
+  tags: [prom-service-discovery]
+  exam: {cert: pca, domain: P1, competency: Service Discovery}
+  q: A container declares one port named <code>metrics</code>. With the pod role, which meta label holds that name during relabeling?
+  options:
+    - text: <code>__meta_kubernetes_service_port_name</code>
+      why: This belongs to the service role and the Service's port. The pod role reads the container.
+    - text: <code>__meta_kubernetes_endpoint_port_name</code>
+      why: This belongs to the endpoints role.
+    - text: <code>__meta_kubernetes_pod_container_port_number</code>
+      why: This label holds the port number. The name is in a label of its own.
+    - text: <code>__meta_kubernetes_pod_container_port_name</code>
+      why: The pod role sets the name, number and protocol of the container port it found.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-022
+  tags: [prom-relabeling]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: 'A target relabel rule reads <code>source_labels: [__meta_kubernetes_namespace]</code>, <code>regex: test</code>, <code>action: drop</code>. Targets in which namespaces are dropped?'
+  options:
+    - text: test, test-a and pretest
+      why: The regex is anchored, so it must match the whole value.
+    - text: test and test-a
+      why: An anchored regex does not match test-a. That would need test.*
+    - text: Only test
+      why: Relabel regexes are anchored at both ends, so only the exact value test matches.
+    - text: None, because drop needs a target_label
+      why: drop works on source_labels and the regex. target_label is for replace.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-023
+  tags: [prom-relabeling]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: You want every Kubernetes label of a pod to become a label on its series, with the same name, without listing them one by one. Which action does that?
+  options:
+    - text: '<code>replace</code> with <code>target_label: pod_labels</code>'
+      why: replace writes one target label. It cannot copy a whole family of labels.
+    - text: '<code>labelkeep</code> with <code>regex: __meta_kubernetes_pod_label_.+</code>'
+      why: labelkeep removes every other label. It does not create new ones, and meta labels go away after relabeling.
+    - text: '<code>keep</code> with <code>source_labels: [__meta_kubernetes_pod_label_app]</code>'
+      why: keep decides which targets are scraped. It adds no labels.
+    - text: '<code>labelmap</code> with <code>regex: __meta_kubernetes_pod_label_(.+)</code>'
+      why: labelmap copies every matching label to the name built from the capture group.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-024
+  tags: [prom-relabeling]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: Two Prometheus servers should share 2,000 targets, each scraping about half, with the same configuration file. Which relabel action is made for this?
+  options:
+    - text: '<code>hashmod</code>, then <code>keep</code> on its result'
+      why: hashmod writes a hash of the source labels modulo a number, and each server keeps its own share.
+    - text: <code>labeldrop</code> on half of the labels
+      why: labeldrop removes labels from a target. It does not split targets.
+    - text: <code>dropequal</code> between the two servers
+      why: dropequal compares a source with a target label of the same target. It cannot see the other server.
+    - text: <code>lowercase</code> on the address
+      why: lowercase changes the case of a value. It does not decide which server scrapes.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-025
+  tags: [prom-operator]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: 'A new ServiceMonitor is never picked up. The Prometheus resource has <code>serviceMonitorSelector: {matchLabels: {release: monitoring}}</code>. What fixes it?'
+  options:
+    - text: Restart the Prometheus pod so it reads all ServiceMonitors
+      why: A restart does not change which ServiceMonitors the selector matches.
+    - text: Move the ServiceMonitor into the namespace of the Service
+      why: The namespace is not the problem here. The label selector does not match.
+    - text: 'Add the label <code>release: monitoring</code> to the ServiceMonitor'
+      why: The Prometheus resource uses only ServiceMonitors whose labels match its serviceMonitorSelector.
+    - text: Rename the ServiceMonitor after the Service
+      why: The name of the ServiceMonitor plays no part in the selection.
+  answer: [2]
+  source: https://prometheus-operator.dev/docs/developer/getting-started/
+
+- id: q-m03-026
+  tags: [prom-operator]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: 'A Service has one port, <code>{name: http-metrics, port: 9100}</code>. How must the ServiceMonitor endpoint refer to this Service port?'
+  options:
+    - text: '<code>port: "9100"</code>'
+      why: The port field takes the name of the Service port, not its number.
+    - text: '<code>port: http-metrics</code>'
+      why: A ServiceMonitor refers to the Service port by its name.
+    - text: '<code>targetPort: 9100</code> only'
+      why: targetPort points at a container port of the selected pods, not at the Service port. The port field names the Service port.
+    - text: Nothing, because a ServiceMonitor scrapes every port
+      why: Each endpoint of a ServiceMonitor names the port it scrapes.
+  answer: [1]
+  source: https://prometheus-operator.dev/docs/platform/troubleshooting/
+
+- id: q-m03-027
+  tags: [prom-operator]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: Where does the Prometheus Operator keep the configuration it generates for a Prometheus resource named <code>k8s</code>?
+  options:
+    - text: In a ConfigMap named <code>prometheus-k8s-config</code> in the same namespace
+      why: The generated configuration is kept in a Secret, not a ConfigMap.
+    - text: In the status field of the ServiceMonitors
+      why: ServiceMonitors are inputs. The result is stored elsewhere.
+    - text: In the operator's own pod, in memory only
+      why: The configuration is stored in the cluster so that Prometheus can load it.
+    - text: In the Secret <code>prometheus-k8s</code>, in its own namespace
+      why: The operator stores it in a Secret named after the Prometheus resource with the prefix prometheus-.
+  answer: [3]
+  source: https://prometheus-operator.dev/docs/platform/troubleshooting/
+
+- id: q-m03-028
+  tags: [exporter-standard]
+  exam: {cert: pca, domain: P4, competency: Exporters}
+  q: A Deployment shows 3 replicas in kubectl, but a kube-state-metrics value about it looks different. What explains this, according to the kube-state-metrics documentation?
+  options:
+    - text: kube-state-metrics caches values for an hour
+      why: It holds the current state of the objects and updates it continuously.
+    - text: It exposes raw API data; kubectl adds its own display rules
+      why: Its README says it exposes the API data unmodified, so it can differ from what kubectl shows.
+    - text: kube-state-metrics reads the kubelets, not the API server
+      why: It listens to the API server. The kubelet is where usage metrics come from.
+    - text: kube-state-metrics counts only pods that are Ready and Running
+      why: It reports object state as the API has it, not only ready pods.
+  answer: [1]
+  source: https://github.com/kubernetes/kube-state-metrics
+
+- id: q-m03-029
+  tags: [exporter-standard]
+  exam: {cert: pca, domain: P4, competency: Exporters}
+  q: A blackbox exporter probes the shop's home page over HTTP. Which metric says whether the last probe worked?
+  options:
+    - text: <code>up</code>
+      why: up says whether Prometheus could scrape the exporter, not whether the probe of the page worked.
+    - text: <code>probe_http_status_code</code>
+      why: This is a detail of the HTTP probe. The overall result has its own metric.
+    - text: <code>probe_success</code>
+      why: The blackbox exporter sets probe_success to show if the probe succeeded.
+    - text: <code>blackbox_up</code>
+      why: The blackbox exporter does not expose such a metric.
+  answer: [2]
+  source: https://github.com/prometheus/blackbox_exporter
+
+- id: q-m03-030
+  tags: [exporter-writing]
+  exam: {cert: pca, domain: P4, competency: Exporters}
+  q: You write an exporter for a database used in three regions. Where should the label <code>region</code> come from, according to the guidelines?
+  options:
+    - text: From a flag of the exporter, added to every metric it serves
+      why: The guidelines warn against one static label on all metrics of an exporter.
+    - text: From the scrape configuration or discovery in Prometheus
+      why: Region is a target label. It belongs to the person running Prometheus, not to the exporter.
+    - text: From the metric name, such as <code>db_eu_queries_total</code>
+      why: Values belong in labels, not in names, and this one is not the exporter's to set.
+    - text: From a separate <code>db_region_info</code> metric that the exporter makes up
+      why: The exporter does not know where it sits in your infrastructure. Prometheus does.
+  answer: [1]
+  source: https://prometheus.io/docs/instrumenting/writing_exporters/
+
+- id: q-m03-031
+  tags: [exporter-writing]
+  exam: {cert: pca, domain: P4, competency: Exporters}
+  q: An exporter reads its application every 60 seconds on its own timer and serves the last values with their timestamps. What do the guidelines say?
+  options:
+    - text: That is the recommended design, because it protects the application
+      why: The guidelines ask for synchronous reads when Prometheus scrapes, without timestamps.
+    - text: It is fine if the timer matches the scrape interval
+      why: Even a matching timer breaks the rule that scrapes are synchronous.
+    - text: It is fine as long as the timestamps are in milliseconds
+      why: Exporters should not set timestamps at all. Prometheus sets them.
+    - text: Read the application on each scrape, and send no timestamps
+      why: Exporters should not scrape on their own timers, and should let Prometheus take care of timestamps.
+  answer: [3]
+  source: https://prometheus.io/docs/instrumenting/writing_exporters/
+
+- id: q-m03-032
+  tags: [exporter-client-libraries, prom-metric-naming]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: 'In Python, a developer writes <code>Counter("shop_orders", "Orders placed.")</code>. Under which name does the series appear on <code>/metrics</code>?'
+  options:
+    - text: <code>shop_orders_total</code>
+      why: The Python client adds the _total suffix when it exposes a counter.
+    - text: <code>shop_orders</code>
+      why: The name in the code has no suffix, but the client adds one for counters.
+    - text: <code>shop_orders_count</code>
+      why: _count belongs to histograms and summaries.
+    - text: <code>shop_orders_counter</code>
+      why: No client adds the type name as a suffix.
+  answer: [0]
+  source: https://prometheus.github.io/client_python/instrumenting/counter/
+
+- id: q-m03-033
+  tags: [prom-metric-naming]
+  exam: {cert: pca, domain: P4, competency: Structuring and naming metrics}
+  q: A service reports its cache size in mebibytes as <code>app_cache_size_mb</code>. What do the naming conventions suggest?
+  options:
+    - text: Keep megabytes but write the unit in full, <code>app_cache_size_megabytes</code>
+      why: The conventions ask for base units, and the base unit of size is bytes.
+    - text: Drop the unit, <code>app_cache_size</code>
+      why: The unit should be a suffix of the name, so readers know the scale.
+    - text: Expose bytes as <code>app_cache_size_bytes</code>
+      why: Use base units such as bytes, and name the unit at the end in plural.
+    - text: Add a label <code>unit="MiB"</code>
+      why: The unit belongs in the name, and the value should be in bytes.
+  answer: [2]
+  source: https://prometheus.io/docs/practices/naming/
+
+- id: q-m03-034
+  tags: [prom-metric-naming, prom-data-model]
+  exam: {cert: pca, domain: P4, competency: Structuring and naming metrics}
+  q: A team wants Prometheus to show which version of their service runs on each instance. Which metric follows the conventions?
+  options:
+    - text: <code>shop_version 1.4</code>, with the version as the value
+      why: Versions are not numbers you can add or compare. They belong in a label.
+    - text: <code>shop_build_info{version="1.4.2"} 1</code>
+      why: A pseudo-metric with the suffix _info carries metadata about the binary in labels, with the value 1.
+    - text: <code>shop_1_4_2_running 1</code>
+      why: No part of a metric name should be generated from data. The version goes in a label.
+    - text: <code>shop_build_total{version="1.4.2"}</code>
+      why: _total marks a counter. Build information is not a count.
+  answer: [1]
+  source: https://prometheus.io/docs/practices/naming/
+
+- id: q-m03-035
+  tags: [prom-metric-naming, instrumentation]
+  exam: {cert: pca, domain: P4, competency: Structuring and naming metrics}
+  q: 'An exporter serves <code>queue{kind="capacity"} 100</code> and <code>queue{kind="length"} 37</code> under one metric name. What is wrong with that?'
+  options:
+    - text: The label values need single quotes instead of double quotes
+      why: Double quotes are the correct quoting. The problem is what the two series measure.
+    - text: Gauges may not carry labels, so the label must go
+      why: Gauges can have labels like any other type.
+    - text: The values must be ratios between 0 and 1, as for percentages
+      why: Counts of items are fine as they are. The problem is mixing two quantities.
+    - text: Capacity and length differ, so sum() over them means nothing
+      why: One metric should measure one thing across its labels. Capacity and current length belong in two metrics.
+  answer: [3]
+  source: https://prometheus.io/docs/practices/naming/
+
+- id: q-m03-036
+  tags: [instrumentation, exporter-client-libraries]
+  exam: {cert: pca, domain: P4, competency: Instrumentation}
+  q: A shared database library is used by one application to talk to three different databases. What do the guidelines suggest for its query metrics?
+  options:
+    - text: A label that tells the databases apart
+      why: A library used against different resources should separate them with labels.
+    - text: One metric name per database
+      why: Database names would then be part of metric names. Labels are made for this.
+    - text: No metrics in the library, only in the application
+      why: Libraries should provide instrumentation with no extra configuration by the user.
+    - text: A label with the name of the calling function
+      why: The guidelines name the database, not the caller, as the dimension to keep.
+  answer: [0]
+  source: https://prometheus.io/docs/practices/instrumentation/
+
+- id: q-m03-037
+  tags: [instrumentation]
+  exam: {cert: pca, domain: P4, competency: Instrumentation}
+  q: A worker reads events from a queue and writes them to storage. Nobody waits for a response. Which metrics do the guidelines suggest for each stage?
+  options:
+    - text: Requests, errors and latency for every HTTP endpoint it serves
+      why: That is the set for online-serving systems, where a client waits for each answer.
+    - text: Only the time at which the whole process last succeeded
+      why: That is the key metric of a batch job, which does not run all the time.
+    - text: Items in, in progress and out, and the last processing time
+      why: For offline processing the guidelines track these per stage, and batches too if work is batched.
+    - text: The number of log lines it writes per log level
+      why: Log line counts are useful, but they do not describe the flow of work through stages.
+  answer: [2]
+  source: https://prometheus.io/docs/practices/instrumentation/
+
+- id: q-m03-038
+  tags: [prom-storage]
+  exam: {cert: pca, domain: P2, competency: Understanding Prometheus Limitations}
+  q: 'Prometheus starts with <code>--storage.tsdb.retention.size=100GB</code> and no time retention flag. When are the oldest blocks deleted?'
+  options:
+    - text: After 15 days, the default retention time
+      why: The 15-day default applies only when neither retention flag is set.
+    - text: When the stored blocks reach 100 GB
+      why: With only a size limit set, size alone decides when the oldest blocks go.
+    - text: Never, because a size limit needs a time limit too
+      why: Each flag works on its own. A size limit alone is valid.
+    - text: After 31 days, the largest compacted block
+      why: 31 days limits the size of compacted blocks, not retention.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/storage/
+
+- id: q-m03-039
+  tags: [prom-storage]
+  exam: {cert: pca, domain: P2, competency: Understanding Prometheus Limitations}
+  q: Prometheus crashes and restarts. The newest data was still in the in-memory head block. How does it get that data back?
+  options:
+    - text: It cannot; the head block is lost on every restart
+      why: The head block is protected so that a restart does not lose it.
+    - text: It reads it back from the remote write receiver
+      why: Prometheus does not restore local data from a remote write destination.
+    - text: It asks the targets for their past values
+      why: Targets expose only their current values. Past samples exist only in Prometheus.
+    - text: It replays the write-ahead log from disk
+      why: Incoming samples are also written to the WAL, which is replayed when the server restarts.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/storage/
+
+- id: q-m03-040
+  tags: [prom-storage]
+  exam: {cert: pca, domain: P2, competency: Understanding Prometheus Limitations}
+  q: A Prometheus disk is filling too fast. Which change does the storage documentation call the more effective way to lower the ingested samples?
+  options:
+    - text: Doubling the scrape interval of every job
+      why: It helps, but samples of one series compress well, so fewer series saves more.
+    - text: Turning off WAL compression
+      why: That makes the WAL larger, not smaller.
+    - text: Reducing the number of series scraped
+      why: The documentation says fewer series is likely more effective than a longer interval.
+    - text: Lowering the scrape timeout
+      why: The timeout limits how long one scrape may take. It does not change how many samples arrive.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/storage/
+
+- id: q-m03-041
+  tags: [prom-remote-write]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: The remote store is unreachable for five hours. What happens to the samples scraped in that time, according to the remote write tuning guide?
+  options:
+    - text: All of them are sent once the store is back
+      why: Retries keep data only for about two hours. Older unsent samples are gone after WAL compaction.
+    - text: Prometheus stops scraping until the store returns
+      why: Scraping goes on. Only the sending falls behind.
+    - text: They are written to a separate overflow file and sent later
+      why: The queue reads from the WAL. There is no overflow file.
+    - text: Unsent samples older than about two hours are lost
+      why: After two hours the WAL is compacted, and data that was not sent is lost.
+  answer: [3]
+  source: https://prometheus.io/docs/practices/remote_write/
+
+- id: q-m03-042
+  tags: [prom-remote-write, prom-relabeling]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: A team wants to send only the series whose names start with <code>node_</code> to a remote store, and keep everything locally. Where does the rule go?
+  options:
+    - text: In <code>write_relabel_configs</code> of that destination
+      why: Write relabeling chooses what is sent to this destination and does not change local storage.
+    - text: In <code>metric_relabel_configs</code> of every scrape job
+      why: That would drop the series before they are stored locally too.
+    - text: In <code>relabel_configs</code> of each job
+      why: Target relabeling chooses targets before the scrape, not series for a destination.
+    - text: In <code>alert_relabel_configs</code>
+      why: Alert relabeling changes alerts sent to Alertmanager.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m03-043
+  tags: [prom-tools]
+  exam: {cert: pca, domain: P2, competency: System Architecture}
+  q: A Kubernetes readiness probe should send traffic to Prometheus only once it can answer queries. Which endpoint fits?
+  options:
+    - text: <code>/-/healthy</code>
+      why: It answers 200 whenever the process runs, even before it can serve queries.
+    - text: <code>/-/ready</code>
+      why: It answers 200 when Prometheus is ready to serve traffic, that is to respond to queries.
+    - text: <code>/-/reload</code>
+      why: It reloads the configuration. It is not a health check.
+    - text: <code>/metrics</code>
+      why: The server's own metrics page does not tell whether it can answer queries.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/management_api/
+
+- id: q-m03-044
+  tags: [prom-tools, prom-metric-naming]
+  exam: {cert: pca, domain: P4, competency: Structuring and naming metrics}
+  q: You saved your service's <code>/metrics</code> page as <code>metrics.txt</code> and want to lint its names against the Prometheus conventions. Which command does that?
+  options:
+    - text: <code>promtool check config --lint=all metrics.txt</code>
+      why: check config validates a Prometheus configuration file, not a metrics page.
+    - text: <code>promtool check rules --lint=all metrics.txt</code>
+      why: check rules validates rule files.
+    - text: <code>promtool tsdb analyze /prometheus</code>
+      why: tsdb commands inspect a data directory, not a metrics page.
+    - text: <code>promtool check metrics &lt; metrics.txt</code>
+      why: check metrics reads an exposition from standard input and reports problems such as wrong units.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/command-line/promtool/
+
+- id: q-m03-045
+  tags: [prom-tools]
+  exam: {cert: pca, domain: P2, competency: Configuration and Scraping}
+  q: A CI job runs <code>promtool check config</code>. The output shows a lint error for a duplicate rule, but the job passes. Why?
+  options:
+    - text: Lint errors fail only with <code>--lint-fatal</code>
+      why: Without --lint-fatal, lint findings are printed and the command can still exit with code 0.
+    - text: Duplicate rules are allowed in Prometheus 3
+      why: The finding is real. It is just not fatal by default.
+    - text: promtool checks rules only with <code>--rules</code>
+      why: check config also checks the rule files the configuration names.
+    - text: The CI job reads only the first line of the output
+      why: CI reads the exit code, and that is 0 here.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/command-line/promtool/
+
+- id: q-m03-046
+  tags: [exporter-client-libraries]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: A service uses a Prometheus client library. What does the library send when Prometheus scrapes the service?
+  options:
+    - text: Only the samples that changed since the previous scrape, as a diff
+      why: Each scrape gets the full current state, not a list of changes.
+    - text: Every single observation recorded since the last scrape, one per line
+      why: Observations are folded into counters, histograms and summaries. Single observations are not sent.
+    - text: The current value of every metric it holds
+      why: The library sends the current state of all tracked metrics in the exposition format.
+    - text: Nothing, because the library pushes to Prometheus on its own timer
+      why: Client libraries serve an HTTP endpoint that Prometheus scrapes. They do not push on a timer.
+  answer: [2]
+  source: https://prometheus.io/docs/instrumenting/clientlibs/
+
+- id: q-m03-047
+  tags: [exporter-client-libraries, prom-metric-naming]
+  exam: {cert: pca, domain: P4, competency: Client Libraries}
+  q: 'In the Python client, a developer writes <code>Counter("requests_total", "Requests.", namespace="myapp", subsystem="http")</code>. What is the full metric name?'
+  options:
+    - text: <code>myapp.http.requests_total</code>
+      why: The parts are joined with underscores, not dots.
+    - text: <code>myapp:http:requests_total</code>
+      why: Colons are reserved for recording rules. The client joins the parts with underscores.
+    - text: <code>http_myapp_requests_total</code>
+      why: The namespace comes first, then the subsystem, then the name.
+    - text: <code>myapp_http_requests_total</code>
+      why: Namespace, subsystem and name are joined with underscores, in that order.
+  answer: [3]
+  source: https://prometheus.github.io/client_python/instrumenting/counter/

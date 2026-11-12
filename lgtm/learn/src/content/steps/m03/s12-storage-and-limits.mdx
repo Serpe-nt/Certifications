@@ -1,0 +1,117 @@
+---
+id: m03-s12
+title: "Storage: TSDB, WAL, retention, and the limits of one server"
+kind: concept
+minutes: 16
+order: 12
+exam:
+  - cert: pca
+    domain: P2
+    competency: Understanding Prometheus Limitations
+tags: [prom-storage]
+outcome: You can explain how Prometheus stores samples on disk, set its retention, estimate the disk it needs, and name what one server cannot do.
+terms:
+  - term: TSDB
+    def: Prometheus's own time series database on local disk.
+  - term: Block
+    def: A directory holding the samples of a fixed time window, with chunks, an index and a metadata file.
+  - term: Head block
+    def: The newest block, kept in memory while samples arrive.
+  - term: WAL
+    def: The write-ahead log, which records incoming samples on disk so the head block survives a crash.
+  - term: Retention
+    def: How long, or how much, data Prometheus keeps before it deletes the oldest blocks.
+  - term: Compaction
+    def: Merging smaller blocks into larger ones in the background.
+sources:
+  - title: Storage (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/storage/
+    checked: 2026-11-12
+  - title: FAQ, high availability and scale (Prometheus)
+    url: https://prometheus.io/docs/introduction/faq/
+    checked: 2026-11-12
+  - title: Federation (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/federation/
+    checked: 2026-11-12
+  - title: Overview, when does it not fit (Prometheus)
+    url: https://prometheus.io/docs/introduction/overview/
+    checked: 2026-11-12
+---
+
+<Problem>
+The Prometheus pod is restarted at 10:40 during a node upgrade. Its last full block on disk covers the time up to 10:00. Will the dashboards have a hole of forty minutes? And when the disk is 80% full next month, what decides which data goes first?
+</Problem>
+
+<Idea>
+Prometheus writes samples into a local database made of two-hour blocks. The newest block lives in memory and is protected by a write-ahead log on disk, so a restart loses nothing that was already written. Retention by time or by size deletes the oldest blocks, and that local disk is also the main limit of one server.
+</Idea>
+
+## Blocks on disk
+
+Incoming samples are grouped into blocks of two hours. Each block is a directory with a `chunks` folder that holds the samples, an `index` that maps metric names and labels to series, and a `meta.json` file. Deleting series through the API does not rewrite a block; it adds a `tombstones` file that hides them.
+
+In the background, Prometheus compacts the two-hour blocks into larger ones, up to 10% of the retention time or 31 days, whichever is smaller. On average a sample takes only one or two bytes on disk.
+
+## The head block and the WAL
+
+The block that is still filling is the head block. It lives in memory, so it is not fully on disk yet. Every incoming sample is also written to the write-ahead log, the WAL, in segments of 128 MB in the folder `wal`. When Prometheus starts again after a crash or a restart, it replays the WAL and rebuilds the head block. That answers the first question of the scene: the forty minutes come back from the WAL.
+
+Prometheus keeps at least three WAL files, and a busy server may keep more, to hold at least two hours of raw data. The WAL is larger than the blocks, because it is not compacted yet.
+
+<Timeline caption="Where a sample lives over time">
+  <Event at="Now" title="Head block and WAL">The sample sits in memory and is written to the WAL on disk.</Event>
+  <Event at="Then" title="Two-hour block">The samples are grouped into a block of two hours, in its own directory.</Event>
+  <Event at="Later" title="Compaction">Blocks are merged into larger ones in the background.</Event>
+  <Event at="Retention" title="Deleted">The block is removed when it is older or larger than the limit allows.</Event>
+</Timeline>
+
+## Retention and disk size
+
+Two flags decide how much data stays. `--storage.tsdb.retention.time` keeps data for a time; when neither flag is set, it is 15 days. `--storage.tsdb.retention.size` keeps the blocks under a size, such as `50GB`; it is off by default. When both are set, whichever limit is reached first applies. Old blocks are removed in the background, which can take up to two hours. The documentation advises setting the size limit to at most 80 to 85% of the disk, because compaction needs room for the old and the new blocks at the same time.
+
+To plan the disk, multiply three numbers: retention in seconds, samples ingested per second, and bytes per sample. Fewer series help more than a longer scrape interval, because samples of one series compress well.
+
+<Figures caption="A rough disk estimate" unit="Value">
+  <Stat label="Samples per second" value="10,000" amount={10000} max={10000} />
+  <Stat label="Retention" value="15 days" amount={15} max={15} />
+  <Stat label="Bytes per sample" value="2" amount={2} max={2} />
+  <Stat label="Disk needed" value="about 26 GB" amount={26} max={26} hot note="10,000 × 1,296,000 s × 2 bytes" />
+</Figures>
+
+## What one server cannot do
+
+Local storage is not clustered and not replicated. If the disk or the node is lost, the data is lost, so treat Prometheus like any single-node database and back it up with snapshots. File systems that are not POSIX compliant are not supported and can corrupt the data beyond repair, and NFS, AWS EFS included, is not supported at all.
+
+High availability comes from running two or more identical servers that scrape the same targets; Alertmanager drops the duplicate alerts. For a view across many servers, federation lets one Prometheus scrape selected series from others, and for long-term, durable storage Prometheus sends its data to a remote system, which is step 13. Recall from step 1 that Prometheus is also the wrong tool when every single value must be exact, as in billing.
+
+<InLab>
+The lab's Prometheus keeps 1 day or 3 GiB, whichever comes first, on a 4 GiB Longhorn volume, and holds about 150,000 series in its head block. See <LabLink to="prometheus" path="/tsdb-status">the TSDB status page</LabLink> for the series counts by metric name.
+</InLab>
+
+<Trap>
+The size limit counts the WAL and the memory-mapped head chunks, but it can only delete finished blocks. A size limit as large as the whole volume still lets the disk fill up. Keep it at 80 to 85% of the volume, as the documentation advises.
+</Trap>
+
+<Remember>
+Samples go into two-hour blocks; the newest block is in memory and the WAL makes it survive restarts. Retention by time or size deletes the oldest blocks, and one server's disk is neither replicated nor endless.
+</Remember>
+
+<Question id="q-m03-s12" answer="b">
+A server runs with `--storage.tsdb.retention.time=30d` and `--storage.tsdb.retention.size=20GB`. After 12 days its blocks reach 20 GB. What happens?
+
+- Nothing until day 30, because the time limit wins
+
+  Neither limit wins over the other. The first limit reached applies.
+
+- Oldest blocks are deleted to stay under 20 GB
+
+  When both are set, whichever is reached first applies, and the size limit was reached first.
+
+- Prometheus stops ingesting new samples
+
+  Retention removes old blocks. It does not block new samples.
+
+- The WAL is deleted to make room
+
+  The size limit removes persistent blocks. The WAL is counted in the size but is not what gets deleted.
+</Question>

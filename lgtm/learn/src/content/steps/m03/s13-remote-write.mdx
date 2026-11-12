@@ -1,0 +1,126 @@
+---
+id: m03-s13
+title: "Remote write: where Mimir comes in"
+kind: concept
+minutes: 12
+order: 13
+exam:
+  - cert: pca
+    domain: P2
+    competency: System Architecture
+  - cert: pca
+    domain: P2
+    competency: Understanding Prometheus Limitations
+tags: [prom-remote-write]
+outcome: You can read a remote_write section, say how Prometheus sends samples and what happens when the receiver is down, and tell when agent mode fits.
+terms:
+  - term: Remote write
+    def: Prometheus sending the samples it ingests to another system over HTTP as they arrive.
+  - term: Shard
+    def: One of the parallel senders of a remote write queue.
+  - term: Agent mode
+    def: A Prometheus mode that scrapes and remote-writes but has no local queries, rules or alerts.
+  - term: Remote read
+    def: Prometheus reading raw samples back from a remote system to answer its own queries.
+sources:
+  - title: Storage, remote storage integrations (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/storage/
+    checked: 2026-11-12
+  - title: Remote write tuning (Prometheus)
+    url: https://prometheus.io/docs/practices/remote_write/
+    checked: 2026-11-12
+  - title: Configuration, remote_write (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+    checked: 2026-11-12
+  - title: Prometheus agent mode (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/prometheus_agent/
+    checked: 2026-11-12
+---
+
+<Problem>
+The team wants a year of metrics from five clusters in one place, with a copy that survives the loss of a node. Each cluster's Prometheus keeps a day on one disk. Making that disk bigger does not give you a second copy, and it does not put five clusters into one query.
+</Problem>
+
+<Idea>
+Remote write lets Prometheus send every sample it ingests to another system over HTTP. The local server keeps scraping and alerting as before, and a store built for scale and long retention, such as Mimir, holds the long history. The sender reads from the WAL, so a short outage of the receiver loses nothing.
+</Idea>
+
+## Four ways to work with remote storage
+
+Prometheus can write the samples it ingests to a remote URL, and it can receive such writes from others when the flag `--web.enable-remote-write-receiver` is set. It can also read raw samples back from a remote system, and serve its own data to remote readers. Remote read is limited: Prometheus fetches the raw series and still runs every PromQL query itself.
+
+The write protocol sends protocol buffers compressed with snappy over HTTP. Version 1.0 of its specification is stable and version 2.0 is experimental; Prometheus supports both, and the setting `protobuf_message` chooses between them.
+
+## A remote_write section
+
+A remote write destination is a list entry in the configuration:
+
+```yaml
+remote_write:
+  - name: mimir
+    url: http://mimir-gateway.mimir.svc/api/v1/push
+    headers:
+      X-Scope-OrgID: prom
+    send_exemplars: true
+    send_native_histograms: true
+    write_relabel_configs:
+      - source_labels: [__name__]
+        regex: go_.*
+        action: drop
+```
+
+`url` is where samples go, and `headers` adds HTTP headers, here the tenant that Mimir expects (module m11). `write_relabel_configs` are relabel rules of step 7 applied just before sending; the example drops every metric that starts with `go_` from what is sent, while the local copy keeps them. External labels from `global` are added before these rules run.
+
+## How samples travel, and what an outage costs
+
+Each destination gets its own queue. It reads samples from the WAL, spreads them over shards, and each shard sends batches to the endpoint. Prometheus adjusts the number of shards to keep up with the incoming rate, between `min_shards` and `max_shards`.
+
+When the endpoint fails, Prometheus retries without losing data, as long as the outage is shorter than about two hours. After that the WAL is compacted and samples that were not sent are lost. Remote write also costs memory: most users see about 25% more. The metric `prometheus_remote_storage_samples_pending` shows how many samples wait to be sent.
+
+<Flow caption="From the WAL to a remote store">
+  <Stage title="WAL" kicker="Source">Every ingested sample is written here first.</Stage>
+  <Stage title="Queue" kicker="Per destination">Samples are spread over shards.</Stage>
+  <Stage title="Shards" kicker="Send">Batches go out over HTTP and are retried on failure.</Stage>
+  <Stage title="Remote store" kicker="Mimir">Keeps the long history for many servers.</Stage>
+</Flow>
+
+## Agent mode: only scrape and send
+
+When a server should only forward data, run it with `--agent`. Agent mode keeps scraping, service discovery and remote write, and replaces the database with a WAL that is emptied after each successful send. It uses far fewer resources, but you cannot query it, it evaluates no recording rules, and it sends no alerts: all of that happens in the remote system. Its screen still shows the configuration, the targets and service discovery.
+
+<Compare caption="Full server or agent">
+  <Col title="Server with remote write">Scrapes, stores locally, queries, rules and alerts, and also sends everything to the remote store.</Col>
+  <Col title="Agent mode">Scrapes and sends only. No local queries, rules or alerts; a small WAL buffer in place of the database.</Col>
+</Compare>
+
+<InLab>
+The lab's Prometheus remote-writes everything to Mimir as tenant `prom`, and its `cluster: lgtm-lab` external label travels with every sample. The options for exemplars and native histograms are on, but the lab scrapes classic histograms only (step 3), so no native histogram is sent. You can read the section on <LabLink to="prometheus" path="/config">the configuration page</LabLink>, under `remote_write`.
+</InLab>
+
+<Trap>
+Remote write does not make the local server smaller. Prometheus still stores, queries and alerts on its own data; remote write adds memory and network on top. Only agent mode drops the local database.
+</Trap>
+
+<Remember>
+Remote write streams every sample from the WAL to a remote store, retrying through outages of up to about two hours. Write relabeling chooses what is sent, and agent mode keeps only scraping and sending.
+</Remember>
+
+<Question id="q-m03-s13" answer="c">
+The remote store is down for 40 minutes during an upgrade, then comes back. What happens to the samples Prometheus scraped during those 40 minutes?
+
+- They are lost, because remote write sends each sample only once
+
+  Remote write retries failed sends. It does not drop samples after the first failure.
+
+- They stay only in local storage and are never sent
+
+  The queue reads from the WAL and keeps trying while the receiver is away.
+
+- They are sent when the store returns, retried from the WAL
+
+  Failures are retried without loss as long as the outage is shorter than about two hours.
+
+- Prometheus stops scraping until the store is back
+
+  Scraping, local storage and alerting go on. Only the sending waits.
+</Question>

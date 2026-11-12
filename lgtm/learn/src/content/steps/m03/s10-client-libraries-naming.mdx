@@ -1,0 +1,121 @@
+---
+id: m03-s10
+title: Client libraries and naming metrics well
+kind: concept
+minutes: 16
+order: 10
+exam:
+  - cert: pca
+    domain: P4
+    competency: Client Libraries
+  - cert: pca
+    domain: P4
+    competency: Structuring and naming metrics
+tags: [exporter-client-libraries, prom-metric-naming, instrumentation]
+outcome: You can define a metric with a client library, give it a name that follows the conventions, and choose labels that stay small.
+terms:
+  - term: Client library
+    def: A library that keeps metric values inside your program and serves them in the exposition format.
+  - term: Base unit
+    def: The unit a metric name should use, such as seconds or bytes, instead of milliseconds or megabytes.
+  - term: Application prefix
+    def: The first word of a metric name, naming the application or domain it belongs to.
+  - term: _created series
+    def: A series the Python client adds for counters and histograms, holding the time they were created.
+sources:
+  - title: Client libraries (Prometheus)
+    url: https://prometheus.io/docs/instrumenting/clientlibs/
+    checked: 2026-11-12
+  - title: Metric and label naming (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/naming/
+    checked: 2026-11-12
+  - title: Instrumentation, use labels and avoid missing metrics (Prometheus best practices)
+    url: https://prometheus.io/docs/practices/instrumentation/
+    checked: 2026-11-12
+  - title: Counter (Prometheus Python client)
+    url: https://prometheus.github.io/client_python/instrumenting/counter/
+    checked: 2026-11-12
+  - title: Labels (Prometheus Python client)
+    url: https://prometheus.github.io/client_python/instrumenting/labels/
+    checked: 2026-11-12
+  - title: Histogram (Prometheus Python client)
+    url: https://prometheus.github.io/client_python/instrumenting/histogram/
+    checked: 2026-11-12
+---
+
+<Problem>
+Three teams add metrics to their services. One names theirs `requestTimeMs`, one `latency`, one `api_response_time_milliseconds`. The platform team wants a dashboard across all three and cannot write one query for them: the names hide the unit, the type and even what is measured.
+</Problem>
+
+<Idea>
+A client library keeps your metrics inside the program and serves them on `/metrics` when Prometheus scrapes. The names and labels you give them are a contract with everyone who queries them later. Prometheus has conventions for that contract: a prefix, one base unit named at the end, `_total` for counters, and labels for the parts of one thing.
+</Idea>
+
+## What a client library does
+
+You pick the library for your language. The Prometheus project maintains official ones for Go, Java or Scala, Python, Ruby, Rust and Node.js, and others exist for many more languages. You declare a metric once, update it where things happen, and the library does the rest: it implements the four types of step 3 and, when Prometheus scrapes, sends the current value of every metric in the exposition format.
+
+In Python it looks like this:
+
+```python
+from prometheus_client import Counter, Histogram
+
+REQUESTS = Counter("shop_http_requests", "HTTP requests answered.", ["route", "code"])
+LATENCY = Histogram("shop_http_request_duration_seconds", "Time to answer a request.", ["route"])
+
+REQUESTS.labels("/cart", "200").inc()
+LATENCY.labels("/cart").observe(0.042)
+```
+
+The Python client adds the `_total` suffix to a counter's name when it serves it, so the counter above appears as `shop_http_requests_total`. It also adds a `_created` series with the time each counter and histogram started. A histogram without your own buckets gets 14 default bounds made for web request times, from 0.005 to 10 seconds, plus `+Inf`.
+
+## Naming a metric
+
+The naming guide of the Prometheus project gives these rules:
+
+- Start with a single-word prefix for the application or domain: `shop_`, `prometheus_`, `process_`.
+- Use one unit, and a base unit: seconds, not milliseconds; bytes, not megabytes; a ratio from 0 to 1, not a percentage.
+- End with the unit in plural: `_seconds`, `_bytes`. A counter ends with `_total`, after the unit if there is one: `process_cpu_seconds_total`.
+- A metric that only carries information about the program has the suffix `_info`, and a point in time is a Unix timestamp in `_timestamp_seconds`.
+- Every series of one metric measures the same thing. A rule of thumb: `sum()` or `avg()` over all its labels should make sense.
+
+By these rules, the three names from the problem all become one histogram, `shop_http_request_duration_seconds`: a prefix, the base unit, and the unit at the end.
+
+
+## Labels: the parts of one thing
+
+Use labels when several values are parts of the same measurement, such as the route or the status code of a request. Do not put a label's value in the metric name: one metric with a `code` label can be summed, filtered and graphed as a whole. And do not repeat a label's name in the metric name either. Module m02 showed what labels cost: keep their values few and fixed. In code that means labelling by the route template, `/cart/<id>`, never by the path with the id in it.
+
+A labelled metric has no series until the first time a label value is used, so a dashboard shows "No data" where it should show zero. The Python client documentation advises calling `.labels()` once for each value you know at start-up.
+
+<InLab>
+The lab's Prometheus follows these rules for its own metrics: `prometheus_http_requests_total` has the prefix, `_total` and labels `code` and `handler`; `prometheus_http_request_duration_seconds` is in base units.
+</InLab>
+
+<Trap>
+`_total` is for counters only. A gauge such as the number of items in a queue is `shop_queue_items`, not `shop_queue_items_total`, even though it "counts" items.
+</Trap>
+
+<Remember>
+A client library holds the values and serves them on scrape. Name each metric with a prefix, one base unit at the end, and `_total` for counters, and put the parts of one measurement into a few bounded labels.
+</Remember>
+
+<Question id="q-m03-s10" answer="c">
+A service reports how full its disk cache is, from 0 to 100 percent, as `cache_full_percent`. What do the naming conventions suggest instead?
+
+- `cache_full_percent_total`
+
+  _total marks a counter. A fill level goes up and down, and the unit is still a percentage.
+
+- `cache_full_percent` with a label `unit="percent"`
+
+  The unit belongs in the name. A label for it would not change the scale either.
+
+- `shop_cache_full_ratio`, with values from 0 to 1
+
+  The conventions use ratio, from 0 to 1, as the base unit for a share, and add an application prefix.
+
+- `shopCacheFullPercent`
+
+  Camel case breaks the usual style, and the value is still a percentage instead of a ratio.
+</Question>

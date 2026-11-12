@@ -1,0 +1,121 @@
+---
+id: m03-s06
+title: Service discovery in Kubernetes
+kind: concept
+minutes: 16
+order: 6
+exam:
+  - cert: pca
+    domain: P1
+    competency: Service Discovery
+  - cert: pca
+    domain: P2
+    competency: Configuration and Scraping
+tags: [prom-service-discovery]
+outcome: You can choose a Kubernetes discovery role for a scrape job and read the meta labels a discovered target carries.
+terms:
+  - term: Service discovery
+    def: Finding scrape targets by asking another system, such as the Kubernetes API, instead of listing them by hand.
+  - term: Role
+    def: The kind of Kubernetes object a kubernetes_sd_config turns into targets.
+  - term: Meta label
+    def: A label starting with __meta_ that discovery attaches to a target, for use during relabeling only.
+  - term: Dropped target
+    def: A discovered target that relabeling removed before any scrape.
+sources:
+  - title: Configuration, kubernetes_sd_config (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+    checked: 2026-11-12
+  - title: Overview, features (Prometheus)
+    url: https://prometheus.io/docs/introduction/overview/
+    checked: 2026-11-12
+  - title: Troubleshooting, permissions of the Prometheus service account (Prometheus Operator)
+    url: https://prometheus-operator.dev/docs/platform/troubleshooting/
+    checked: 2026-11-12
+  - title: HTTP API, targets (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/api/
+    checked: 2026-11-12
+---
+
+<Problem>
+A Deployment scales from 3 to 12 pods at noon and back to 4 at night. Every pod has a new IP address. A `static_configs` list with IP addresses is wrong a few minutes after you write it, and nobody wants to edit `prometheus.yml` each time Kubernetes moves a pod.
+</Problem>
+
+<Idea>
+Service discovery lets Prometheus ask another system for its targets. With `kubernetes_sd_configs`, Prometheus watches the Kubernetes API and keeps its target list in step with the cluster. Each discovered target arrives with meta labels that describe the object it came from, so you can choose which ones to scrape.
+</Idea>
+
+## Many sources, one idea
+
+Prometheus can discover targets from many places: cloud providers, Consul, DNS records, files, an HTTP endpoint, and Kubernetes. Each mechanism has its own block in a scrape job, such as `kubernetes_sd_configs` or `file_sd_configs`, and each one hands Prometheus the same thing: a list of target addresses, each with a set of labels. Everything after that, relabeling and scraping, works the same whatever the source.
+
+When Prometheus runs inside the cluster and you give no API server address, it finds the API server by itself and signs in with the service account of its pod. That account needs permission to `get`, `list` and `watch` the objects of the role you choose.
+
+## Six roles, six kinds of target
+
+A `kubernetes_sd_config` names a `role`. The role decides which objects become targets and which meta labels they carry.
+
+<Compare caption="Kubernetes discovery roles">
+  <Col title="Address of a thing">node: one target per node, at the kubelet's port. service: one per service port, at the service's DNS name. ingress: one per ingress path.</Col>
+  <Col title="Address of a pod" hot>pod: one per declared container port. endpoints and endpointslice: one per address and port behind a service, with pod and service labels.</Col>
+</Compare>
+
+`service` and `ingress` give you a name that Kubernetes balances across pods, so they suit probing from outside, as the blackbox exporter does (step 9). To scrape each pod's own metrics you want one target per pod: `pod`, `endpoints` or `endpointslice`. A pod container that declares no port still becomes a target of the `pod` role, with only the pod IP as its address, so that relabeling can add a port.
+
+The Endpoints API is deprecated since Kubernetes 1.33, and the Prometheus documentation recommends the `endpointslice` role instead of `endpoints`. Both give the same kind of target.
+
+## Meta labels describe each target
+
+Every discovered target carries labels that start with `__meta_kubernetes_`. With the `endpointslice` role, a target behind a Service has, among others:
+
+- `__meta_kubernetes_namespace`: the namespace.
+- `__meta_kubernetes_service_name` and `__meta_kubernetes_service_label_<name>`: the Service and each of its labels.
+- `__meta_kubernetes_pod_name`, `__meta_kubernetes_pod_label_<name>`, `__meta_kubernetes_pod_container_port_name`: the pod behind the address, its labels and the port name.
+- `__meta_kubernetes_endpointslice_port_name`: the name of the port in the EndpointSlice.
+
+Kubernetes discovery converts characters it does not support in these names, such as dots and slashes, to underscores, so the Kubernetes label `app.kubernetes.io/name` turns into `__meta_kubernetes_service_label_app_kubernetes_io_name`. A `namespaces` block limits discovery to the namespaces you list.
+
+These labels exist only while Prometheus decides what to do with a target. Step 7 shows how relabeling uses them to keep or drop targets and to copy what you need into real labels.
+
+<Flow caption="From the Kubernetes API to a scrape">
+  <Stage title="Kubernetes API" kicker="Watch">Pods, Services and EndpointSlices change.</Stage>
+  <Stage title="Discovery" kicker="Targets">Each address and port becomes a target with __meta_ labels.</Stage>
+  <Stage title="Relabeling" kicker="Filter">Keep, drop and rename, using the meta labels.</Stage>
+  <Stage title="Active targets" kicker="Scrape">What is left gets scraped every interval.</Stage>
+</Flow>
+
+## Discovered is not the same as scraped
+
+Discovery usually finds more than you want to scrape: every port of every service in the watched namespaces. Relabeling then drops most of them. The Prometheus screen shows both sides on the page Service discovery: the labels each target had when it was discovered, and the labels it kept, or the word "dropped".
+
+<InLab>
+The lab's scrape jobs use the `endpoints` role, limited to one namespace each, for example `namespaces: names: [prom]`. On <LabLink to="prometheus" path="/service-discovery">the service discovery page</LabLink> you see a few dozen active targets and several hundred dropped ones.
+</InLab>
+
+<Trap>
+Meta labels never reach the stored series. A query for `__meta_kubernetes_pod_name` returns nothing; only labels that relabeling copied into a normal name, such as `pod`, are stored.
+</Trap>
+
+<Remember>
+Kubernetes discovery turns nodes, services, pods, endpoints, EndpointSlices or ingresses into targets, each with `__meta_kubernetes_*` labels. Prefer `endpointslice` over the deprecated `endpoints` API, and let relabeling pick the targets you want.
+</Remember>
+
+<Question id="q-m03-s06" answer="a">
+A Service named `checkout` balances traffic across 6 pods, and each pod serves its own `/metrics` page. You want one target per pod, with the Service's labels available for filtering. Which role fits best?
+
+- `endpointslice`
+
+  It gives one target per pod address behind the Service and attaches both the Service's and the pod's labels.
+
+- `service`
+
+  It gives one target per service port, at the service's DNS name. A scrape would reach whichever pod Kubernetes picks.
+
+- `node`
+
+  It gives one target per node, at the kubelet's port, not the application's pods.
+
+- `ingress`
+
+  It gives one target per ingress path, at the host from the ingress, which suits probing from outside.
+</Question>

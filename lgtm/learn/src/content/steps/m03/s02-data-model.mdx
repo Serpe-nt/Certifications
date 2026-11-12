@@ -1,0 +1,113 @@
+---
+id: m03-s02
+title: "The data model: name, labels, samples"
+kind: concept
+minutes: 12
+order: 2
+exam:
+  - cert: pca
+    domain: P2
+    competency: Data Model and Labels
+tags: [prom-data-model]
+outcome: You can say which time series a line of data belongs to, read the series notation, and tell a valid label from a reserved one.
+terms:
+  - term: Time series
+    def: A stream of timestamped values that share one metric name and one set of labels.
+  - term: Label
+    def: A key and value pair on a series, such as method="POST", that you can filter and group by.
+  - term: Sample
+    def: One value of a series with its timestamp in milliseconds.
+  - term: __name__
+    def: The internal label that holds a series' metric name.
+sources:
+  - title: Data model (Prometheus)
+    url: https://prometheus.io/docs/concepts/data_model/
+    checked: 2026-11-12
+  - title: Jobs and instances (Prometheus)
+    url: https://prometheus.io/docs/concepts/jobs_instances/
+    checked: 2026-11-12
+  - title: Prometheus 3.0 migration guide, UTF-8 names (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/migration/
+    checked: 2026-11-12
+---
+
+<Problem>
+Two engineers look at the same request counter. One sees 1,200 requests a second, the other sees 300. Both are right: one added up every handler, the other looked at POST requests to one path. Before you can query Prometheus, you need to know what it actually stores.
+</Problem>
+
+<Idea>
+Prometheus stores everything as time series. A series is named by a metric name plus a set of labels, and each change to a label value makes a different series. Each series holds samples: a number and the millisecond it was taken.
+</Idea>
+
+## A series is a name plus labels
+
+The metric name says what is measured, for example `http_requests_total`. Labels say which part of it a series counts: `method="POST"`, `handler="/api/tracks"`. Together, the name and the full label set identify exactly one series. Prometheus calls this its dimensional data model, because labels are the dimensions you filter and group by in queries.
+
+The same metric name therefore stands for many series. `http_requests_total` with `method="GET"` and `http_requests_total` with `method="POST"` are two series that are stored apart. If a new release adds a label, or changes a value, the old series stops and a new one starts. Module m02 showed what that does to the number of series; this step is about how a single series is built.
+
+## The notation you will read everywhere
+
+Prometheus writes a series as the name followed by its labels in braces:
+
+<Query lang="promql">{`api_http_requests_total{method="POST", handler="/messages"}`}</Query>
+
+Inside Prometheus the metric name is just another label, called `__name__`. So the same series can be written with the name inside the braces:
+
+<Query lang="promql">{`{__name__="api_http_requests_total", method="POST", handler="/messages"}`}</Query>
+
+You will use the first form almost always. The second form explains why a query can select series by name with the same matchers it uses for labels. Module m04 builds on this.
+
+## What a sample holds
+
+Each sample has two parts. The value is a 64-bit floating point number, or a native histogram, which step 3 explains. The timestamp has millisecond precision. The server does not use the type of a float sample; it treats every one as a plain number, so the meaning has to live in the name. That is why step 10 cares so much about naming.
+
+<Layers caption="From a metric name to one sample">
+  <Layer title="Metric name">What is measured: http_requests_total.</Layer>
+  <Layer title="Labels">Which part of it: method="POST", handler="/messages".</Layer>
+  <Layer title="Series">One name with one full label set.</Layer>
+  <Layer title="Sample" hot>A float64 or native histogram value and a timestamp in milliseconds.</Layer>
+</Layers>
+
+## Rules for names and labels
+
+Since Prometheus 3.0, metric and label names may use any UTF-8 character. For the best fit with other tools, the data model still asks you to keep names to letters, digits, underscores and colons, and label names to letters, digits and underscores. A name outside that set must be quoted in PromQL. Older material, written for Prometheus 2, says such names are invalid; that is no longer true.
+
+A few rules matter in daily work:
+
+- Label names that begin with two underscores, such as `__address__`, are reserved for Prometheus itself. Step 7 shows where they appear.
+- Colons in metric names are reserved for recording rules. Exporters and your own code should not use them.
+- A label with an empty value counts as if the label were not there at all.
+
+Some labels come from Prometheus rather than from the target. At every scrape it adds `job` and `instance`, which you met in step 1. Step 5 shows where their values come from.
+
+<InLab>
+In the lab, open <LabLink to="prometheus" path="/query">the query page</LabLink> and run `up`. Each row is one series of the same metric, told apart by labels such as `job`, `instance`, `namespace` and `pod`.
+</InLab>
+
+<Trap>
+Two lines with the same metric name are not the same series. Any difference in labels, even one value, makes a second series with its own history.
+</Trap>
+
+<Remember>
+A series is a metric name plus a complete label set. Its samples are numbers with millisecond timestamps, and the metric name itself is stored as the label `__name__`.
+</Remember>
+
+<Question id="q-m03-s02" answer="b">
+An application exposes `jobs_processed_total{queue="email"}` and `jobs_processed_total{queue="sms"}`. How many time series does Prometheus store for these two lines from one target?
+
+- One, because both lines share the metric name
+
+  The name alone does not identify a series. The label set is part of the identity.
+
+- Two, one for each set of labels
+
+  Each different label set is its own series, so the two queues are stored apart.
+
+- Three: one per queue and one for the total
+
+  Prometheus does not create a total series. A query adds the two series when you ask for it.
+
+- One per sample collected so far
+
+  Samples are values inside a series. New samples do not create new series.
+</Question>
