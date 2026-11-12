@@ -1,0 +1,127 @@
+---
+id: m01-s06
+title: Upgrade, history and rollback
+kind: lab
+minutes: 25
+order: 6
+exam:
+  - cert: none
+tags: [helm-upgrade-rollback]
+check:
+  kind: exact
+  prompt: Paste the DESCRIPTION that helm history shows for the revision that is deployed at the end.
+  answer: Rollback to 2
+outcome: You can upgrade a release to a new chart version and new values, wait for it, read its history, and roll back to a chosen revision.
+terms:
+  - term: Superseded
+    def: The status of a revision that a later upgrade or rollback replaced.
+  - term: --wait
+    def: Makes Helm wait until the release's objects are ready, up to --timeout.
+  - term: --reuse-values
+    def: On upgrade, starts from the last release's values and merges the new ones in.
+sources:
+  - title: Using Helm, helm upgrade and helm rollback
+    url: https://helm.sh/docs/intro/using_helm/
+    checked: 2026-11-12
+  - title: helm upgrade
+    url: https://helm.sh/docs/helm/helm_upgrade/
+    checked: 2026-11-12
+  - title: helm rollback
+    url: https://helm.sh/docs/helm/helm_rollback/
+    checked: 2026-11-12
+  - title: helm history
+    url: https://helm.sh/docs/helm/helm_history/
+    checked: 2026-11-12
+---
+
+<Problem>
+A new chart version is out, and the product team wants a new welcome message. You upgrade. An hour later the message is gone again after a colleague's small change, and the team asks for the version from this morning. You need to see every change and step back to one of them.
+</Problem>
+
+<Idea>
+`helm upgrade` changes a release to a new chart version, new values or both, and adds a revision. `helm history` lists the revisions with their chart and status. `helm rollback <release> <revision>` brings back the content of a chosen revision as a new revision.
+</Idea>
+
+## Upgrade is install's partner
+
+`helm upgrade <release> <chart> --version <v>` renders the chart again and applies only what changed. The same `-f` and `--set` rules as on install apply. Add `--wait` and Helm waits until the objects are ready, up to `--timeout` (5 minutes by default), and marks the release `failed` if they are not. Without `--wait`, Helm 4 waits only for hooks. `--install` on upgrade installs the release when it does not exist yet, which is how most pipelines call Helm.
+
+## Values on upgrade: the trap
+
+Values do not carry over the way most people expect. On this lab with Helm 4.3.1:
+
+- An upgrade with no `-f` and no `--set` kept the last release's values.
+- An upgrade with only `--set ui.color=...` started again from the chart's defaults plus that one value. The message set in the earlier revision was gone.
+- `--reuse-values` kept the earlier values and merged the new `--set` in. `--reset-values` goes back to the chart's defaults.
+
+The safe habit is to pass the full values file on every upgrade, so the command says everything the release should have.
+
+## History and rollback
+
+`helm history <release>` lists every revision Helm still keeps, with its chart, app version, status and a description such as `Install complete`, `Upgrade complete` or `Rollback to 2`. Exactly one revision is `deployed`; the replaced ones are `superseded`. Helm keeps 10 revisions per release by default (`--history-max`). `helm rollback <release> <revision>` restores that revision's chart and values as a new revision.
+
+<Timeline caption="This step's revisions of m01-podinfo">
+  <Event at="1" title="install 6.16.0">From step 3.</Event>
+  <Event at="2" title="upgrade 6.17.0">With a welcome message.</Event>
+  <Event at="3" title="upgrade, colour only">The message is lost.</Event>
+  <Event at="4" title="rollback to 2">The message is back.</Event>
+</Timeline>
+
+<Trap>
+A rollback brings back Kubernetes objects, not data. A database schema change made by the new version stays when the chart goes back.
+</Trap>
+
+<Remember>
+Upgrade adds a revision, history lists them, rollback copies an old one into a new one. Pass your full values on every upgrade.
+</Remember>
+
+<Do>
+1. Upgrade to chart 6.17.0 with a message, and wait for the pod:
+   <Cmd>{`helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01 --set ui.message="Hello from revision 2" --wait`}</Cmd>
+2. Look at the history and at the values of the release:
+   <Cmd>{`helm history m01-podinfo -n learn-m01
+helm get values m01-podinfo -n learn-m01`}</Cmd>
+3. Ask the app itself. Forward a local port to the service in the background, read its info, then stop the forward:
+   <Cmd>{`kubectl -n learn-m01 port-forward svc/m01-podinfo 18100:9898 >/dev/null &
+sleep 2
+curl -s http://127.0.0.1:18100/api/info | grep -E '"version"|"message"'
+kill %1`}</Cmd>
+   The answer shows `"version": "6.17.0"` and your message.
+4. Now change only the colour, as a colleague might:
+   <Cmd>{`helm upgrade m01-podinfo podinfo/podinfo --version 6.17.0 -n learn-m01 --set ui.color="#7a3b3b" --wait
+helm get values m01-podinfo -n learn-m01`}</Cmd>
+   The values hold only the colour. The message is gone.
+5. Roll back to revision 2 and look at the history again:
+   <Cmd>{`helm rollback m01-podinfo 2 -n learn-m01 --wait
+helm history m01-podinfo -n learn-m01
+helm get values m01-podinfo -n learn-m01`}</Cmd>
+6. Paste the DESCRIPTION of the revision that is `deployed` now.
+</Do>
+
+<Done>
+`helm history` shows four revisions; revision 4 is `deployed` with chart `podinfo-6.17.0`, and `helm get values` shows the message again.
+</Done>
+
+<Trap practice>
+If revision numbers differ from the ones here because you ran extra upgrades, roll back to the revision whose values hold the message: `helm get values m01-podinfo -n learn-m01 --revision <n>` shows them.
+</Trap practice>
+
+<Question id="q-m01-s06" answer="c">
+A release is at revision 5. You run `helm rollback web 3`. What does `helm history web` show afterwards?
+
+- Revision 3 is deployed again and revisions 4 and 5 are deleted
+
+  History is not rewritten. Old revisions stay until the history limit removes them.
+
+- Revision 5 is deployed with the description Rollback to 3
+
+  Revision 5 already exists. A rollback always adds a revision.
+
+- A new revision 6 with revision 3's content is deployed, and 5 is superseded
+
+  A rollback restores an earlier revision's chart and values under a new number.
+
+- Revision 3 is marked deployed and keeps its old description
+
+  The deployed revision is a new one; revision 3 stays superseded.
+</Question>
