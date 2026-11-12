@@ -706,3 +706,51 @@
       why: Summing first and dividing after is the right order for a ratio.
   answer: [0]
   source: https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics
+
+- id: q-m04-045
+  tags: [promql-red, promql-binary-ops]
+  exam: {cert: pca, domain: P3, competency: Binary operators}
+  q: Each of a service's pods records <code>http_server_request_duration_seconds</code>. Which query gives the service's share of failed requests?
+  options:
+    - text: <code>avg(rate(x_count{code=~"5.."}[5m]) / rate(x_count[5m]))</code>
+      why: This averages per-series ratios, which gives a quiet pod as much weight as a busy one.
+    - text: <code>sum(rate(x_count{code=~"5.."}[5m]))</code>
+      why: This is failed requests per second, not their share of all requests.
+    - text: <code>rate(sum(x_count{code=~"5.."})[5m:]) / rate(sum(x_count)[5m:])</code>
+      why: Summing counters before rate() turns pod restarts into false resets.
+    - text: <code>sum(rate(x_count{code=~"5.."}[5m])) / sum(rate(x_count[5m]))</code>
+      why: Failed and total requests are each summed over all pods first, so busy pods weigh more.
+  answer: [3]
+  source: https://prometheus.io/docs/practices/rules/#aggregation
+
+- id: q-m04-046
+  tags: [promql-red]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: A RED panel for an HTTP server counts responses with status 404 as errors. What do the OpenTelemetry HTTP conventions say about a server's 4xx responses?
+  options:
+    - text: They are server errors, the same as 5xx
+      why: The conventions treat 4xx and 5xx differently on the server side.
+    - text: They are errors only when error.type is missing
+      why: error.type is set for failures. A 4xx response on a server is not one.
+    - text: Not server errors; only 5xx fails a server span
+      why: A 4xx is left unset on a server span, because the client sent a bad request.
+    - text: They are dropped from the request histogram
+      why: Every request is recorded, with its status code as a label.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+
+- id: q-m04-047
+  tags: [promql-red, promql-histograms]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: What does <code>sum(rate(http_server_request_duration_seconds_bucket{le="+Inf"}[5m]))</code> return?
+  options:
+    - text: The rate of requests slower than every finite bucket bound
+      why: Buckets are cumulative. +Inf holds all observations, not only the slowest ones.
+    - text: "The request rate: +Inf counts every request"
+      why: The +Inf bucket always equals _count, so its rate is the number of requests per second.
+    - text: Nothing, because +Inf cannot be used in a matcher
+      why: le="+Inf" is an ordinary label value and can be matched like any other.
+    - text: The 100th percentile of the request duration
+      why: A percentile needs histogram_quantile(). This is a plain rate.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile
