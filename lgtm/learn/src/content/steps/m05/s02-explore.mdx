@@ -1,0 +1,127 @@
+---
+id: m05-s02
+title: "Explore: ask one question"
+kind: lab
+minutes: 18
+order: 2
+exam:
+  - cert: none
+tags: [grafana-explore]
+check:
+  kind: exact
+  prompt: Paste the number of nodes in the lab cluster, as your instant query in Explore returned it.
+  answers: ["7"]
+outcome: You can answer a one-off question in Explore, choose between an instant and a range query, and compare two data sources side by side.
+terms:
+  - term: Explore
+    def: Grafana's page for running queries without building a dashboard.
+  - term: Instant query
+    def: A query evaluated once, at the end of the time range, with one value per series.
+  - term: Range query
+    def: A query evaluated at every step across the time range, with many values per series.
+  - term: Split view
+    def: Two Explore panes side by side, each with its own data source and query.
+  - term: Query history
+    def: Your own list of the queries you ran in Explore, kept for two weeks unless starred.
+sources:
+  - title: Get started with Explore (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/explore/get-started-with-explore/
+    checked: 2026-11-12
+  - title: Query management in Explore (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/explore/query-management/
+    checked: 2026-11-12
+  - title: Prometheus query editor (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/datasources/prometheus/query-editor/
+    checked: 2026-11-12
+---
+
+<Problem>
+During a meeting someone asks: "How many nodes does the cluster have right now, and did that change today?" You could build a dashboard for it, save it, and never open it again. Or you could ask the question once, read the answer, and move on.
+</Problem>
+
+Most questions you ask Grafana are like that one: asked once, answered, forgotten. Grafana has a page made for them.
+
+<Idea>
+Explore runs one or more queries against a data source and shows the result as a graph and a table, without a dashboard. You choose the data source, write or build the query, and pick whether you want the value now or its history. When the query is good, you can add it to a dashboard from the same page.
+</Idea>
+
+## The parts of the Explore page
+
+At the top left is the data source picker. Each data source brings its own query editor, so the editor below changes when you change the data source. The toolbar also holds the time picker, which starts at the last hour, the **Run query** button and **Split**, which opens a second pane.
+
+The Prometheus query editor has two modes. Builder mode lets you pick a metric, label filters and operations from lists, and it can explain the query it built step by step. Code mode is a text editor with autocomplete for writing PromQL yourself. Grafana keeps both modes in sync, so you can start in one and finish in the other.
+
+<Figure id="m05-s02-explore" alt="The Explore page of Grafana: a data source picker at the top left, a query editor with Builder and Code switches, query options below it, and a graph above a table of results. A second pane is open to the right with another data source." brief="A fake Grafana Explore page. The cursor opens the data source picker and chooses Prometheus. In the query editor, Code mode is selected and the query count(kube_node_info) is typed. The cursor opens Options, switches Type from Both to Instant and clicks Run query; the graph shrinks to a single value of 7 in the table. Then the cursor clicks Split, and a second pane opens with Mimir (tenant prom) and the same query. The learner should notice the data source picker, the Type option and the second pane." />
+
+## Now or over time: the query type
+
+Under the query, **Options** holds the settings that decide how the query runs. **Type** is the one to learn first. A range query evaluates your PromQL at every step across the time range and returns many points per series, which is what a graph needs. An instant query evaluates it once, at the end of the range, and returns one value per series, which suits a number or a table. The default, **Both**, runs the two queries and shows both results.
+
+The PromQL is the same in all three cases. Only the number of moments Grafana asks about changes, so the last point of a range query equals the instant result.
+
+<Compare caption="Which query type to pick">
+  <Col title="Instant">One value per series, now. For a single number, a gauge or a table.</Col>
+  <Col title="Range">A value per series at every step. For a graph over time.</Col>
+  <Col title="Both" hot>Runs two queries and shows both. The default, and handy while you are still asking.</Col>
+</Compare>
+
+The **Legend** option names each series. **Auto** shows only the labels that differ between series, **Verbose** shows every label, and **Custom** takes a template such as `{{node}}`.
+
+## Compare, remember, inspect
+
+**Split** opens a second pane next to the first. Each pane has its own data source and query, so you can ask the same question of two backends and compare the answers. The two time pickers can be linked, so both panes always cover the same interval.
+
+Every query you run lands in **Query history**. It is yours alone, stored in Grafana's database and not shared with other users. Grafana deletes entries after two weeks, unless you star them. The **Query inspector** shows what really went to the data source and what came back: statistics, the request, the data frames and the raw data.
+
+The browser's address follows every change in Explore. Copy the address and a colleague opens the same query, data source and time range.
+
+<InLab>
+The lab's cluster metrics reach Grafana by two roads: the data source **Prometheus** asks the Prometheus server in `prom` directly, and **Mimir (tenant prom)** asks Mimir, which receives the same samples by remote write. The two answers should match.
+</InLab>
+
+<Trap>
+Explore needs the Editor or Admin role, or the data sources explore permission. A Viewer who cannot find Explore in the menu is not looking in the wrong place: their role does not include it.
+</Trap>
+
+<Remember>
+Explore is for questions, dashboards are for questions you ask again. Use an instant query for "how many now" and a range query for "how did it change".
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>. In the data source picker at the top left, choose **Prometheus**.
+2. Switch the query editor from **Builder** to **Code** and type this query: <Query lang="promql">count(kube_node_info)</Query>
+3. Click **Run query**. With the default type **Both**, Explore shows a graph with one flat line and a table with the current value.
+4. Open **Options** under the query and set **Type** to **Instant**. Run the query again. The graph goes away and the table holds one number: the nodes in the cluster.
+5. Set **Type** to **Range** and the time picker to **Last 24 hours**. The line stays flat if no node joined or left today.
+6. Click **Split**. In the new right-hand pane choose **Mimir (tenant prom)** and run the same query. Compare it with the left pane. While the lab's ingest into Mimir is paused, the right pane can show no data or stop early; the left one, read straight from Prometheus, still answers.
+7. Click **Query history** at the bottom of the page and find your query. Star it, then close the split view with **Close**.
+8. Paste the number of nodes in the lab check below.
+</Do>
+
+<Done>
+The instant query returned one value, the number of nodes, and the range query showed how that number moved over the day.
+</Done>
+
+<Trap practice>
+If the count is lower than you expect, check the time range and the data source in the picker. A count taken from a data source with a gap in its data, or at a moment before a node joined, is not the cluster's size now.
+</Trap>
+
+<Question id="q-m05-s02" answer="b">
+You want one current number in a table: how many pods are running now. Which query type fits best?
+
+- Range, because it covers the whole time range
+
+  A range query returns a value at every step. A table of one current number needs only the last one.
+
+- Instant, because it returns one value per series at the end of the range
+
+  An instant query is evaluated once, at the end of the time range, which is exactly one current value.
+
+- Both, because it is the only type a table can show
+
+  Both runs two queries. A table can show an instant result on its own.
+
+- Range, with a Min step as large as the time range
+
+  A large step still returns a time series to a range query. The instant type says what you mean.
+</Question>

@@ -1,0 +1,139 @@
+---
+id: m05-s03
+title: "Drilldown apps: metrics, logs and traces without a query"
+kind: lab
+minutes: 18
+order: 3
+exam:
+  - cert: none
+tags: [grafana-explore]
+check:
+  kind: token
+  slot: log-m05-1
+  prompt: Paste the token that the beacon's log lines carry for the slot log-m05-1, as you found it in Logs Drilldown.
+outcome: You can start an investigation in Metrics or Logs Drilldown without writing a query, then carry what you found into Explore.
+terms:
+  - term: Drilldown apps
+    def: Grafana's apps for browsing metrics, logs, traces and profiles by clicking instead of writing queries.
+  - term: Breakdown
+    def: A view that splits one signal into a graph per value of a label or field.
+  - term: Field
+    def: A value Logs Drilldown takes from inside each log line or its metadata, as opposed to a stream label.
+  - term: Log pattern
+    def: A group of log lines with the same shape, detected by Loki, that you can show or hide together.
+sources:
+  - title: Drilldown (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/
+    checked: 2026-11-12
+  - title: Get started with Grafana Metrics Drilldown (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/metrics/get-started/
+    checked: 2026-11-12
+  - title: Drill down your metrics (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/metrics/drill-down-metrics/
+    checked: 2026-11-12
+  - title: Get started with Grafana Logs Drilldown (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/logs/get-started/
+    checked: 2026-11-12
+  - title: Access or install Grafana Logs Drilldown (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/logs/access/
+    checked: 2026-11-12
+  - title: Labels and fields in Logs Drilldown (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/logs/labels-and-fields/
+    checked: 2026-11-12
+  - title: Grafana Traces Drilldown (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/traces/
+    checked: 2026-11-12
+---
+
+<Problem>
+A service starts to misbehave and you do not know where to look. Explore waits for a query, but you do not yet know the metric's name, which label matters or what the logs say. Writing guesses in PromQL and LogQL one by one is slow when you do not know what to ask.
+</Problem>
+
+Explore answers a question you can already write down. Before that, you often need a way to look around.
+
+<Idea>
+The Drilldown apps let you browse metrics, logs, traces and profiles by clicking. They draw a graph for each metric, label or field, so you can spot what changed and filter down to it. When you have found it, each panel opens in Explore with the query already written.
+</Idea>
+
+## Four apps, one per signal
+
+Grafana groups the apps under **Drilldown** in the main menu. Each one works with one kind of data source.
+
+<Layers caption="The Drilldown apps and what each reads">
+  <Layer title="Metrics">Prometheus-compatible data sources, such as Prometheus and Mimir.</Layer>
+  <Layer title="Logs">Loki data sources only.</Layer>
+  <Layer title="Traces">Tempo, with rate, errors and duration taken from the traces.</Layer>
+  <Layer title="Profiles" hot>Pyroscope, for continuous profiling.</Layer>
+</Layers>
+
+The apps used to be called Explore Metrics, Explore Logs and so on. Grafana renamed them to the Drilldown apps, so older guides may still use the old names. Like Explore, they need the permission to explore data sources.
+
+## Metrics Drilldown: find the metric first
+
+Metrics Drilldown opens on a grid of metrics from the data source you pick, each drawn in a way that suits its type. You narrow the grid with label filters, a search box and filters on prefixes and suffixes. When one metric looks interesting, **Select** opens it in detail. The **Breakdown** tab draws one graph per value of a label, which is often the fastest way to see which pod or which node is different. **Related metrics** shows metrics with similar names, which helps when you do not know the exact name.
+
+## Logs Drilldown: volume, labels, fields and patterns
+
+Logs Drilldown starts with one panel per service, ordered by log volume, each with a few recent lines. **Show logs** opens a service on four tabs. **Logs** lists the lines. **Labels** draws the log volume for each value of a stream label. **Fields** does the same for values taken from inside the lines, such as JSON keys and structured metadata. **Patterns** groups lines with the same shape, so you can hide the noise and keep what is unusual.
+
+Every value can become a filter with one click, and every panel has a menu that opens its query in Explore. That is the hand-over: the app finds the place, and Explore lets you refine the query by hand.
+
+<Compare caption="Where to start an investigation">
+  <Col title="Drilldown app">You do not know the metric, label or log shape yet. Click to look around.</Col>
+  <Col title="Explore" hot>You can write the question. Type the query and read the answer.</Col>
+</Compare>
+
+## Traces and profiles
+
+Traces Drilldown builds rate, errors and duration from the spans themselves and lets you filter by attributes without TraceQL. It needs a Tempo with TraceQL metrics. Profiles Drilldown reads Pyroscope, which this lab does not run, so its app has no data source to show. Module m02 already showed how traces, logs and metrics link to each other; the later modules on Tempo come back to Traces Drilldown.
+
+<InLab>
+The beacon in `lab-tools` writes one JSON log line a minute for every check slot. In Loki, the slot is structured metadata, not a stream label, so Logs Drilldown shows it under **Fields**.
+</InLab>
+
+<Trap>
+A Drilldown app shows what the data source returns for the chosen time range, nothing more. An empty grid usually means the wrong data source or a time range with no data, not a broken app.
+</Trap>
+
+<Remember>
+Use a Drilldown app when you do not know what to ask yet, and Explore once you do. The panel menu takes you from one to the other with the query written for you.
+</Remember>
+
+<Do>
+1. In the main menu open **Drilldown**, then **Metrics**. Pick the data source **Prometheus** and type `kube_node` in the search box.
+2. On the panel of `kube_node_info`, click **Select**. On the **Breakdown** tab, read the graph for each node.
+3. Now open **Drilldown** > **Logs**. Keep the data source **Loki** and set the time range to the last 15 minutes. Find the service **beacon** with the service search field and click **Show logs**.
+4. Open the **Fields** tab. Find the field `slot` and click **Select**. Each slot of the course has its own graph.
+5. Add the value `log-m05-1` as a filter (**Include**). Go back to the **Logs** tab: only the lines of that slot are left.
+6. Click one line to open its details. Find the token in the line's JSON, under `payload` (`token`).
+7. Open the menu (three dots) of the logs panel and choose **Explore**. Explore opens with a LogQL query that does the same filtering. Read it: this is the query you did not have to write.
+8. Paste the token in the lab check below.
+</Do>
+
+<Done>
+You found one slot's lines among the beacon's logs without writing a query, and you saw the query Logs Drilldown had built for you.
+</Done>
+
+<Trap practice>
+The beacon writes one line a minute per slot. With a time range shorter than a minute or two you may see no line for the slot. If the service list has no beacon, widen the time range first.
+</Trap>
+
+<Question id="q-m05-s03" answer="a">
+Error logs from the cart service jumped, and you want to see which pod writes most of them. You do not know which stream labels the service has. Where do you start?
+
+- Logs Drilldown, on the Labels tab of the cart service
+
+  The Labels tab draws the log volume per value of each label, so the noisy pod stands out without a query.
+
+- Metrics Drilldown, with a search for the word cart
+
+  Metrics Drilldown browses metrics. It can point to related logs, but it does not break log volume down by label.
+
+- Explore, with a LogQL query that lists every label
+
+  Explore can do it once you know what to ask. Here you do not yet know the label names.
+
+- A new dashboard with a logs panel for the cart service
+
+  A dashboard is for questions you ask again. Building one first is the slow way to look around.
+</Question>

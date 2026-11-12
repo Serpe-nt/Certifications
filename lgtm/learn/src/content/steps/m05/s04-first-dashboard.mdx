@@ -1,0 +1,138 @@
+---
+id: m05-s04
+title: "First dashboard: panels and visualizations"
+kind: lab
+minutes: 22
+order: 4
+exam:
+  - cert: pca
+    domain: P5
+    competency: Dashboarding basics
+tags: [dashboard-panels]
+check:
+  kind: regex
+  prompt: Paste the UID of the dashboard you saved, as the address bar shows it after /d/.
+  pattern: "[A-Za-z0-9_-]{6,40}"
+outcome: You can create a folder and a dashboard, add a panel with a query and a fitting visualization, and save it so it survives a reload.
+terms:
+  - term: Dashboard
+    def: A saved page of panels, with its own time range, variables and settings.
+  - term: Panel
+    def: One box on a dashboard that holds queries and shows their result as a visualization.
+  - term: Visualization
+    def: The way a panel draws its data, such as a time series graph, a stat or a table.
+  - term: Panel editor
+    def: The screen where you set a panel's queries, visualization and options.
+  - term: Dashboard UID
+    def: The unique ID of a dashboard, used in its address and in links to it.
+  - term: $__rate_interval
+    def: A Grafana variable for rate() that always spans at least four scrape intervals.
+sources:
+  - title: Create dashboards (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/create-dashboard/
+    checked: 2026-11-12
+  - title: Panel editor (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/panel-editor-overview/
+    checked: 2026-11-12
+  - title: Visualizations (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/visualizations/
+    checked: 2026-11-12
+  - title: Manage dashboards (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/manage-dashboards/
+    checked: 2026-11-12
+  - title: Prometheus template variables, $__rate_interval (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/datasources/prometheus/template-variables/
+    checked: 2026-11-12
+  - title: Provision Grafana, dashboards (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/provisioning/
+    checked: 2026-11-12
+---
+
+<Problem>
+Every morning the checkout team opens Explore and types the same three queries to see whether the night was quiet. One of them always has a typo. Someone suggests keeping the queries in a text file. Someone else asks why the answers cannot simply be waiting for them on one page.
+</Problem>
+
+A question you ask every day deserves a saved answer. That is what a dashboard is for.
+
+<Idea>
+A dashboard is a saved page of panels. Each panel holds one or more queries and draws their result as a visualization: a graph, a big number, a table. You build a panel once in the panel editor, save the dashboard into a folder, and from then on the answers are there when you open it.
+</Idea>
+
+## A folder first
+
+Folders group dashboards, and permissions set on a folder pass to every dashboard in it. In a Grafana that many people share, your work goes into a folder of its own. Then nothing that someone else set up is touched, and one delete cleans up. A folder name cannot contain an underscore or a percent sign.
+
+Some dashboards come from files, like the lab's data sources. These provisioned dashboards cannot be saved from the screen unless the setup allows it. When you try, Grafana opens a **Cannot save provisioned dashboard** dialog and offers the JSON to copy instead. To change one, you save a copy under a new name or change the file it came from.
+
+## Inside the panel editor
+
+When you add a visualization, Grafana opens the panel editor. Its parts follow the path data takes. The **Queries** tab at the bottom picks the data source and holds the queries. The preview in the middle shows the result, and a switch turns it into a plain table of the raw data, which helps when a graph looks wrong. On the right, you pick the visualization and set its options.
+
+<Figure id="m05-s04-panel-editor" alt="The Grafana panel editor: a time series preview at the top, the Queries tab below it with a PromQL query on the Mimir data source, and a sidebar on the right with the visualization picker and a search box over the panel options." brief="A fake Grafana panel editor. The cursor types a rate() query into the Queries tab and clicks Refresh; a time series with three lines appears in the preview. The cursor then toggles Table view and the graph turns into rows of raw numbers, then toggles it back. Finally it opens the visualization picker on the right and hovers over Time series, Stat and Table, each showing a small preview. The learner should notice the three areas: queries at the bottom, preview in the middle, options on the right." />
+
+Grafana looks at the result and suggests visualizations that fit its shape. The default and most used one is **Time series**, a graph of values over time. **Stat** shows one big number with an optional small graph behind it. **Table** shows rows and columns. Each visualization has its own options; the next step covers the ones every panel shares.
+
+<Compare caption="Three visualizations for three kinds of answer">
+  <Col title="Time series" hot>How a value changed. The default graph, for rates and latency.</Col>
+  <Col title="Stat">One number now, with an optional sparkline behind it.</Col>
+  <Col title="Table">Many values side by side, one row per series.</Col>
+</Compare>
+
+## A rate that works at every zoom
+
+On a dashboard the time range changes all the time, so a fixed window such as `[5m]` in `rate()` fits some zooms and not others. Grafana offers `$__rate_interval` for this. It is the larger of the panel's step plus one scrape interval, and four scrape intervals. That keeps at least four samples inside each window. Grafana takes the scrape interval from the data source settings.
+
+## Saved means saved
+
+**Back** in the panel editor returns to the dashboard with your changes applied but not saved. Only **Save** writes the dashboard. The first save asks for a title and a folder, and Grafana gives the dashboard a UID: the ID that its address carries after `/d/`, and that links to it use.
+
+<InLab>
+The lab's data source **Mimir** has a scrape interval of 30 seconds, so `$__rate_interval` is never shorter than two minutes there. The shop's request metrics come from Tempo's span metrics as `traces_spanmetrics_calls_total`, with the label `service_name`.
+</InLab>
+
+<Trap>
+**Back** does not save. If you close the tab after **Back**, the panel is gone. Watch for the dashboard's unsaved-changes warning, and save before you leave.
+</Trap>
+
+<Remember>
+Put your dashboards in a folder of your own, use `$__rate_interval` in `rate()`, and save before you leave the page.
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/dashboards">Dashboards</LabLink>, click **New** and choose **New folder**. Name it `Learn m05` and click **Create**.
+2. Open the folder **Shop** and then **Shop / checkout (RED)**. Click **Edit**, change the title of any panel, and click **Save**. Read the dialog **Cannot save provisioned dashboard**, then close it and leave with **Exit edit** and **Discard**.
+3. Go back to the folder `Learn m05`. Click **New** and choose **New dashboard**, then **+ Add visualization**. Pick the data source **Mimir**.
+4. In the **Queries** tab, switch to **Code** and enter this query: <Query lang="promql">{`sum by (span_name) (rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))`}</Query> Click **Refresh**. The preview draws one line per operation of the checkout service.
+5. Keep the visualization **Time series**. Turn on **Table view** above the preview to see the raw numbers, then turn it off again.
+6. In the options on the right, set the panel **Title** to `Requests per second`.
+7. Click **Save**. Give the dashboard the title `Shop service (m05)`, check that the folder is `Learn m05`, and save. Click **Back to dashboard** and **Exit edit**.
+8. Reload the page. The panel is still there. Copy the UID from the address bar, the part after `/d/`, and paste it in the lab check below.
+</Do>
+
+<Done>
+The dashboard `Shop service (m05)` in the folder `Learn m05` shows one panel, Requests per second, and it is still there after a reload.
+</Done>
+
+<Trap practice>
+If the preview stays empty, check the data source picker in the Queries tab: a new panel starts with the default data source, and the query must also be run with **Refresh**. While the lab's metrics ingest is paused, Mimir has no recent span metrics; set the time range back to a period with data.
+</Trap>
+
+<Question id="q-m05-s04" answer="b">
+You edited a panel, clicked Back, and closed the browser tab. The next day the change is gone. Why?
+
+- Panels are reset each night from the data source
+
+  Grafana does not reset panels. The panel was never written to the dashboard.
+
+- Back returns to the dashboard without saving it
+
+  Back applies your edits to the open dashboard only. Save is what writes them.
+
+- Only an administrator can save a panel
+
+  An editor of the folder can save. The missing step was the save itself.
+
+- The panel's query used $__rate_interval
+
+  The variable changes the rate window, not whether the dashboard is saved.
+</Question>

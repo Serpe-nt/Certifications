@@ -1,0 +1,124 @@
+---
+id: m05-s01
+title: "What Grafana is: data sources, not a database"
+kind: lab
+minutes: 12
+order: 1
+exam:
+  - cert: none
+tags: [grafana-data-sources]
+check:
+  kind: exact
+  prompt: Paste the name of the lab's default data source, as the list of data sources shows it.
+  answers: ["Mimir"]
+outcome: You can say where the data in a Grafana panel really lives, and read a data source list to find the default and the provisioned ones.
+terms:
+  - term: Data source
+    def: A saved connection from Grafana to one backend, with its address, headers and settings.
+  - term: Data source plugin
+    def: The code that knows how to talk to one kind of backend; a data source is one configured use of it.
+  - term: Default data source
+    def: The data source Grafana selects first in a new panel, in Explore and in a new alert rule.
+  - term: Provisioned data source
+    def: A data source defined in a configuration file; the screen can test it but not change it.
+sources:
+  - title: Data sources (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/datasources/
+    checked: 2026-11-12
+  - title: Data sources, plugins, and integrations (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/datasources/concepts/
+    checked: 2026-11-12
+  - title: Data source management (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/data-source-management/
+    checked: 2026-11-12
+  - title: Grafana dashboards overview (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/fundamentals/dashboards-overview/
+    checked: 2026-11-12
+---
+
+<Problem>
+A new colleague asks where to raise the retention of the shop's metrics. "In Grafana, surely: that is where the graphs are." They search Grafana's settings for an hour and find nothing. The metrics were never in Grafana. Grafana only asked Mimir for them and drew the answer.
+</Problem>
+
+Before you build a dashboard, you need a clear picture of what Grafana holds and what it only borrows.
+
+<Idea>
+Grafana stores no metrics, logs or traces. It keeps data sources: saved connections to the systems that do store them, such as Prometheus, Mimir, Loki and Tempo. Every panel sends a query through a data source, and Grafana draws what comes back.
+</Idea>
+
+## A data source is a connection
+
+A data source holds what Grafana needs to reach one backend: its address, any headers, and settings for that kind of backend. Grafana queries the data where it already lives. Retention, storage and the data's shape stay with the backend, so you change them there, not in Grafana.
+
+The code that knows how to talk to a kind of backend is a data source plugin. You install a plugin and then configure a data source that uses it. Plugins for Prometheus, Loki, Tempo and many others ship with Grafana, so for this lab nothing had to be installed. Each data source also brings its own query editor, because PromQL, LogQL and TraceQL are different languages.
+
+## From a query to a panel
+
+Every panel on a dashboard follows the same path. The data source plugin sends your query to the backend and turns the answer into data frames, the one table-like shape Grafana uses inside. An optional transformation can reshape those frames. The panel then draws them.
+
+<Flow caption="How data reaches a panel">
+  <Stage title="Data source" kicker="Where">The backend that stores the data, such as Mimir.</Stage>
+  <Stage title="Query" kicker="What">PromQL, LogQL or TraceQL, written in that data source's editor.</Stage>
+  <Stage title="Transformation" kicker="Optional">Reshapes the result inside Grafana.</Stage>
+  <Stage title="Panel" kicker="How">Draws the frames as a graph, a number or a table.</Stage>
+</Flow>
+
+Because the path ends in data frames, one dashboard can mix data sources. A built-in data source called Mixed even lets one panel run queries against several data sources at once.
+
+## Who may change a data source
+
+Only an organization administrator can add or remove a data source, under **Connections** > **Data sources**. One data source can be marked as the default: Grafana selects it first in a new panel, in Explore and in a new alert rule.
+
+Querying is far more open. By default every user of an organization can query every data source in it. A Viewer can send any query, not only the queries saved on dashboards they can open.
+
+A data source can also be provisioned: written in a configuration file that Grafana reads at start-up. The screen shows a provisioned data source as read only. No permission makes it editable there. Its page offers **Test** and no **Save & test**, and you change it in the file.
+
+<Compare caption="Two ways a data source comes to exist">
+  <Col title="Added on the screen">An administrator fills in the form under Connections. The settings live in Grafana's own database.</Col>
+  <Col title="Provisioned" hot>Written in a file that Grafana reads at start-up. Read only on the screen, and kept with the rest of the deployment.</Col>
+</Compare>
+
+<InLab>
+The lab's Grafana has six provisioned data sources, set in `lab/helm/grafana/values.yaml`. Two of them point at the same Mimir: Mimir sends the header `X-Scope-OrgID: lab`, and Mimir (tenant prom) sends `prom`. Same backend, different data, because the header picks the tenant.
+</InLab>
+
+<Trap>
+A panel that shows no data is rarely a Grafana problem. Grafana passes on what the backend returns, so look at the data source and the query first: the wrong tenant, the wrong time range or a label that does not exist.
+</Trap>
+
+<Remember>
+Grafana keeps connections, not data. To change what is stored or for how long, go to the backend behind the data source.
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/connections/datasources">Connections > Data sources</LabLink> in the lab's Grafana. If Grafana asks you to sign in, sign in as `admin`; the lab reference, section "Secrets you need", shows how to read the password.
+2. Read the list. It shows six data sources with their type and address. One of them carries the label **default**.
+3. Open **Loki**. Grafana says that the data source was added by configuration and cannot be modified. At the foot of the page there is **Test** and no **Save & test**.
+4. Click **Test**. Grafana asks Loki whether it answers and reports the result.
+5. Go back to the list and open **Mimir (tenant prom)**. Under the HTTP headers, find the header name `X-Scope-OrgID`. Its value is a secret field, so the screen shows it as configured, not as text.
+6. Paste the name of the default data source in the lab check below.
+</Do>
+
+<Done>
+You found the default data source in the list, and you saw that a provisioned data source can be tested but not saved.
+</Done>
+
+<Question id="q-m05-s01" answer="c">
+Your team wants to keep the shop's metrics for 30 days instead of 7. Where do you make that change?
+
+- In the Grafana data source settings for Mimir
+
+  The data source only holds how to reach Mimir. Grafana does not decide how long Mimir keeps data.
+
+- In the dashboard's time range settings
+
+  The time range picks what a dashboard asks for. It cannot keep data that the backend has already deleted.
+
+- In Mimir's own configuration
+
+  Mimir stores the metrics, so its retention is set in Mimir. Grafana only queries what Mimir still holds.
+
+- In Grafana's server configuration file
+
+  Grafana stores no metrics, so its server settings have no retention for them.
+</Question>
