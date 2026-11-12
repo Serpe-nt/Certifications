@@ -173,20 +173,37 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
     wireToc();
     // Motion only (step.css): sections, parts and the sidebar play their entrance once they come into
     // view. Nothing waits for this: without it, or with motion off, everything is simply in place.
-    if ('IntersectionObserver' in window) {
-      const seen = new IntersectionObserver(
-        (entries) => {
-          for (const e of entries) {
-            if (!e.isIntersecting) continue;
-            e.target.classList.add('st-seen');
-            seen.unobserve(e.target);
-          }
-        },
-        { rootMargin: '0px 0px -10% 0px' },
-      );
-      document
-        .querySelectorAll('.prose > h2, .prose .part, .prose .info, .prose [data-figure], .prose [data-query], .prose [data-cmd], .side-box, .stepnav-wrap, .scale')
-        .forEach((el) => seen.observe(el));
+    {
+      // A box plays its entrance once its top is above 90% of the window's height, or anything above
+      // the window (a reload half-way down) is shown at once. Judged on the box itself, not on the
+      // clipped first frame of its entrance.
+      let waiting = [
+        ...document.querySelectorAll(
+          '.prose > h2, .prose .part, .prose .info, .prose [data-figure], .prose [data-query], .prose [data-cmd], .side-box, .stepnav-wrap, .scale',
+        ),
+      ];
+      let queued = false;
+      const check = () => {
+        queued = false;
+        const line = window.innerHeight * 0.9;
+        waiting = waiting.filter((el) => {
+          if (el.getBoundingClientRect().top > line) return true;
+          el.classList.add('st-seen');
+          return false;
+        });
+        if (waiting.length === 0) {
+          window.removeEventListener('scroll', queue);
+          window.removeEventListener('resize', queue);
+        }
+      };
+      const queue = () => {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(check);
+      };
+      window.addEventListener('scroll', queue, { passive: true });
+      window.addEventListener('resize', queue);
+      check();
       document.documentElement.classList.add('st-armed');
     }
   </script>

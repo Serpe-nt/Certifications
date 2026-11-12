@@ -1999,7 +1999,7 @@
     animation: qz-frame 900ms linear 1.4s;
   }
   .qz-board-score::after {
-    animation: qz-pass-down 3.6s linear 1s infinite;
+    animation: qz-pass-down 3.6s linear 1s 3;
   }
   .qz-board-big {
     animation: qz-glitch-in 520ms step-end 200ms backwards;
@@ -2195,4 +2195,94 @@ main > .screen:has(.qz) .qz-legend {
   .topbar {
     margin-block: var(--lg-space-3);
   }
+}
+
+/* The tape by length: up to 8 cells keep a steady 4rem; 9 to 20 share one row; more wrap (above). */
+@media (min-width: 561px) {
+  .qz-map[data-n="1"] {
+    grid-template-columns: repeat(1, 4rem);
+  }
+  .qz-map[data-n="2"] {
+    grid-template-columns: repeat(2, 4rem);
+  }
+  .qz-map[data-n="3"] {
+    grid-template-columns: repeat(3, 4rem);
+  }
+  .qz-map[data-n="4"] {
+    grid-template-columns: repeat(4, 4rem);
+  }
+  .qz-map[data-n="5"] {
+    grid-template-columns: repeat(5, 4rem);
+  }
+  .qz-map[data-n="6"] {
+    grid-template-columns: repeat(6, 4rem);
+  }
+  .qz-map[data-n="7"] {
+    grid-template-columns: repeat(7, 4rem);
+  }
+  .qz-map[data-n="8"] {
+    grid-template-columns: repeat(8, 4rem);
+  }
+  .qz-map[data-n="9"] {
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+  }
+  .qz-map[data-n="10"] {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+  .qz-map[data-n="11"] {
+    grid-template-columns: repeat(11, minmax(0, 1fr));
+  }
+  .qz-map[data-n="12"] {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .qz-map[data-n="13"] {
+    grid-template-columns: repeat(13, minmax(0, 1fr));
+  }
+  .qz-map[data-n="14"] {
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+  }
+  .qz-map[data-n="15"] {
+    grid-template-columns: repeat(15, minmax(0, 1fr));
+  }
+  .qz-map[data-n="16"] {
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+  }
+  .qz-map[data-n="17"] {
+    grid-template-columns: repeat(17, minmax(0, 1fr));
+  }
+  .qz-map[data-n="18"] {
+    grid-template-columns: repeat(18, minmax(0, 1fr));
+  }
+  .qz-map[data-n="19"] {
+    grid-template-columns: repeat(19, minmax(0, 1fr));
+  }
+  .qz-map[data-n="20"] {
+    grid-template-columns: repeat(20, minmax(0, 1fr));
+  }
+}
+
+main > .screen:has(.qz) > .glass {
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* The dashed rule over an explanation spans the row, so the rows line up. */
+.qopt-why {
+  justify-self: stretch;
+  width: 100%;
+  max-width: none;
+}
+/* Long domain names wrap under their own words, not under the domain's id. */
+.qz-domain-name {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 8px;
+  align-items: baseline;
+}
+/* The card takes focus when the learner moves to another question; its ring is the frame itself. */
+.qz-card:focus {
+  outline: none;
+}
+.qz-card:focus-visible .qz-cardbody {
+  box-shadow: 0 0 0 3px var(--lg-signal);
 }
