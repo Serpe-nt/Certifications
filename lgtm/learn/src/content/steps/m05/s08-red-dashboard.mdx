@@ -87,13 +87,13 @@ RED for services, USE for resources. Rate and errors first, duration next to the
 
 <Do>
 1. Open your dashboard `Shop service (m05)` and click **Edit**. Check that the Service variable is set to **checkout**.
-2. Add a visualization with the data source **Mimir**, title it `Duration: $service`, and add three queries, A, B and C, for p50, p95 and p99. Query A is this one; for B and C change 0.50 to 0.95 and 0.99: <Query lang="promql">{`histogram_quantile(0.50, sum by (le) (rate(traces_spanmetrics_latency_bucket{service_name=~"$service", span_kind="SPAN_KIND_SERVER"}[$__rate_interval])))`}</Query> Set the legend of each query to `p50`, `p95` and `p99`.
-3. Keep **Time series**, set **Unit** to **seconds (s)**, and click **Back to dashboard**.
-4. Arrange the panels: Requests per second and Error share in the top line, Duration next to them or right below. Resize them by their corners.
-5. Add a row titled `Checks` below the RED panels and move the panels Beacon token and Beacon slots of m05 into it. Collapse the row.
-6. Inside the row, duplicate the panel Beacon token from its menu. In the copy, change the slot in the query to `metric-m05-3` and the title to `Beacon token 3`.
-7. Save the dashboard, exit edit mode and reload the page. Switch the Service variable to another service and back.
-8. Expand the row Checks and paste the token of Beacon token 3 in the lab check below.
+2. Click **Add panel** and **Configure visualization**, keep **Mimir**, and enter query A, the median. In its **Options**, set **Legend** to **Custom** with `p50`: <Query lang="promql">{`histogram_quantile(0.50, sum by (le) (rate(traces_spanmetrics_latency_bucket{service_name=~"$service", span_kind="SPAN_KIND_SERVER"}[$__rate_interval])))`}</Query>
+3. Click **Duplicate query** (an icon in the query's header) twice. In the copies, change 0.50 to 0.95 and to 0.99 and set their legends to `p95` and `p99`. Click **Run queries**.
+4. Keep **Time series**, set the unit to **Time** > **seconds (s)**, and title the panel `Duration: $service`. Click **Save**, then **Back**.
+5. Group the panels: click the blue **+** at the top of the toolbar on the right and choose **Group into rows**. Grafana puts every panel into one row; in the row's sidebar, set its **Title** to `RED`. Click **New row** below it and title the new row `Checks`.
+6. Move the panels Beacon token and Beacon slots of m05 into Checks, one at a time: select the panel, click **Copy** in its sidebar, click **Paste panel** at the foot of the row Checks, then select the original in RED, click **Delete** and confirm.
+7. In Checks, select Beacon token and click **Duplicate**. On the copy, click **Edit visualization**, change the slot in the query to `metric-m05-3` and the title to `Beacon token 3`. Save, click **Back**, collapse the row Checks with the arrow next to its title, save again and click **Exit edit**.
+8. Reload the page: RED shows rate, errors and duration, and Checks is collapsed. Switch the Service variable to another service and back. Expand Checks and paste the token of Beacon token 3 in the lab check below.
 </Do>
 
 <Done>
