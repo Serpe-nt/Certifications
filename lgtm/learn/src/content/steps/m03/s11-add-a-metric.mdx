@@ -101,7 +101,7 @@ The service's `/metrics` page showed request counts by route template and code, 
 
 <Trap practice>
 The counters count every request since the service started, including your own mistakes. If your 404 count is not 2, stop the service, start it again and repeat action 3 only. Run `load.py` after you have pasted the value: it also asks for unknown SKUs.
-</Trap practice>
+</Trap>
 
 <Remember>
 For an online service, count requests by route template and status code and record their durations, once per request when it ends. Add counters for business outcomes and gauges for state, and check the result on the service's own `/metrics` page.

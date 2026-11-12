@@ -153,7 +153,7 @@ A target from `learn-m03` was UP on the targets page, and its series carried `na
 
 <Trap practice>
 The ServiceMonitor names the Service port by its name, `web`. Writing `port: "8080"` does not match it. If the target does not appear after two minutes, check that the Service has the label `app: example-app` and a port named `web`: <Cmd>kubectl -n learn-m03 get service example-app --show-labels</Cmd>
-</Trap practice>
+</Trap>
 
 <Remember>
 A ServiceMonitor selects Services by label and a port by name; the operator turns it into a scrape job named `serviceMonitor/<namespace>/<name>/<index>`. Whether Prometheus uses it depends on the selectors of the Prometheus resource.
