@@ -11,7 +11,7 @@ an S3 store, a gateway, Kafka, certificates and resource metrics. Run it after `
 | Longhorn | `longhorn` (longhorn 1.13.0) | `longhorn-system` | Default StorageClass `longhorn`, two replicas per volume, data on `/var/lib/longhorn` of each worker |
 | RustFS | `rustfs` (rustfs 1.0.4) | `s3` | S3 API `rustfs-svc.s3.svc:9000`; buckets `mimir-blocks`, `mimir-ruler`, `mimir-alertmanager`, `loki-chunks`, `loki-ruler`, `tempo-traces`; Secret `lab-s3` in `s3`, `mimir`, `loki`, `tempo` |
 | Envoy Gateway | `envoy-gateway` (gateway-helm v1.10.0) | `gateway` | Gateway `lab` (class `lab-envoy`): HTTP on NodePort 30080, HTTPS on NodePort 30443 for `*.lab.k8s.local`, routes from all namespaces |
-| Strimzi and Kafka | `strimzi` (strimzi-kafka-operator 1.3.1) | `kafka` | Kafka 4.3.2 cluster `telemetry`, KRaft, 3 nodes; `telemetry-kafka-bootstrap.kafka.svc:9092`, no authentication |
+| Strimzi and Kafka | `strimzi` (strimzi-kafka-operator 1.3.1) | `kafka` | Kafka 4.3.2 cluster `telemetry`, KRaft, 3 nodes with a 10 GiB volume each; `telemetry-kafka-bootstrap.kafka.svc:9092`, no authentication; records kept 24 hours or 640 MiB per partition, whichever comes first |
 | cert-manager | `cert-manager` (cert-manager v1.21.3) | `cert-manager` | ClusterIssuer `lab-ca` (a self-signed root, Secret `cert-manager/lab-root-ca`); the gateway's certificate `gateway/lab-gateway-tls` |
 | metrics-server | `metrics-server` (metrics-server 3.14.0) | `kube-system` | `kubectl top`, the resource metrics API |
 
@@ -141,8 +141,17 @@ kubectl top pods -n longhorn-system --sum
 ```
 
 Disk: Longhorn keeps two copies of each volume. The platform asks for RustFS 25 GiB and Kafka
-3 x 5 GiB, so up to 80 GiB of the four 40 GiB Longhorn disks (160 GiB) once they fill. They are
-dynamic VHDX files, so the PC's drive only pays for what is written.
+3 x 10 GiB, so up to 110 GiB of the four 40 GiB Longhorn disks (160 GiB) if they ever filled.
+They are dynamic VHDX files, so the PC's drive only pays for what is written.
+
+Kafka's volumes have a ceiling by size, not only by time. A partition keeps at most 640 MiB
+(`log.retention.bytes`) in closed 64 MiB segments (`log.segment.bytes`) plus the segment it is
+writing, and records older than 24 hours go too. Every node holds a replica of all 8 partitions
+(`mimir-ingest` 6, `tempo-traces` 2), so a node holds at most 8 x 704 MiB, about 5.5 GiB, about
+57% of its volume with the internal topics. The 5 GiB volumes of the first version had no size
+limit and filled on 2026-11-11 (`runbook.md`, "Kafka's disks are full";
+`lgtm/docs/adr/l5-kafka-disk.md`). `make lab-check` fails, and the alert `LabVolumeFillingUp`
+fires, when any volume of the lab is more than 85% full.
 
 Longhorn keeps 30% of each disk in reserve (its default for a node's default disk), so with
 over-provisioning at 100% only about 117 GiB of replicas fit on four workers, less than the
@@ -150,8 +159,9 @@ platform and the lab ask for together (about 155 GiB). The values set
 `storageOverProvisioningPercentage: 200`: volumes are thin, and
 `storageMinimalAvailablePercentage: 15` still stops scheduling on a disk that is really full.
 
-The kind profile reserves less: one Kafka node (100m, 768Mi), one proxy, RustFS 50m/128Mi,
-no Longhorn; about 600m CPU and 2.1 GiB in requests.
+The kind profile reserves less: one Kafka node (100m, 768Mi, a 2 GiB volume with 100 MiB per
+partition and 32 MiB segments), one proxy, RustFS 50m/128Mi, no Longhorn; about 600m CPU and
+2.1 GiB in requests.
 
 ## Checks on the real cluster
 
