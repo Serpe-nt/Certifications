@@ -59,7 +59,7 @@ Each signal answers its own question. A profile is the one that points at a func
   <Layer title="Profiles" hot>Which code uses the CPU or the memory?</Layer>
 </Layers>
 
-A profiler looks at the call stack again and again, for example on a timer, and counts which functions it finds. A function that shows up in many samples is where the time goes. There are several kinds of profile. On-CPU shows which functions use processor time. Off-CPU shows where threads wait, for example on locks or disk. Heap shows which functions hold memory. Allocations shows which code allocates the most memory.
+A profiler looks at the call stack again and again, for example on a timer, and counts which functions it finds. A function that shows up in many samples is where the time goes. There are many kinds of profile. Four common ones: on-CPU shows which functions use processor time. Off-CPU shows where threads wait, for example on locks or disk. Heap shows which functions hold memory. Allocations shows which code allocates the most memory.
 
 ## Watching from the kernel with eBPF
 

@@ -63,7 +63,7 @@ A span also has a status. Unset is the default and means the work finished with 
 
 ## Spans form a tree
 
-Every span carries the trace ID of its trace and its own span ID. A child span stores the ID of its parent. The first span has no parent: it is the root span, and it covers the whole request. The other spans hang below it. Most of them run inside the time of their parent. A consumer span that reads from a queue is the exception: it can start after its parent has ended.
+Every span carries the trace ID of its trace and its own span ID. A child span stores the ID of its parent. The first span has no parent: it is the root span, and it covers the whole request. The other spans hang below it. Most of them run inside the time of their parent. The usual exception is a consumer span that reads from a queue: its parent is the producer span, and it can start long after that span ended.
 
 <Figure id="m02-s04-waterfall" alt="A trace shown as a waterfall: a root span for the checkout request on top, with shorter child spans for cart, product catalog and payment below it, each indented under its parent." brief="A fake Grafana trace view of one checkout request. The bars appear one after another, from the root span at the top to the child spans of cart, product catalog and payment, each starting inside its parent's time. The payment bar is long and turns red. The learner should notice that parents contain their children in time, and that the long red bar shows where the time and the error came from." />
 

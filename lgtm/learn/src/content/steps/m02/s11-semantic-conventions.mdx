@@ -61,7 +61,7 @@ The conventions define attribute names, their types, their meaning and their all
 
 ## An HTTP span, by the book
 
-An HTTP server span carries `http.request.method`, `http.route` and `http.response.status_code`. Its name is the method and a low-cardinality target, such as `GET /webshop/articles/:article_id`, never the full path with an ID in it. A name with an ID would make a new span name for every article, the cardinality problem of step 10.
+An HTTP server span carries `http.request.method`, `http.route` and `http.response.status_code`. Its name is the method and a low-cardinality target, such as `GET /webshop/articles/:article_id`. Instrumentation must not use the full path, with an ID in it, by default. A name with an ID would make a new span name for every article, the cardinality problem of step 10.
 
 ## service.name comes first
 

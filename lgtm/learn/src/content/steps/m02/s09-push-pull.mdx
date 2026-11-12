@@ -82,18 +82,18 @@ With OTLP, the client sends export requests to a server, such as a collector or 
 
 One weak spot of pull is a short job: it may end before any scrape finds it. For that case Prometheus has the Pushgateway. The job pushes its last results there, and Prometheus scrapes them from it.
 
-Use it only for service-level batch jobs, jobs that do not belong to one machine or instance. It costs you three things: it can become a single point of failure, you lose `up` for the job, and it keeps every pushed series until you delete it.
+Prometheus says the Pushgateway is usually only right for service-level batch jobs, jobs that do not belong to one machine or instance. It costs you three things: it can become a single point of failure, you lose `up` for the job, and it keeps every pushed series until you delete it.
 
 <InLab>
 The shop pushes OTLP to the collector gateway `otel-gateway`. Prometheus pulls metrics from exporters, then pushes them on to Mimir with remote write.
 </InLab>
 
 <Trap>
-Do not pick a monitoring system only for push or pull. The Prometheus team says pull is slightly better, but not a major point. And do not push every service's metrics through the Pushgateway: stale series will stay there forever.
+Do not pick a monitoring system only for push or pull. The Prometheus team says pull is slightly better, but not a major point. And do not push every service's metrics through the Pushgateway: stale series stay there until someone deletes them.
 </Trap>
 
 <Remember>
-Pull means the store knows its targets and sees a dead one at the next scrape. Push means the source knows the store. The Pushgateway is only for short, service-level batch jobs.
+Pull means the store knows its targets and sees a dead one at the next scrape. Push means the source knows the store. The Pushgateway is usually only right for short, service-level batch jobs.
 </Remember>
 
 <Question id="q-m02-s09" answer="d">

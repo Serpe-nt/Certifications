@@ -46,7 +46,7 @@ Developers want to ship new features every day. Operations want fewer changes, b
 The way out is to agree on one number, a target for it, and what happens when the target is missed.
 
 <Idea>
-An SLI measures how good the service is for users. An SLO is the target for that measure. An SLA is a contract that says what happens when the target is missed. The error budget is the failure the SLO still allows, and it decides when releases stop.
+An SLI measures how good the service is for users. An SLO is the target for that measure. An SLA is a contract that says what happens when the target is missed. The error budget is the failure the SLO still allows, and it decides when to slow down releases.
 </Idea>
 
 ## SLI: a number about the user's experience
@@ -85,7 +85,7 @@ People often say "SLA" when they mean SLO. An internal target with no penalty is
 </Trap>
 
 <Remember>
-The SLI is the measure, the SLO the target, the SLA the contract with a penalty. The error budget is 100% minus the SLO, and when it is spent, releases stop, except urgent fixes.
+The SLI is the measure, the SLO the target, the SLA the contract with a penalty. The error budget is 100% minus the SLO. When it is spent, the team's error budget policy applies; a common one stops releases except urgent fixes.
 </Remember>
 
 <Question id="q-m02-s08" answer="b">

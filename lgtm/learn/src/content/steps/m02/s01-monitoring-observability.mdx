@@ -64,7 +64,7 @@ Observability lets you understand a system from the outside, without knowing how
 
 ## The data has to be there already
 
-You cannot ask questions of data that was never sent. The application must be instrumented: its code, or a tool beside it, must send signals. OpenTelemetry supports three signals today: traces, metrics and logs. Profiles, an emerging fourth signal, are still under development.
+You cannot ask questions of data that was never sent. The application must be instrumented: its code, or a tool beside it, must send signals. OpenTelemetry supports traces, metrics and logs today. It also supports baggage, which is not telemetry: it carries values from one service to the next. Profiles, an emerging fourth signal, are still under development.
 
 An application is properly instrumented when you do not have to add new instrumentation to troubleshoot an issue. At 3 a.m. there is no time to change code and wait for the failure to happen again. The data you need must already be there.
 

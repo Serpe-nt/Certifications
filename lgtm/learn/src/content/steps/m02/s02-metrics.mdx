@@ -72,12 +72,12 @@ Metrics are aggregated before they are stored. A counter of a million requests i
 
 ## Three shapes you will meet
 
-Most metrics come in one of three shapes. Module m03 covers them in depth; for now, know them by sight.
+Prometheus has four core metric types. The three below are the ones you meet most; the fourth, the summary, comes in module m03 with the others in depth. For now, know these three by sight.
 
-<Compare caption="Three metric types">
+<Compare caption="The three metric types you meet most">
   <Col title="Counter">Only goes up, and goes back to zero when the process restarts. Example: requests served.</Col>
   <Col title="Gauge">Goes up and down. Examples: memory in use, queue length.</Col>
-  <Col title="Histogram">Counts values in buckets. Example: how many requests took less than one second.</Col>
+  <Col title="Histogram">Counts values in buckets. Example: how many requests took one second or less.</Col>
 </Compare>
 
 ## What metrics cannot tell you

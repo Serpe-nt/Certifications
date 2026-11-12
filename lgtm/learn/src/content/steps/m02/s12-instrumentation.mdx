@@ -16,7 +16,7 @@ terms:
   - term: Instrumentation library
     def: A ready-made package that adds telemetry to a common framework or client.
   - term: Zero-code instrumentation
-    def: An agent that adds telemetry at start-up, with no change to the code.
+    def: An agent that adds telemetry to a program with no change to its code.
   - term: API and SDK
     def: The API is what code calls; the SDK is what records and sends the data.
   - term: Exporter (Prometheus)
@@ -59,9 +59,9 @@ Most of what a service does goes through common frameworks: an HTTP server, a da
 
 A library can do this safely because it depends only on the OpenTelemetry API. If the application does not load the SDK, those calls do nothing. So library authors can add instrumentation without forcing it on users.
 
-## Zero-code: an agent does it at start-up
+## Zero-code: an agent does it
 
-An agent adds the API and SDK when the program starts, with bytecode changes, monkey patching or eBPF. It instruments the libraries at the edges: incoming requests, database calls, queues. It does not see your own logic. You configure it with environment variables, starting with the service name. This is the way for the services you are not allowed to change.
+An agent adds the API and SDK to the program without a change to its code. Most agents load when the program starts and change its bytecode or patch its libraries. Others use eBPF and watch the program from the Linux kernel. Either way, the agent usually instruments the libraries at the edges: incoming requests, database calls, queues. Your own logic is usually not instrumented. You configure it with environment variables, starting with the service name. This is the way for the services you are not allowed to change.
 
 <Compare caption="Three ways to instrument a service">
   <Col title="Code-based">You change the code. Most work; the only way to see your own business logic.</Col>
@@ -74,11 +74,11 @@ An agent adds the API and SDK when the program starts, with bytecode changes, mo
 Prometheus client libraries let you add metrics to your own code. For software you cannot change, such as HAProxy, an exporter reads its state and serves it as Prometheus metrics.
 
 <InLab>
-The shop uses all three. Payment is zero-code, loaded with `--require`. Ad runs the Java agent plus manual spans. Checkout sets up the Go SDK in code, with gRPC and Kafka instrumentation libraries.
+The shop uses all three. Payment loads the zero-code instrumentation with `--require`, and its own code adds a little: a `charge` span with attributes and the counter `demo.payment.transactions`. Ad runs the Java agent plus manual spans. Checkout sets up the Go SDK in code, with gRPC and Kafka instrumentation libraries.
 </InLab>
 
 <Trap>
-Zero-code is not "full" instrumentation. It shows requests coming in and calls going out, but not what happens in your own code between them. Start with zero-code, then add manual spans where you need more.
+Zero-code is not "full" instrumentation. It shows requests coming in and calls going out, but usually not what happens in your own code between them. Start with zero-code, then add manual spans where you need more.
 </Trap>
 
 <Remember>
