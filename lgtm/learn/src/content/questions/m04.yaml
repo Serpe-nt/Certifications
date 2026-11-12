@@ -1,0 +1,708 @@
+# Module m04 PromQL: quiz pool. Card C3, 2026-11-12.
+# Sources are prometheus.io pages fetched on 2026-11-12; queries were run on the
+# lab's Prometheus 3.13.5. The log is lgtm/docs/verification/m04.md. No question
+# repeats one of the P3 questions in mock-pca.yaml.
+
+- id: q-m04-001
+  tags: [promql-selectors]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: You put <code>node_load1[10m]</code> into a Grafana time series panel and it shows an error. What is the reason?
+  options:
+    - text: node_load1 is a gauge, and a gauge cannot be selected with a range in brackets
+      why: Any series can be selected with a range. The type of the metric does not matter here.
+    - text: A range longer than 5 minutes exceeds the lookback period
+      why: The lookback period limits instant selectors. Ranges can be as long as the stored data allows.
+    - text: Range vectors are only allowed inside recording rules
+      why: Range vectors are allowed in any instant query. They just cannot be the result of a range query.
+    - text: Panels run range queries, which cannot return a range vector
+      why: A range vector holds raw samples per series. A range query needs one value per series at each step.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/
+
+- id: q-m04-002
+  tags: [promql-selectors]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Which selector returns every series of <code>http_requests_total</code> whose <code>code</code> label is a 5xx status, such as 500 or 503?
+  options:
+    - text: <code>http_requests_total{code=~"5"}</code>
+      why: Anchoring makes this match only the value 5, which no status code has.
+    - text: <code>http_requests_total{code="5.."}</code>
+      why: With = the string is compared literally, so it looks for the text 5.. itself.
+    - text: <code>http_requests_total{code=~"5.."}</code>
+      why: The expression is anchored, so it matches exactly three characters that start with 5.
+    - text: <code>http_requests_total{code=~"^5"}</code>
+      why: The expression must still match the whole value. ^5 matches only the single character 5.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/
+
+- id: q-m04-003
+  tags: [promql-selectors]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: What does <code>http_requests_total{handler=~"/api/.*", handler!="/api/health"}</code> return?
+  options:
+    - text: An error, because a label may appear only once in a selector
+      why: Several matchers on the same label are allowed. All of them must pass.
+    - text: Every series whose handler starts with /api/, except /api/health
+      why: Both matchers must pass, so the second one removes /api/health from what the first one selects.
+    - text: Only the series of /api/health, because the last matcher wins
+      why: No matcher wins over another. A series must pass every matcher.
+    - text: Every series of every handler, because the two matchers cancel out
+      why: Matchers do not cancel each other. Each one narrows the selection further.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/
+
+- id: q-m04-004
+  tags: [promql-selectors]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: Which of these range selectors does Prometheus refuse?
+  options:
+    - text: <code>up[1.5h]</code>
+      why: A time unit cannot follow a number with a decimal point. Write 90m or 1h30m.
+    - text: <code>up[90m]</code>
+      why: 90m is a whole number with a unit, which is valid.
+    - text: <code>up[1h30m]</code>
+      why: Units may be joined from the longest to the shortest, so 1h30m is valid.
+    - text: <code>up[5400s]</code>
+      why: Seconds are a valid unit, and 5400s equals 90 minutes.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/
+
+- id: q-m04-005
+  tags: [promql-selectors]
+  exam: {cert: pca, domain: P3, competency: Selecting Data}
+  q: What does <code>{__name__=~"node_network_.*_total", device="eth0"}</code> select?
+  options:
+    - text: Nothing, because a selector needs a plain metric name in front
+      why: A name in front is optional. A matcher on __name__ that needs a value is enough.
+    - text: Only series that have a label called __name__ besides their name
+      why: __name__ is where the metric name itself is stored. There is no second label.
+    - text: An error, because regular expressions are not allowed on __name__
+      why: The documentation allows =, !=, =~ and !~ on __name__.
+    - text: Every metric named node_network_..._total, for the device eth0
+      why: The metric name is the label __name__, so a regular expression on it selects many metrics at once.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/
+
+- id: q-m04-006
+  tags: [promql-rate]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: A counter has the samples 100, 130, 160, 10 and 40, scraped at even intervals; the process restarted after 160. Leaving extrapolation aside, what increase does <code>increase()</code> count over these samples?
+  options:
+    - text: "-60: the last sample minus the first"
+      why: increase() adjusts for counter resets, so it never subtracts across a restart.
+    - text: "60: only the growth before the restart"
+      why: The growth after the restart counts as well. Only the fall is ignored.
+    - text: "100: 30 + 30 + 10 + 30"
+      why: The fall to 10 is read as a reset, and the 10 after it counts as new growth.
+    - text: "40: the value of the last sample"
+      why: That is the counter now, not its increase over the range.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#increase
+
+- id: q-m04-007
+  tags: [promql-rate]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: A target is scraped once a minute. A panel with <code>rate(jobs_total[1m])</code> is mostly empty. What is the best fix?
+  options:
+    - text: Use irate() with the same [1m] range, which needs fewer samples
+      why: irate() also needs two samples in its range, so it fails for the same reason.
+    - text: Widen the window to several scrape intervals
+      why: rate() needs at least two samples in the range. One minute usually holds only one.
+    - text: Use increase() instead, which works with one sample
+      why: increase() is rate() times the seconds of the range and needs two samples as well.
+    - text: Wrap it in sum(), so the empty series are added up
+      why: sum() of nothing is still nothing. The missing samples are the problem.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#rate
+
+- id: q-m04-008
+  tags: [promql-rate]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: Which expression gives the same value as <code>increase(http_requests_total[1h])</code>?
+  options:
+    - text: <code>rate(http_requests_total[1h]) * 3600</code>
+      why: The documentation defines increase() as rate() multiplied by the seconds of the range.
+    - text: <code>irate(http_requests_total[1h]) * 3600</code>
+      why: irate() uses only the last two samples, so this scales one short interval up to an hour.
+    - text: <code>delta(http_requests_total[1h])</code>
+      why: delta() is for gauges and does not adjust for counter resets.
+    - text: <code>sum_over_time(http_requests_total[1h])</code>
+      why: This adds up all the counter totals in the hour, which is not an increase.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#increase
+
+- id: q-m04-009
+  tags: [promql-rate, promql-recording-rules]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: You write a recording rule for requests over the last 5 minutes. Which expression do the Prometheus docs recommend for it?
+  options:
+    - text: <code>increase(http_requests_total[5m])</code>
+      why: increase() is meant for human readability. The docs ask for rate() in rules.
+    - text: <code>irate(http_requests_total[5m])</code>
+      why: irate() follows only the last two samples and suits graphs of fast counters.
+    - text: <code>http_requests_total offset 5m</code>
+      why: This is the total as it was 5 minutes ago, not the requests in the last 5 minutes.
+    - text: <code>rate(http_requests_total[5m])</code>
+      why: The docs ask for rate() in recording rules, so stored values are always per second.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#increase
+
+- id: q-m04-010
+  tags: [promql-rate]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: <code>rate(node_cpu_seconds_total{cpu="0", mode="idle"}[5m])</code> returns 0.25. What does it mean?
+  options:
+    - text: CPU 0 was idle 0.25 times in the last 5 minutes
+      why: rate() returns an increase per second, not a count of events in the window.
+    - text: CPU 0 was idle for 0.25 seconds in total during the last 5 minutes
+      why: That would be increase(). rate() divides by the seconds in the window.
+    - text: CPU 0 was idle 25% of the time over the last 5 minutes
+      why: The counter adds idle seconds, so its rate is idle seconds per second, a share between 0 and 1.
+    - text: CPU 0 spent 25% of the last scrape interval busy
+      why: The value is the idle share, and rate() averages over the 5-minute window.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#rate
+
+- id: q-m04-011
+  tags: [promql-aggregation]
+  exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
+  q: Which query returns the jobs that have at least one target down right now?
+  options:
+    - text: <code>max by (job) (up) == 0</code>
+      why: max is 0 only if every target of the job is down.
+    - text: <code>min by (job) (up) == 0</code>
+      why: The smallest up value of a job is 0 as soon as one of its targets is down.
+    - text: <code>sum by (job) (up) == 0</code>
+      why: The sum is 0 only when all targets are down, like max.
+    - text: <code>count by (job) (up) == 0</code>
+      why: count counts series, which exist whether the target is up or down.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/
+
+- id: q-m04-012
+  tags: [promql-aggregation]
+  exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
+  q: Pods run in three namespaces, with many pods in each. How many series can <code>topk(2, container_memory_working_set_bytes) by (namespace)</code> return?
+  options:
+    - text: "Up to six: two per namespace"
+      why: With by, topk ranks the series inside each group and returns up to k per group.
+    - text: "Two: the two largest of all"
+      why: Without by it would return two in total. by (namespace) ranks inside each namespace.
+    - text: "Three: the largest per namespace"
+      why: k is 2, so up to two series come from each namespace.
+    - text: One per namespace, with the sum of its two largest
+      why: topk returns original series. It does not add them up.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/
+
+- id: q-m04-013
+  tags: [promql-aggregation]
+  exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
+  q: "Series of <code>requests:rate5m</code> have the labels job, instance and method: 2 jobs, 3 instances each and 4 methods. How many series does <code>sum without (instance) (requests:rate5m)</code> return?"
+  options:
+    - text: "2"
+      why: That would be sum by (job). without keeps every label except instance.
+    - text: "24"
+      why: 24 is the number of input series. Dropping instance merges three of them each time.
+    - text: "6"
+      why: That would be the job and instance pairs. without removes instance, not method.
+    - text: "8"
+      why: "Dropping instance leaves job and method: 2 jobs times 4 methods."
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/
+
+- id: q-m04-014
+  tags: [promql-aggregation]
+  exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
+  q: What does <code>quantile(0.5, node_load1)</code> return for a cluster of seven nodes?
+  options:
+    - text: "Seven series: each node's median load over the last 5 minutes"
+      why: That would need quantile_over_time with a range. quantile has no time window.
+    - text: The load of the node in the middle of the list, with its labels
+      why: quantile computes a value. It does not return one of the input series.
+    - text: "One series: the median load among the seven nodes right now"
+      why: quantile works across series at one moment, like the other aggregation operators.
+    - text: An error, because quantile needs a histogram
+      why: quantile works on float samples. histogram_quantile is the one for histograms.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#quantile
+
+- id: q-m04-015
+  tags: [promql-aggregation]
+  exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
+  q: Every instance exposes <code>app_build_info</code> with a <code>version</code> label and the value 1. What does <code>count(count by (version) (app_build_info))</code> return?
+  options:
+    - text: The number of instances that run each version
+      why: That is the inner query alone. The outer count turns it into one number.
+    - text: The number of different versions running
+      why: The inner count gives one series per version. The outer count counts those series.
+    - text: The number of instances in total
+      why: The instances are already merged by the inner count.
+    - text: The highest version number in use
+      why: count counts series. It never compares label values.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/
+
+- id: q-m04-016
+  tags: [promql-aggregation]
+  exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
+  q: What does <code>group by (namespace) (kube_pod_info)</code> return?
+  options:
+    - text: One series per namespace, each with the value 1
+      why: group gives 1 for each group, which is useful when only the label values matter.
+    - text: One series per pod, listed under the namespace it belongs to
+      why: group combines the series of each namespace into one.
+    - text: The number of pods in each namespace
+      why: That would be count. group always returns 1.
+    - text: The pods of the largest namespace only
+      why: group does not rank groups. It returns one series for every group.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#group
+
+- id: q-m04-017
+  tags: [promql-over-time]
+  exam: {cert: pca, domain: P3, competency: Aggregating over time}
+  q: <code>avg_over_time(up{job="db"}[1d])</code> returns 0.98. What does it tell you?
+  options:
+    - text: The database was down for 0.98 hours in total during the last day
+      why: The value is a share of samples, not a duration.
+    - text: 98% of the database targets are up right now
+      why: avg_over_time works along time, per series. It does not look across targets.
+    - text: The database answered 98% of its queries in the last day
+      why: up describes scrapes of the target, not the queries the database served.
+    - text: The target answered about 98% of its scrapes in the day
+      why: up is 1 for a successful scrape and 0 for a failed one, so its average is the share of good scrapes.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#aggregation_over_time
+
+- id: q-m04-018
+  tags: [promql-over-time]
+  exam: {cert: pca, domain: P3, competency: Aggregating over time}
+  q: An alert uses <code>min_over_time(up{job="db"}[1h]) == 0</code>. When does it return a series?
+  options:
+    - text: When the target has been down for the whole of the last hour
+      why: That would need max_over_time(...) == 0. min is 0 after one failure.
+    - text: When the target is down right now
+      why: The current value is up itself. min_over_time looks back the whole hour.
+    - text: When at least one scrape failed in the last hour
+      why: The lowest sample of the hour is 0 as soon as a single scrape failed.
+    - text: When the target has no samples at all in the hour
+      why: With no samples there is no minimum, and the result is empty.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#aggregation_over_time
+
+- id: q-m04-019
+  tags: [promql-over-time]
+  exam: {cert: pca, domain: P3, competency: Aggregating over time}
+  q: The evaluation interval is 30 seconds. How many times is the inner query evaluated in <code>max_over_time(sum(rate(x_total[5m]))[1h:])</code>?
+  options:
+    - text: 12 times, once per 5 minutes
+      why: The 5m belongs to rate() inside. It is not the step of the subquery.
+    - text: 120, one every 30 seconds
+      why: Without a resolution after the colon, the subquery uses the global evaluation interval.
+    - text: 60 times, once a minute
+      why: One minute is not a default. The evaluation interval is.
+    - text: Once, because no resolution is given after the colon
+      why: A missing resolution falls back to the evaluation interval. The subquery still runs many steps.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#subquery
+
+- id: q-m04-020
+  tags: [promql-over-time]
+  exam: {cert: pca, domain: P3, competency: Aggregating over time}
+  q: What does <code>max_over_time(sum(node_load1)[1h:5m])</code> return?
+  options:
+    - text: The peak of the summed load, sampled every 5 minutes for an hour
+      why: The subquery evaluates the sum every 5 minutes, and max_over_time keeps the largest result.
+    - text: The highest load of each node in the last hour, one series for every node
+      why: sum adds the nodes into one series before the subquery runs.
+    - text: The sum of every node's peak load in the last hour
+      why: "The order is the other way round: first the sum per step, then the maximum."
+    - text: An error, because a range cannot follow sum()
+      why: A plain range cannot, but a subquery with a colon can.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#subquery
+
+- id: q-m04-021
+  tags: [promql-over-time, promql-mistakes]
+  exam: {cert: pca, domain: P3, competency: Aggregating over time}
+  q: A team wants the peak request rate of the last hour and writes <code>max_over_time(http_requests_total[1h])</code>. What does it return?
+  options:
+    - text: The highest per-second request rate reached during the hour
+      why: There is no rate in this query. A rate needs rate() first, and a subquery for its maximum.
+    - text: The number of requests in the hour
+      why: That would be increase(http_requests_total[1h]).
+    - text: An error, because counters cannot be used with _over_time
+      why: Prometheus accepts it. Float samples do not store whether they are counters.
+    - text: Usually the newest total of the counter
+      why: max_over_time treats the samples as plain numbers, and the largest total is normally the latest one.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#aggregation_over_time
+
+- id: q-m04-022
+  tags: [promql-binary-ops]
+  exam: {cert: pca, domain: P3, competency: Binary operators}
+  q: What does <code>node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.1</code> return?
+  options:
+    - text: Every node, with 1 where less than 10% is available and 0 elsewhere
+      why: Only bool turns a comparison into 0 and 1. Without it, comparisons filter.
+    - text: An error, because a comparison cannot follow a division
+      why: Arithmetic binds more strongly than comparison, so this is a valid expression.
+    - text: Nodes with under 10% memory available, with that share as value
+      why: The division runs first, then the comparison filters, keeping the left-hand values.
+    - text: The available memory of each node, divided by the result of the comparison
+      why: Division has a higher precedence, so it is evaluated before the comparison.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operator-precedence
+
+- id: q-m04-023
+  tags: [promql-binary-ops]
+  exam: {cert: pca, domain: P3, competency: Binary operators}
+  q: Why do people write <code>sum(rate(errors_total[5m])) or vector(0)</code>?
+  options:
+    - text: To round the error rate down to whole numbers
+      why: or does not change values. It only adds missing series.
+    - text: To get 0 instead of an empty result
+      why: or adds the right side when the left side has no series, and vector(0) is one series with the value 0.
+    - text: To divide by zero safely when there are no requests at all
+      why: There is no division in this expression.
+    - text: To keep only the error series whose value is 0
+      why: That would be a comparison such as == 0. or is a union of series.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#logical-set-binary-operators
+
+- id: q-m04-024
+  tags: [promql-binary-ops]
+  exam: {cert: pca, domain: P3, competency: Binary operators}
+  q: Each node has two <code>node_uname_info</code> series because the exporter was redeployed with new labels. What happens to <code>node_load1 * on (instance) group_left (nodename) node_uname_info</code>?
+  options:
+    - text: "It fails: each instance matches two series on the right"
+      why: With group_left, the right side must have one series per match group. Duplicates there are an error.
+    - text: It returns two series per node, one for each of the two info series
+      why: The "one" side of group_left must be unique. Prometheus does not duplicate the left side.
+    - text: It silently picks the newer info series
+      why: PromQL does not choose between duplicates. It reports an error.
+    - text: It returns the load without the nodename label
+      why: The query does not fall back to a result without the label. It fails.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches
+
+- id: q-m04-025
+  tags: [promql-binary-ops]
+  exam: {cert: pca, domain: P3, competency: Binary operators}
+  q: You type <code>5 > 3</code> on the query page. What happens?
+  options:
+    - text: The scalar 1
+      why: That is the result of 5 > bool 3. Without bool the query is refused.
+    - text: The scalar 5, because the comparison between the two numbers is true
+      why: Filtering keeps values only between vectors. Between scalars it is not allowed.
+    - text: An empty result
+      why: The parser refuses the query before it is evaluated.
+    - text: An error asking for the bool modifier
+      why: Between two scalars a comparison cannot filter anything, so bool is required.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/#comparison-binary-operators
+
+- id: q-m04-026
+  tags: [promql-histograms]
+  exam: {cert: pca, domain: P3, competency: Histograms}
+  q: A classic histogram has the cumulative bucket counts <code>le="0.1"</code> 50, <code>le="0.5"</code> 80, <code>le="1"</code> 95 and <code>le="+Inf"</code> 100. How many observations were above 0.1 and at most 0.5?
+  options:
+    - text: "80"
+      why: 80 is everything at or below 0.5, including the 50 at or below 0.1.
+    - text: "50"
+      why: 50 is the count at or below 0.1.
+    - text: "30"
+      why: Buckets are cumulative, so the 0.5 bucket minus the 0.1 bucket gives 80 minus 50.
+    - text: "130"
+      why: The buckets already include each other. Adding them counts observations twice.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile
+
+- id: q-m04-027
+  tags: [promql-histograms]
+  exam: {cert: pca, domain: P3, competency: Histograms}
+  q: <code>sum(rate(api_duration_seconds_bucket{le="0.5"}[5m])) / sum(rate(api_duration_seconds_count[5m]))</code> returns 0.97. What does it mean?
+  options:
+    - text: The 97th percentile of the request time over 5 minutes is 0.5 seconds
+      why: Close, but the query gives the share under a bound, not a percentile estimate.
+    - text: 97% of requests took 0.5 seconds or less
+      why: The bucket counts observations at or below its bound, and the count is all observations.
+    - text: Requests took 0.97 seconds on average
+      why: An average needs the _sum series divided by the _count series.
+    - text: 3% of requests failed in the last 5 minutes
+      why: A duration histogram says nothing about failures, only about times.
+  answer: [1]
+  source: https://prometheus.io/docs/practices/histograms/#bucketing
+
+- id: q-m04-028
+  tags: [promql-histograms]
+  exam: {cert: pca, domain: P3, competency: Histograms}
+  q: A dashboard shows a 95th percentile of 0.48 seconds from a classic histogram with buckets 0.25, 0.5 and 1. What can you say about the real 95th percentile?
+  options:
+    - text: It lies somewhere between 0.25 and 0.5 seconds
+      why: The estimate assumes an even spread inside the bucket, so the error is up to the width of the bucket.
+    - text: It is 0.48 seconds, within a millisecond
+      why: The value is interpolated inside a bucket, not measured.
+    - text: It is at most 0.25 seconds
+      why: The function places the quantile in the 0.25 to 0.5 bucket, so it is above 0.25.
+    - text: It is above 0.5 seconds, since estimates are too low
+      why: The bucket counts place the 95th percentile in the bucket from 0.25 to 0.5, so the true value is there too.
+  answer: [0]
+  source: https://prometheus.io/docs/practices/histograms/#errors-of-quantile-estimation
+
+- id: q-m04-029
+  tags: [promql-histograms]
+  exam: {cert: pca, domain: P3, competency: Histograms}
+  q: <code>http_request_duration_seconds</code> is a native histogram. What does <code>histogram_count(rate(http_request_duration_seconds[5m]))</code> return?
+  options:
+    - text: The number of buckets in the histogram
+      why: histogram_count returns the count of observations, not of buckets.
+    - text: The total number of requests since the process started
+      why: The rate() inside turns the count into a per-second value.
+    - text: The 50th percentile of the request time
+      why: Percentiles come from histogram_quantile.
+    - text: Requests per second over the last 5 minutes
+      why: The count of observations, taken as a rate, is the request rate.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_count-and-histogram_sum
+
+- id: q-m04-030
+  tags: [promql-histograms]
+  exam: {cert: pca, domain: P3, competency: Histograms}
+  q: A service exposes only classic histograms, and you cannot change its code. What does setting <code>convert_classic_histograms_to_nhcb</code> in Prometheus give you?
+  options:
+    - text: The buckets are replaced by narrow exponential buckets
+      why: The bounds stay those of the classic histogram. The error is the same as before.
+    - text: Prometheus starts asking the service for the protobuf exposition format
+      why: Conversion happens on the Prometheus side, from what the target already exposes.
+    - text: They are stored in native form, with the same bounds
+      why: "NHCB keeps the classic bounds in the native form: one series, cheaper to store."
+    - text: The classic _bucket series are kept and a summary is added
+      why: No summary is created. The histogram is stored in the native form.
+  answer: [2]
+  source: https://prometheus.io/docs/specs/native_histograms/#scraping-classic-histograms-as-nhcbs
+
+- id: q-m04-031
+  tags: [promql-histograms]
+  exam: {cert: pca, domain: P3, competency: Histograms}
+  q: You need the share of requests under 0.3 seconds, and the buckets are 0.25 and 0.5. Why does a native histogram help?
+  options:
+    - text: A native histogram stores every observation, so the share is exact
+      why: A native histogram also counts into buckets. Its buckets are just narrower.
+    - text: histogram_fraction() estimates between bucket bounds
+      why: The classic query divides one bucket by the count, which needs a bucket at exactly 0.3; otherwise it returns nothing.
+    - text: Native histograms always have a bucket at 0.3
+      why: Bucket bounds follow the schema. No bound at 0.3 is promised.
+    - text: The classic query works too; the native one is only faster
+      why: The classic query returns nothing without a bucket at 0.3.
+  answer: [1]
+  source: https://prometheus.io/docs/practices/histograms/#bucketing
+
+- id: q-m04-032
+  tags: [promql-time]
+  exam: {cert: pca, domain: P3, competency: Timestamp Metrics}
+  q: In a range query over the last 6 hours, what does <code>node_load1 @ end()</code> return at each step?
+  options:
+    - text: The load at the end of the range, at every step
+      why: end() resolves to the end of the range query and stays the same for all steps.
+    - text: The load at each step, as without the modifier
+      why: Without @ each step would have its own value. @ end() pins them all.
+    - text: The load 6 hours ago, at every step
+      why: That would be @ start().
+    - text: Nothing, because the @ modifier cannot be used in a range query
+      why: start() and end() are made for range queries.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier
+
+- id: q-m04-033
+  tags: [promql-time]
+  exam: {cert: pca, domain: P3, competency: Timestamp Metrics}
+  q: Which expression divides the current request rate by the rate at the same time yesterday?
+  options:
+    - text: <code>sum(rate(http_requests_total[5m])) / sum(rate(http_requests_total[5m])) offset 1d</code>
+      why: offset must follow a selector. After sum() it is a parse error.
+    - text: <code>sum(rate(http_requests_total[5m] offset 1d)) / sum(rate(http_requests_total[5m]))</code>
+      why: This is yesterday divided by today, the inverse of what was asked.
+    - text: <code>sum(rate(http_requests_total[1d])) / sum(rate(http_requests_total[5m]))</code>
+      why: A 1-day window averages the whole day. It is not the same time yesterday.
+    - text: <code>sum(rate(http_requests_total[5m])) / sum(rate(http_requests_total[5m] offset 1d))</code>
+      why: The offset sits right after the selector, so the second rate is shifted back one day.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier
+
+- id: q-m04-034
+  tags: [promql-time]
+  exam: {cert: pca, domain: P3, competency: Timestamp Metrics}
+  q: What does <code>day_of_week()</code> return on a Sunday?
+  options:
+    - text: "7"
+      why: The values run from 0 to 6. There is no 7.
+    - text: "1"
+      why: 1 is Monday. The week starts at 0 on Sunday.
+    - text: "0"
+      why: The function returns 0 to 6, where 0 means Sunday, computed in UTC.
+    - text: "\"Sunday\""
+      why: PromQL returns numbers, not names of days.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#day_of_week
+
+- id: q-m04-035
+  tags: [promql-time]
+  exam: {cert: pca, domain: P3, competency: Timestamp Metrics}
+  q: At which moment does <code>up @ 1700000000 offset 1h</code> read the value of up?
+  options:
+    - text: At the Unix time 1700000000 exactly; offset is ignored
+      why: offset is not ignored. It moves the moment back from the @ time.
+    - text: One hour before the Unix time 1700000000
+      why: With @ and offset together, the offset is counted back from the @ time.
+    - text: One hour before the moment the query is run
+      why: The @ modifier replaces the evaluation time, and the offset counts from there.
+    - text: "The query is refused: @ and offset cannot be combined"
+      why: Both may follow a selector, in either order, with the same result.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier
+
+- id: q-m04-036
+  tags: [promql-functions]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: What does <code>absent(sum(nonexistent_metric{job="api"}))</code> return when the metric does not exist?
+  options:
+    - text: One series with the value 1 and no labels
+      why: absent() cannot read labels through an aggregation, so the series it returns has none.
+    - text: One series with the value 1 and the label job="api"
+      why: Labels are copied only from equality matchers of a plain selector, not through sum().
+    - text: An empty result, because sum() of nothing is 0
+      why: sum() of no series is no series, not 0. absent() then returns its one series.
+    - text: An error, because absent() needs a range vector
+      why: absent() takes an instant vector. absent_over_time() takes a range.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#absent
+
+- id: q-m04-037
+  tags: [promql-functions]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: <code>resets(app_requests_total[1d])</code> returns 3 for one pod. What does it tell you?
+  options:
+    - text: The counter grew by 3 in the day
+      why: That would be increase(). resets() counts falls.
+    - text: The pod was rescheduled from one node to another three times during the day
+      why: resets() looks only at the values. It knows nothing about nodes.
+    - text: The value changed three times, up or down
+      why: That is changes(). resets() counts only decreases.
+    - text: The counter fell three times, so the process likely restarted
+      why: resets() counts every decrease of a counter, which normally means the process started again.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#resets
+
+- id: q-m04-038
+  tags: [promql-functions]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: Which expression is true when the free space of a filesystem will reach zero within 4 hours, judging by the last hour?
+  options:
+    - text: <code>predict_linear(node_filesystem_avail_bytes[4h], 3600) < 0</code>
+      why: This judges by the last 4 hours and looks only 1 hour ahead.
+    - text: <code>deriv(node_filesystem_avail_bytes[1h]) * 4 < 0</code>
+      why: deriv() is a slope per second. Multiplying by 4 does not give the space in 4 hours.
+    - text: <code>predict_linear(node_filesystem_avail_bytes[1h], 4 * 3600) < 0</code>
+      why: predict_linear projects the trend of the window the given number of seconds ahead.
+    - text: <code>predict_linear(node_filesystem_avail_bytes[1h], 4) < 0</code>
+      why: The second argument is in seconds, so this looks only 4 seconds ahead.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#predict_linear
+
+- id: q-m04-039
+  tags: [promql-recording-rules]
+  exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
+  q: A recorded series is named <code>job:request_latency_seconds:mean5m</code>. What does the name tell you, following the Prometheus naming guidelines?
+  options:
+    - text: The 5-minute median latency, with one series for every job
+      why: mean is an average, not a median. A median would need a quantile.
+    - text: Average latency per job over 5 minutes
+      why: job is the level, the metric keeps its name, and mean5m marks an average from a sum and a count.
+    - text: Latency summed over jobs every 5 minutes
+      why: The level job is what is kept, not what is added up.
+    - text: Latency per job, scraped every 5 minutes
+      why: The operation part describes the computation, not the scrape interval.
+  answer: [1]
+  source: https://prometheus.io/docs/practices/rules/#naming
+
+- id: q-m04-040
+  tags: [promql-recording-rules]
+  exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
+  q: A rule group takes 40 seconds to evaluate, and its interval is 30 seconds. What happens?
+  options:
+    - text: Evaluations are skipped, leaving gaps in the recorded series
+      why: An unfinished evaluation blocks the next one, which is skipped, and rule_group_iterations_missed_total grows.
+    - text: Prometheus raises the group's interval to 40 seconds to keep up
+      why: Prometheus does not change the interval. It skips evaluations.
+    - text: The slow rules are dropped from the group
+      why: The rules stay loaded. Their evaluations are skipped while the group is still running.
+    - text: Two evaluations of the group run in parallel so that it can catch up
+      why: A group is not evaluated twice at the same time. The next run is skipped.
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/#failed-rule-evaluations-due-to-slow-evaluation
+
+- id: q-m04-041
+  tags: [promql-recording-rules]
+  exam: {cert: pca, domain: P3, competency: Aggregating over dimensions}
+  q: A rule group in a rule file has no <code>interval</code> field. How often are its rules evaluated?
+  options:
+    - text: At the scrape_interval of the jobs the rules read
+      why: Rules have their own interval, separate from scraping.
+    - text: Once, when the rule file is loaded
+      why: Rules are evaluated again and again at their interval.
+    - text: Every minute, the fixed default for all rules
+      why: There is no fixed one-minute default. The global setting decides.
+    - text: At the global evaluation_interval of the server
+      why: The group interval defaults to global.evaluation_interval.
+  answer: [3]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/#rule_group
+
+- id: q-m04-042
+  tags: [promql-mistakes, promql-rate]
+  exam: {cert: pca, domain: P3, competency: Rates and Derivatives}
+  q: Pods restart now and then. What is wrong with <code>rate(sum(http_requests_total)[5m:])</code>?
+  options:
+    - text: A subquery cannot be passed to rate()
+      why: A subquery returns a range vector, which rate() accepts. That is why the query runs.
+    - text: sum() drops the job label, so rate() has no series to work on and returns nothing
+      why: sum() of all series has no labels, but rate() still returns a value.
+    - text: rate() takes a small drop in the sum for a counter reset
+      why: "A restart lowers the sum a little. Take rate() of each counter first, then sum: sum(rate(http_requests_total[5m]))."
+    - text: "[5m:] has no resolution, so the query is refused"
+      why: A missing resolution falls back to the evaluation interval. The query is accepted.
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#rate
+
+- id: q-m04-043
+  tags: [promql-mistakes, promql-histograms]
+  exam: {cert: pca, domain: P3, competency: Histograms}
+  q: You want one 99th percentile per service, and every service runs several instances. What is wrong with <code>histogram_quantile(0.99, sum by (le, instance) (rate(x_bucket[5m])))</code>?
+  options:
+    - text: It needs le removed from by, or the result is empty
+      why: le must stay. Without it the function finds no buckets.
+    - text: "It keeps instance: one percentile per instance, not per service"
+      why: Group by the labels you want in the result plus le, here by (le, service).
+    - text: rate() must be applied after histogram_quantile()
+      why: The order is rate first, then sum, then the quantile.
+    - text: Quantiles of classic histograms can never be aggregated across instances
+      why: Classic histograms can be aggregated, as long as the bucket bounds match.
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile
+
+- id: q-m04-044
+  tags: [promql-mistakes, promql-binary-ops]
+  exam: {cert: pca, domain: P3, competency: Binary operators}
+  q: A panel shows <code>sum(rate(errors_total[5m])) / sum(rate(requests_total[5m]))</code> and stays empty although requests flow. The service counts errors with a label <code>code</code> and has not had a single error since it started. Why?
+  options:
+    - text: errors_total has no series yet, so the left side is empty
+      why: A labelled series appears only when it is first used. Wrap the left side as (... or vector(0)).
+    - text: The division by sum() needs on() to match
+      why: Both sums have no labels, so they match without on().
+    - text: rate() returns NaN for counters whose value never changed in the window
+      why: A counter at a steady value has a rate of 0, not NaN.
+    - text: sum() must be written after the division
+      why: Summing first and dividing after is the right order for a ratio.
+  answer: [0]
+  source: https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics
