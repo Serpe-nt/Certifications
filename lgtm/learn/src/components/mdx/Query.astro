@@ -7,8 +7,8 @@ interface Props {
 const { lang } = Astro.props;
 const names = { promql: 'PromQL', logql: 'LogQL', traceql: 'TraceQL' } as const;
 ---
-<div class="relative my-3 rounded-md border border-line bg-surface" data-query={lang}>
-  <span class="block px-3 pt-2 text-xs text-ink-3">{names[lang] ?? lang}</span>
-  <pre class="m-0 px-3 pb-3 pt-1 pr-20"><code><slot /></code></pre>
-  <button type="button" class="btn absolute right-1 top-1 min-h-0 px-2 py-1 text-sm" data-copy>Copy</button>
+<div class="codeblock" data-query={lang}>
+  <span class="codeblock-label mono">{names[lang] ?? lang}</span>
+  <pre><code><slot /></code></pre>
+  <button type="button" class="codeblock-copy mono" data-copy>Copy</button>
 </div>

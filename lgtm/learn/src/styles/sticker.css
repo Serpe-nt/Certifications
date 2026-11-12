@@ -372,10 +372,10 @@
     animation: stk-rail 520ms var(--lg-ease-out) 180ms backwards;
   }
   .sticker-rail::before {
-    animation: stk-node 2.4s var(--lg-ease-out) 0.8s infinite;
+    animation: stk-node 2.4s var(--lg-ease-out) 0.8s 3;
   }
   .sticker-chevrons polygon {
-    animation: stk-march 1.5s linear infinite;
+    animation: stk-march 1.5s linear 3;
     animation-delay: calc(var(--stk-i, 0) * 0.15s - 1.5s);
   }
   .sticker:hover .sticker-chevrons polygon,
@@ -395,7 +395,7 @@
     animation: stk-scan 900ms var(--lg-ease-out) 300ms;
   }
   .sticker-foot::before {
-    animation: stk-laser 2.6s ease-in-out 1s infinite;
+    animation: stk-laser 2.6s ease-in-out 1s 3;
   }
 
   /* On a step the box builds as it scrolls into view; the options are never clipped. */
@@ -430,4 +430,13 @@
 :root[data-motion="off"] .sticker *::before,
 :root[data-motion="off"] .sticker *::after {
   animation-delay: 0s !important;
+}
+
+/* The note under Submit ("Last time: right") sits on its own line, so Submit stays centred. */
+.sticker .card-actions {
+  flex-direction: column;
+}
+/* The explanation's first paragraph runs on from its Right. or Wrong. */
+.prose .sticker .qopt-why > span > p:first-child {
+  display: inline;
 }

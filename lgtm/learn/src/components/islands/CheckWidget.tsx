@@ -113,7 +113,11 @@ export default function CheckWidget({ stepId, check, settingsHref }: Props) {
               <span className="text-good">Passed. Mark complete is open below.</span>
             ) : verdict ? (
               <span className="text-bad">
-                {verdict.reason === 'wrong' ? wrongMessage(check, checked) : MESSAGES[verdict.reason]}
+                {verdict.reason === 'wrong'
+                  ? wrongMessage(check, checked)
+                  : verdict.reason === 'empty' && check.kind === 'choice'
+                    ? 'Pick an answer first.'
+                    : MESSAGES[verdict.reason]}
                 {verdict.reason === 'no-seed' && (
                   <>
                     {' '}

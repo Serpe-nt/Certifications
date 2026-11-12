@@ -4,13 +4,15 @@
   are paper; errors carry a red edge; finished things, levels and badges are yellow and larger.
   They slide in through a glitch slice and leave the same way. Keyframes here start with to-.
 */
+/* Bottom right: clear of the top bar, page headers and a dialog's close X; on a wide screen it lines
+   up with the console's right edge rather than the window's. */
 .toasts {
   position: fixed;
-  top: 84px;
-  right: var(--lg-space-6);
+  bottom: var(--lg-space-6);
+  right: max(var(--lg-space-6), calc((100vw - var(--lg-page-max)) / 2 + var(--lg-space-6)));
   z-index: 60;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   align-items: flex-end;
   gap: var(--lg-space-3);
   width: min(24rem, calc(100vw - 2rem));
@@ -19,7 +21,7 @@
 .toast {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
   gap: 4px 14px;
   width: 100%;
@@ -28,7 +30,8 @@
   background: var(--lg-paper);
   color: var(--lg-ink);
   box-shadow: 6px 6px 0 var(--lg-bezel);
-  pointer-events: auto;
+  /* Clicks pass through a notification to whatever it covers (Submit, Next); only its X takes them. */
+  pointer-events: none;
 }
 .toast p {
   margin: 0;
@@ -73,6 +76,7 @@
   border: 0;
   background: transparent;
   color: var(--lg-ink);
+  pointer-events: auto;
 }
 .toast-close:hover {
   background: var(--lg-ink);
@@ -133,9 +137,12 @@
   stroke: var(--lg-signal);
 }
 
+.toast:has(.toast-figure) {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
 @media (max-width: 640px) {
   .toasts {
-    top: var(--lg-space-3);
+    bottom: var(--lg-space-3);
     right: var(--lg-space-3);
     left: var(--lg-space-3);
     width: auto;
@@ -176,7 +183,8 @@
   .toast-timer {
     animation: to-timer var(--toast-ms, 4000ms) linear both;
   }
-  .toast:hover .toast-timer {
+  /* Resting the pointer on the X holds the notification. */
+  .toast:has(.toast-close:hover) .toast-timer {
     animation-play-state: paused;
   }
   .toast[data-leaving] {

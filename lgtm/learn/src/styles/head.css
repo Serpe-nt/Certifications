@@ -35,7 +35,7 @@
 .tagrow {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-bottom: var(--lg-space-6);
 }
 .tag {
@@ -50,6 +50,8 @@
   text-transform: uppercase;
 }
 .tag-tail {
+  flex: 0 1 120px;
+  min-width: 24px;
   width: 120px;
   height: 28px;
   /* One 10px tile of the 7px hatching, so the hatching can crawl by a tile without a seam. */
@@ -388,10 +390,6 @@
       lg-wipe var(--lg-dur-slow) var(--lg-ease-out) both,
       hd-glitch 300ms steps(1) 1000ms;
   }
-  .pagetitle:hover {
-    animation-name: lg-wipe, hd-glitch-again;
-    animation-delay: 0s, 0s;
-  }
   .pagetitle::after {
     content: "";
     position: absolute;
@@ -504,12 +502,17 @@
 }
 
 /* Effects off: the global rules shorten every animation; the delays go too, so nothing waits hidden. */
-:root[data-motion="off"] .pagehead :is(*, *::before, *::after) {
+:root[data-motion="off"] .pagehead *,
+:root[data-motion="off"] .pagehead *::before,
+:root[data-motion="off"] .pagehead *::after {
   animation-delay: 0s !important;
   transition-delay: 0s !important;
 }
 /* The running mock exam has no motion at all, the header's included. */
-body:has([data-exam-running]) .pagehead :is(*, *::before, *::after) {
+body:has([data-exam-running]) .pagehead,
+body:has([data-exam-running]) .pagehead *,
+body:has([data-exam-running]) .pagehead *::before,
+body:has([data-exam-running]) .pagehead *::after {
   animation: none !important;
 }
 
@@ -752,4 +755,14 @@ body:has([data-exam-running]) .pagehead :is(*, *::before, *::after) {
   .pagehead-aside .pagelead {
     display: none;
   }
+}
+
+/* The crumb in a narrow place (the quiz's side column, a phone): its code stays on one line and the
+   link's words wrap beside it, with the outline icon at their end. */
+.crumb > span {
+  flex: none;
+  white-space: nowrap;
+}
+.crumb a {
+  min-width: 0;
 }

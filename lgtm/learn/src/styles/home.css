@@ -2961,7 +2961,7 @@
   :root:not([data-motion="off"]) .ms-icon {
     animation: hm-spin-in 0.8s var(--lg-ease-out) 0.3s both;
   }
-  :root:not([data-motion="off"]) .ms-icon:hover {
+  :root:not([data-motion="off"]) .ms-icon:hover > * {
     animation: hm-glitch 0.45s linear both;
   }
   :root:not([data-motion="off"]) .ms-total {
@@ -3641,4 +3641,37 @@
     opacity: 1;
     transform: translateX(2px);
   }
+}
+
+/* Readiness tables: each figure sits over its own bar, left-aligned like the bar; the bars keep clear
+   of the next column; every cell centres on the row. */
+.page-glass .ov-table td,
+.page-glass .ov-table tbody th {
+  vertical-align: middle;
+}
+.page-glass .ov-table td[data-seen],
+.page-glass .ov-table td[data-correct],
+.page-glass .ov-table thead th:nth-child(2),
+.page-glass .ov-table thead th:nth-child(3) {
+  text-align: left;
+  padding-right: var(--lg-space-4);
+}
+@media (max-width: 560px) {
+  .ov-table tr {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .page-glass .ov-table td.ov-verdict {
+    grid-column: 1 / -1;
+  }
+}
+
+.settings-page [data-settings] > .box > h2 {
+  font-family: var(--lg-font-mono);
+  font-weight: 600;
+  font-size: var(--lg-text-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.settings-page [data-settings] > .box > .flex + p {
+  margin-top: var(--lg-space-3);
 }

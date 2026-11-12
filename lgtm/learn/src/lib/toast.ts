@@ -1,7 +1,8 @@
 // Notifications at the right-hand side of the window (styles in src/styles/toast.css): saved
 // settings, errors, finished steps and modules, new levels and badges. The owner asked for "a pop
 // message at the right hand side of the screen" for these (2026-11-11). Each one slides in, shows a
-// countdown bar, and leaves on its own; hovering it holds the countdown, and its X dismisses it.
+// countdown bar, and leaves on its own; clicks pass through it to what it covers, resting the pointer
+// on its X holds the countdown, and the X dismisses it.
 // While a dialog is open the stack lives inside it, because a dialog sits above everything else.
 // Text is set with textContent only: nothing from the state reaches the page as HTML.
 
@@ -97,6 +98,9 @@ export function toast(o: ToastOptions): HTMLElement {
   const kind = o.kind ?? 'info';
   const ms = o.ms ?? (kind === 'error' ? 7000 : kind === 'ok' || kind === 'info' ? 3800 : 6000);
   const box = stack();
+  for (const old of box.querySelectorAll<HTMLElement>('.toast:not([data-leaving])')) {
+    if (old.dataset.toast === kind && old.querySelector('.toast-title')?.textContent === o.title) old.remove();
+  }
 
   const el = document.createElement('div');
   el.className = `toast toast-${kind}`;
@@ -142,11 +146,27 @@ export function toast(o: ToastOptions): HTMLElement {
   el.appendChild(timer);
 
   box.appendChild(el);
-  while (box.children.length > MAX) leave(box.firstElementChild as HTMLElement);
+  // At most MAX on screen: the oldest leave. Toasts already leaving do not count.
+  const live = [...box.children].filter((c) => !c.hasAttribute('data-leaving')) as HTMLElement[];
+  for (let k = 0; k < live.length - MAX; k++) leave(live[k]);
 
   // The countdown is the timer bar's animation, so hovering (which pauses it) holds the toast.
   // Without motion the bar does not run; a plain timeout ends it.
-  if (motionOn()) timer.addEventListener('animationend', () => leave(el), { once: true });
-  else window.setTimeout(() => leave(el), ms);
+  if (motionOn()) {
+    timer.addEventListener('animationend', () => leave(el), { once: true });
+  } else {
+    // Without motion: a timeout, held while the pointer is on the X.
+    let left = ms;
+    let since = Date.now();
+    let t = window.setTimeout(() => leave(el), left);
+    close.addEventListener('pointerenter', () => {
+      window.clearTimeout(t);
+      left -= Date.now() - since;
+    });
+    close.addEventListener('pointerleave', () => {
+      since = Date.now();
+      t = window.setTimeout(() => leave(el), Math.max(800, left));
+    });
+  }
   return el;
 }

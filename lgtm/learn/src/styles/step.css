@@ -1402,12 +1402,12 @@
 
   /* ---- Trap: the stripe band drops in and crawls; the yellow tab flashes a warning */
   .part-trap::before {
-    animation: st-crawl 3.2s linear infinite;
+    animation: st-crawl 3.2s linear 3;
   }
   .part-trap.st-seen::before {
     animation:
       st-drop-band 560ms var(--lg-ease-out) backwards,
-      st-crawl 3.2s linear infinite;
+      st-crawl 3.2s linear 3;
   }
   .part-trap.st-seen:hover::before,
   .part-trap:hover::before {
@@ -1566,7 +1566,7 @@
   }
   .flow-arrow .st-head {
     transform-box: fill-box;
-    animation: st-nudge 1.4s var(--lg-ease-out) infinite;
+    animation: st-nudge 1.4s var(--lg-ease-out) 3;
   }
 
   /* Compare: the frame splits open from the middle, the columns come in from the sides */
@@ -1678,7 +1678,7 @@
   .info.st-seen .event:last-child::before {
     animation:
       st-diamond 440ms var(--lg-ease-out) backwards,
-      st-pulse-d 2.8s ease-in-out infinite;
+      st-pulse-d 2.8s ease-in-out 3;
     animation-delay: calc(260ms + var(--st-i) * 240ms), 1.8s;
   }
   .event:hover::before {
@@ -1798,7 +1798,7 @@
     animation: st-type 640ms steps(30) 300ms backwards;
   }
   .stepnav-chev {
-    animation: st-nudge-x 1.3s var(--lg-ease-out) infinite;
+    animation: st-nudge-x 1.3s var(--lg-ease-out) 3;
   }
   .stepnav-charge {
     transition: transform 560ms steps(9, end);
@@ -1890,7 +1890,7 @@
   }
   .scale-ptr path {
     transform-box: fill-box;
-    animation: st-bob 2.4s ease-in-out 1.8s infinite;
+    animation: st-bob 2.4s ease-in-out 1.8s 3;
   }
   .scale.st-seen .scale-label {
     animation: hd-pop 380ms var(--lg-ease-out) 700ms backwards;
@@ -1943,7 +1943,9 @@
 
 /* Effects off: the global rules shorten every animation; the delays go too, so nothing waits hidden,
    and the one loop that would stop on a lit dot is taken away. */
-:root[data-motion="off"] :is(.glass[data-step], .scale, .modal-module) :is(*, *::before, *::after) {
+:root[data-motion="off"] :is(.glass[data-step], .scale, .modal-module, .stepend) *,
+:root[data-motion="off"] :is(.glass[data-step], .scale, .modal-module, .stepend) *::before,
+:root[data-motion="off"] :is(.glass[data-step], .scale, .modal-module, .stepend) *::after {
   animation-delay: 0s !important;
   transition-delay: 0s !important;
 }
@@ -2476,4 +2478,57 @@
 }
 [data-tab="learn"][data-has-practice] > .stepend-q [data-block="question"] {
   display: none;
+}
+
+@media (max-width: 560px) {
+  .stepend .stepnav .btn {
+    white-space: nowrap;
+    font-size: var(--lg-text-small);
+  }
+}
+
+/* ---------------------------------------------------------------- query and command blocks */
+/* A paper panel framed in ink with a cut corner, a mono label, and Copy at the top right. */
+.codeblock {
+  position: relative;
+  margin: var(--lg-space-4) 0;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.codeblock-label {
+  display: block;
+  padding: 8px 14px 0;
+  color: var(--lg-ink-3);
+}
+.codeblock pre {
+  margin: 0;
+  padding: 6px 96px 14px 14px;
+  overflow-x: auto;
+  font-family: var(--lg-font-mono);
+  font-size: var(--lg-text-small);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.prose .codeblock code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+.codeblock-copy {
+  position: absolute;
+  top: 8px;
+  right: 18px;
+  min-height: 2.75rem;
+  padding: 0 14px;
+  border: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+  cursor: pointer;
+  transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
+}
+.codeblock-copy:hover {
+  background: var(--lg-ink);
+  color: var(--lg-signal);
 }
