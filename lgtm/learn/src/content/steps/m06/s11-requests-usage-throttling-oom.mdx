@@ -1,0 +1,149 @@
+---
+id: m06-s11
+title: "Requests against usage: throttling and OOM kills"
+kind: lab
+minutes: 25
+order: 11
+exam:
+  - cert: none
+tags: [k8s-resources]
+check:
+  kind: exact
+  prompt: Paste the value of the reason label that kube-state-metrics reports for the last termination of mem-hog.
+  answers: ["OOMKilled"]
+outcome: You can tell a throttled container from an OOM-killed one in the metrics, and say which component sees each.
+terms:
+  - term: CPU limit
+    def: The most CPU a container may use; the kernel holds it to the limit by throttling it in each scheduling period.
+  - term: Throttling
+    def: The kernel making a container wait for the rest of a scheduling period because it used up its CPU quota.
+  - term: OOM kill
+    def: The kernel ending a process because its memory cgroup went over its limit; the container ends with reason OOMKilled and exit code 137.
+  - term: CrashLoopBackOff
+    def: The waiting reason of a container that keeps failing, while the kubelet waits longer and longer before each restart.
+sources:
+  - title: Resource management for pods and containers (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+    checked: 2026-11-12
+  - title: Assign memory resources to containers and pods (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/
+    checked: 2026-11-12
+  - title: Assign CPU resources to containers and pods (Kubernetes v1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/
+    checked: 2026-11-12
+  - title: Monitoring cAdvisor with Prometheus (GitHub)
+    url: https://github.com/google/cadvisor/blob/master/docs/storage/prometheus.md
+    checked: 2026-11-12
+  - title: kube-state-metrics pod metrics, v2.20.0 (GitHub)
+    url: https://github.com/kubernetes/kube-state-metrics/blob/v2.20.0/docs/metrics/workload/pod-metrics.md
+    checked: 2026-11-12
+  - title: CPUThrottlingHigh runbook
+    url: https://runbooks.prometheus-operator.dev/runbooks/kubernetes/cputhrottlinghigh/
+    checked: 2026-11-12
+---
+
+<Problem>
+Two tickets on the same morning. "The API is slow, but its CPU graph never goes above 0.1 cores." And: "The worker pod restarts every few minutes, and its memory graph looks flat." Both graphs are honest. Both teams looked at usage alone, without the limit beside it and without the component that saw the end.
+</Problem>
+
+A limit changes what a usage graph means. Here you break one container on each limit and look for the evidence.
+
+<Idea>
+A CPU limit never kills: the kernel throttles the container, so it runs slower and its usage sits flat at the limit. A memory limit does kill: the kernel ends the process when its cgroup goes over, and the kubelet restarts it. cAdvisor sees throttling as it happens; kube-state-metrics sees the kill afterwards, in the reason of the last termination.
+</Idea>
+
+## CPU: flat at the limit, and waiting
+
+The kernel enforces a CPU limit in short scheduling periods. When a container has used its share of a period, it waits until the next one. cAdvisor counts both: `container_cpu_cfs_periods_total` for the periods that passed and `container_cpu_cfs_throttled_periods_total` for those in which the container hit the limit. Their ratio is the share of time a container was held back. The stack's `CPUThrottlingHigh` alert fires when it is above 25% for 15 minutes.
+
+The usage graph shows a straight line at the limit, which looks calm. A flat line exactly at the limit is the sign, not the absence of one.
+
+## Memory: killed, restarted, then backing off
+
+When a container's memory goes over its limit, the kernel's out-of-memory handling kills it. The container ends with the reason `OOMKilled` and exit code 137, the kubelet restarts it, and after a few failures it waits longer and longer before each restart, with the waiting reason `CrashLoopBackOff`.
+
+A process that is killed seconds after it starts may never be measured. cAdvisor reads containers on a schedule, and the lab's Prometheus scrapes it every 10 seconds, so a short-lived container may leave no series at all, and its working set never shows the peak that killed it. kube-state-metrics does not have that gap: it reads the pod's status from the API, where the kubelet records why the container ended. `kube_pod_container_status_last_terminated_reason` keeps `OOMKilled` until the next termination, and `kube_pod_container_status_restarts_total` keeps counting.
+
+<Compare caption="Two limits, two kinds of evidence">
+  <Col title="CPU limit">Never kills. Usage flat at the limit; throttled periods rise (cAdvisor).</Col>
+  <Col title="Memory limit" hot>Kills. Last termination OOMKilled; restarts rise; CrashLoopBackOff comes and goes (kube-state-metrics).</Col>
+</Compare>
+
+<InLab>
+The lab's kubelet ServiceMonitor drops `container_cpu_cfs_throttled_seconds_total` but keeps the two period counters, so the ratio is the way to measure throttling here.
+</InLab>
+
+<Trap>
+Raising requests does not stop throttling; only the limit does. The request decides where the scheduler places the pod and how CPU is shared when the node is busy; the limit is the ceiling.
+</Trap>
+
+<Do>
+1. In WSL, create the namespace again if step 8 deleted it: <Cmd>kubectl create namespace learn-m06</Cmd>
+2. Save this as `m06-hogs.yaml`. `cpu-hog` asks for a full CPU with a limit of 0.1; `mem-hog` asks for 150 MB with a limit of 64Mi. The image and its arguments are the ones the Kubernetes documentation uses for this exercise: <Cmd>{`apiVersion: v1
+kind: Pod
+metadata:
+  name: cpu-hog
+  namespace: learn-m06
+spec:
+  containers:
+    - name: cpu-hog
+      image: polinux/stress
+      command: ["stress"]
+      args: ["--cpu", "1"]
+      resources:
+        requests: { cpu: 50m, memory: 16Mi }
+        limits: { cpu: 100m, memory: 32Mi }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mem-hog
+  namespace: learn-m06
+spec:
+  containers:
+    - name: mem-hog
+      image: polinux/stress
+      command: ["stress"]
+      args: ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]
+      resources:
+        requests: { cpu: 50m, memory: 32Mi }
+        limits: { cpu: 100m, memory: 64Mi }`}</Cmd>
+3. Apply it, wait two minutes, and look at the pods: <Cmd>kubectl apply -f m06-hogs.yaml</Cmd> <Cmd>kubectl -n learn-m06 get pods</Cmd> `cpu-hog` is Running with no restarts; `mem-hog` shows `OOMKilled` or `CrashLoopBackOff` and a growing restart count.
+4. On <LabLink to="prometheus" path="/query">the query page</LabLink>, cpu-hog's usage in cores, flat at its limit: <Query lang="promql">{`rate(container_cpu_usage_seconds_total{namespace="learn-m06", container="cpu-hog"}[2m])`}</Query>
+5. The share of periods in which it was throttled: <Query lang="promql">{`rate(container_cpu_cfs_throttled_periods_total{namespace="learn-m06", container="cpu-hog"}[2m]) / rate(container_cpu_cfs_periods_total{namespace="learn-m06", container="cpu-hog"}[2m])`}</Query> Well above the alert's 0.25.
+6. Now mem-hog, through kube-state-metrics: <Query lang="promql">{`kube_pod_container_status_last_terminated_reason{namespace="learn-m06"}`}</Query> <Query lang="promql">{`kube_pod_container_status_restarts_total{namespace="learn-m06"}`}</Query>
+7. Look for mem-hog's memory in cAdvisor: <Query lang="promql">{`container_memory_working_set_bytes{namespace="learn-m06", container="mem-hog"}`}</Query> Most of the time it is empty: the container dies between two scrapes.
+8. Delete the namespace and everything in it: <Cmd>kubectl delete namespace learn-m06</Cmd> Then paste the `reason` from action 6 in the check below.
+</Do>
+
+<Done>
+You saw throttling as a ratio from cAdvisor while the usage graph stayed flat, and the OOM kill as a reason and a restart count from kube-state-metrics, and the namespace is gone.
+</Done>
+
+<Trap practice>
+If `kubectl -n learn-m06 get pods` shows mem-hog `Running`, you looked between two kills. Run it again a few times, or read the restart count, which only grows.
+</Trap>
+
+<Remember>
+CPU limit: throttled, never killed, seen in cAdvisor's period counters. Memory limit: killed and restarted, seen in kube-state-metrics' last termination reason and restart count.
+</Remember>
+
+<Question id="q-m06-s11" answer="b">
+A container's CPU usage graph is a flat line at 0.5 cores for an hour, and its limit is 0.5. Requests through it are slow. What do you check next?
+
+- Its memory working set, because a flat CPU line means it is waiting for memory
+
+  A flat line at the limit points at the CPU limit, not at memory.
+
+- The ratio of throttled to total CFS periods from cAdvisor
+
+  A line flat at the limit suggests throttling, and the period counters show how often it was held back.
+
+- kube_pod_container_status_last_terminated_reason, because the kernel kills at the CPU limit
+
+  The kernel throttles at the CPU limit; it kills only at the memory limit.
+
+- The node's CPU utilization, because 0.5 cores means the node is full
+
+  The container is held at its own limit, whatever the node has free.
+</Question>
