@@ -106,7 +106,7 @@ Real cluster (profile `full`), what Kubernetes reserves (requests) and the most 
 | cert-manager controller, cainjector, webhook | 3 | 20m/10m/10m, 64Mi/64Mi/32Mi | 500m/200m/200m, 192Mi/192Mi/96Mi | 40m, 160Mi | 900m, 480Mi |
 | Envoy Gateway controller | 1 | 50m, 128Mi | 500m, 384Mi | 50m, 128Mi | 500m, 384Mi |
 | Envoy proxy (envoy and shutdown-manager) | 2 | 110m, 160Mi | 1500m, 768Mi | 220m, 320Mi | 3000m, 1536Mi |
-| RustFS | 1 | 100m, 256Mi | 1, 1Gi | 100m, 256Mi | 1, 1Gi |
+| RustFS | 1 | 100m, 768Mi | 1, 1536Mi | 100m, 768Mi | 1, 1536Mi |
 | Strimzi operator | 1 | 100m, 384Mi | 1, 384Mi | 100m, 384Mi | 1, 384Mi |
 | Kafka `telemetry` (dual-role nodes, 512 MiB heap) | 3 | 200m, 768Mi | 1, 1280Mi | 600m, 2.25Gi | 3, 3.75Gi |
 | Kafka entity operator (topic and user operators) | 1 | 100m, 384Mi | 1, 768Mi | 100m, 384Mi | 1, 768Mi |
@@ -115,7 +115,7 @@ Real cluster (profile `full`), what Kubernetes reserves (requests) and the most 
 | Longhorn UI | 1 | 10m, 32Mi | 200m, 128Mi | 10m, 32Mi | 200m, 128Mi |
 | Longhorn instance managers (one per worker) | 4 | 200m (5% of 4 vCPU), memory not set | not set | 800m | not set |
 | Longhorn CSI sidecars (4 kinds, 2 each), CSI plugin and engine image (one per worker), driver deployer | 17 | not set by the chart | not set | measure | measure |
-| **Total (set values)** | | | | **2310m, 4.55 GiB** | **16.1 CPU, 11.05 GiB** |
+| **Total (set values)** | | | | **2310m, 5.05 GiB** | **16.1 CPU, 11.55 GiB** |
 
 Per node: the control-plane nodes run none of this (they keep kubeadm's taint), and the first
 role, `platform_control_plane` (tag `control-plane`), moves CoreDNS, the Tigera operator and the
@@ -152,6 +152,25 @@ writing, and records older than 24 hours go too. Every node holds a replica of a
 limit and filled on 2026-11-11 (`runbook.md`, "Kafka's disks are full";
 `lgtm/docs/adr/l5-kafka-disk.md`). `make lab-check` fails, and the alert `LabVolumeFillingUp`
 fires, when any volume of the lab is more than 85% full.
+
+The role `platform_kafka` also installs one object outside the namespace `kafka`: the Longhorn
+RecurringJob `longhorn-system/kafka-trim` (real cluster only, not on kind). Kafka deletes old
+segments all the time, but Longhorn keeps every block a volume has written until the filesystem
+is trimmed, so without it a Kafka replica would grow to its full 10 GiB plus the snapshot
+Longhorn takes when a volume grows, on disks that also hold the replicas of Mimir, Loki and
+Prometheus. The job runs `fstrim` (task `filesystem-trim`) every hour at minute 7 on the volumes
+of the group `kafka` and on nothing else: only the three Kafka claims carry the labels
+`recurring-job.longhorn.io/source: enabled` and `recurring-job-group.longhorn.io/kafka: enabled`,
+set by the KafkaNodePool's `template.persistentVolumeClaim`. It does not stop or restart Kafka.
+List what it covers with
+`kubectl -n longhorn-system get volumes.longhorn.io -l recurring-job-group.longhorn.io/kafka=enabled`.
+
+The same role sets `dataLocality: best-effort` on the three Kafka volumes, one at a time, so that
+each keeps a replica on the worker of the broker that uses it. Longhorn places a new replica by
+what is already scheduled on each disk, and RustFS's 25 GiB volume, created first, had pushed all
+six Kafka replicas onto the two workers without it (`lgtm/docs/adr/l5b-rustfs-memory.md`). `make lab-check`
+fails when a Longhorn disk has less than 25% free (`runbook.md`, "A Longhorn disk is short of
+space").
 
 Longhorn keeps 30% of each disk in reserve (its default for a node's default disk), so with
 over-provisioning at 100% only about 117 GiB of replicas fit on four workers, less than the

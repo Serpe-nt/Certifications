@@ -16,6 +16,7 @@
 #      line's trace is in Tempo (log to trace), and that trace's logs come back
 #      with Grafana's trace-to-logs query (trace to log)
 #   8. no volume of the lab is more than 85% full (tests/lab/volumes.sh)
+#   9. every Longhorn disk has at least 25% free (tests/lab/longhorn-disks.sh)
 #
 # Environment: LAB_KUBECONFIG (to read the Grafana password), LAB_GATEWAY_URL
 # (http://127.0.0.1:28080 on kind, http://10.10.0.5 on the real cluster),
@@ -158,6 +159,9 @@ fi
 
 echo "==> 8. No volume of the lab is fuller than ${LAB_VOLUME_FULL_RATIO:-0.85} of its size"
 bash tests/lab/volumes.sh || failures=$((failures + 1))
+
+echo "==> 9. Every Longhorn disk has at least ${LAB_LONGHORN_FREE_RATIO:-0.25} of its size free"
+bash tests/lab/longhorn-disks.sh || failures=$((failures + 1))
 
 echo
 if [ "$failures" -eq 0 ]; then echo "LAB CHECK PASSED"; else echo "LAB CHECK FAILED: $failures check(s)"; exit 1; fi
