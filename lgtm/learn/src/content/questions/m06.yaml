@@ -9,7 +9,7 @@
   exam: {cert: none}
   q: "A worker node is evicting pods for DiskPressure. You want to see which file system filled up, and since when. Which component reports that?"
   options:
-    - text: "node exporter, from the host's mounts"
+    - text: "node exporter, from the host's own mounts"
       why: "Its filesystem collector reports size and free space per mount point of the whole machine."
     - text: "kube-state-metrics, from the node object"
       why: "It reports the node's DiskPressure condition from the API, not how full each file system is."
@@ -45,7 +45,7 @@
       why: "Events expire by age, set on the API server, not with their pod."
     - text: "kubectl get events shows only Warning events"
       why: "It shows Normal and Warning events alike."
-    - text: "The API server keeps events one hour by default"
+    - text: "The API server keeps events for one hour by default"
       why: "The kube-apiserver flag --event-ttl defaults to one hour, so older events are gone."
     - text: "Events are written to the node's log files instead"
       why: "Events are API objects kept by the API server, not lines in a file on a node."
@@ -91,7 +91,7 @@
   options:
     - text: "A Service in front of the kubelets, made by hand"
       why: "The operator creates that Service; it does not change how the kubelet checks callers."
-    - text: "Webhook token authentication and authorization"
+    - text: "Webhook token authentication and webhook authorization"
       why: "With both, the kubelet accepts service account tokens and asks the API server whether the caller may read /metrics."
     - text: "Plain HTTP on port 10255 instead of HTTPS"
       why: "The README asks for token checks on the secure port, not for an open port."
@@ -173,7 +173,7 @@
       why: "On pod metrics it writes the object's pod name, and that value is kept."
     - text: "The Deployment series is left over from a deleted pod"
       why: "Series of deleted objects leave the page; this one is current."
-    - text: "It has no pod label, so the target's pod label is added"
+    - text: "It has no pod label, so the target's own pod label is added"
       why: "Prometheus attaches target labels where a scraped series has none; honor_labels only matters on a conflict."
     - text: "Prometheus renamed the object's pod label to exported_pod"
       why: "With honor_labels true nothing is renamed, and kube_pod_info keeps the cart pod."
@@ -255,7 +255,7 @@
       why: "Both are dependencies the chart installs by default."
     - text: "The Prometheus Operator and its ten CRDs"
       why: "The operator is the centre of the chart."
-    - text: "The Prometheus Adapter and blackbox exporter"
+    - text: "The Prometheus Adapter and the blackbox exporter"
       why: "The README names these two as not installed."
   answer: [3]
   source: https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/README.md
@@ -611,3 +611,19 @@
       why: "The readiness probe does not kill the container."
   answer: [1]
   source: https://v1-35.docs.kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+
+- id: q-m06-039
+  tags: [k8s-control-plane]
+  exam: {cert: none}
+  q: "<code>KubeSchedulerDown</code> fires on a kubeadm cluster where the scheduler pods run and pods get scheduled. Its expression is <code>absent(up{job=\"kube-scheduler\"})</code>. What does Prometheus see?"
+  options:
+    - text: "Scheduler targets that it finds but cannot connect to"
+      why: "Targets that do not answer have up at 0, and 0 is not absent; that is what TargetDown reports."
+    - text: "No scheduler target at all, for instance a Service matching no pod"
+      why: "absent() is true only when no series with that job exists: discovery found nothing to scrape."
+    - text: "Scheduler targets that answer with an HTTP 403 error"
+      why: "A refused scrape still makes a target with up at 0, so absent() stays empty."
+    - text: "A scheduler that crashed and lost its leader lease"
+      why: "The pods run and pods get scheduled, so the scheduler is working."
+  answer: [1]
+  source: https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.1.1/charts/kube-prometheus-stack/templates/prometheus/rules-1.14/kubernetes-system-scheduler.yaml

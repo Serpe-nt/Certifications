@@ -72,7 +72,7 @@ At the top is the control plane. The API server, the scheduler, the controller m
 
 Metrics are numbers. When you need the words, you need logs and events, and Kubernetes keeps neither for long.
 
-A container writes its log to standard output and standard error. The node keeps these lines in files under `/var/log/pods`, and the kubelet rotates them. `kubectl logs` reads only the newest file, and the files go away with the pod. Kubernetes has no storage for logs of its own: the documentation calls for cluster-level logging, usually an agent on every node that sends the lines to a log store.
+A container writes its log to standard output and standard error. The node keeps these lines in files under `/var/log/pods`, and the kubelet rotates them. `kubectl logs` reads only the newest file, and the files go away with the pod. Kubernetes has no storage for logs of its own: the documentation calls for cluster-level logging, and one of the ways it describes is an agent on every node that sends the lines to a log store.
 
 Events are API objects that say what happened to another object: a pod was scheduled, an image was pulled, a probe failed. The API server keeps them for one hour by default (`--event-ttl`). To read yesterday's events, something must copy them to a store while they exist.
 

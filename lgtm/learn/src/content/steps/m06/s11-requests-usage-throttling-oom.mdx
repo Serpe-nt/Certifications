@@ -79,7 +79,7 @@ Raising requests does not stop throttling; only the limit does. The request deci
 
 <Do>
 1. In WSL, create the namespace again if step 8 deleted it: <Cmd>kubectl create namespace learn-m06</Cmd>
-2. Save this as `m06-hogs.yaml`. `cpu-hog` asks for a full CPU with a limit of 0.1; `mem-hog` asks for 150 MB with a limit of 64Mi. The image and its arguments are the ones the Kubernetes documentation uses for this exercise: <Cmd>{`apiVersion: v1
+2. Save this as `m06-hogs.yaml`. `cpu-hog` asks for a full CPU with a limit of 0.1; `mem-hog` asks for 150 MB with a limit of 64Mi. `mem-hog` uses the image and the form of arguments of the Kubernetes documentation's memory task, `polinux/stress`; `cpu-hog` uses the same image with its `--cpu` option, where the documentation's CPU task uses another image, `vish/stress`: <Cmd>{`apiVersion: v1
 kind: Pod
 metadata:
   name: cpu-hog

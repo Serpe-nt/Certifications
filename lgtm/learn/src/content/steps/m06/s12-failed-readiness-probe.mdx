@@ -111,7 +111,7 @@ A failing readiness probe leaves the pod running and takes it out of service. Lo
 </Remember>
 
 <Question id="q-m06-s12" answer="a">
-A pod shows READY 0/1 and STATUS Running for twenty minutes, and its restart count has not changed. Which probe is failing?
+A container has a liveness probe and a readiness probe, and no startup probe. Its pod shows READY 0/1 and STATUS Running for twenty minutes, and its restart count has not changed. Which probe is failing?
 
 - Its readiness probe
 
@@ -121,9 +121,9 @@ A pod shows READY 0/1 and STATUS Running for twenty minutes, and its restart cou
 
   A failing liveness probe gets the container killed and restarted, so the restart count would rise.
 
-- Its startup probe
+- Both its liveness and its readiness probe
 
-  A startup probe that keeps failing also gets the container killed, so restarts would rise.
+  Twenty minutes of a failing liveness probe would have got the container killed and restarted.
 
 - None; the Service's selector does not match the pod
 
