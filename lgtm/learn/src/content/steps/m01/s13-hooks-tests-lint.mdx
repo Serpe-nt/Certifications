@@ -51,7 +51,7 @@ There are pairs for each operation: `pre-install` and `post-install`, `pre-upgra
 
 ## Hooks live outside the release
 
-Hook objects are not part of the release. `helm uninstall` does not remove them, and `helm get manifest` does not list them; `helm get hooks` does. The annotation `helm.sh/hook-delete-policy` says when Helm deletes them: `before-hook-creation` deletes the old one before a new one starts, and it is the default; `hook-succeeded` and `hook-failed` delete it after it succeeds or fails. The podinfo chart's hook Jobs use `hook-succeeded,hook-failed`, so after a run `kubectl get jobs` shows nothing.
+Hook objects are not part of the release. `helm uninstall` does not remove them, and on the lab `helm get manifest` did not list them; `helm get hooks` does. The annotation `helm.sh/hook-delete-policy` says when Helm deletes them: `before-hook-creation` deletes the old one before a new one starts, and it is the default; `hook-succeeded` and `hook-failed` delete it after it succeeds or fails. The podinfo chart's hook Jobs use `hook-succeeded,hook-failed`, so after a run `kubectl get jobs` shows nothing.
 
 ## Chart tests
 
@@ -59,7 +59,7 @@ A test is a pod or Job in the chart with `helm.sh/hook: test`; Helm 3 and later 
 
 ## helm lint, before everything
 
-`helm lint ./chart` reports `[ERROR]` for things that would break an install and `[WARNING]` for broken conventions, with the file and line. A chart with `version: one` fails, because the version must be SemVer. A template with an open `{{` fails with `unclosed action`. Add `--strict` to fail on warnings too, which suits a pipeline.
+`helm lint ./chart` reports `[ERROR]` for things that would break an install and `[WARNING]` for broken conventions. On the lab, a template error named its file and line. A chart with `version: one` fails, because the version must be SemVer. A template with an open `{{` fails with `unclosed action`. Add `--strict` to fail on warnings too, which suits a pipeline.
 
 <InLab>
 `make lab-lint` runs `helm lint` on the lab's charts and renders every release, so the lab's own pipeline does what this step describes.

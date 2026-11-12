@@ -68,7 +68,7 @@ The lab never uses `--set`. The playbook merges `values.yaml` of a release folde
 </InLab>
 
 <Trap>
-The order of `-f` files is the order on the command line, not the order you wrote them. `-f prod.yaml -f base.yaml` lets the base file win. Put the most specific file last.
+Only the order of `-f` files on the command line counts, not which file you think of as the base. `-f prod.yaml -f base.yaml` lets the base file win. Put the most specific file last.
 </Trap>
 
 <Remember>

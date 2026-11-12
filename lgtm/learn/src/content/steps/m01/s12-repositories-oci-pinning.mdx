@@ -14,7 +14,7 @@ terms:
   - term: OCI registry
     def: A registry of the kind that stores container images, which can also store Helm charts.
   - term: Digest
-    def: A sha256 hash of a chart package; installing by digest gets exactly those bytes.
+    def: The sha256 digest of a chart in an OCI registry; installing by digest gets exactly that chart.
   - term: Version range
     def: A constraint such as ^6.0.0 or ~6.16.0 that matches several versions.
 sources:
@@ -49,7 +49,7 @@ A classic repository is any web server that serves an `index.yaml` and, usually,
 
 ## OCI registries
 
-A registry such as GHCR, Docker Hub or Quay can store charts next to images. There is no `helm repo add` step: you name the chart with an `oci://` address, which works with `pull`, `show`, `template`, `install` and `upgrade`. `helm push` uploads a packaged chart, and `helm registry login` signs in; in Helm 4 the login takes only the host name, not a full URL.
+An OCI registry can store charts next to images; this module pulls podinfo's chart from GHCR, and the lab takes Strimzi's from Quay. There is no `helm repo add` step: you name the chart with an `oci://` address, which works with `pull`, `show`, `template`, `install` and `upgrade`. `helm push` uploads a packaged chart, and `helm registry login` signs in; in Helm 4 the login takes only the host name, not a full URL.
 
 <Compare caption="Two kinds of chart sources">
   <Col title="Classic repository">helm repo add, then repo/chart. An index.yaml lists the versions.</Col>
