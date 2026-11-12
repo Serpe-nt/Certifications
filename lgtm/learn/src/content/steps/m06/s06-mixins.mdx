@@ -102,7 +102,7 @@ The stack's alerts and dashboards come from mixins. Follow the colons: alert to 
 <Question id="q-m06-s06" answer="a">
 Your team wants `KubePodNotReady` to wait 5 minutes instead of 15, in every cluster that installs kube-prometheus-stack from your values file. What do you change?
 
-- Disable the alert in `defaultRules.disabled` and add your version in `additionalPrometheusRulesMap`
+- Turn it off in `defaultRules.disabled`, add yours in `additionalPrometheusRulesMap`
 
   Both are chart values, so every install from the file gets the change, and the chart's copy no longer fires.
 

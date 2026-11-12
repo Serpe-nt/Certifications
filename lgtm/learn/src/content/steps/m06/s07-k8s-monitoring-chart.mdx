@@ -98,7 +98,7 @@ You add the `clusterEvents` feature to a k8s-monitoring values file and assign i
 
   A DaemonSet pod reaches the API server like any other pod.
 
-- Each event arrives in Loki six times, once per collector pod
+- Each event reaches Loki six times, once per pod
 
   Every pod of a DaemonSet watches the same events from the API server, which is why the event collector should be a singleton.
 

@@ -101,7 +101,7 @@ After `helm upgrade` of kube-prometheus-stack to a new major version, ServiceMon
 
   A restart would not change what the API server accepts; that depends on the CRD.
 
-- Helm did not update the CRDs, so the API still has the old schema
+- Helm left the CRDs as they were, with the old schema
 
   Helm does not update CRDs on upgrade; the chart's README says to update them by hand.
 

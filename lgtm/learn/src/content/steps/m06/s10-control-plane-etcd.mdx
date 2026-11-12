@@ -113,7 +113,7 @@ On a kubeadm cluster, `up{job="kube-scheduler"}` is 0 on all three masters, whil
 
   A missing permission gives an HTTP 403 from a reachable port; the cause comes first here.
 
-- The scheduler binds its metrics port to 127.0.0.1, out of Prometheus's reach
+- The scheduler listens on 127.0.0.1, out of Prometheus's reach
 
   kubeadm sets --bind-address=127.0.0.1, so a scrape from another pod cannot connect.
 
