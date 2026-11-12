@@ -1,0 +1,103 @@
+---
+id: m01-s02
+title: "Three words: chart, release, repository"
+kind: concept
+minutes: 10
+order: 2
+exam:
+  - cert: none
+tags: [helm-concepts]
+outcome: You can tell a chart from a release and a repository, and read a chart's version and its app version apart.
+terms:
+  - term: Chart
+    def: A Helm package; templates and default values for one application.
+  - term: Release
+    def: One install of a chart in a cluster, under a name you choose.
+  - term: Revision
+    def: The version number of a release; 1 at install, plus 1 on each upgrade or rollback.
+  - term: Repository
+    def: A web server with an index.yaml that lists charts and where to download them.
+  - term: appVersion
+    def: A field in Chart.yaml that names the version of the application inside; for information only.
+sources:
+  - title: Introduction to Helm
+    url: https://helm.sh/docs/intro/introduction/
+    checked: 2026-11-12
+  - title: Glossary (Helm)
+    url: https://helm.sh/docs/glossary/
+    checked: 2026-11-12
+  - title: Charts (Helm)
+    url: https://helm.sh/docs/topics/charts/
+    checked: 2026-11-12
+  - title: The chart repository guide
+    url: https://helm.sh/docs/topics/chart_repository/
+    checked: 2026-11-12
+  - title: Using Helm
+    url: https://helm.sh/docs/intro/using_helm/
+    checked: 2026-11-12
+---
+
+<Problem>
+A colleague says: "Upgrade the loki release to chart 21.1.0, from the grafana-community repo." Three Helm words in one sentence, each a different kind of thing. Mix them up and you will look for a chart in the cluster or for a release in a repository.
+</Problem>
+
+<Idea>
+Helm works with three things. A chart is the package, a repository is where charts are published, and a release is one install of a chart in your cluster. You find a chart in a repository and install it, which creates a release.
+</Idea>
+
+<Flow caption="From a published chart to a running release">
+  <Stage title="Repository" kicker="Find">An index of charts and their versions.</Stage>
+  <Stage title="Chart" kicker="Download">Templates and default values, in one version.</Stage>
+  <Stage title="Release" kicker="Install">The chart installed under a name, with its revisions.</Stage>
+</Flow>
+
+## A chart is the package
+
+A chart is a folder, or a `.tgz` archive of it, that holds everything needed to run one application: templates of the Kubernetes objects and a file of default values. Its file `Chart.yaml` names the chart and gives two versions. `version` is the version of the chart itself and must follow semantic versioning, like `21.1.0`. `appVersion` names the version of the application inside, like `3.7.9`. Helm uses `version` to tell packages apart. `appVersion` is for information only.
+
+## A release is one install
+
+When you install a chart, Helm creates a release with the name you give it. The same chart can be installed many times under different names, for example three databases from one chart. A release has revisions: the install is revision 1, and every upgrade or rollback adds one. A rollback to revision 1 does not reuse that number. It creates a new revision with revision 1's content.
+
+<Timeline caption="Revisions of one release">
+  <Event at="1" title="install">The first version.</Event>
+  <Event at="2" title="upgrade">New values or a new chart version.</Event>
+  <Event at="3" title="upgrade">Another change.</Event>
+  <Event at="4" title="rollback to 1">Revision 1's content, under a new number.</Event>
+</Timeline>
+
+## A repository is where charts are published
+
+A chart repository is a plain web server with a file `index.yaml`. The index lists every chart and version it offers and where to download each archive. Helm comes with no repository configured. You add the ones you need with `helm repo add <name> <url>` and then refer to a chart as `<name>/<chart>`. Charts can also live in OCI registries, the same kind of registry that stores container images; step 12 covers both.
+
+<InLab>
+The lab installs charts from several repositories, for example `loki` from `https://grafana-community.github.io/helm-charts`. Each folder in `lgtm/lab/helm/` has a `VERSION` file that names the repository, the chart and its version.
+</InLab>
+
+<Trap>
+The APP VERSION column of `helm list` shows the chart's `appVersion`, not what runs. A values file can set another image tag. In this lab `helm list` shows Mimir 3.2.3, while the pods run the image `grafana/mimir:3.2.4` that the lab's values set.
+</Trap>
+
+<Remember>
+Repository: where charts are published. Chart: the versioned package. Release: one named install, with numbered revisions.
+</Remember>
+
+<Question id="q-m01-s02" answer="d">
+You install the same chart twice in one cluster, as `orders-db` and `users-db`. What do you have?
+
+- One release with two revisions
+
+  Revisions belong to one release and come from upgrades and rollbacks, not from a second install.
+
+- Two charts with one release each
+
+  The chart is the same package. Installing it does not copy the chart.
+
+- One repository entry and one release
+
+  Repositories hold charts. Installing twice creates two releases.
+
+- Two releases of one chart, each with its own revisions
+
+  Every install creates a release under its own name, and each release counts its own revisions.
+</Question>
