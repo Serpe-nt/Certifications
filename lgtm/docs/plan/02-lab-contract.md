@@ -1,6 +1,6 @@
 # Lab contract
 
-The names every part of the project agrees on, so the lab, the site and the lesson text can be written at the same time. Version 2 (2026-11-10: what wave 2 delivered and the real cluster are folded in), owned by the planner. A worker who needs a change asks for it in the pull request and does not edit this file.
+The names every part of the project agrees on, so the lab, the site and the lesson text can be written at the same time. Version 3 (2026-11-13: one control-plane node and 8 GB workers, by the owner's decision; version 2 of 2026-11-10 folded in what wave 2 delivered and the real cluster), owned by the planner. A worker who needs a change asks for it in the pull request and does not edit this file.
 
 ## Machines and network
 
@@ -8,19 +8,19 @@ The names every part of the project agrees on, so the lab, the site and the less
 |---|---|---|
 | Windows host | 10.10.0.1 | Hyper-V internal switch `lgtm-lab`, NAT to the internet |
 | lb | 10.10.0.5 | HAProxy and dnsmasq |
-| master1 to master3 | 10.10.0.11 to 10.10.0.13 | control plane |
+| master1 | 10.10.0.11 | control plane, one node (10.10.0.12 and .13 stay free for more) |
 | worker1 to worker4 | 10.10.0.30 to 10.10.0.33 | workloads |
 
 - Network 10.10.0.0/24. One network card per VM, static address from cloud-init.
 - DNS zone `k8s.local`, served by dnsmasq on `lb`. `cluster-endpoint.k8s.local` points at `lb`. `*.lab.k8s.local` points at `lb`.
-- HAProxy on `lb`: 6443 to the three API servers; 80 to worker NodePort 30080; 443 to worker NodePort 30443 (as in the copied `haproxy.cfg`). The health check on the two ingress ports is a plain TCP check, so whatever listens on the NodePorts needs no `/healthz` route.
+- HAProxy on `lb`: 6443 to the API server on master1 (and to any control-plane node added later); 80 to worker NodePort 30080; 443 to worker NodePort 30443 (as in the copied `haproxy.cfg`). The health check on the two ingress ports is a plain TCP check, so whatever listens on the NodePorts needs no `/healthz` route.
 - Inventory groups: `load_balancer` (host `lb`), `control_plane`, `workers`; the last two are children of `k8s_cluster`.
 - Guest OS: Ubuntu Server 24.04 cloud image. SSH user `vaka` with the key `~/.ssh/ansible`, as in the copied `ansible.cfg`; both are variables.
 - One file, `lgtm/lab/vm/nodes.yml`, lists the machines (name, address, vCPU, memory, disks). The Hyper-V script and the Ansible inventory are both generated from it.
 - The Ansible roles never mention a hypervisor. Given SSH-reachable Ubuntu machines and an inventory, they must work on Hyper-V, KVM or bare metal.
 - Kubeconfig for the lab is written to `~/.kube/lgtm-lab.config` on the control machine. Nothing overwrites `~/.kube/config`.
 - Names on the control machine. Windows sends `.k8s.local` to the lab DNS through a name resolution rule, so a browser on Windows resolves every lab address. WSL does not: its `/etc/hosts` is kept by hand and has `cluster-endpoint.k8s.local` (10.10.0.5) but none of the `lab.k8s.local` names. From WSL, reach a lab address as `http://10.10.0.5` with a `Host:` header, or add the names to `/etc/hosts`; the reference page that card L4 writes gives the line to add.
-- The cluster as it runs since 2026-11-10: seven nodes on Kubernetes 1.35.10 and containerd 2.2.1; masters 2 vCPU and 2 GB; workers 4 vCPU and 8 GB (sizes: `00-overview.md`, section 7).
+- The cluster from card L6 on: five nodes on Kubernetes 1.35.10 and containerd 2.2.1; one master with 2 vCPU and 4 GB; four workers with 4 vCPU and 8 GB; the `lb` VM is not a node (sizes: `00-overview.md`, section 7). Until L6 has rebuilt the lab, the running cluster still has three masters and 6 GB workers.
 
 ## Namespaces
 

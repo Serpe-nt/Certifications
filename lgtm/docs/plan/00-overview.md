@@ -30,7 +30,7 @@ The course aims at jobs first and at two certifications: OpenTelemetry Certified
 | Starting level | Knows Kubernetes. Helm, Prometheus, PromQL and Grafana start from zero. The course opens with a Helm module. |
 | Goal | Jobs and interviews, plus OTCA and PCA. Every step is mapped to an exam domain. One mock exam per certification. |
 | Lab platform | Kubernetes only. No Docker Compose stage. |
-| Cluster | Production-like from the first module: 3 control-plane nodes, 4 workers, 1 load balancer VM. Node counts stay variables. |
+| Cluster | 1 control-plane node, 4 workers, 1 load balancer VM, since 2026-11-13. The first choice was 3 control-plane nodes, to be production-like; the owner gave that up to free memory for the workers, where every lab-heavy module needs it. Node counts stay variables, and the load balancer stays so that control-plane nodes can be added. |
 | Hypervisor | Hyper-V on the Windows 11 PC. VM creation is automated. The Ansible playbooks must work on any hypervisor: they only need SSH-reachable Ubuntu machines. |
 | Cluster bootstrap | The owner's `k8s-provision` playbooks, copied (not forked) into `lgtm/lab/ansible` from commit `8442dee`. |
 | Storage | Longhorn for volumes, one small S3-compatible store for objects. |
@@ -149,10 +149,10 @@ Facts that change old tutorials, to keep in mind everywhere:
 | VM | Count | vCPU | RAM | Disks (dynamic VHDX) |
 |---|---|---|---|---|
 | lb | 1 | 2 | 2 GB | 10 GB |
-| master | 3 | 2 | 4 GB | 25 GB |
-| worker | 4 | 4 | 6 GB | 30 GB system + 40 GB Longhorn |
+| master | 1 | 2 | 4 GB | 25 GB |
+| worker | 4 | 4 | 8 GB | 30 GB system + 40 GB Longhorn |
 
-Total 38 GB of the PC's 61.6 GB. These are the sizes of the running VMs since 2026-11-11: card L4 found that masters with 2 GB ran out of memory during `make platform`, so the owner raised them to 4 GB and, to pay for it, lowered the workers from 8 GB to 6 GB. The lab was accepted at these sizes (`lgtm/lab/docs/acceptance-lab.md`). Earlier plans were 46 GB and then 40 GB. All sizes are variables in `lgtm/lab/vm/nodes.yml`; `create` never resizes a VM that exists, so the file and the VMs can drift, as the worker vCPU count shows. The lab's memory requests on the workers are about 22 GiB of 32 (`lgtm/lab/docs/budget.md`, written for 36 GiB). Two things to watch on the real cluster, both for card L4: the masters have kubeadm's minimum of 2 GB while the lab adds many CRDs, and the budget must be measured, not only added up.
+Total 38 GB of the PC's 61.6 GB. This is the target of card L6 (2026-11-13): the same total as before, with the 8 GB of two masters moved to the workers. One master keeps 4 GB, not 2: each master used 2.4 to 2.8 GB on 2026-11-13, the API server alone about 1 GB. Until L6 has rebuilt the lab, the VMs still have the sizes of 2026-11-11 (three masters with 4 GB, workers with 6 GB): card L4 found that masters with 2 GB ran out of memory during `make platform`, so the owner raised them to 4 GB and, to pay for it, lowered the workers from 8 GB to 6 GB. The lab was accepted at these sizes (`lgtm/lab/docs/acceptance-lab.md`). Earlier plans were 46 GB and then 40 GB. All sizes are variables in `lgtm/lab/vm/nodes.yml`; `create` never resizes a VM that exists, so the file and the VMs can drift, as the worker vCPU count shows. The lab's memory requests on the workers are about 22 GiB of 32 (`lgtm/lab/docs/budget.md`, written for 36 GiB). Two things to watch on the real cluster, both for card L4: the masters have kubeadm's minimum of 2 GB while the lab adds many CRDs, and the budget must be measured, not only added up.
 
 Disk: the owner freed space (more than 900 GB free on C: on 2026-11-10). The lab is planned for at most 90 GB of real use (short retention: 48 hours for logs and traces, 7 days for metrics).
 
@@ -182,6 +182,8 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | 6 | C4 Grafana core | module m05 | 12 steps that build one dashboard a team would keep |
 | 6 | C5 Kubernetes monitoring | module m06 | 12 steps on where cluster metrics and logs come from |
 | 7 | C6, C7, C8 | modules m07, m08, m09 | OpenTelemetry: the model and tracing; metrics, logs and configuration; the Collector |
+| before 8 | L6 lab version 3 | `lgtm/lab/**` | One master and 8 GB workers; the gateway's Kafka scrape, the object store's memory and the workshop on Windows fixed; the lab rebuilt from nothing with the owner and accepted |
+| before 8 | W1 walk and topology fix | the verification logs and the steps a walk or the new shape changes | Every lesson action still marked unverified is walked on the rebuilt lab with the owner signed in; m00, m04, m05 and m06 follow the new node counts |
 | 8 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
 | 8 to 10 | C9 to C16 content | one module each | Modules m10 to m17, three sessions at a time, in order |
 | 11 | C17 capstone | module m18 | Game days, interview bank, the exam steps (the mock pools exist since wave 4) |

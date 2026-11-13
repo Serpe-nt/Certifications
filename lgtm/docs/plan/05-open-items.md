@@ -22,7 +22,21 @@ The text is written and its facts are checked, but these actions were not done a
 | The collector gateway cannot scrape the shop's Kafka | found 2026-11-13 | Both gateway pods log `Error scraping metrics` from `kafka_metrics` about four times a minute: the shop's Kafka announces `kafka:9092`, which does not resolve from the namespace `otel`. Only the log shows it. |
 | The workshop service does not stop with Ctrl+C on Windows under zero-code instrumentation | found 2026-11-13 | `opentelemetry-instrument` replaces the process, so `python run.py` returns at once and the service keeps running. Module m07 step 7 gives a `Stop-Process` command. |
 | `lgtm/lab/workshop/.venv` is not git-ignored | found 2026-11-13 | |
-| The workers are close to their memory limit | 2026-11-12 | worker1 at 85 to 87% in use, worker2 at 90% of memory requested. Wave 7 put nothing in the cluster for that reason. Later modules with lab work in the cluster (m10 Alloy, m11 Mimir, m12 Loki) need room or very small practice workloads. |
+| The workers are close to their memory limit | 2026-11-12 | worker1 at 85 to 87% in use, worker2 at 90% of memory requested. Wave 7 put nothing in the cluster for that reason. Card L6 answers it: one master instead of three, workers at 8 GB instead of 6 (the owner's decision of 2026-11-13). |
+
+Card L6 (`cards/w8-l6-lab-v3.md`) takes all five rows and rebuilds the lab.
+
+## What the walk needs from the owner
+
+Asked of each worker on 2026-11-13. The walk runs on the rebuilt lab, after card L6.
+
+- A Grafana sign-in in the browser pane of the session that walks: m01 steps 18 and 19, m04 step 13, m06 steps 6, 8 and 12, m07 steps 3 to 9 and 12, m08 steps 4, 6, 8 and 12, m09 steps 6 and 11.
+- A go-ahead, said in that session, to create and delete `learn-m09` and to switch the flag `emitRawPii` on for a few minutes.
+- The lab seed in the site's settings, for the token check of m07 step 5 (the rebuild makes a new seed).
+- Left alone on purpose: `make reset` (m01 step 20), pushing a delta metric into Mimir (m08), changing a lab release to settle four inferences of m06, editing WSL's `/etc/hosts` for a Ctrl+C test (m07).
+- Small defects the answers showed: the m04 log lacks the unverified row for step 13's Grafana clicks; two notes in the m01 log still say Kafka must be fixed first.
+
+The new lab shape also changes lesson text and check answers: m00 (five steps, with the checks "8 VMs" and "3 etcd pods"), m04 (step 11's check and a few lines), m05 (step 2's check), m06 (a few lines and one question).
 
 ## Decisions not taken yet
 
