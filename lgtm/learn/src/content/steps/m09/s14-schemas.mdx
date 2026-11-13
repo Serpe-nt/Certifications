@@ -1,0 +1,107 @@
+---
+id: m09-s14
+title: "Schema management: schema URLs and renamed conventions"
+kind: concept
+minutes: 10
+order: 14
+exam:
+  - cert: otca
+    domain: O4
+    competency: Schema Management
+tags: [otel-schemas]
+outcome: You can read the schema URL on incoming telemetry, find what changed between two semantic convention versions, and say how a Collector can translate between them.
+terms:
+  - term: Telemetry schema
+    def: A versioned file that lists the changes, such as attribute renames, between versions of the semantic conventions.
+  - term: Schema URL
+    def: The address of a schema file carried in the telemetry; its last path segment is the version, such as 1.43.0.
+  - term: Schema family
+    def: All schema versions that share the part of the URL before the version.
+  - term: schema processor
+    def: A Collector processor that translates telemetry to a target schema version by applying the schema file's changes.
+sources:
+  - title: Telemetry Schemas (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/schemas/
+    checked: 2026-11-13
+  - title: OpenTelemetry schema 1.43.0 (OpenTelemetry)
+    url: https://opentelemetry.io/schemas/1.43.0
+    checked: 2026-11-13
+  - title: Schema processor (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/schemaprocessor/README.md
+    checked: 2026-11-13
+---
+
+<Problem>
+A dashboard counts requests with `http.method`. One team upgrades its instrumentation, and its spans now carry `http.request.method`. Half the panels go empty for that service, and nothing in the data says that the old and the new attribute mean the same thing.
+</Problem>
+
+Semantic conventions change: names get fixed and regrouped. Schemas are how OpenTelemetry lets producers and consumers change at different speeds.
+
+<Idea>
+OpenTelemetry publishes a schema file for each version of the semantic conventions, at `https://opentelemetry.io/schemas/VERSION`, listing what changed between versions. Telemetry carries the schema URL of the conventions it follows. A consumer that expects another version can translate the data, for example with the Collector's schema processor.
+</Idea>
+
+## The schema URL travels with the data
+
+OTLP has a `schema_url` field on the resource level and on the scope level of every batch. It applies to everything inside; when both are set, the scope's value wins. The last segment of the URL is the version; the part before it names the schema family. Schema files never change once published, so a consumer can fetch one once and cache it forever. The specification's telemetry schemas page states its status as Stable.
+
+You have seen one already: the debug exporter of your practice Collector printed `Resource SchemaURL: https://opentelemetry.io/schemas/1.43.0` above every batch from telemetrygen.
+
+## What a schema file holds
+
+A schema file lists versions, and for each version the changes from the version before it, grouped in sections: `all`, `resources`, `spans`, `span_events`, `metrics` and `logs`. The most common change is a rename. Two you will meet in older dashboards:
+
+```yaml
+versions:
+  1.27.0:
+    all:
+      changes:
+        - rename_attributes:
+            attribute_map:
+              deployment.environment: deployment.environment.name
+  1.21.0:
+    spans:
+      changes:
+        - rename_attributes:
+            attribute_map:
+              http.method: http.request.method
+              http.status_code: http.response.status_code
+```
+
+Because each version lists the steps from the previous one, a translator can walk from any older version to any newer one, or back, one step at a time. A change that cannot be expressed this way counts as a breaking change between versions.
+
+## Translating in the Collector
+
+The schema processor takes `targets`, one schema URL per family. When data arrives with a schema URL from the same family, it fetches that schema file (or uses its cache), applies the renames up or down to the target, and sends the data on with the target version. By default a rename removes the old name. With a `migration` entry, the processor writes both the old and the new name for a while, so dashboards and alerts can move over before you remove the old one. Its README marks the processor as alpha for traces, metrics and logs.
+
+<InLab>
+The gateway runs no schema processor. Its `transform/sanitize_spans` does pin a convention version in another way: `set_semconv_span_name("1.43.0", ...)` builds span names from the attributes of semantic conventions 1.43.0.
+</InLab>
+
+<Trap>
+A schema URL describes the conventions the producer meant to follow. It does not prove that every attribute matches them, and data with no schema URL cannot be translated at all.
+</Trap>
+
+<Remember>
+Schema files at opentelemetry.io/schemas/VERSION list the renames between convention versions; telemetry says its version in schema_url, scope over resource; the schema processor translates to a target version.
+</Remember>
+
+<Question id="q-m09-s14" answer="b">
+A batch of spans has the resource schema URL `https://opentelemetry.io/schemas/1.25.0` and the scope schema URL `https://opentelemetry.io/schemas/1.43.0`. Which version do the spans in that scope follow?
+
+- 1.25.0, because the resource describes the whole batch
+
+  The resource's value applies only where the scope sets none.
+
+- 1.43.0, because a non-empty scope schema URL takes precedence over the resource's
+
+  The specification gives the scope's value precedence when both are set.
+
+- Both, so a consumer must apply the changes of 1.25.0 and of 1.43.0
+
+  One version applies to each span; the two values do not add up.
+
+- Neither, because two different URLs in one batch make the data invalid
+
+  Different values are allowed; the specification says which one wins.
+</Question>
