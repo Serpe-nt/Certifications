@@ -57,7 +57,7 @@ Each values file explains its choices in comments. Three releases set things you
 
 ## One command, in order
 
-`make platform` runs `ansible/playbooks/platform.yml`. It first moves CoreDNS and the Calico controllers off the masters, then installs the add-ons in order. It downloads the pinned Helm, kubectl and two other tools into `lgtm/lab/.bin` as well. The first run on the owner's cluster took about 13 minutes; a second run changes nothing.
+`make platform` runs `ansible/playbooks/platform.yml`. It first moves CoreDNS and the Calico controllers off the control-plane node, then installs the add-ons in order. It downloads the pinned Helm, kubectl and two other tools into `lgtm/lab/.bin` as well. The first run on the owner's cluster took about 13 minutes; a second run changes nothing.
 
 ## Checking with Helm
 
