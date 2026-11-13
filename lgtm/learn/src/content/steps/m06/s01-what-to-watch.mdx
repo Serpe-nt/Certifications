@@ -81,7 +81,7 @@ Events are API objects that say what happened to another object: a pod was sched
 Most clusters run metrics-server, and `kubectl top` works through it. It collects the current CPU and memory of nodes and pods from each kubelet, for the Horizontal Pod Autoscaler and for `kubectl top`. The Kubernetes documentation says it offers only the minimum needed for autoscaling, and the kube-state-metrics documentation adds that it keeps only the latest values. There is no history to graph and nothing to alert on. A monitoring setup scrapes the kubelet, kube-state-metrics, node exporter and the control plane itself.
 
 <InLab>
-The lab's Prometheus in `prom` scrapes node exporter on all seven nodes, the kubelet on three paths (`/metrics`, `/metrics/cadvisor`, `/metrics/probes`), kube-state-metrics, the API server and CoreDNS. Alloy in `alloy` sends pod logs and Kubernetes events to Loki. Each of the next steps opens one of these boxes.
+The lab's Prometheus in `prom` scrapes node exporter on all five nodes, the kubelet on three paths (`/metrics`, `/metrics/cadvisor`, `/metrics/probes`), kube-state-metrics, the API server and CoreDNS. Alloy in `alloy` sends pod logs and Kubernetes events to Loki. Each of the next steps opens one of these boxes.
 </InLab>
 
 <Trap>

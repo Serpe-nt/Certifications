@@ -92,7 +92,7 @@ You still see a great deal through the API server, because every other component
 On a kubeadm cluster, the flags of the control plane components come from the `ClusterConfiguration`. Its `extraArgs` for `scheduler` and `controllerManager` can set `bind-address` to the node's address or `0.0.0.0`, and the `etcd` section can set `listen-metrics-urls` to a reachable address; for etcd the other way is to give Prometheus a client certificate signed by etcd's CA and scrape port 2379. kube-proxy's `metricsBindAddress` in its own configuration does the same for kube-proxy. After that change, turn on `kubeScheduler`, `kubeControllerManager`, `kubeEtcd` and `kubeProxy` in the chart's values. An open metrics port can be reached by more than Prometheus, so decide who else may connect to the masters before you open it.
 
 <InLab>
-The lab's values file leaves the four switches off and says why: kubeadm binds them to localhost. Prometheus scrapes three API server targets, one per master, and nothing from the scheduler, the controller manager, etcd or kube-proxy. A later module opens them.
+The lab's values file leaves the four switches off and says why: kubeadm binds them to localhost. Prometheus scrapes one API server target, on master1, and nothing from the scheduler, the controller manager, etcd or kube-proxy. A later module opens them.
 </InLab>
 
 <Trap>
@@ -103,7 +103,7 @@ Read an alert's expression before you act on its name. On a kubeadm cluster with
 1. In WSL, read the scheduler's flags on master1: <Cmd>kubectl -n kube-system get pod kube-scheduler-master1 -o yaml | grep -- --bind-address</Cmd>
 2. The controller manager and etcd: <Cmd>kubectl -n kube-system get pod kube-controller-manager-master1 -o yaml | grep -- --bind-address</Cmd> <Cmd>kubectl -n kube-system get pod etcd-master1 -o yaml | grep -- --listen-metrics-urls</Cmd>
 3. kube-proxy's setting; an empty value means its default, 127.0.0.1:10249: <Cmd>kubectl -n kube-system get configmap kube-proxy -o yaml | grep metricsBindAddress</Cmd>
-4. On <LabLink to="prometheus" path="/query">the query page</LabLink>, list the jobs Prometheus scrapes: <Query lang="promql">{`count by (job) (up)`}</Query> `apiserver` is there with 3 targets; no job for the scheduler, the controller manager, etcd or kube-proxy.
+4. On <LabLink to="prometheus" path="/query">the query page</LabLink>, list the jobs Prometheus scrapes: <Query lang="promql">{`count by (job) (up)`}</Query> `apiserver` is there with 1 target; no job for the scheduler, the controller manager, etcd or kube-proxy.
 5. The API server's view of its clients, by response code: <Query lang="promql">{`sum by (code) (rate(apiserver_request_total[5m]))`}</Query>
 6. The API server's view of etcd, the 99th percentile per operation: <Query lang="promql">{`histogram_quantile(0.99, sum by (le, operation) (rate(etcd_request_duration_seconds_bucket[5m])))`}</Query>
 7. Paste the address from action 1 in the check below.
@@ -122,7 +122,7 @@ On kubeadm only the API server is reachable without changes. The scheduler, the 
 </Remember>
 
 <Question id="q-m06-s10" answer="c">
-On a kubeadm cluster, `up{job="kube-scheduler"}` is 0 on all three masters, while the scheduler pods are Running and new pods get scheduled. What is the most likely cause?
+On a kubeadm cluster, `up{job="kube-scheduler"}` is 0 on every master, while the scheduler pods are Running and new pods get scheduled. What is the most likely cause?
 
 - The scheduler has crashed and its static pods only look Running
 

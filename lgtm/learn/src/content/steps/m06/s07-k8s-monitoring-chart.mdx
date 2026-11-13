@@ -76,7 +76,7 @@ The Pod Logs feature sets `service_name` on every log line: from the pod annotat
 The chart can collect cluster metrics, but this lab already has kube-prometheus-stack doing that, with Prometheus remote-writing to Mimir. Turning `clusterMetrics` on as well would send the same series to Mimir by a second route. So the lab uses the chart for logs and events only. It also leaves the namespace `shop` out of pod logs, because the shop's services already send their logs over OTLP through the collector gateway, and file collection would store each shop line twice.
 
 <InLab>
-The lab's release `k8s-monitoring` (chart 4.6.0) in `alloy` enables `podLogsViaLoki` on the collector `alloy-logs` (presets `daemonset`, `filesystem-log-reader`, seven pods) and `clusterEvents` on `alloy-singleton` (preset `singleton`, one pod), both to the destination `loki`, tenant `lab`. `helm list -n alloy` also shows the releases `k8s-monitoring-alloy-logs` and `k8s-monitoring-alloy-singleton`: the Alloy Operator installs each collector as a Helm release of its own.
+The lab's release `k8s-monitoring` (chart 4.6.0) in `alloy` enables `podLogsViaLoki` on the collector `alloy-logs` (presets `daemonset`, `filesystem-log-reader`, five pods) and `clusterEvents` on `alloy-singleton` (preset `singleton`, one pod), both to the destination `loki`, tenant `lab`. `helm list -n alloy` also shows the releases `k8s-monitoring-alloy-logs` and `k8s-monitoring-alloy-singleton`: the Alloy Operator installs each collector as a Helm release of its own.
 </InLab>
 
 <Trap>
