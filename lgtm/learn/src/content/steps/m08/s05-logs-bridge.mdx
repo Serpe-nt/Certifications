@@ -53,7 +53,7 @@ The workshop service already writes log lines with Python's `logging` module: an
 </Problem>
 
 <Idea>
-For traces and metrics, OpenTelemetry defined new APIs that your code calls. For logs it did not ask that. It defined a log data model and a Logs API built mainly for appenders: plug-ins that bridge an existing logging library into the OpenTelemetry SDK. The bridge adds the trace and span IDs of the current context and the resource to every record, so your existing log calls become correlated records.
+For traces and metrics, OpenTelemetry defined new APIs that your code calls. For logs it did not ask that. It defined a log data model and a Logs API built mainly for appenders: plug-ins that bridge an existing logging library into the OpenTelemetry SDK. When an appender emits a record through the API, the SDK fills in the trace and span IDs from the current context, and the logger provider attaches its resource, so your existing log calls become correlated records.
 </Idea>
 
 ## Why logs got a bridge, not a new API
@@ -93,17 +93,17 @@ From there the pipeline looks like the one for spans in module m07. A LoggerProv
 
 <Flow caption="A log line becomes a correlated record">
   <Stage title="log.warning(...)" kicker="Your code">The call your service already makes.</Stage>
-  <Stage title="Appender" kicker="Logs API">Turns the event into a LogRecord and reads the current context.</Stage>
-  <Stage title="Batching processor" kicker="SDK">Adds the resource, queues and batches.</Stage>
+  <Stage title="Appender" kicker="Logs API">Emits the event as a LogRecord through the Logs API.</Stage>
+  <Stage title="Logs SDK" kicker="SDK">Sets the trace and span IDs from the context; the provider holds the resource; the batching processor queues.</Stage>
   <Stage title="OTLP exporter" kicker="SDK">Sends to /v1/logs with trace_id and span_id on each record.</Stage>
 </Flow>
 
 <InLab>
-In Python, the logging instrumentation attaches an OpenTelemetry handler to the root logger, and since OpenTelemetry Python 1.40.0 the agent does that by default. In the shop, the Go service checkout bridges its `slog` logger with `otelslog`, and recommendation adds a `LoggingHandler` to Python's logging in code.
+In Python, the logging instrumentation attaches an OpenTelemetry handler to the root logger. The Python agent's configuration page lists that switch, `OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION`, as enabled by default, and says it had to be turned on before OpenTelemetry Python 1.40.0. In the shop, the Go service checkout bridges its `slog` logger with `otelslog`, and recommendation adds a `LoggingHandler` to Python's logging in code.
 </InLab>
 
 <Trap>
-Correlation does not come from printing the trace ID into the message. The bridge sets TraceId and SpanId as fields of the record from the active context; a log call made outside any span, such as at startup, has no trace ID at all.
+Correlation does not come from printing the trace ID into the message. The SDK sets TraceId and SpanId as fields of the record from the active context when the appender emits it; a log call made outside any span, such as at startup, has no trace ID at all.
 </Trap>
 
 <Remember>

@@ -40,6 +40,9 @@ sources:
   - title: Prometheus and OpenMetrics compatibility (OpenTelemetry specification)
     url: https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/
     checked: 2026-11-13
+  - title: Configuration parameters, native_histograms_ingestion_enabled (Grafana Mimir 3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+    checked: 2026-11-13
   - title: Configure the OpenTelemetry Collector to write metrics into Mimir (Grafana Mimir)
     url: https://grafana.com/docs/mimir/latest/configure/configure-otel-collector/
     checked: 2026-11-13
@@ -57,7 +60,7 @@ An explicit bucket histogram is only as good as its bounds, and the default boun
 
 ## The default bounds were made for milliseconds
 
-The explicit bucket histogram is the default aggregation of a histogram. Its default bounds are 0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500 and 10000, close to the defaults of the Prometheus clients for Java and Go. A bucket includes its upper bound and excludes its lower bound, so a value of 5 falls into (0, 5]. The SDK also records the minimum and the maximum by default.
+The explicit bucket histogram is the default aggregation of a histogram. Its default bounds are 0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500 and 10000; the specification says they were influenced by the default buckets of the Prometheus clients for Java and Go. A bucket includes its upper bound and excludes its lower bound, so a value of 5 falls into (0, 5]. The SDK also records the minimum and the maximum by default.
 
 For a duration in seconds, those bounds are far too wide. There are two fixes. The author of the instrument can pass suggested bounds as an advisory parameter, which is what the workshop does. The person running the application can set bounds in a view, which wins over the advice.
 
@@ -78,7 +81,7 @@ Lowering the scale merges neighbouring buckets without error, because the bucket
 
 ## From exponential histogram to native histogram
 
-The two models were built to meet. The compatibility specification maps an exponential histogram to a Prometheus native histogram with a standard schema: the scale becomes the schema, which Prometheus allows from -4 to 8, so a finer histogram is scaled down first. That mapping is marked as in development in the specification. Mimir accepts exponential histograms only when its native histogram ingestion is on, and then stores them as native histograms.
+The two models were built to meet. The compatibility specification maps an exponential histogram to a Prometheus native histogram with a standard schema: the scale becomes the schema, which Prometheus allows from -4 to 8, so a finer histogram is scaled down first. That mapping is marked as in development in the specification. Mimir stores exponential histograms as native histograms when its native histogram ingestion is on. The Mimir 3.2 reference gives `native_histograms_ingestion_enabled` the default true.
 
 ## The cardinality limit
 
@@ -87,7 +90,7 @@ Every attribute set of a metric is a data point the SDK keeps in memory. To stop
 When the limit is hit, new attribute sets are not dropped. Their measurements are added to one overflow point whose only attribute is `otel.metric.overflow=true`. The total stays right, but a query that filters or groups by any attribute misses those measurements. With cumulative temporality, the sets seen before the overflow keep reporting and new ones keep overflowing until the process restarts. With delta temporality the state is reset every cycle, so the limit applies to the sets active in one cycle. The limit does not count resource attributes such as `service.name`.
 
 <InLab>
-The workshop's histogram passes the bounds 0.001 to 5 seconds as advice, so it arrives in Mimir as `workshop_compute_duration_seconds_bucket` with eleven `le` values, `+Inf` included. The lab's Mimir has `native_histograms_ingestion_enabled: true`, so it would also accept exponential histograms.
+The workshop's histogram passes the bounds 0.001 to 5 seconds as advice, so it arrives in Mimir as `workshop_compute_duration_seconds_bucket` with eleven `le` values, `+Inf` included. The lab's Mimir sets `native_histograms_ingestion_enabled: true` in its values, and its runtime overrides do not change it, so it would also accept exponential histograms.
 </InLab>
 
 <Trap>

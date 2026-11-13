@@ -70,7 +70,7 @@ The specification is strict about parsing, and the rules decide what happens aft
 
 - An empty value is the same as no value, so the default applies.
 - A boolean is true only for the word `true`, in any case. `1`, `yes` and `on` all mean false, and the SDK should log a warning for any value that is not `true` or `false`.
-- A number the SDK cannot parse is ignored with a warning.
+- A number the SDK cannot parse should be ignored, with a warning.
 - An enum value is read without regard to case; an unknown value is ignored with a warning.
 
 `OTEL_SDK_DISABLED=true` turns every signal into a no-op without touching the code. It does not switch off the propagators, so trace context still passes through the service. Supporting these variables is optional for an implementation, so check your language's documentation for the ones it reads.

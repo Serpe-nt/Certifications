@@ -60,7 +60,7 @@ Two settings in `workshop.env` turn the metrics on: `OTEL_METRICS_EXPORTER=otlp`
 
 ## How the names change on the way into Mimir
 
-Mimir follows the OpenTelemetry rules for turning OTLP metrics into Prometheus series. Characters that Prometheus names do not allow become `_`. The unit is turned into a word and added, unless the name already ends in it: `s` becomes `_seconds`. A unit in braces, such as `{checkout}`, is only an annotation and is dropped. A cumulative monotonic sum gets `_total`. An up-down counter is a sum that is not monotonic, so it becomes a gauge without `_total`. A histogram becomes the classic `_bucket`, `_sum` and `_count` series.
+Mimir follows the OpenTelemetry rules for turning OTLP metrics into Prometheus series. Characters that Prometheus names do not allow become `_`. The unit is turned into a word and added, unless the name already ends in it: `s` becomes `_seconds`. A unit in braces, such as `{checkout}`, is only an annotation and is dropped. A cumulative monotonic sum gets `_total`. An up-down counter is a sum that is not monotonic, so it follows the gauge rules and arrives as a gauge without `_total`. A histogram becomes the classic `_bucket`, `_sum` and `_count` series.
 
 <Compare caption="One instrument, two names">
   <Col title="In the code">`workshop.checkouts` with unit `{checkout}`, `workshop.checkouts.active`, `workshop.compute.duration` with unit `s`, `workshop.inventory.stock` with unit `{item}`</Col>

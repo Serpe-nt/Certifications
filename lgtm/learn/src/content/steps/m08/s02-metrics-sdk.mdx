@@ -96,7 +96,7 @@ The memory claim is true. With cumulative temporality the SDK must keep every at
 
 ## What a Prometheus-style backend does with each
 
-Prometheus counters are cumulative, and the conversion rules in the OpenTelemetry specification follow from that. A cumulative monotonic sum becomes a Prometheus counter and gets `_total`. A cumulative sum that is not monotonic, such as an up-down counter, becomes a gauge. A delta monotonic sum may be converted to cumulative by the receiver. A delta histogram may be converted, or must be dropped.
+Prometheus counters are cumulative, and the conversion rules in the OpenTelemetry specification follow from that. A cumulative monotonic sum becomes a Prometheus counter and gets `_total`. A cumulative sum that is not monotonic, such as an up-down counter, follows the rules for gauges, which by default give a Prometheus gauge. A delta monotonic sum may be converted to cumulative by the receiver. A delta histogram may be converted, or must be dropped.
 
 Whether a receiver converts depends on the product. Prometheus does it only behind the experimental feature flag `otlp-deltatocumulative`. Mimir 3.2 has a setting `otel_native_delta_ingestion`, experimental and false by default, and its reference says that while it is off, delta metrics are rejected.
 

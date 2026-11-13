@@ -65,13 +65,13 @@ Some plugins are defined by the specification itself, such as the OTLP exporters
   <Stage title="Exporter" kicker="Out">Encodes the batch and sends it, with retries if the protocol has them.</Stage>
 </Flow>
 
-A propagator reads and writes context in a carrier, such as HTTP headers. Several of them combine into a composite propagator that runs each one in the order given, which is how a service accepts both W3C and B3 headers. The project must ship W3C Trace Context, W3C Baggage and B3; Jaeger and OT Trace are deprecated, and vendor formats such as AWS X-Ray may not be core packages.
+A propagator reads and writes context in a carrier, such as HTTP headers. Several of them combine into a composite propagator that runs each one in the order given, which is how a service accepts both W3C and B3 headers. The project must ship W3C Trace Context, W3C Baggage and B3; Jaeger and OT Trace are deprecated, and vendor formats such as AWS X-Ray must not be core packages.
 
 A resource detector runs once at startup and returns a resource that is merged with the others. Detectors for platforms and vendors, such as Kubernetes or a cloud, must live in packages separate from the SDK. They should finish quickly, and finding nothing is not an error.
 
 A span processor is a hook. Its `OnStart` gets the span while it can still be changed; its `OnEnd` gets a span that has ended and must not be changed. Processors run in the order they were registered, and each one starts its own pipeline that may end in its own exporter, so two processors give two destinations. The log SDK has the same design: a log record processor may change the record, and the next processor sees the change.
 
-An exporter implements `Export`, `ForceFlush` and `Shutdown`. The specification asks exporters to stay simple encoders and gives them the retry logic of their protocol; the built-in processors do not retry.
+An exporter implements `Export`, `ForceFlush` and `Shutdown`. The specification asks exporters to stay simple encoders and gives them the retry logic of their protocol; the built-in processors should not retry.
 
 ## Metrics compose differently
 
