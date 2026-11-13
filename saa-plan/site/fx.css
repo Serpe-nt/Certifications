@@ -25,7 +25,7 @@
 .fx-banner .b-i{width:fit-content;max-width:100%;margin:0 0 var(--space-3);padding:var(--space-3);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule);
   font:600 40px/1 var(--font-mono);color:var(--ink)}
 .fx-banner .b-i svg{display:block;width:auto;height:var(--bi-h,64px);max-width:100%}
-.fx-banner .b-t{font:700 var(--b-size)/.95 var(--font-display);letter-spacing:-.035em;color:var(--b-title,var(--signal))}
+.fx-banner .b-t{font:600 var(--b-size)/1 var(--font-display);letter-spacing:-.025em;color:var(--b-title,var(--ink))}
 .fx-banner .b-s{margin-top:var(--space-2);max-width:68ch;font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .fx-banner .b-s::before{content:"> ";color:var(--ink-3)}
 .fx-banner .b-s::after{content:"_";color:var(--ink)}
@@ -51,7 +51,7 @@ dialog.fx-glow{outline:var(--stroke-bold) solid var(--fx-glow,var(--signal-edge)
 
 /* a short system line above the buttons: what was just finished and what is left (a Notice) */
 .fx-toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);z-index:61;pointer-events:none;visibility:hidden;display:flex;align-items:stretch;
-  width:max-content;max-width:min(94vw,760px);background:var(--paper-raised);color:var(--ink);border:var(--stroke-hair) solid var(--ink);font:400 13px/20px var(--font-mono)}
+  width:max-content;max-width:min(94vw,760px);background:var(--paper-raised);color:var(--ink);border:var(--stroke-hair) solid var(--ink-3);font:400 13px/20px var(--font-mono)}
 .fx-toast.show{visibility:visible}
 .fx-toast .t-cap{flex:none;width:var(--space-3);background:var(--ink)}
 .fx-toast .t-b{padding:var(--space-2) var(--space-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -92,9 +92,9 @@ dialog .fx-badges{top:auto;bottom:80px;flex-direction:column-reverse}   /* a mod
 
 /* ================= the quiz, sheet and search dialogs: one shell ================= */
 dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;padding:0;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;   /* overflow-x: a row's one-off jitter never brings up a sideways scroll bar */   /* dvh: the part of a phone's screen not under its address bar */
-  background:var(--paper);color:var(--ink);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--grid-mark);border-radius:0;box-shadow:none}
+  background:var(--paper);color:var(--ink);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--rule);border-radius:0;box-shadow:none}
 .qz-h{position:sticky;top:0;z-index:3;display:flex;gap:var(--space-1) var(--space-4);align-items:center;flex-wrap:wrap;padding:var(--space-3) 56px var(--space-3) var(--space-6);
-  background:var(--paper-raised);border-bottom:var(--stroke-hair) solid var(--ink)}
+  background:var(--paper-raised);border-bottom:var(--stroke-hair) solid var(--rule)}
 .qz-h h2{margin:0;font:600 26px/1.1 var(--font-display);letter-spacing:-.03em;color:var(--ink)}
 .qz-meta{display:flex;gap:var(--space-1) var(--space-4);flex-wrap:wrap;align-items:center;font:400 12px/20px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-2)}
 .qz-meta .ok{color:var(--ink);font-weight:600}
@@ -119,9 +119,9 @@ dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;
 .qz-opts>.qz-o+.qz-o{margin-top:calc(var(--stroke-hair) * -1)}
 button.qz-o.qz-o{position:relative;display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:stretch;gap:0;width:100%;min-height:44px;margin:0;padding:0;
   text-align:left;font:400 15.5px/1.45 var(--font-sans);letter-spacing:normal;text-transform:none;color:var(--ink);background:var(--paper-raised);
-  border:var(--stroke-hair) solid var(--ink);border-radius:0;box-shadow:none;cursor:pointer}
+  border:var(--stroke-hair) solid var(--ink-3);border-radius:0;box-shadow:none;cursor:pointer}
 button.qz-o.qz-o:focus-visible{z-index:1;outline:var(--stroke-bold) solid var(--ink);outline-offset:var(--stroke-bold)}
-.qz-l{display:grid;place-items:center;font:600 13px/1 var(--font-mono);color:var(--ink);border-right:var(--stroke-hair) solid var(--ink)}
+.qz-l{display:grid;place-items:center;font:600 13px/1 var(--font-mono);color:var(--ink);border-right:var(--stroke-hair) solid var(--ink-3)}
 .qz-o .qz-t{display:flex;align-items:center;min-width:0;padding:var(--space-2) var(--space-3)}
 .qz-s{display:flex;align-items:center;padding-right:var(--space-3);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
 .qz-s:empty{padding:0}
@@ -138,7 +138,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 .dr-opts .qz-o.wrong::after{content:"\2715  Your answer";color:var(--alert-text)}
 
 /* the verdict: one system line with a cap; signal when right, hazard stripes when wrong */
-.qz-verdict{position:relative;display:flex;align-items:stretch;flex-wrap:wrap;margin:0 0 var(--space-3);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);font:400 13px/20px var(--font-mono);color:var(--ink)}
+.qz-verdict{position:relative;display:flex;align-items:stretch;flex-wrap:wrap;margin:0 0 var(--space-3);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);font:400 13px/20px var(--font-mono);color:var(--ink)}
 .qz-verdict::before{content:"";flex:none;width:var(--space-6);background:var(--ink)}
 .qz-verdict .v-s{padding:var(--space-2) var(--space-3);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .qz-verdict .v-l{padding:var(--space-2) var(--space-3) var(--space-2) 0}
@@ -150,7 +150,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 /* what each option says and why: the right row filled signal, your wrong pick with an alert key and struck through */
 .qz-fb{list-style:none;padding:0;margin:0;display:grid;gap:0}
 .qz-fb>li+li{margin-top:calc(var(--stroke-hair) * -1)}
-.qz-fb>li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:stretch;background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);font-size:15px;line-height:1.45;color:var(--ink)}
+.qz-fb>li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:stretch;background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);font-size:15px;line-height:1.45;color:var(--ink)}
 .qz-fb>li>.qz-c{min-width:0;padding:var(--space-2) var(--space-3)}
 .qz-fb .qz-why{margin-top:var(--space-1);font-size:14px;color:var(--ink-2)}
 .qz-fb>li.right{background:linear-gradient(var(--signal),var(--signal)) left/100% 100% no-repeat var(--paper-raised);color:var(--on-signal)}
@@ -207,7 +207,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
    and to signal at h4. It flickers on at each mark (boom), jitters on a miss, and turns alert when a run is lost
    (broke). Not in the mock exam. */
 .qz-cb{display:inline-flex;align-items:stretch;height:24px;font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
-  color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
+  color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3)}
 .qz-cb>span{display:flex;align-items:center}
 .qz-cb .cb-f{gap:2px;padding:0 var(--space-2);border-right:var(--stroke-hair) solid currentColor}
 .qz-cb .cb-f i{display:block;width:5px;height:10px;border:var(--stroke-hair) solid var(--ink-3)}
@@ -247,7 +247,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 .qz-res.dm-frame{--tab:150px;--foot:300px}
 .qz-res.has-gif{grid-template-columns:minmax(0,1fr) auto}
 .qz-res-t{display:grid;gap:var(--space-3);min-width:0}
-.qz-vd{margin:0;font:700 56px/.92 var(--font-display);letter-spacing:-.04em;color:var(--signal)}   /* the result's one title, yellow */
+.qz-vd{margin:0;font:500 48px/1 var(--font-display);letter-spacing:-.02em;color:var(--ink)}
 .qz-vd.is-alert{color:var(--alert)}
 .qz-res-m{display:flex;gap:var(--space-4) var(--space-6);align-items:center;flex-wrap:wrap}
 .qz-res-x{flex:1 1 200px;display:grid;gap:var(--space-1);min-width:0}
@@ -261,7 +261,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 .qz-gif figcaption{font:500 10px/12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 /* stars as three squares: lit signal, unlit an outline */
 .qz-rw{display:flex;gap:var(--space-3) var(--space-6);align-items:center;flex-wrap:wrap;margin:var(--space-3) 0 var(--space-1);padding:var(--space-3) var(--space-4);
-  background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
+  background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
 .stars{display:flex;gap:var(--space-1)}
 .stars span{display:block;width:20px;height:20px;border:var(--stroke-hair) solid var(--ink-3)}
 .stars span.on{background:var(--signal);border-color:var(--signal-edge)}
@@ -299,7 +299,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 .mk-row+.mk-row{margin-top:calc(var(--stroke-hair) * -1)}
 .mk-row .qz-o{margin:0}
 button.mk-x.mk-x{display:grid;place-items:center;min-width:0;min-height:0;margin:0 0 0 calc(var(--stroke-hair) * -1);padding:0;font:500 16px/1 var(--font-mono);letter-spacing:0;text-transform:none;
-  color:var(--ink-3);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-radius:0}
+  color:var(--ink-3);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);border-radius:0}
 button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 @media (hover:hover){:is(.mk-grid>button[data-go],button.mk-x.mk-x):not(:disabled):hover{outline:var(--stroke-hair) solid var(--signal-edge);outline-offset:-4px}}
 .mk-row.x .qz-t{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--ink-3);color:var(--ink-3)}
@@ -309,7 +309,7 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 .mk-f{margin:var(--space-2) 0 var(--space-1)}
 .mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:0;margin:var(--space-3) 0}
 .mk-grid>button[data-go]{position:relative;justify-content:center;min-width:0;margin:0 calc(var(--stroke-hair) * -1) calc(var(--stroke-hair) * -1) 0;padding:10px 0;
-  font:500 13px/1 var(--font-mono);letter-spacing:0;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-radius:0}
+  font:500 13px/1 var(--font-mono);letter-spacing:0;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);border-radius:0}
 .mk-grid>button[data-go].ans{background:var(--ink);color:var(--on-ink)}
 .mk-grid>button[data-go].ans.flag::after{background:var(--on-ink)}   /* an answered cell is light: its flag is dark */
 .mk-grid>button[data-go].flag::after{content:"";position:absolute;top:0;right:0;width:14px;height:14px;background:var(--signal-edge);clip-path:polygon(0 0,100% 0,100% 100%)}
@@ -342,13 +342,13 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 
 /* ---------- badges and level (the sheet) ---------- */
 .lv{display:flex;gap:var(--space-4);align-items:center;padding:var(--space-3) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
-.lv-n{padding-right:var(--space-4);border-right:var(--stroke-hair) solid var(--rule);font:300 64px/.9 var(--font-display);letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--signal)}
+.lv-n{padding-right:var(--space-4);border-right:var(--stroke-hair) solid var(--rule);font:300 56px/.9 var(--font-display);letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--ink)}
 .lv-n small{display:block;margin-bottom:var(--space-1);font:500 11px/16px var(--font-mono);font-stretch:100%;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 .lv-x{flex:1;display:grid;gap:6px;font-size:14.5px}
 .lv-x b{font:600 24px/1 var(--font-display);letter-spacing:-.025em}
 .ach{list-style:none;padding:0;margin:var(--space-4) 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0}
 .ach li{display:flex;gap:10px;align-items:flex-start;margin:0 calc(var(--stroke-hair) * -1) calc(var(--stroke-hair) * -1) 0;padding:10px var(--space-3);font-size:14px;
-  color:var(--ink-2);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
+  color:var(--ink-2);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
 .ach li.on{color:var(--ink)}
 .ach-i{flex:none;display:grid;place-items:center;min-width:44px;height:28px;padding:0 6px;font:600 12px/1 var(--font-mono);letter-spacing:.04em;color:var(--ink-3);border:var(--stroke-hair) solid var(--ink-3)}
 .ach li.on .ach-i{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}

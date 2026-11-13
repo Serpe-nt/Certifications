@@ -32,11 +32,13 @@ input,select,textarea{accent-color:var(--ink);caret-color:var(--ink)}
 
 /* the ground: Datum's own backdrop (Datum.backdrop in app.js bdDraw), never information. One figure per view, low in
    contrast and still: a small orbit on the overview, the plain grid while you read a step, the day's number as a ghost.
-   Datum draws it in ink-3; here its hairlines and registration marks take the poster's olive, its one live node yellow. */
+   Datum's own strokes: ink-3 at half strength or less; only its one live node is yellow. */
 .bd-host{position:fixed;inset:0;z-index:0;pointer-events:none;isolation:isolate}
 .bd-host .dm-backdrop{position:absolute;inset:0;z-index:0}
-.bd-host :is(.dm-bd-fine,.dm-bd-line,.dm-bd-mark,.dm-bd-limb){stroke:var(--grid-mark)}
-.bd-host .dm-bd-node{fill:var(--grid-mark)}
+.bd-host .dm-bd-fine{opacity:.12}   /* below Datum's own .22 / .5 / .85: the owner wants the ground quieter still */
+.bd-host .dm-bd-line{opacity:.28}
+.bd-host .dm-bd-mark{opacity:.3}
+.bd-host .dm-bd-live-ring{opacity:.3}
 .wrap{position:relative;z-index:1;max-width:calc(var(--wrap) + 2 * var(--gut));margin:0 auto;padding:var(--space-8) var(--gut) 140px}
 
 /* the labels: uppercase mono, one to three words */
@@ -44,9 +46,9 @@ input,select,textarea{accent-color:var(--ink);caret-color:var(--ink)}
 
 /* ---------- buttons: outline mono, primary filled with the action colour and cut bottom-right, ghost bracketed ---------- */
 button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:36px;padding:0 var(--space-4);font:500 12px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;text-align:center;
-  color:var(--ink);background:linear-gradient(var(--ink),var(--ink)) left/0 100% no-repeat var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-radius:0;cursor:pointer;
+  color:var(--ink);background:linear-gradient(var(--ink),var(--ink)) left/0 100% no-repeat var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);border-radius:0;cursor:pointer;
   transition:background-size var(--dm-step) var(--dm-ease),color var(--dm-tick) linear,border-color var(--dm-tick) linear}
-@media (hover:hover){button:not(:disabled):hover,.btn:hover{background-size:100% 100%;color:var(--on-ink)}}
+@media (hover:hover){button:not(:disabled):hover,.btn:hover{background-size:100% 100%;color:var(--on-ink);border-color:var(--ink)}}
 button:not(:disabled):active,.btn:active{transform:translate(1px,1px)}
 button.primary,.btn.primary{border-color:transparent;color:var(--on-action);font-weight:600;
   background:border-box no-repeat linear-gradient(315deg,transparent calc(var(--chamfer) * .7071),var(--action) calc(var(--chamfer) * .7071 + .5px))}
@@ -71,7 +73,7 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .row.end{justify-content:flex-end}
 
 /* status words: a tag whose fill is the status */
-.pill,.tag,.today-badge{display:inline-flex;align-items:center;gap:6px;min-height:20px;padding:0 var(--space-2);font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border:var(--stroke-hair) solid var(--ink);color:var(--ink);background:var(--paper-raised)}
+.pill,.tag,.today-badge{display:inline-flex;align-items:center;gap:6px;min-height:20px;padding:0 var(--space-2);font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border:var(--stroke-hair) solid var(--ink-3);color:var(--ink);background:var(--paper-raised)}
 .pill.ok{background:var(--ink);color:var(--on-ink)}
 .pill.warn{border-color:var(--alert);color:var(--alert-text)}
 .pill.bad{background:var(--alert);border-color:var(--alert);color:var(--on-alert)}
@@ -115,7 +117,7 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .timer.break.running .tm-go{background-color:var(--ink);color:var(--on-ink)}
 .timer.over .tm-mode,.timer.over .tm-time{color:var(--alert-text)}
 .timer.away .tm-mode{color:var(--alert-text)}
-.tm-pop{position:absolute;right:0;top:calc(100% + 1px);width:300px;display:block!important;background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--grid-mark);padding:var(--space-4);z-index:26;text-transform:none;letter-spacing:0}
+.tm-pop{position:absolute;right:0;top:calc(100% + 1px);width:300px;display:block!important;background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--rule);padding:var(--space-4);z-index:26;text-transform:none;letter-spacing:0}
 .tm-pop[hidden]{display:none!important}
 .tm-btns{display:flex;gap:var(--space-2)}
 .tm-btns button{flex:1}
@@ -138,13 +140,12 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .tb-title{display:grid;gap:var(--space-4);min-width:0;justify-items:start}
 .tb-title .tb-k{color:var(--ink-3)}
 .tb-title .tb-k,.tb-tools>button{background-color:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}   /* plates: no text bare on the backdrop */
-.tb-h{width:fit-content;max-width:14ch;margin:0;font:700 clamp(48px,5.2vw,80px)/.9 var(--font-display);letter-spacing:-.04em;color:var(--signal);text-wrap:balance;
+.tb-h{width:fit-content;max-width:14ch;margin:0;font:500 clamp(40px,4.2vw,56px)/1.04 var(--font-display);letter-spacing:-.02em;color:var(--ink);text-wrap:balance;
   background:var(--paper);box-shadow:0 0 0 var(--space-3) var(--paper)}
 .tb-cells{grid-column:2;display:grid;grid-template-columns:auto auto;column-gap:var(--space-8);min-width:300px;margin:0;background:var(--paper);box-shadow:0 0 0 var(--space-3) var(--paper)}
 .tb-cell{display:contents}
-.tb-cell :is(dt,dd){padding:var(--space-1) 0;border-top:var(--stroke-hair) solid var(--grid)}
-.tb-cell:first-child :is(dt,dd){border-top-color:var(--grid-mark)}
-.tb-cell dt{color:var(--signal)}
+.tb-cell :is(dt,dd){padding:var(--space-1) 0;border-top:var(--stroke-hair) solid var(--rule)}
+.tb-cell dt{color:var(--ink-3)}
 .tb-cell dt::after{content:":"}
 .tb-cell dd{margin:0;text-align:right;font:500 13px/16px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--ink)}
 #b-fx{min-width:124px}#b-snd{min-width:108px}   /* the width of the longer word, off: the column never moves */
@@ -156,20 +157,19 @@ body.in-flow .tb{display:none}
 #home{counter-reset:sec}
 /* the app's own pieces Datum has no class for (the Field Manual had them): an index chip, the rail's mini bar of days,
    a quiet stat, the slanted ticks in the hero tab */
-.dm-section__idx,.dm-idx{font:600 11px/16px var(--font-mono);letter-spacing:.08em;padding:0 var(--space-1);background:var(--signal);color:var(--on-signal)}
+.dm-section__idx,.dm-idx{font:500 11px/16px var(--font-mono);letter-spacing:.08em;padding:0 var(--space-1);color:var(--ink-3)}   /* an index is a label, not a fill */
 .dm-seg--mini{width:96px;height:var(--space-2);margin:0}
 .dm-seg--mini>i{border-width:0;background:var(--rule)}
 .dm-seg--mini>.is-done{background:var(--ink)}
 .dm-seg--mini>.is-now{background:var(--signal);margin:-2px 0}
 .dm-stat--quiet{border-top-color:var(--ink-3)}
-.dm-slants{display:inline-block;flex:none;width:var(--space-8);height:var(--space-2);background:repeating-linear-gradient(135deg,var(--grid-mark) 0 3px,transparent 3px 7px)}
+.dm-slants{display:inline-block;flex:none;width:var(--space-8);height:var(--space-2);background:repeating-linear-gradient(135deg,var(--ink-3) 0 3px,transparent 3px 7px)}
 .dm-section{margin:0}
 .dm-section__title{font-size:11px}
 .dm-section .dm-data{font-size:13px;color:var(--ink-2);background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ov-h,.panel>summary{counter-increment:sec;display:flex;align-items:center;gap:var(--space-3);margin:var(--space-12) 0 var(--space-6);color:var(--ink)}
 /* a section header: the poster's arrow mark pointing at the title, then a grid hairline to the edge */
-.ov-h::before,.panel>summary::before{content:"";flex:none;width:8px;height:12px;background:var(--signal);clip-path:polygon(0 0,100% 50%,0 100%)}
-.ov-h::after{content:"";flex:1;border-top:var(--stroke-hair) solid var(--grid)}
+.ov-h::after{content:"";flex:1;border-top:var(--stroke-hair) solid var(--rule)}
 .ov-h{font-size:11px}
 .ov-h,.nx-cal,.nx-fin{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}   /* a plate: no text bare on the backdrop */
 .nx-cal,.nx-fin{width:fit-content;max-width:100%}
@@ -178,13 +178,13 @@ body.in-flow .tb{display:none}
 .next{margin:0 0 var(--space-8)}
 .nx-h{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .nx-h>*{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
-.nx-k{color:var(--ink);padding:0 var(--space-1);background:var(--signal)!important;color:var(--on-signal);box-shadow:none!important}
+.nx-k{padding:0 var(--space-1);color:var(--ink-2);border:var(--stroke-hair) solid var(--ink-3);box-shadow:none!important}
 .nx-st{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-left:auto}
 .nx-st b{color:var(--ink)}
 .nx-cal{margin:0 0 var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .nx-body{position:relative;display:grid;gap:var(--space-6) var(--space-8)}
 /* crosshairs locked onto the corners of the view's subject (the hero, the step and its sidebar): the poster's + marks */
-.nx-body::before{content:"";position:absolute;z-index:2;inset:calc(var(--space-4) * -1);pointer-events:none;--x:linear-gradient(var(--signal),var(--signal));
+.nx-body::before{display:none;content:"";position:absolute;z-index:2;inset:calc(var(--space-4) * -1);pointer-events:none;--x:linear-gradient(var(--signal),var(--signal));
   background:var(--x) 0 9px/19px 1px,var(--x) 9px 0/1px 19px,var(--x) 100% 9px/19px 1px,var(--x) calc(100% - 9px) 0/1px 19px,
     var(--x) 0 calc(100% - 9px)/19px 1px,var(--x) 9px 100%/1px 19px,var(--x) 100% calc(100% - 9px)/19px 1px,var(--x) calc(100% - 9px) 100%/1px 19px;background-repeat:no-repeat}
 @media (min-width:900px){.nx-body{grid-template-columns:minmax(0,2fr) minmax(320px,1fr);align-items:stretch}}
@@ -192,7 +192,6 @@ body.in-flow .tb{display:none}
 .hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-6);align-items:start}
 .hero-n{min-width:200px;gap:var(--space-3)!important}
 .hero-n .dm-dotnum{width:auto;height:auto;max-height:104px}
-.hero-n .dm-dot-on{fill:var(--signal)}   /* the view's one figure, lit in the poster's yellow */
 .hero-n .dm-dot-off{fill:var(--rule)}
 .hero-x{display:grid;gap:var(--space-3);min-width:0}
 .hero-t{margin:0;font:600 30px/1.1 var(--font-sans);color:var(--ink);text-wrap:balance}
@@ -218,7 +217,7 @@ body.in-flow .tb{display:none}
 .nx-a{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;align-self:stretch;margin-top:auto;padding-top:var(--space-4)}
 .nx-go .big{flex:1 1 100%;min-height:56px;font-size:14px;justify-content:space-between}
 .next.all-done .nx-fin{margin:var(--space-6) 0;font-size:18px;color:var(--ink-2)}
-.next.all-done .dm-bracketed{display:block;font:700 clamp(40px,6vw,80px)/.92 var(--font-display);letter-spacing:-.04em;color:var(--signal);margin-bottom:var(--space-3)}
+.next.all-done .dm-bracketed{display:block;font:500 clamp(36px,4.2vw,56px)/1.04 var(--font-display);letter-spacing:-.02em;color:var(--ink);margin-bottom:var(--space-3)}
 .next.all-done .nx-a{max-width:420px}
 /* warm-up / review: a notice above the hero */
 .nx-warm{display:flex;gap:var(--space-2) var(--space-4);align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 var(--space-4);padding:var(--space-2) var(--space-3) var(--space-2) calc(var(--space-6) + var(--space-3));
@@ -245,7 +244,7 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
 .xpbar>span{display:block;height:100%;background:var(--ink);transition:width var(--dm-arrive) var(--dm-ease)}
 .bar{height:var(--space-1);background:var(--rule)}
 .stats .bar{margin-top:var(--space-2)}
-.bar>div{height:100%;width:0;background:var(--signal);transition:width 900ms var(--dm-ease)}   /* the plan done: the overview's one bar, in yellow */
+.bar>div{height:100%;width:0;background:var(--ink-2);transition:width 900ms var(--dm-ease)}   /* a magnitude: ink, the way Datum's bars are */
 .pbar{display:block;height:var(--space-1);background:var(--rule);margin-top:var(--space-2)}
 .pbar>span{display:block;height:100%;background:var(--ink)}
 
@@ -255,7 +254,7 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
 .panel>summary::-webkit-details-marker{display:none}
 .panel>summary .sm-t,.panel>summary .muted{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
 .panel>summary .muted{text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink-2)}
-.panel>summary::after{content:"[ + ]";margin-left:auto;padding-left:var(--space-3);color:var(--ink-3);border-left:0;background:linear-gradient(var(--grid),var(--grid)) left center/calc(100% - 3.6em) 1px no-repeat;flex:1;text-align:right;white-space:nowrap}
+.panel>summary::after{content:"[ + ]";margin-left:auto;padding-left:var(--space-3);color:var(--ink-3);border-left:0;background:linear-gradient(var(--rule),var(--rule)) left center/calc(100% - 3.6em) 1px no-repeat;flex:1;text-align:right;white-space:nowrap}
 .panel[open]>summary::after{content:"[ – ]"}
 .panel>summary:hover::after{color:var(--ink)}
 .panel>:not(summary){margin-left:0;margin-right:0}
@@ -282,7 +281,8 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
 .scores-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0 var(--space-8)}
 .scores-grid label{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;border-bottom:var(--stroke-hair) solid var(--rule);font-size:14.5px;color:var(--ink-2)}
 .scores-grid .in{white-space:nowrap;font:400 13px var(--font-mono);color:var(--ink-3)}
-.scores-grid input,.field input,.field select,.s-disp select,.cost-add select,.cost-add input,#sr-q,.qz-note input{height:40px;padding:0 var(--space-3);font:400 14px var(--font-mono);color:var(--ink);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--ink);border-radius:0}
+:is(.scores-grid input,.field input,.field select,.s-disp select,.cost-add select,.cost-add input,#sr-q,.qz-note input):is(:hover,:focus){border-color:var(--ink)}
+.scores-grid input,.field input,.field select,.s-disp select,.cost-add select,.cost-add input,#sr-q,.qz-note input{height:40px;padding:0 var(--space-3);font:400 14px var(--font-mono);color:var(--ink);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--ink-3);border-radius:0}
 .scores-grid input{width:84px;text-align:right}
 .dom-bars{margin-top:var(--space-4);display:grid;gap:var(--space-2)}
 /* bars: ink magnitudes on one scale, each ending in a 45-degree cut; the figure beside them in mono */
@@ -295,7 +295,7 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
 .verdict{margin-top:var(--space-4);padding:var(--space-3) var(--space-4) var(--space-3) calc(var(--space-6) + var(--space-4));font-size:15px;color:var(--ink);border:var(--stroke-hair) solid var(--rule);
   background:linear-gradient(var(--ink-3),var(--ink-3)) var(--space-4) calc(var(--space-3) + 6px)/8px 8px no-repeat var(--paper-raised)}   /* a marker, not a colour edge */
 .verdict:empty{display:none}
-.verdict.go{background-image:linear-gradient(var(--signal),var(--signal));border-color:var(--grid-mark)}
+.verdict.go{background-image:linear-gradient(var(--signal),var(--signal))}
 .verdict.mid{border-color:var(--alert);background-image:linear-gradient(var(--alert),var(--alert));background-size:8px 4px}   /* half a marker: close, not there */
 .verdict.no{border-color:var(--alert);background-image:linear-gradient(var(--alert),var(--alert))}
 .verdict b{font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
@@ -304,7 +304,7 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
 /* ---------- the plan as a lattice: one cell per day, a week per row ---------- */
 .map{margin-top:var(--space-12)}
 .week{margin:var(--space-8) 0 var(--space-4)}
-.week .dm-section__idx{background:var(--paper);color:var(--ink);outline:var(--stroke-hair) solid var(--ink);outline-offset:-1px}
+.week .dm-section__idx{background:var(--paper);color:var(--ink-2);outline:var(--stroke-hair) solid var(--ink-3);outline-offset:-1px}
 .tiles{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));border-top:var(--stroke-hair) solid var(--rule);border-left:var(--stroke-hair) solid var(--rule);background:var(--paper-raised)}
 .dt.dm-cell{position:relative;min-width:0;min-height:148px;gap:var(--space-2);background-color:var(--paper-raised);transition:background-color var(--dm-step) linear,color var(--dm-step) linear}
 /* a day is an element box (the poster's Br, Xe, O): its number set large and light, the rest small around it; hovered,
@@ -418,7 +418,7 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 .ch .lab{fill:var(--ink);font:600 10.5px var(--font-mono)}
 .ch .xh{stroke:var(--signal-edge);stroke-width:1}
 .ch .hit{fill:transparent}
-.tt{position:absolute;top:var(--space-8);z-index:2;pointer-events:none;display:grid;gap:1px;padding:var(--space-2) var(--space-3);font:400 12px/16px var(--font-mono);background:var(--paper-sunk);color:var(--ink);border:var(--stroke-hair) solid var(--ink);white-space:nowrap}
+.tt{position:absolute;top:var(--space-8);z-index:2;pointer-events:none;display:grid;gap:1px;padding:var(--space-2) var(--space-3);font:400 12px/16px var(--font-mono);background:var(--paper-sunk);color:var(--ink);border:var(--stroke-hair) solid var(--ink-3);white-space:nowrap}
 .tt b{font-size:15px}
 .tr-tw{overflow-x:auto}
 .tr-tab{border-collapse:collapse;min-width:440px;font:400 13px var(--font-mono)}
@@ -452,7 +452,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .fl-top{display:flex;gap:var(--space-3) var(--space-4);align-items:flex-end;flex-wrap:wrap;margin-bottom:var(--space-6)}
 .fl-day{display:flex;gap:var(--space-1) var(--space-4);align-items:baseline;flex-wrap:wrap;flex:1 1 360px;min-width:0}
 .fl-day>:not(.today-badge){background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
-.fl-dn{font:700 52px/.9 var(--font-display);letter-spacing:-.04em;color:var(--signal)}   /* the day view's one title, yellow like the overview's */
+.fl-dn{font:500 44px/1 var(--font-display);letter-spacing:-.02em;color:var(--ink)}   /* the day view's one title, Datum's quiet voice */
 .fl-tt{font:600 20px/1.25 var(--font-sans);color:var(--ink)}
 .fl-dd{font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .fl-day .today-badge{order:-1}
@@ -489,7 +489,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 }
 .card::after{content:"";position:absolute;top:-1px;right:-1px;width:calc(var(--chamfer-l) + 1px);height:calc(var(--chamfer-l) + 1px);background:linear-gradient(to bottom left,var(--paper) calc(50% - .75px),var(--rule) calc(50% - .75px),var(--rule) calc(50% + .75px),transparent calc(50% + .75px))}
 /* a new step arrives: a yellow scan line runs along the card's top edge, then its parts switch on in order (motion block) */
-.card::before{content:"";position:absolute;top:0;left:0;right:var(--chamfer-l);height:var(--stroke-bold);background:var(--signal-edge);transform:scaleX(0);transform-origin:left;pointer-events:none}
+.card::before{content:"";position:absolute;top:0;left:0;right:var(--chamfer-l);height:var(--stroke-hair);background:var(--ink-3);transform:scaleX(0);transform-origin:left;pointer-events:none}
 .c-h{display:flex;gap:var(--space-2) var(--space-3);align-items:center;flex-wrap:wrap;min-height:24px}
 .c-meta{color:var(--ink-3)}
 .c-h .pill{margin-left:auto}
@@ -516,7 +516,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .c-open li::before{content:"□ ";font-family:var(--font-mono);color:var(--ink-3)}
 .c-w{margin-top:var(--space-3)}
 .c-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:var(--space-6) 0 0;border:var(--stroke-hair) solid var(--rule);border-top:0}
-.c-facts div{padding:var(--space-3) var(--space-4) var(--space-4);border-top:var(--stroke-hair) solid var(--grid-mark)}
+.c-facts div{padding:var(--space-3) var(--space-4) var(--space-4);border-top:var(--stroke-hair) solid var(--rule)}
 .c-facts div+div{border-left:var(--stroke-hair) solid var(--rule)}
 .c-facts dt{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 .c-facts dd{margin:var(--space-1) 0 0;font:600 22px/1.2 var(--font-display)}
@@ -528,7 +528,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .box>p{margin:0}
 .box>.cq-q,.box>.cq-v{margin:0 0 var(--space-3)}
 .txt{text-wrap:pretty}
-.b-why{border-color:var(--grid-mark)}   /* the why: framed in the poster's yellow hairline */
+.b-why{border-color:var(--ink-3)}   /* the why: the one part outlined a step brighter */
 .b-why .bi{width:10px;height:10px;background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
 .b-why p{font-size:19px;line-height:1.6;color:var(--ink);max-width:68ch}
 .b-why p+p{margin-top:var(--space-3);padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule)}   /* the problem, then the idea that answers it */
@@ -590,7 +590,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .cue-l .muted{font-size:13px}
 .c-prac{display:flex;gap:var(--space-2) var(--space-3);align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:var(--space-3);padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule);font-size:14px}
 .c-la{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);font-size:14.5px}
-.side{padding:var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--grid-mark)}
+.side{padding:var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--rule)}
 .side .box{background:var(--paper)}
 .side-t{margin:0;color:var(--ink)}
 .in-note{margin:var(--space-1) 0 0;font-size:14.5px;white-space:pre-wrap;color:var(--ink-2)}
@@ -638,7 +638,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 @media (max-width:640px){.g::after{position:fixed;left:12px;right:12px;bottom:86px;width:auto;max-width:none;font-size:15px;padding:var(--space-3)}}
 
 /* ---------- dialogs (the quiz, sheet and search shells are in fx.css) ---------- */
-dialog{max-width:min(560px,94vw);padding:var(--space-6);color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--grid-mark);border-radius:0;overscroll-behavior:contain}   /* scrolling a long dialog to its end doesn't scroll the page under it */
+dialog{max-width:min(560px,94vw);padding:var(--space-6);color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--rule);border-radius:0;overscroll-behavior:contain}   /* scrolling a long dialog to its end doesn't scroll the page under it */
 dialog::backdrop{background:color-mix(in srgb,var(--paper-sunk) 86%,transparent)}
 dialog h2{margin:0 0 var(--space-3);font:600 30px/1.05 var(--font-display);letter-spacing:-.03em;color:var(--ink)}
 dialog h2 .muted{font:400 13px var(--font-mono);text-transform:none}
@@ -646,7 +646,7 @@ dialog h2 .muted{font:400 13px var(--font-mono);text-transform:none}
 .field input,.field select{display:block;width:100%;margin-top:var(--space-1);text-transform:none;letter-spacing:0}
 .field small{display:block;margin-top:var(--space-1);font:400 12px/18px var(--font-sans);text-transform:none;letter-spacing:0;color:var(--ink-3)}
 .chk{display:flex;gap:var(--space-3);align-items:center;margin:var(--space-2) 0;font-size:15px}
-.chk input,.cl input{appearance:none;flex:none;width:18px;height:18px;margin:0;border:var(--stroke-hair) solid var(--ink);background:var(--paper-sunk);display:grid;place-items:center;cursor:pointer}
+.chk input,.cl input{appearance:none;flex:none;width:18px;height:18px;margin:0;border:var(--stroke-hair) solid var(--ink-3);background:var(--paper-sunk);display:grid;place-items:center;cursor:pointer}
 .chk input:checked,.cl input:checked{background:var(--ink)}
 .chk input:checked::after,.cl input:checked::after{content:"";width:8px;height:8px;background:var(--paper)}
 .cl{list-style:none;padding:0;margin:var(--space-2) 0;border-top:var(--stroke-hair) solid var(--rule)}
@@ -683,7 +683,7 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
 .wk>li{border-bottom:var(--stroke-hair) solid var(--rule)}
 .wk summary{display:grid;grid-template-columns:minmax(120px,240px) 1fr 60px;gap:var(--space-3);align-items:center;padding:var(--space-2) 0;cursor:pointer;font-size:14.5px}
 .cues{width:100%;border-collapse:collapse;font-size:14.5px}
-.cues th{text-align:left;padding:var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;border-bottom:var(--stroke-hair) solid var(--ink)}
+.cues th{text-align:left;padding:var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;border-bottom:var(--stroke-hair) solid var(--rule)}
 .cues td{padding:var(--space-2);vertical-align:top;border-bottom:var(--stroke-hair) solid var(--rule)}
 
 /* ---------- course diagrams (site/diagram.js): ink lines on the sunk well, cut-corner nodes, mono labels ---------- */
@@ -744,7 +744,7 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
 .la-t thead th{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;background:var(--paper);border-bottom-color:var(--ink)}
 .la-t thead th:first-child{width:120px}
 .la-t tbody th{font:500 11px/16px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--paper)}
-.la-t .la-cue td{background:var(--paper);border-top:var(--stroke-hair) solid var(--ink)}
+.la-t .la-cue td{background:var(--paper);border-top:var(--stroke-hair) solid var(--rule)}
 .la-t .la-cue th{color:var(--on-signal);background:var(--signal)}
 .la-docs{margin:var(--space-2) 0 0;font-size:13.5px}
 @media (max-width:760px){
