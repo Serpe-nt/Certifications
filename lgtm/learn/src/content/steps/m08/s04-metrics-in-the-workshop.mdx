@@ -83,7 +83,7 @@ Besides your four metrics, the service now sends `http_server_request_duration_s
 </InLab>
 
 <Trap>
-The name in your code is not the name you query. Look up the translated name once, in Explore or in Mimir's metadata, before you write a dashboard or an alert; a query on `workshop_checkouts_active_total` or `workshop.compute.duration` returns nothing and does not warn you.
+Your code and your queries use different names. Look up the translated name once, in Explore or in Mimir's metadata, before you write a dashboard or an alert; a query on `workshop_checkouts_active_total` or `workshop.compute.duration` returns nothing and does not warn you.
 </Trap>
 
 <Do>

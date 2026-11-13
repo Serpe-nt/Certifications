@@ -105,7 +105,7 @@ The workshop service exports cumulative metrics every 15 seconds (`OTEL_METRIC_E
 </InLab>
 
 <Trap>
-Delta is not wrong, it is a choice the receiver must support. Before you change the temporality preference, find out what the backend does with delta points; for Prometheus and Mimir, keep the default `cumulative`.
+Delta works only where the receiver supports it. Before you change the temporality preference, find out what the backend does with delta points; for Prometheus and Mimir, keep the default `cumulative`.
 </Trap>
 
 <Remember>

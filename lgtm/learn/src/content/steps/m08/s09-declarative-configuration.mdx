@@ -79,7 +79,7 @@ The shop's product-catalog, a Go service, is configured this way. Its chart sets
 </InLab>
 
 <Trap>
-Setting `OTEL_CONFIG_FILE` is not adding one more setting. From that moment the SDK ignores `OTEL_TRACES_SAMPLER`, `OTEL_METRIC_EXPORT_INTERVAL` and every other SDK variable the file does not reference, without an error.
+Once `OTEL_CONFIG_FILE` is set, the SDK ignores `OTEL_TRACES_SAMPLER`, `OTEL_METRIC_EXPORT_INTERVAL` and every other SDK variable the file does not reference, without an error.
 </Trap>
 
 <Remember>

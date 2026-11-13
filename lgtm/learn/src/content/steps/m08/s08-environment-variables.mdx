@@ -102,7 +102,7 @@ The new series carried `service_version="0.8.0"`, and their `job` was not `works
 </Done>
 
 <Trap practice>
-The namespace did not just disappear: the lab's collector gateway filled it in. Its Kubernetes attributes processor matches each connection to a pod, here the lab's Envoy gateway in namespace `gateway`, and it is configured to add `service.namespace` from that pod when a resource has none. That is why the job reads `gateway/workshop`.
+The lab's collector gateway filled in the missing namespace. Its Kubernetes attributes processor matches each connection to a pod, here the lab's Envoy gateway in namespace `gateway`, and it is configured to add `service.namespace` from that pod when a resource has none. That is why the job reads `gateway/workshop`.
 </Trap>
 
 <Remember>

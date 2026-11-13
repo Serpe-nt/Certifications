@@ -81,7 +81,7 @@ From your PC, the lab offers only OTLP/HTTP, on port 80 of `otlp.lab.k8s.local`,
 </InLab>
 
 <Trap>
-Port numbers are a convention, not a protocol switch. Sending `grpc` to a port that serves OTLP/HTTP, or `http/protobuf` to a gRPC port, fails even though both "speak OTLP"; set the protocol and the endpoint as a pair.
+The port number does not choose the protocol. Sending `grpc` to a port that serves OTLP/HTTP, or `http/protobuf` to a gRPC port, fails even though both "speak OTLP"; set the protocol and the endpoint as a pair.
 </Trap>
 
 <Remember>
