@@ -207,7 +207,7 @@
       why: Metrics returns metric names, not values of a label.
     - text: Label names, with the metric traces_spanmetrics_calls_total
       why: Label names returns names such as service_name, not their values.
-    - text: Label values, with the label service_name and that metric
+    - text: Label values, with the label service_name and that one metric
       why: Label values returns the values of one label, here limited to one metric.
     - text: Classic query, because only it can name a label
       why: Label values names a label too, and Classic query is marked as deprecated.
@@ -233,7 +233,7 @@
 - id: q-m05-015
   tags: [ dashboard-variables ]
   exam: { cert: pca, domain: P5, competency: Dashboarding basics }
-  q: You want one Error share panel per selected service, drawn side by side, without building each by hand. What do you set?
+  q: You want one Error share panel per selected service, without building each by hand. What do you set?
   options:
     - text: A transformation that splits the series by service
       why: A transformation reshapes data inside one panel. It does not create panels.
@@ -284,7 +284,7 @@
   exam: { cert: pca, domain: P5, competency: Dashboarding basics }
   q: A latency panel shows only the mean. Users still complain about slow pages that the panel does not show. What should the panel add?
   options:
-    - text: Percentiles such as p95 and p99
+    - text: Percentiles of latency such as p95 and p99
       why: A high percentile shows the slow tail that a mean hides.
     - text: A shorter refresh interval
       why: Refreshing more often shows the same mean sooner. It still hides the tail.
@@ -349,7 +349,7 @@
   exam: { cert: none }
   q: Both inputs of a ratio come from the same Prometheus. Where does Grafana advise doing the division?
   options:
-    - text: In the PromQL query, inside the data source
+    - text: In the PromQL query itself, inside the data source
       why: Grafana advises processing data in the data source where possible.
     - text: In a Math expression, on the Grafana server
       why: Expressions copy data to Grafana first. They are meant for light work and mixed sources.
@@ -437,7 +437,7 @@
       why: Annotations are supported in time series, state timeline and candlestick panels.
     - text: Annotations are stored in the data source, which is read only
       why: Annotations added by hand are stored in Grafana itself.
-    - text: The dashboard must be saved before annotations can be added
+    - text: The dashboard has to be saved before annotations can be added to it
       why: Adding annotations in a panel needs a saved dashboard and the built-in query.
   answer: [ 3 ]
   source: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/annotate-visualizations/
@@ -468,7 +468,7 @@
   options:
     - text: Give each of the five the Editor role in the organization
       why: Editor applies to all dashboards in the organization, not one folder.
-    - text: Create a team with the five and give it Edit on the folder
+    - text: Create a team of the five and give that team Edit on the folder
       why: A team gets permissions as a group, and folder permissions pass to every dashboard in it.
     - text: Give each of the five Edit on every dashboard in the folder
       why: That works until a new dashboard is added. A folder permission covers new ones too.
@@ -504,7 +504,7 @@
       why: Grafana does not renew tokens. They keep their expiry date or never expire.
     - text: They borrow the role of the oldest admin
       why: A service account has its own role.
-    - text: They belong to no user, so no departure affects them
+    - text: They belong to no user, so a person leaving does not affect them
       why: Service account tokens are not tied to any user.
   answer: [ 3 ]
   source: https://grafana.com/docs/grafana/v13.3/administration/service-accounts/

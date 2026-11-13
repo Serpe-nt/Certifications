@@ -90,7 +90,7 @@ Internal link for people who sign in, snapshot for a moment in time, export as c
 
 <Do>
 1. Open your dashboard `Shop service (m05)`. Open the **Share** drop-down and look at its three entries: **Share internally**, **Share externally** and **Share snapshot**. Choose **Share internally**: **Lock time range** and **Shorten link** are on. Click **Copy link** and close the drawer.
-2. Open the **Export** drop-down and choose **Export as code**. Open **Advanced options**: the model is **V2 Resource**, with the format JSON or YAML. Choose **Classic** and read the warning about features that may be lost.
+2. Open the **Export** drop-down and choose **Export as code**. Open **Advanced options**: in the lab the model is preset to **V2 Resource**, with the format JSON or YAML. Choose **Classic** and read the warning about features that may be lost.
 3. Turn on **Export for sharing externally**. The JSON now starts with `__inputs`: one entry for the data source Mimir, with its `name` and `label`. In the panels, the data source refers to that input.
 4. Click **Copy to clipboard** and close the drawer.
 5. Open **Dashboards**, click **New** and choose **Import dashboard**. Paste the JSON under **Import via dashboard JSON model** and click **Load**. Grafana warns that a dashboard with the same UID exists and offers **Import (Overwrite)**: do not take it. Change the name to `Shop service (m05) import`, choose the folder `Learn m05`, click **Change uid** and give it a new UID, and pick **Mimir** for the input `DS_MIMIR`. Click **Import** and look at the copy.

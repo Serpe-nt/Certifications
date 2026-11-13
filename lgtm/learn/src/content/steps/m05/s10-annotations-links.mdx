@@ -90,7 +90,7 @@ Mark events where the graph changes, and give every dashboard a way to the next 
 <Do>
 1. Open your dashboard `Shop service (m05)` (not in edit mode) and reload the page. Click a point on the panel Requests per second: a tooltip opens. Click **Add annotation**, write `m05 test annotation`, add the tag `m05` and click **Save**. Grafana confirms **Annotation added**, and a dashed line marks the moment.
 2. Click **Edit** and open the dashboard's sidebar with the **Options** icon. Under **Annotations**, in the group **Hidden**, find the built-in query.
-3. Click **+** next to **Links**. Set the **Title** to `Shop RED dashboards`, keep the **Type** **Dashboards**, and add the tag `shop` under **With tags**. **Show as dropdown** is already on; turn on **Include current time range** and **Include current template variable values**.
+3. Click **+** next to **Links**. Set the **Title** to `Shop RED dashboards`, keep the **Type** **Dashboards**, and add the tag `shop` under **With tags**. In the lab's Grafana **Show as dropdown** is already on; turn on **Include current time range** and **Include current template variable values**.
 4. Edit the panel Requests per second. Under **Data links and actions**, click **Add link**. Set the title to `Provisioned RED for ${service}` and the URL to the line below, then click **Save** in the dialog. Save the dashboard, click **Back** and **Exit edit**. <Cmd>{`/d/shop-red-\${service}?\${__url_time_range}`}</Cmd>
 5. Open the drop-down Shop RED dashboards at the top: it lists the eleven RED dashboards of the folder Shop.
 6. Reload the page and click a point on the panel Requests per second. With a single data link, the click opens it at once: the provisioned RED dashboard of the same service opens with your time range.

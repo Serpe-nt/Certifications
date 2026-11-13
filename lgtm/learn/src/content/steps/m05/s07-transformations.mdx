@@ -81,7 +81,7 @@ Grafana's own advice is to do the processing in the data source when you can. Co
 
 ## Keep the chain stable
 
-Some transformations, such as merges and joins, name their output after the RefIDs of their inputs. When a query is added, removed or renamed, that name changes, and a later step that filters on it stops matching. Grafana 13.3 can keep these generated RefIDs fixed, so chains survive changes to the queries. The **Table view** switch above the preview shows the data after every transformation, which is the quickest way to see what each step did.
+Some transformations name their output after the RefIDs of their inputs: Merge series/tables, Join by field, Join by labels, Series to rows and Reduce. When a query is added, removed or renamed, that name changes, and a later step that filters on it stops matching. In Grafana 13.3 you can give such a transformation a static refId, which the editor calls the transformation name: click the name in the step's header and type your own. The **Table view** switch above the preview shows the final result of the chain as a table. To see what one step did, click **Debug** on that transformation: it shows the step's input data next to its output data.
 
 <InLab>
 The beacon publishes all its metric tokens as one metric, `lab_beacon_value`, with the slot in the label `slot`. Asking for the slots of one module returns nine series: the right input for a summary table.
@@ -99,10 +99,10 @@ Shape in transformations, maths in the query, and an expression when the inputs 
 1. Open your dashboard `Shop service (m05)`, click **Edit**, click **Add panel** and then **Configure visualization**. Keep the data source **Mimir**.
 2. Enter this query, and in the query's **Options** set **Legend** to **Custom** with `{{slot}}`. Click **Run queries**: <Query lang="promql">{`lab_beacon_value{slot=~"metric-m05-.*"}`}</Query>
 3. Under **All visualizations**, pick **Table** and title the panel `Beacon slots of m05`. The table shows one series at a time, with a selector at its foot to switch between the nine slots.
-4. Open the **Transformations** tab, click **Add transformation**, search for `Reduce` and pick it. Its **Mode** is already **Series to rows**; replace the calculation **Max** with **Last \***. The table now has one row per slot, with the columns Field and Last \*. Note the name Grafana gave the step's output in its header, `reduce-A-A-...`: it is built from the input RefIDs.
+4. Open the **Transformations** tab, click **Add transformation**, search for `Reduce` and pick it. Its **Mode** is already **Series to rows**; replace the calculation **Max** with **Last \***. The table now has one row per slot, with the columns Field and Last \*. Note the name in the step's header, `reduce-A-A-...` in italics: Grafana built it from the input RefIDs, and you could replace it with a static name.
 5. Click **Add another transformation** and pick **Organize fields by name**. Rename **Field** to `Slot` and **Last \*** to `Token`.
 6. Add **Sort by** and set **Field** to `Slot`. The rows run from metric-m05-1 to metric-m05-9.
-7. Turn **Table view** on and off above the preview to compare the raw data with the result. Save the dashboard.
+7. Turn **Table view** on above the preview to read the final result of the chain as a table. Click **Debug** in the header of the Reduce step: the drawer shows its input data, nine series, next to its output data, one table. Close it and save the dashboard.
 8. Paste the value of the row metric-m05-2 in the lab check below.
 </Do>
 

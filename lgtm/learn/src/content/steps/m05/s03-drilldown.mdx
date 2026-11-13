@@ -18,7 +18,7 @@ terms:
   - term: Breakdown
     def: A view that splits one signal into a graph per value of a label or field.
   - term: Field
-    def: A value Logs Drilldown takes from inside each log line or its metadata, as opposed to a stream label.
+    def: "A value Logs Drilldown lists besides stream labels: structured metadata, and keys parsed from the lines when field extraction is on."
   - term: Log pattern
     def: A group of log lines with the same shape, detected by Loki, that you can show or hide together.
 sources:
@@ -74,7 +74,7 @@ Metrics Drilldown opens on a grid of metrics from the data source you pick, each
 
 ## Logs Drilldown: volume, labels, fields and patterns
 
-Logs Drilldown starts with one panel per service, ordered by log volume, each with a few recent lines. **Show logs** opens a service on its tabs. **Logs** lists the lines. **Labels** draws the log volume for each value of a stream label. **Fields** does the same for values taken from inside the lines, such as JSON keys and structured metadata. Where Loki detects patterns, a **Patterns** tab groups lines with the same shape, so you can hide the noise and keep what is unusual.
+Logs Drilldown starts with one panel per service, ordered by log volume, each with a few recent lines. **Show logs** opens a service on its tabs. **Logs** lists the lines. **Labels** draws the log volume for each value of a stream label. **Fields** does the same for structured metadata and, when the switch **Extract fields from logs** is on, for keys that Grafana parses from inside the lines with the JSON and logfmt parsers. Where Loki detects patterns, a **Patterns** tab groups lines with the same shape, so you can hide the noise and keep what is unusual.
 
 Every value can become a filter with one click, and every panel has a menu that opens its query in Explore. That is the hand-over: the app finds the place, and Explore lets you refine the query by hand.
 
@@ -103,10 +103,10 @@ Use a Drilldown app when you do not know what to ask yet, and Explore once you d
 1. In the main menu open **Drilldown**, then **Metrics**. Pick the data source **Prometheus** and type `kube_node` in the search box.
 2. On the panel of `kube_node_info`, click **Select**. The **Breakdown** tab lists the metric's labels with their values; the label `node` has seven. Click **Select** on `node` to get one graph per node.
 3. Now open **Drilldown** > **Logs**. Keep the data source **Loki** and set the time range to **Last 15 minutes**. Type `beacon` in the service search field and pick it from the list. Logs Drilldown opens the service on its **Logs** tab.
-4. Open the **Fields** tab. Find the field `slot` and click **Select**. Each slot of the course has its own graph, 171 in all. (The field `slot_extracted` is the same value read from the JSON body.)
+4. Open the **Fields** tab. Find the field `slot` and click **Select**. Each slot of the course has its own graph, 171 in all. The field `slot` is structured metadata, so it is listed whether or not **Extract fields from logs** is on. With that switch on, the tab also lists keys parsed from the JSON body, such as `slot_extracted` and `payload_token`.
 5. Type `log-m05-1` in **Search for value** and click **Include** on its graph. The filter `slot = log-m05-1` appears under **Fields** at the top. Go back to the **Logs** tab: only the lines of that slot are left, one a minute.
 6. Click one line to open its details. Find the token in the line's JSON, under `payload` (`token`).
-7. Open the menu (three dots) of the **Log volume** panel and choose **Explore**. Explore opens with a LogQL query that counts these lines, with `| json` and `| slot="log-m05-1"` in it. Read it: this is the query you did not have to write.
+7. Open the menu (three dots) of the **Log volume** panel and choose **Explore**. Explore opens with a LogQL query that counts these lines and keeps only those with `slot="log-m05-1"`. Read it: this is the query you did not have to write.
 8. Paste the token in the lab check below.
 </Do>
 
