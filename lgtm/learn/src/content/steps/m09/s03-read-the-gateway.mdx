@@ -1,0 +1,128 @@
+---
+id: m09-s03
+title: "Read the lab gateway's configuration, pipeline by pipeline"
+kind: lab
+minutes: 20
+order: 3
+exam:
+  - cert: otca
+    domain: O3
+    competency: Pipelines
+tags: [collector-pipelines]
+check:
+  kind: exact
+  prompt: Paste the ID of the exporter that the gateway's configuration defines but no pipeline uses.
+  answers: ["debug"]
+outcome: You can read a running Collector's configuration from its ConfigMap, follow each pipeline from receiver to exporter, and explain why its processors come in that order.
+terms:
+  - term: Rendered configuration
+    def: The configuration the Collector really loads, after Helm has merged the chart's defaults with the release's values.
+  - term: memory_limiter
+    def: A processor that refuses data when the Collector's memory passes a limit, so the process does not run out of memory.
+  - term: k8s_attributes
+    def: A processor that adds pod, namespace, node and workload names to data, looked up from the Kubernetes API.
+sources:
+  - title: Processors, recommended order (opentelemetry-collector v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/processor/README.md
+    checked: 2026-11-13
+  - title: Memory limiter processor (opentelemetry-collector v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/processor/memorylimiterprocessor/README.md
+    checked: 2026-11-13
+  - title: Kubernetes attributes processor (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/k8sattributesprocessor/README.md
+    checked: 2026-11-13
+  - title: Transform processor, set_semconv_span_name (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/transformprocessor/README.md
+    checked: 2026-11-13
+  - title: OpenTelemetry Collector Chart (OpenTelemetry)
+    url: https://opentelemetry.io/docs/platforms/kubernetes/helm/collector/
+    checked: 2026-11-13
+  - title: Architecture (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/architecture/
+    checked: 2026-11-13
+---
+
+<Problem>
+For eight modules you have sent traces, metrics and logs to `otel-gateway.otel.svc` and found them later in Tempo, Mimir and Loki. Someone now asks why a span's name in Tempo differs from the name the service gave it, and whether card numbers can reach Tempo. The answer is inside a Collector you have never opened.
+</Problem>
+
+The lab's values file is not the whole story: the chart adds its own defaults before the Collector starts. So you read the configuration that the pods actually load.
+
+<Idea>
+The gateway runs four pipelines. Three of them take OTLP from the shop, one per signal; the fourth scrapes the shop's databases and the gateway itself. In each pipeline the processors run in a deliberate order: the memory limiter first, then enrichment, then changes to the data, and the batch processor last.
+</Idea>
+
+## Four pipelines, one OTLP receiver
+
+The `otlp` receiver appears in the `traces`, `metrics` and `logs` pipelines. The Collector creates it once and fans its data out by signal: spans go to `traces`, metric points to `metrics`, log records to `logs`. Each pipeline ends in its own exporter, `otlp_grpc/tempo`, `otlp_http/mimir` or `otlp_http/loki`.
+
+The fourth pipeline, `metrics/scraper`, has no OTLP at all. Its receivers pull data: `postgresql`, `redis`, `kafka_metrics`, `nginx` and `http_check` read the shop's infrastructure, `prometheus/ad` scrapes the ad service, and `prometheus` scrapes the gateway's own metrics on port 8888. It shares the exporter `otlp_http/mimir` with the `metrics` pipeline.
+
+<Flow caption="The traces pipeline of otel-gateway">
+  <Stage title="otlp" kicker="Receiver">Spans from the shop, over gRPC or HTTP.</Stage>
+  <Stage title="Protect and enrich" kicker="Processors 1 to 3">memory_limiter, k8s_attributes, resource/cluster.</Stage>
+  <Stage title="Change and send" kicker="Processors 4 to 7">Two transforms, redaction, then batch.</Stage>
+  <Stage title="otlp_grpc/tempo" kicker="Exporter">To the Tempo distributor, tenant lab.</Stage>
+</Flow>
+
+## Why the processors come in this order
+
+The Collector's processor guide gives an order and a reason for each place. `memory_limiter` comes first, so it can refuse data before later processors hold on to it. `k8s_attributes` comes before `batch`, because it can find the sending pod from the connection's IP address, and batching drops that connection information. Processors that change data, such as `transform` and `redaction`, come next, so that only data that will be exported gets changed. `batch` comes last, so it never batches data that a later step would drop or change.
+
+The traces pipeline follows that order exactly. `resource/cluster` stamps `cluster` and `k8s.cluster.name` with `lgtm-lab`. `transform/sanitize_spans` calls `set_semconv_span_name("1.43.0", "original_span_name")`: it rebuilds names such as `GET /product/12345` from the semantic conventions so that span names stay low in cardinality, and keeps the old name in the attribute `original_span_name`. That is the answer to the question in the scene. `transform/redact_sensitive_data` and `redaction` remove card data; step 6 reads them line by line.
+
+## What the chart added
+
+Compare the rendered file with `lgtm/lab/helm/otel-gateway/values.yaml` and you find lines nobody wrote there. The chart's default configuration brings a `debug` exporter, a `health_check` extension on port 13133 that the pod's probes call, and `limit_percentage: 80` with `spike_limit_percentage: 25` inside `memory_limiter`. The values set `limit_mib: 400` and `spike_limit_mib: 100`, and the fixed MiB setting wins over the percentage, so the hard limit is 400 MiB and the soft limit 300 MiB. The `kubernetesAttributes` preset wrote the whole `k8s_attributes` block, with its list of metadata and three `pod_association` rules.
+
+Values are merged into the chart's defaults key by key, so anything you do not set to `null` stays defined. A defined component costs nothing as long as no pipeline names it.
+
+<InLab>
+In the `metrics/scraper` pipeline, `resource/scraper` sets `service.instance.id` to the pod's name. Both replicas scrape the same targets, and that attribute keeps their two copies of each series apart. Step 11 comes back to it.
+</InLab>
+
+<Trap>
+Reading only the values file gives you a wrong picture of a Helm-installed Collector. The ConfigMap holds what the pods load.
+</Trap>
+
+<Do>
+1. In WSL, with `KUBECONFIG` pointing at the lab, list the gateway's pods: <Cmd>kubectl -n otel get pods -l app.kubernetes.io/instance=otel-gateway -o wide</Cmd> Two pods, each on its own worker.
+2. Save the rendered configuration to a file. The ConfigMap keeps it under the key `relay`: <Cmd>kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' > gateway.yaml</Cmd>
+3. Show the pipelines: <Cmd>grep -n -A60 '^  pipelines:' gateway.yaml</Cmd> Count them, and for `traces` write down the processors in order.
+4. Show the memory limiter as the Collector loads it: <Cmd>grep -n -A6 '^  memory_limiter:' gateway.yaml</Cmd> Both `limit_mib` and `limit_percentage` are there.
+5. See which exporters are defined: <Cmd>grep -n -A1 -E '^  (debug|otlp_grpc|otlp_http)' gateway.yaml</Cmd>
+6. For each exporter ID from action 5, look for it in the pipelines from action 3. One ID appears in none of them. Paste it in the check below.
+7. Delete the file when you are done: <Cmd>rm gateway.yaml</Cmd> It holds the demo database's monitoring password from the values file.
+</Do>
+
+<Done>
+You read the gateway's four pipelines in the configuration the pods load, and found a component that is defined but never runs.
+</Done>
+
+<Trap practice>
+`kubectl get configmap otel-gateway -o yaml` prints the configuration as one long escaped string. Use the `jsonpath` form from action 2 to get readable YAML.
+</Trap>
+
+<Remember>
+The `otlp` receiver feeds three pipelines and `metrics/scraper` pulls the rest. Each pipeline runs memory_limiter first and batch last, with enrichment and redaction in between.
+</Remember>
+
+<Question id="q-m09-s03" answer="a">
+A colleague proposes moving `batch` to the front of the gateway's traces pipeline, before `k8s_attributes`, "so the other processors work on bigger chunks". What breaks first?
+
+- Spans that carry no pod attributes lose their pod names, because batching drops the connection details k8s_attributes falls back on
+
+  The `connection` association rule needs the request's context, which batching clears.
+
+- The memory limiter stops working, because it must always come directly after a receiver
+
+  The memory limiter would still run; it only works less well when it is not first.
+
+- Tempo rejects the spans, because batched spans arrive without the tenant header
+
+  The tenant header is set by the exporter on every request, whatever the batch size.
+
+- The Collector refuses to start, because batch is not allowed before other processors
+
+  The configuration loads; the order is a best practice, and the Collector does not enforce it.
+</Question>
