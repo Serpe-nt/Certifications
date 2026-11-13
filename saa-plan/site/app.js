@@ -3445,3 +3445,8 @@ pull().then(() => {
   else if (S.run && S.run.done) whenFree(openQuiz);   // results left open before a reload
 });
 })();
+// A glossary term near the window's right edge opens its definition leftwards, so it stays on screen (style.css .g-r).
+for (const t of ["pointerover", "focusin"]) document.addEventListener(t, e => {
+  const g = e.target.closest && e.target.closest(".g");
+  if (g) g.classList.toggle("g-r", g.getBoundingClientRect().left > innerWidth - 330);
+});

@@ -66,7 +66,7 @@ dialog .fx-toast{bottom:26px}
 /* Badges drop in at the top of the screen: a cut panel with a code cell whose fill is the tier.
    bronze outline, silver ink, gold signal, level signal with the live triangle, epic the panel in the other theme. */
 .fx-badges{position:fixed;top:42px;left:50%;transform:translateX(-50%);z-index:62;display:flex;flex-direction:column;align-items:center;gap:var(--space-2);pointer-events:none;width:max-content;max-width:94vw}
-dialog .fx-badges{top:14px}   /* a modal covers the rail */
+dialog .fx-badges{top:auto;bottom:80px;flex-direction:column-reverse}   /* a modal covers the rail; at the top they hid the quiz header */
 .fx-badge{--cut:var(--chamfer-l);position:relative;isolation:isolate;display:flex;align-items:stretch;min-width:280px;max-width:94vw;color:var(--ink)}
 .fx-badge::before,.fx-badge::after{content:"";position:absolute;z-index:-1;pointer-events:none}
 .fx-badge::before{inset:0;background:var(--ink);clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%)}
@@ -79,7 +79,7 @@ dialog .fx-badges{top:14px}   /* a modal covers the rail */
 .fx-badge.k-silver .bd-i{background:var(--ink);color:var(--on-ink)}
 .fx-badge.k-gold .bd-i,.fx-badge.k-level .bd-i,.fx-badge.k-epic .bd-i{background:var(--signal);color:var(--on-signal);border-right-color:var(--signal-edge)}
 .fx-badge.k-level,.fx-badge.k-epic{background:linear-gradient(to bottom left,var(--signal-edge) calc(50% - 2px),transparent calc(50% - 2px)) top right/var(--cut) var(--cut) no-repeat}
-.fx-badge.k-epic .bd-i{color:var(--inv-on-action,var(--on-signal))}
+.fx-badge.k-epic .bd-i{color:var(--on-signal)}
 
 /* the strip: the dot of the step just finished pops, the dots of a finished block step up one after another */
 :root:not([data-dm-motion="off"]) .dot.pop::before{animation:fx-dot-pop 480ms steps(1) both}
@@ -125,13 +125,13 @@ button.qz-o.qz-o:focus-visible{z-index:1;outline:var(--stroke-bold) solid var(--
 .qz-o .qz-t{display:flex;align-items:center;min-width:0;padding:var(--space-2) var(--space-3)}
 .qz-s{display:flex;align-items:center;padding-right:var(--space-3);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
 .qz-s:empty{padding:0}
-@media (hover:hover){button.qz-o.qz-o:not([disabled]):hover .qz-l{background:var(--ink);color:var(--on-ink)}}   /* a touch screen keeps "hover" where the finger was: the next question's option there would look picked */
+@media (hover:hover){button.qz-o.qz-o:not([disabled]):not(.on):hover .qz-l{background:var(--paper-sunk);color:var(--signal);box-shadow:inset 0 0 0 var(--stroke-bold) var(--signal-edge)}}   /* a touch screen keeps "hover" where the finger was: the next question's option there would look picked */
 button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 .qz-o.on .qz-l{background:var(--ink);color:var(--on-ink)}
 /* the drill marks its answer in place: the right one wipes in signal, a wrong pick jitters once */
 .dr-opts button.qz-o.right{background:linear-gradient(var(--signal),var(--signal)) left/100% 100% no-repeat var(--paper-raised);color:var(--on-signal)}
-.dr-opts .qz-o.right .qz-l{background:var(--on-signal);color:var(--signal);border-right-color:var(--on-signal)}
-.dr-opts .qz-o.wrong .qz-l{background:var(--alert);color:var(--on-alert)}
+.dr-opts button.qz-o.qz-o.right .qz-l{background:var(--on-signal);color:var(--signal);border-right-color:var(--on-signal)}
+.dr-opts button.qz-o.qz-o.wrong .qz-l{background:var(--alert);color:var(--on-alert)}
 .dr-opts .qz-o.wrong .qz-t{text-decoration:line-through;color:var(--ink-2)}
 .dr-opts .qz-o.right::after,.dr-opts .qz-o.wrong::after{display:flex;align-items:center;padding-right:var(--space-3);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
 .dr-opts .qz-o.right::after{content:"\2713  Correct"}
@@ -174,7 +174,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 .ref-a{display:flex;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap}
 .qz-doc{margin-top:var(--space-3);font-size:14px}
 @media (min-width:1360px){
-  #quiz .qz-side{position:fixed;top:max(4vh,calc(50vh - var(--qzdh,92vh) / 2));right:calc(50% + 406px);width:min(380px,calc(50% - 422px));max-height:92vh;overflow:auto;margin:0;
+  #quiz .qz-side{position:fixed;top:max(4vh,calc(50vh - var(--qzdh,92vh) / 2));right:calc(50% + 406px);width:min(380px,calc(50% - 422px));max-height:calc(96vh - max(4vh,calc(50vh - var(--qzdh,92vh) / 2)));overflow:auto;margin:0;
     padding:var(--space-3) var(--space-4) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
 }
 
@@ -293,7 +293,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 .flagb[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
 .mk-q{user-select:text;cursor:text}
 .mk-q .w{cursor:pointer}
-.mk-q .w.hl{background:var(--signal);color:var(--on-signal);outline:var(--stroke-hair) solid var(--signal)}
+.mk-q .w.hl{background:var(--signal);color:var(--on-signal);padding:0 .14em;margin:0 -.14em}
 .mk-opts{display:grid;gap:0}
 .mk-row{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:0;align-items:stretch}
 .mk-row+.mk-row{margin-top:calc(var(--stroke-hair) * -1)}
@@ -301,6 +301,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 button.mk-x.mk-x{display:grid;place-items:center;min-width:0;min-height:0;margin:0 0 0 calc(var(--stroke-hair) * -1);padding:0;font:500 16px/1 var(--font-mono);letter-spacing:0;text-transform:none;
   color:var(--ink-3);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-radius:0}
 button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+@media (hover:hover){:is(.mk-grid>button[data-go],button.mk-x.mk-x):not(:disabled):hover{outline:var(--stroke-hair) solid var(--signal-edge);outline-offset:-4px}}
 .mk-row.x .qz-t{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--ink-3);color:var(--ink-3)}
 .mk-row.x .qz-l{background-image:repeating-linear-gradient(135deg,var(--ink-3) 0 var(--stroke-hair),transparent var(--stroke-hair) 6px);color:var(--ink-3)}
 .mk-time{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
@@ -310,7 +311,7 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 .mk-grid>button[data-go]{position:relative;justify-content:center;min-width:0;margin:0 calc(var(--stroke-hair) * -1) calc(var(--stroke-hair) * -1) 0;padding:10px 0;
   font:500 13px/1 var(--font-mono);letter-spacing:0;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-radius:0}
 .mk-grid>button[data-go].ans{background:var(--ink);color:var(--on-ink)}
-.mk-grid>button[data-go].ans.flag::after{background:var(--signal)}   /* signal-edge is ink on Paper: on an ink cell the flag needs lime */
+.mk-grid>button[data-go].ans.flag::after{background:var(--on-ink)}   /* an answered cell is light: its flag is dark */
 .mk-grid>button[data-go].flag::after{content:"";position:absolute;top:0;right:0;width:14px;height:14px;background:var(--signal-edge);clip-path:polygon(0 0,100% 0,100% 100%)}
 .mk-key{display:flex;gap:var(--space-4);flex-wrap:wrap;font:400 12px/16px var(--font-mono);color:var(--ink-3)}
 .mk-key span::before{content:"";display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-2px;border:var(--stroke-hair) solid var(--ink)}
@@ -371,9 +372,9 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 :root:not([data-dm-motion="off"]) #quiz .qz-side{animation:fx-wipe-down var(--dm-arrive) var(--dm-ease) both}
 :root:not([data-dm-motion="off"]) .qz-verdict.fresh.ok::before{animation:fx-cap-in 300ms var(--dm-ease) both}
 :root:not([data-dm-motion="off"]) .qz-verdict.fresh.bad{animation:x-jitter 280ms var(--dm-ease) 1}
-:root:not([data-dm-motion="off"]) .qz-fb.fresh>li.right{animation:x-wipe 320ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-fb.fresh>li.right{animation:x-lit 520ms var(--dm-ease) both}
 :root:not([data-dm-motion="off"]) .qz-fb.fresh>li.wrong{animation:x-jitter 280ms var(--dm-ease) 1}
-:root:not([data-dm-motion="off"]) .dr-opts button.qz-o.right{animation:x-wipe 320ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .dr-opts button.qz-o.right{animation:x-lit 520ms var(--dm-ease) both}
 :root:not([data-dm-motion="off"]) .dr-opts button.qz-o.wrong{animation:x-jitter 280ms var(--dm-ease) 1}
 :root:not([data-dm-motion="off"]) .xp-up{animation:x-flicker-in 360ms linear both;animation-delay:100ms}
 :root:not([data-dm-motion="off"]) .qz-meta .bump{animation:fx-bump 320ms steps(1) both}
@@ -405,6 +406,7 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 @keyframes fx-dot-pop{0%,32%{background:var(--signal);outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:3px}33%,65%{outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:5px}66%,100%{outline-color:transparent}}
 @keyframes x-type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
 @keyframes x-wipe{from{background-size:0 100%}}
+@keyframes x-lit{from{outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:0}to{outline:var(--stroke-bold) solid transparent;outline-offset:6px}}
 @keyframes x-jitter{0%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}100%{transform:none}}
 @keyframes x-flicker-in{0%{opacity:0}35%{opacity:1}55%{opacity:.4}100%{opacity:1}}
 @keyframes x-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
