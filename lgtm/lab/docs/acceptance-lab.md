@@ -548,3 +548,78 @@ LAB CHECK FAILED: 1 check(s)
 PrometheusRule `lab-tools/lab-glue-volumes`; the lab's Prometheus loaded the rule
 `LabVolumeFillingUp` (group `lab-volumes`) at 12:05, and at 12:21 it reported it `health: ok`,
 `state: inactive` (no volume above 85%).
+
+## Version 3: the lab rebuilt from nothing (2026-11-13, card L6)
+
+The lab was destroyed and built again from `main` (commit 610f51c) on one control-plane node with
+4 GB and four workers with 8 GB. The VM and cluster steps are in `acceptance-cluster.md`,
+"Rebuild for version 3". Nothing needed fixing by hand.
+
+```
+make platform        12:50:12 to 13:01:10   localhost: ok=42 changed=21 failed=0
+make platform-check  13:04:17               PLATFORM CHECK PASSED (profile full)
+make lab             13:04:29 to 13:13:24   localhost: ok=32 changed=14 failed=0
+make lab-check       13:15:29               LAB CHECK PASSED
+make lab-check       14:17:01, after an hour  LAB CHECK PASSED
+```
+
+From the first `make cluster` to `LAB CHECK PASSED`: 32 minutes. RustFS runs
+`docker.io/rustfs/rustfs:1.0.5` on worker2. `make status` printed the addresses and a new lab
+seed (not recorded here).
+
+Restarts: during the install, `longhorn-system/longhorn-manager` restarted once,
+`shop/checkout` once and `shop/product-catalog` three times, while the services they depend on
+were still starting. No pod restarted in the hour that followed.
+
+### An hour of measurements (13:16 to 14:16)
+
+Sampled every five minutes: `kubectl top nodes`, `kubectl top pods` summed per namespace, RustFS's
+memory from the lab's Prometheus, the Kafka volumes, and the collector gateway's log.
+
+| Node | Memory in use, first sample | Memory in use, range over the hour | Allocatable |
+|---|---:|---:|---:|
+| master1 | 2814 MiB (73%) | 2779 to 2899 MiB (72 to 75%) | 3.73 GiB |
+| worker1 | 4751 MiB (60%) | 4751 to 5279 MiB (60 to 67%) | 7.66 GiB |
+| worker2 | 4900 MiB (62%) | 4798 to 5141 MiB (61 to 65%) | 7.66 GiB |
+| worker3 | 4300 MiB (54%) | 4300 to 4946 MiB (54 to 63%) | 7.66 GiB |
+| worker4 | 5146 MiB (65%) | 5007 to 5416 MiB (63 to 69%) | 7.66 GiB |
+
+Memory in use per namespace at 14:16, in MiB: kafka 2941, shop 2412, longhorn-system 1915,
+kube-system 1830, calico-system 1228, mimir 1130, loki 862, tempo 796, prom 753, alloy 543,
+grafana 427, otel 216, tigera-operator 127, gateway 117, s3 85, cert-manager 83, lab-tools 8.
+Requests per node are in `budget.md`.
+
+The Kafka volumes of `telemetry` went from 0.6% to 6.0% full in the hour (10 GiB each), about
+550 MiB per hour on each node. Card L5's size limit (640 MiB per partition) stops them at about
+57%, as before.
+
+### The three defects of card L6, on the running lab
+
+**The collector gateway scrapes the shop's Kafka.** The shop's Kafka now advertises
+`PLAINTEXT://kafka.shop.svc:9092` (read from the StatefulSet). Neither gateway pod logged
+`Error scraping metrics` from 13:16 to 14:16, and Mimir (tenant `lab`) has
+`kafka_brokers` from both gateway pods, one series each (`instance` is the pod name).
+Both pods did log 32 such lines between 13:10:43 and 13:13:13: `make lab` installs the gateway
+before the shop, so until about 13:12 every shop address failed with `no such host`, and the
+shop's Kafka refused connections until it had started at 13:13:01. Nothing after that.
+
+**The object store's memory.** RustFS 1.0.5, `container_memory_rss` and
+`container_memory_working_set_bytes` of container `rustfs`:
+
+| Time | 13:16 | 13:26 | 13:36 | 13:46 | 13:56 | 14:06 | 14:16 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| RSS (MiB) | 26.6 | 33.0 | 35.9 | 42.1 | 41.9 | 42.9 | 43.6 |
+| Working set (MiB) | 28.5 | 35.6 | 39.8 | 49.6 | 57.0 | 59.4 | 85.9 |
+
+No restart. RustFS 1.0.4 used 239 to 430 MiB right after a restart on the old lab
+(`lgtm/docs/adr/l6-rustfs-memory.md`). The working set grows with page cache as the buckets fill;
+RSS rose 17 MiB in the hour and was level for the last half hour. The buckets are nearly empty
+an hour after a rebuild, so this does not yet show the steady state: the check that counts is
+RSS after a day or two of normal use, against the 1.0.4 pattern of a climb to the 1536Mi limit
+within hours.
+
+**The workshop on Windows.** Shown on the owner's PC in part 1 (pull request 67): with a real
+console Ctrl+C event, `run.py solutions/01-zero-code` stays in the foreground while the service
+runs, exits with 130 on Ctrl+C and leaves no process.
+The owner's own run in a PowerShell window (step 11 of the rebuild list) had not been done when
+this was written.
