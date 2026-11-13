@@ -1,0 +1,102 @@
+---
+id: m09-s10
+title: "Deployment on Kubernetes: DaemonSet, Deployment, sidecar and the Operator"
+kind: concept
+minutes: 15
+order: 10
+exam:
+  - cert: otca
+    domain: O3
+    competency: Deployment
+tags: [collector-kubernetes]
+outcome: You can choose the Kubernetes workload for each Collector job, install it with the Helm chart or the Operator, and explain what the lab chose.
+terms:
+  - term: OpenTelemetry Operator
+    def: A Kubernetes operator that runs Collectors from OpenTelemetryCollector resources and injects auto-instrumentation into workloads.
+  - term: OpenTelemetryCollector
+    def: The Operator's custom resource; its mode picks a Deployment, DaemonSet, StatefulSet or sidecar.
+  - term: Preset
+    def: A switch in the Collector Helm chart that adds a component together with the volumes and RBAC it needs.
+  - term: Target Allocator
+    def: An Operator component that splits Prometheus scrape targets among several Collectors.
+sources:
+  - title: Important Components for Kubernetes (OpenTelemetry)
+    url: https://opentelemetry.io/docs/platforms/kubernetes/collector/components/
+    checked: 2026-11-13
+  - title: OpenTelemetry Collector Chart (OpenTelemetry)
+    url: https://opentelemetry.io/docs/platforms/kubernetes/helm/collector/
+    checked: 2026-11-13
+  - title: OpenTelemetry Operator for Kubernetes (OpenTelemetry)
+    url: https://opentelemetry.io/docs/platforms/kubernetes/operator/
+    checked: 2026-11-13
+  - title: Operator deployment modes (GitHub)
+    url: https://github.com/open-telemetry/opentelemetry-operator/blob/main/docs/collector/deployment-modes.md
+    checked: 2026-11-13
+  - title: Scaling the Collector, sidecars and the Target Allocator (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/scaling/
+    checked: 2026-11-13
+---
+
+<Problem>
+A new cluster needs three things from OpenTelemetry: the container logs on every node, cluster-wide metrics such as pod phases, and a place where the services send OTLP. Someone writes one Collector Deployment with three replicas and every receiver in it. The logs of most nodes never arrive, and the pod-phase metrics arrive three times.
+</Problem>
+
+Each Collector job has a natural home in Kubernetes. Putting them all into one workload breaks some of them.
+
+<Idea>
+Node-local jobs, such as reading container log files or kubelet stats, belong in a DaemonSet with one Collector per node. Cluster-wide jobs that must happen once, such as the cluster receiver, belong in a Deployment with one replica. Receiving OTLP from services is stateless and runs in a Deployment that you scale. You install any of these with the Collector Helm chart, or let the OpenTelemetry Operator create them from a custom resource.
+</Idea>
+
+## Match the job to the workload
+
+The OpenTelemetry docs give each Kubernetes component a preferred shape. The filelog, kubelet stats and host metrics receivers read the node they run on, so a DaemonSet is preferred; in a Deployment they only see one node. The Kubernetes cluster receiver and the Kubernetes objects receiver read from the API server, so every replica would report the same data: run them in a Deployment or StatefulSet with one replica. The `k8s_attributes` processor works in a DaemonSet or a Deployment, not in a sidecar.
+
+<Compare caption="Where each Collector job runs best">
+  <Col title="DaemonSet">filelog for container logs, kubeletstats, hostmetrics: one Collector per node, each reading its own node.</Col>
+  <Col title="Deployment, one replica">k8s_cluster and k8sobjects (events): one copy of cluster-wide data.</Col>
+  <Col title="Deployment, several replicas">OTLP gateway: stateless, scaled behind a Service.</Col>
+</Compare>
+
+A sidecar is a Collector container inside the application's pod. The scaling guide mentions two cases for it: many pods on few nodes, where per-pod Collectors spread gRPC load better than a DaemonSet, and when one failing DaemonSet pod must not take telemetry from every pod on a node.
+
+## The Helm chart
+
+The `opentelemetry-collector` chart needs `mode`: `daemonset`, `deployment` or `statefulset`. It ships a default configuration and opens ports for the default receivers; a value set to `null` removes a default. Presets add a component with everything it needs: `logsCollection` (filelog, best with `daemonset`), `kubernetesAttributes` (the processor and its RBAC, in every pipeline), `kubeletMetrics`, `hostMetrics`, and `clusterMetrics` and `kubernetesEvents` (best with one replica). The docs call presets a starting point; for more control you configure the component and its RBAC yourself.
+
+## The Operator
+
+The Operator manages Collectors and the auto-instrumentation of workloads. You install it (it needs cert-manager) and then create `OpenTelemetryCollector` resources. `spec.mode` is `deployment` by default, or `daemonset`, `statefulset` or `sidecar`. For a sidecar, you create a resource with `mode: sidecar` and annotate a pod or its template with `sidecar.opentelemetry.io/inject: "true"`; the Operator adds the container when the pod is created. With `mode: statefulset` it can also run the Target Allocator, which shares Prometheus scrape targets among the replicas (step 11).
+
+The Operator adds a controller to run and upgrade, and in return gives you sidecar injection, the Target Allocator and auto-instrumentation from one place. The chart is simpler when you only need a few Collectors.
+
+<InLab>
+The lab installs the gateway with the Helm chart: `mode: deployment`, `replicaCount: 2`, the `kubernetesAttributes` preset. The cluster has no OpenTelemetry Operator and no OpenTelemetry custom resources. Container logs on each node are read by Alloy (`alloy-logs`, one pod per node), not by a Collector DaemonSet.
+</InLab>
+
+<Trap>
+A DaemonSet with the filelog preset and the chart's default `debug` exporter on the logs pipeline can read its own output back: a log loop. The chart's preset excludes the Collector's own logs for this reason; keep it that way unless the logs go elsewhere.
+</Trap>
+
+<Remember>
+Node-local receivers in a DaemonSet, once-per-cluster receivers in a one-replica Deployment, OTLP gateways in a scaled Deployment. The chart picks the shape with `mode`; the Operator with `spec.mode`, and only the Operator injects sidecars.
+</Remember>
+
+<Question id="q-m09-s10" answer="b">
+A team runs the OpenTelemetry Operator. They want a Collector container next to the app in every pod of one Deployment, without writing that container into the Deployment themselves. What do they do?
+
+- Create an OpenTelemetryCollector with mode deployment and set its replicas to the app's replica count
+
+  That runs separate Collector pods, not a container inside each app pod.
+
+- Create an OpenTelemetryCollector with mode sidecar and annotate the app's pod template with sidecar.opentelemetry.io/inject: "true"
+
+  The Operator injects the sidecar into pods that carry the annotation.
+
+- Install the Collector Helm chart with mode sidecar
+
+  The chart's modes are daemonset, deployment and statefulset; it has no sidecar mode.
+
+- Create an OpenTelemetryCollector with mode daemonset on the nodes where the app runs
+
+  A DaemonSet runs one Collector per node, not one per app pod.
+</Question>
