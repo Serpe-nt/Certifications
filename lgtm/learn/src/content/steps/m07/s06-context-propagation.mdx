@@ -87,7 +87,7 @@ Baggage is a key-value store that lives next to the context and travels with it,
 Baggage is not the same as attributes. A baggage entry appears on no span, metric or log until code reads it and adds it, although several languages offer a baggage span processor that does this for every span. And baggage travels in plain headers, often to services you do not own, and nothing checks that an entry is genuine. Keep credentials, API keys and personal data out of it.
 
 <InLab>
-The shop uses the default propagators. When checkout (Go) calls payment (Node.js), the `traceparent` travels in the gRPC metadata, which is why payment's server span hangs under checkout's client span in Tempo.
+Checkout, written in Go, sets the W3C Trace Context and Baggage propagators in its own code with `otel.SetTextMapPropagator`, because the Go API has no-op propagators until something sets them. When it calls payment (Node.js), the `traceparent` travels in the gRPC metadata, which is why payment's server span hangs under checkout's client span in Tempo.
 </InLab>
 
 <Trap>

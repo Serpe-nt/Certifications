@@ -1,0 +1,192 @@
+---
+id: m07-s09
+title: Propagation across services and through Kafka
+kind: lab
+minutes: 30
+order: 9
+exam:
+  - cert: otca
+    domain: O2
+    competency: Context Propagation
+  - cert: otca
+    domain: O4
+    competency: Context Propagation
+tags: [otel-context-propagation]
+check:
+  kind: exact
+  prompt: Which service made the span whose parent is your workshop's GET client span? Paste its service.name.
+  answers: ["frontend-proxy"]
+outcome: You can propagate the context of an outgoing call by hand with a client span and inject, put a value in baggage, and read how a trace crosses a Kafka topic through a span link.
+terms:
+  - term: Inject
+    def: Writing the current context into a carrier, such as the headers of an outgoing request.
+  - term: Creation context
+    def: The span context a producer attaches to a message, so consumers can relate their work to it.
+  - term: OTEL_PYTHON_DISABLED_INSTRUMENTATIONS
+    def: A list of Python instrumentations the agent must not load, by entry point name.
+sources:
+  - title: Propagation in OpenTelemetry Python
+    url: https://opentelemetry.io/docs/languages/python/propagation/
+    checked: 2026-11-13
+  - title: Python agent configuration, disabling specific instrumentations
+    url: https://opentelemetry.io/docs/zero-code/python/configuration/
+    checked: 2026-11-13
+  - title: Propagators API (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/context/api-propagators/
+    checked: 2026-11-13
+  - title: Context propagation, custom context propagation (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/context-propagation/
+    checked: 2026-11-13
+  - title: Semantic conventions for messaging spans
+    url: https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/
+    checked: 2026-11-13
+  - title: Semantic conventions for HTTP spans
+    url: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+    checked: 2026-11-13
+---
+
+<Problem>
+In step 7 the trace went on into the shop by itself, because the requests instrumentation injected the header. One day you will call something no library covers: an in-house queue client, a protocol of your own. Then you have to do what that library did, and you should know what it was. And the shop has one hop where a header in a call is not enough: an order goes through Kafka and is processed later by another service.
+</Problem>
+
+<Idea>
+To propagate by hand you start a client span for the outgoing call, make it current, and call the propagator's inject on the carrier, here the request headers. The receiving service extracts the context and continues the trace. Through a message queue the producer injects its context into the message; the messaging conventions then relate the consumer's span to it with a link.
+</Idea>
+
+## Switch the library off, do its work yourself
+
+The agent loads every instrumentation it finds. `OTEL_PYTHON_DISABLED_INSTRUMENTATIONS` takes a comma-separated list of entry point names that it must skip; with `requests` in it, calls to the shop are no longer traced or propagated. Two lines go into `workshop.env`. The second one writes out the default propagators, so you can see what inject will use:
+
+```text
+OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=requests
+OTEL_PROPAGATORS=tracecontext,baggage
+```
+
+Now the code has to make the client span and inject the context, which is what the instrumentation did before.
+
+## A client span, then inject
+
+Each call to the shop goes through one new function. It starts a span of kind client named after the HTTP method, as the HTTP conventions ask for a client span with no URL template. It sets the convention's attributes, injects the context into an empty dictionary of headers, and sends the request with them:
+
+```python
+def shop_get(path):
+    """GET a path of the shop in a client span, with the context in the headers."""
+    url = f"{SHOP_URL}{path}"
+    # HTTP client span names are the method alone (semantic conventions).
+    with tracer.start_as_current_span("GET", kind=SpanKind.CLIENT) as span:
+        span.set_attribute("http.request.method", "GET")
+        span.set_attribute("url.full", url)
+        headers = {}
+        # Adds traceparent (this span as the parent) and baggage.
+        propagate.inject(headers)
+        response = requests.get(url, headers=headers, timeout=5)
+        span.set_attribute("http.response.status_code", response.status_code)
+        if response.status_code >= 400:
+            span.set_status(StatusCode.ERROR)
+        response.raise_for_status()
+        return response
+```
+
+`propagate.inject(headers)` reads the current context and lets the global propagator write into the dictionary. The client span is current at that moment, so `traceparent` carries its span ID as the parent ID, exactly as step 6 described. The order matters: start the client span first, then inject. A client span sets Error for a 4xx or 5xx answer, as the HTTP conventions ask.
+
+## Baggage from the edge of the request
+
+The checkout handler reads a header `X-Customer-Tier` and puts its value into baggage for the rest of the request:
+
+```python
+@app.post("/checkout")
+def checkout():
+    body = request.get_json(silent=True) or {}
+    sku = body.get("sku")
+    quantity = body.get("quantity", 1)
+    # Baggage travels with the context to every service downstream.
+    tier = request.headers.get("X-Customer-Tier", "standard")
+    token = context.attach(baggage.set_baggage("workshop.customer.tier", tier))
+    try:
+        return place_order(sku, quantity)
+    finally:
+        context.detach(token)
+```
+
+`set_baggage` returns a new context with the entry, because a context never changes (step 6). `attach` makes it current and returns a token, and `detach` in `finally` restores the previous context even when the order fails. The rest of the old handler becomes `place_order(sku, quantity)`. Every inject inside it now also writes a `baggage` header. Nothing in the shop copies that entry into an attribute, so you will not find it in Tempo: baggage and attributes are separate (step 6).
+
+## Through Kafka: a link, not a parent
+
+In the shop, checkout does not call the fraud check directly. It writes the order to the Kafka topic `orders` in a producer span `publish orders`, and fraud-detection, a Java service with the Java agent, reads it later. The producer attaches its context to the message as the creation context, in the message's headers.
+
+On the consumer side, the messaging conventions use links as the default way to relate a consumer to a producer. A span has one parent, a consumer may handle a batch of messages from many producers, and it may already run inside another span; a link works in all these cases. So fraud-detection starts a trace of its own: a root span `receive orders` of kind consumer, and a child `process orders` with a link to checkout's `publish orders` span in the other trace.
+
+<Flow caption="One order through Kafka in the lab">
+  <Stage title="checkout" kicker="Producer span">publish orders: the context is attached to the message.</Stage>
+  <Stage title="Kafka topic orders" kicker="Carrier">The message headers hold the creation context.</Stage>
+  <Stage title="fraud-detection" kicker="New trace">receive orders, then process orders with a link to publish orders.</Stage>
+</Flow>
+
+<InLab>
+The workshop calls the shop through its public address, so the first span on the shop's side is the front proxy's server span, `GET`, made by Envoy. The front proxy injects the context again for the frontend, which calls product-catalog over gRPC.
+</InLab>
+
+<Trap>
+Injecting before the client span starts makes the server span a child of the caller's server span, and the outgoing call has no span of its own. Start the client span, then inject inside it.
+</Trap>
+
+<Do>
+1. Keep the changes of steps 7 and 8 and stop the service. Add the two lines from the Learn tab to `workshop.env`.
+2. In `app.py`, change the OpenTelemetry import to these two lines:
+
+   ```python
+   from opentelemetry import baggage, context, propagate, trace
+   from opentelemetry.trace import SpanKind, StatusCode
+   ```
+
+3. Add the function `shop_get` from the Learn tab above `shop_product`. Make `shop_product` use it, and in `products` replace the two lines of the `try` block:
+
+   ```python
+   def shop_product(sku):
+       """Read one product from the shop's API."""
+       return shop_get(f"/api/products/{sku}").json()
+   ```
+
+   ```python
+           response = shop_get("/api/products")
+   ```
+
+4. Replace the first lines of `checkout`, down to `quantity = body.get("quantity", 1)`, with the new `checkout` from the Learn tab. Below it, start the rest of the old handler with `def place_order(sku, quantity):`, beginning at the comment `# Attributes on the server span the Flask instrumentation started.`
+5. Compare with the solution; only the docstring and the comments of `workshop.env` should differ: <Cmd>git diff --no-index app.py solutions/03-propagation/app.py</Cmd> <Cmd>git diff --no-index workshop.env solutions/03-propagation/workshop.env</Cmd>
+6. Start the service with <Cmd>python run.py</Cmd> and check that it prints `OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=requests`. In a second terminal, send traffic for a minute: <Cmd>python load.py --duration 60</Cmd>
+7. In <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, data source `tempo`, find your client spans: <Query lang="traceql">{`{ resource.service.name = "workshop" && name = "GET" && kind = client }`}</Query> Open a trace. The `GET` span is in the scope `workshop` now, not `opentelemetry.instrumentation.requests`. Find the span directly below it and read its service name.
+8. Look at the Kafka hop in the shop: <Query lang="traceql">{`{ resource.service.name = "fraud-detection" && name = "process orders" }`}</Query> Open a trace and the span `process orders`. Its Links section points to a span in another trace: follow it to checkout's `publish orders`.
+9. Paste the service name from action 7 in the check below. Stop the service. If you go on to module m08, keep your changes; to return to the starting point, run <Cmd>git restore app.py requirements.txt workshop.env</Cmd>
+</Do>
+
+<Done>
+Your own code made the client span and injected the context, and the shop continued the trace under it. In the shop you followed an order across Kafka by a link from the consumer's span to the producer's.
+</Done>
+
+<Trap practice>
+If the shop's spans appear in a separate trace, the inject did not run inside the client span, or `OTEL_PROPAGATORS` is set to `none`. If the `GET` span still has the scope `opentelemetry.instrumentation.requests`, the service did not read the new `workshop.env`: check the settings `run.py` prints when it starts.
+</Trap>
+
+<Remember>
+By hand: client span, make it current, inject into the carrier, send. Baggage: set, attach, detach. Through a queue, the consumer's span links to the producer's creation context.
+</Remember>
+
+<Question id="q-m07-s09" answer="b">
+In the lab, fraud-detection's `process orders` span carries a link to checkout's `publish orders` span instead of being its child. Why do the messaging conventions make links the default?
+
+- Kafka messages cannot carry headers, so only a link can be stored
+
+  Kafka messages do carry headers; the creation context travels in them.
+
+- A span has one parent, and a consumer may process messages from many producers or run inside another span
+
+  Links are the one structure that works for batches and for consumers that already have an ambient context.
+
+- A producer span has ended by the time the consumer runs, and an ended span cannot be a parent
+
+  The Trace API allows an ended span to be used as a parent. The reason is the single parent, not the timing.
+
+- Links cost less to store in a backend than parent span IDs
+
+  Storage cost is not the reason the conventions give.
+</Question>
