@@ -127,7 +127,7 @@ The workshop calls the shop through its public address, so the first span on the
 </InLab>
 
 <Trap>
-Injecting before the client span starts makes the server span a child of the caller's server span, and the outgoing call has no span of its own. Start the client span, then inject inside it.
+Injecting before the client span starts makes the shop's first span a child of your server span. Your client span is still recorded, but beside the shop's span instead of above it, so the trace no longer shows which call led into the shop. Start the client span, then inject inside it.
 </Trap>
 
 <Do>
