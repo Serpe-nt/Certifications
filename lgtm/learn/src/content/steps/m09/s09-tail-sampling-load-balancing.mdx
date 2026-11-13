@@ -103,7 +103,7 @@ The resolver's `port` is a string. In 0.165.0, `validate` rejects an unquoted `p
   <Col title="load_balancing by traceID" hot>Every span of a trace goes to the same replica, which sees the whole trace.</Col>
 </Compare>
 
-When the second tier scales up or down, the hash ring changes and some traces are split for a short time. The agent-to-gateway page calls tail sampling across several gateways an advanced setup and suggests one well-resourced tail-sampling gateway unless you have robust sticky routing.
+When the second tier scales up or down, the hash ring changes and some traces are split for a short time. The agent-to-gateway page calls tail sampling across several gateways an advanced setup and suggests one well-resourced tail-sampling gateway unless you have a reliable sticky routing strategy.
 
 <InLab>
 The lab samples nothing in the Collector: every span the shop sends reaches Tempo. Its gateway has two replicas behind a plain ClusterIP Service, so adding `tail_sampling` there would split traces; that is why this step is to read, not to run.
