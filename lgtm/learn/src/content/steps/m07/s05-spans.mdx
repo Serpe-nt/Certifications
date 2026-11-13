@@ -1,0 +1,135 @@
+---
+id: m07-s05
+title: "Spans: context, kind, status, events, links"
+kind: lab
+minutes: 18
+order: 5
+exam:
+  - cert: otca
+    domain: O2
+    competency: Data Model
+  - cert: otca
+    domain: O2
+    competency: "Signals (Tracing, Metric, Log)"
+tags: [otel-spans]
+check:
+  kind: token
+  prompt: Paste the beacon.token of the span-m07-1 slot, read from the right span of the beacon's trace.
+  slot: span-m07-1
+outcome: You can read every field of a span, say what its span context holds, choose its kind, set its status by the rules, and decide between an attribute, an event and a link.
+terms:
+  - term: Span context
+    def: The immutable part of a span that identifies it and travels to other services, trace ID, span ID, trace flags and trace state.
+  - term: Trace flags
+    def: One byte in the span context. Its lowest bit, the sampled flag, says whether the trace is being recorded.
+  - term: Trace state
+    def: A list of vendor-specific key-value pairs carried in the span context.
+  - term: Span kind
+    def: Client, server, producer, consumer or internal. It tells a backend how spans relate across processes.
+  - term: Span event
+    def: A named, timestamped record inside a span, with attributes of its own.
+  - term: Span link
+    def: A reference from one span to the span context of another, causally related span, in the same trace or another one.
+sources:
+  - title: Traces (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/signals/traces/
+    checked: 2026-11-13
+  - title: Tracing API (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/api/
+    checked: 2026-11-13
+  - title: Overview, SpanContext and links (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/overview/
+    checked: 2026-11-13
+  - title: Environment variable specification, span limits
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-13
+---
+
+<Problem>
+Module m02 showed a span as a bar with a name, a duration and a parent. Now you are going to create spans yourself, and every choice is yours: what the span is called, what kind it is, when it counts as failed, whether a detail is an attribute or an event, and how it points to work in another trace. Wrong choices give traces that look fine and mislead.
+</Problem>
+
+<Idea>
+A span is one operation. It has a name, a kind, a start and an end, attributes, events, links and a status, and it is identified by its span context. Only the span context travels to other services; everything else stays in the span and goes to the backend with it.
+</Idea>
+
+## The span context is the part that travels
+
+Each span holds an immutable span context with four fields. The trace ID, 16 random bytes, groups all spans of one trace. The span ID, 8 random bytes, identifies this span and becomes the parent span ID of its children. The trace flags are one byte whose lowest bit is the sampled flag. The trace state is a list of key-value pairs that tracing vendors use for their own data. The span context is what goes into the headers of an outgoing call, and it is also what a link points to.
+
+A span context made from a header that arrived from another process is marked as remote. Step 6 shows how the context is written into headers and read back.
+
+## Name, kind and attributes
+
+The name says what the work is, in the most general terms that still mean something. `get_account` is a good name; `get_account/42` is not, because a new user ID makes a new name. The ID belongs in an attribute.
+
+The kind says how the span relates to other processes. It is set when the span starts and defaults to internal.
+
+<Compare caption="Span kinds by direction and style of communication">
+  <Col title="Client and server">Request and response. Client: an outgoing call that waits for the answer. Server: the handling of an incoming call while the caller waits.</Col>
+  <Col title="Producer and consumer">Deferred work. Producer: creating a job for later. Consumer: processing it, perhaps long after the producer span ended.</Col>
+  <Col title="Internal" hot>No remote parent or child: work inside one process. The default.</Col>
+</Compare>
+
+Attributes describe the operation. Give them when the span starts if you can: a sampler decides when the span is created and sees only what is there at that moment. The SDK limits a span to 128 attributes, 128 events and 128 links by default.
+
+## Status follows strict rules
+
+A span's status is Unset, Error or Ok. Unset is the default and means the operation finished without an error. Error means it failed. Ok means a developer or operator checked it and declared it a success.
+
+The three are ordered: Ok is above Error, and Error is above Unset. Once a span is set to Ok, later attempts to change it should be ignored. An attempt to set Unset is ignored too. A description may go with Error only. Instrumentation libraries should leave the status Unset unless there is an error by the rules of the semantic conventions, and should not set Ok unless they are configured to. Analysis tools should treat Ok as a reason to suppress errors they would otherwise report, a 404 for example.
+
+## Event or attribute, link or parent
+
+An event is a named moment inside a span, with a timestamp and attributes of its own, like a structured log line attached to the span. Use an event when the time of the moment matters, and an attribute when it does not. Recording an exception is a special event named `exception`.
+
+A link points from one span to the span context of another span that is causally related, in the same trace or in another one. A span has at most one parent, so links cover what a parent cannot: a batch job that processes items from many incoming requests, a new trace started at a trust boundary, or a consumer that handles a message long after the producer's trace has ended. Links given when the span starts can be used by a sampler; links added later may not be.
+
+<InLab>
+The beacon writes one small trace per slot every minute: a root span `beacon.tick` and one child `beacon.slot`. Both carry the attribute `beacon.slot`; only the child carries `beacon.token`. Checkout's `oteldemo.CheckoutService/PlaceOrder` server span records events named `prepared`, `charged` and `shipped`.
+</InLab>
+
+<Trap>
+Do not set Ok on every successful span "to be clear". Unset already means success, and Ok is final: it hides an Error that an instrumentation library would set later.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> with the data source `tempo` and the query type TraceQL, time range the last 15 minutes. Find checkout's order spans: <Query lang="traceql">{`{ resource.service.name = "checkout" && name = "oteldemo.CheckoutService/PlaceOrder" }`}</Query>
+2. Open one trace and click checkout's `oteldemo.CheckoutService/PlaceOrder` span. Read its kind (server) and its status (unset, if the order went through).
+3. In the same span, open its events. Find `prepared`, `charged` and `shipped`, and read the `demo.payment.transaction.id` attribute of `charged`.
+4. Below it, find the span `publish orders`. Read its kind: producer. It created the Kafka message for later processing.
+5. Find the beacon's trace for this module's slot: <Query lang="traceql">{`{ resource.service.name = "beacon" && span.beacon.slot = "span-m07-1" }`}</Query> Open one trace. It has two spans.
+6. Click each of the two spans and compare their attributes. Paste the `beacon.token` you find in the check below.
+</Do>
+
+<Done>
+You read a span's kind, status and events, found a producer span, and took an attribute from the right one of two spans that share a slot.
+</Done>
+
+<Trap practice>
+The query in action 5 matches both spans, because both carry `beacon.slot`. The root span `beacon.tick` has no token. Take the token from the child span `beacon.slot`, the one whose parent is `beacon.tick`.
+</Trap>
+
+<Remember>
+Only the span context travels. Status: Unset is success, Ok is final, Error follows the conventions. An event is a timed moment, an attribute is a fact, and a link joins spans that a parent cannot.
+</Remember>
+
+<Question id="q-m07-s05" answer="d">
+Service A starts a client span, sets five attributes and an event on it, and calls service B. What does service B receive from that span with the call?
+
+- Its five attributes, so B can copy them to its own span
+
+  Attributes stay in the span and go to the backend with it. They are not sent to the next service.
+
+- Its event, so B knows when A sent the request
+
+  Events are part of the span's data for the backend. They are not propagated.
+
+- Its status, so B can tell whether A saw an error
+
+  The status is set when the work ends and is not part of what is propagated.
+
+- Its span context: trace ID, span ID, trace flags and trace state
+
+  The span context is the part of a span that is serialized and propagated to child spans across process boundaries.
+</Question>
