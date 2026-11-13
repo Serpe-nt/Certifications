@@ -1,0 +1,107 @@
+---
+id: m08-s09
+title: Declarative configuration
+kind: concept
+minutes: 16
+order: 9
+exam:
+  - cert: otca
+    domain: O2
+    competency: Configuration
+tags: [otel-declarative-config]
+outcome: You can read a declarative configuration file, say what OTEL_CONFIG_FILE does to the other OTEL_ variables, and resolve the ${...} references in it.
+terms:
+  - term: Declarative configuration
+    def: Configuring an SDK with one YAML file that follows the OpenTelemetry configuration schema.
+  - term: OTEL_CONFIG_FILE
+    def: The variable with the path of the configuration file; when set, the file replaces the other SDK variables.
+  - term: Environment variable substitution
+    def: A ${NAME} or ${NAME:-default} reference in the file, replaced with the variable's value when the file is parsed.
+  - term: /development suffix
+    def: The mark on a property of the configuration schema that is still experimental.
+sources:
+  - title: Declarative configuration (OpenTelemetry SDK configuration)
+    url: https://opentelemetry.io/docs/languages/sdk-configuration/declarative-configuration/
+    checked: 2026-11-13
+  - title: Configuration (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/configuration/
+    checked: 2026-11-13
+  - title: Configuration data model (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/configuration/data-model/
+    checked: 2026-11-13
+  - title: Environment variable specification, declarative configuration (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-13
+---
+
+<Problem>
+The workshop's metrics need a view: keep only the `outcome` attribute of one counter and switch one histogram to exponential buckets. No `OTEL_` variable can say that. Variables describe one flat list of settings, while the SDK is a tree of providers, processors, readers and exporters. Until now the only answer was code.
+</Problem>
+
+<Idea>
+Declarative configuration describes the whole SDK in one YAML file that follows a schema shared by all languages. You point `OTEL_CONFIG_FILE` at it, and the SDK builds its components from the file. The other SDK variables are then ignored, except those the file names itself with `${...}`.
+</Idea>
+
+## A file shaped like the SDK
+
+The specification names three ways to configure an SDK: in code, which every SDK must offer and the others build on; with environment variables; and declaratively. A declarative file mirrors the SDK's parts, so what you learned in module m07 and in step 2 maps onto its keys:
+
+- `resource`, with attributes and resource detectors;
+- `propagator`, for example a composite of `tracecontext` and `baggage`;
+- `tracer_provider`, with its sampler and its processors, each with an exporter;
+- `meter_provider`, with its readers, each with an exporter, and its views;
+- `logger_provider`, with its processors and exporters.
+
+The schema is written in JSON Schema in the `opentelemetry-configuration` repository, and the file is YAML 1.2 with the extension `.yaml` or `.yml`. Its first key, `file_format`, gives the schema version the file was written for.
+
+## When the file is set, the variables go quiet
+
+When `OTEL_CONFIG_FILE` is set, the SDK parses the file and creates its components from it. Every other SDK variable must then be ignored, unless the file refers to it. The specification explains why: a flat list of variables cannot be merged into a tree in a way that is obvious in every case. An older name, `OTEL_EXPERIMENTAL_CONFIG_FILE`, is deprecated in favour of `OTEL_CONFIG_FILE`.
+
+For teams that already rely on variables, the project publishes a migration file, `otel-sdk-migration-config.yaml`, which refers to the standard variables so they keep working. A shorter getting-started file reads only the endpoint and the resource attributes from the environment.
+
+## Substitution: how a file still reads the environment
+
+A value in the file can be a reference such as `${OTEL_EXPORTER_OTLP_ENDPOINT}` or `${env:OTEL_EXPORTER_OTLP_ENDPOINT}`. After `:-` you can give a default, as in `${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}`. The rules are precise:
+
+- The default is used when the variable is undefined, null or empty.
+- A variable that is undefined and has no default becomes an empty value.
+- `$$` is an escape: `$${API_KEY}` stays as the text `${API_KEY}`.
+- Substitution works only in scalar values, never in keys, and a variable cannot inject YAML structure.
+- Types are decided after substitution, so `${INT_VALUE}` with the value 1 becomes a number; put quotes around the reference to keep a string.
+
+## How far it has come
+
+Declarative configuration has moved quickly, so read its status where you use it. The configuration data model is marked stable in the specification, and the documentation page calls the schema stable. Properties that are still experimental carry the suffix `/development` in their name, such as `detection/development` under `resource`. Support in the SDKs is a different matter: the same page calls it still experimental in the implementations and lists Java as the SDK that supports it, with a compliance matrix for the details.
+
+<InLab>
+The shop's product-catalog, a Go service, is configured this way. Its chart sets `OTEL_CONFIG_FILE=/otel-config/otel-config.yml`, and the file (`lgtm/lab/demo/chart/files/product-catalog-otel-config.yml`) has `file_format: "1.0"`, batch processors with `otlp_grpc` exporters whose endpoint is `${OTEL_EXPORTER_OTLP_ENDPOINT}`, `temporality_preference: ${OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE:-cumulative}`, and a resource read from `${OTEL_RESOURCE_ATTRIBUTES}` plus four detectors under `detection/development`.
+</InLab>
+
+<Trap>
+Setting `OTEL_CONFIG_FILE` is not adding one more setting. From that moment the SDK ignores `OTEL_TRACES_SAMPLER`, `OTEL_METRIC_EXPORT_INTERVAL` and every other SDK variable the file does not reference, without an error.
+</Trap>
+
+<Remember>
+One YAML file, shaped like the SDK, read from `OTEL_CONFIG_FILE`. With it set, only the variables the file references with `${NAME}` or `${NAME:-default}` still count, and `/development` marks the parts that are still experimental.
+</Remember>
+
+<Question id="q-m08-s09" answer="d">
+A declarative configuration file has the key `detection/development` under `resource`. What does the suffix tell you?
+
+- The detectors run only when the environment is named development.
+
+  The suffix is part of the schema's property name, not a condition on the deployment environment.
+
+- The file is a draft and the SDK refuses to load it in production.
+
+  The SDK reads the file. The suffix concerns one property, not the whole file.
+
+- The property must be set through an environment variable instead of the file.
+
+  The suffix says nothing about where the value comes from; substitution works the same for every scalar.
+
+- The property belongs to the experimental part of the schema and may not be supported by every SDK.
+
+  The stable schema marks its experimental properties with /development, and the getting-started file warns that SDKs may not support them.
+</Question>
