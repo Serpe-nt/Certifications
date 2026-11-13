@@ -1,6 +1,7 @@
 ---
-# The control-plane nodes have kubeadm's minimum of 2 GB. The API server, etcd,
-# the controller manager and the scheduler use most of it, and the Deployments
+# The control-plane nodes started with kubeadm's minimum of 2 GB (4 GB since card
+# L4; one node since card L6). The API server, etcd, the controller manager and
+# the scheduler use most of it, and the Deployments
 # that tolerate the control-plane taint (CoreDNS, the Tigera operator and the
 # Calico control plane) all land on the first master, because it is the only
 # node when `make cluster` installs them. On the lab cluster this left master1

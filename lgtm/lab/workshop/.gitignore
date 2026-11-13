@@ -1,3 +1,5 @@
 # The SQLite file the service recreates on every start.
 *.db
 __pycache__/
+# The virtual environments run.py creates (also covered by lgtm/lab/.gitignore).
+.venv/

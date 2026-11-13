@@ -54,8 +54,8 @@ platform_charts:
   rustfs:
     repo: https://charts.rustfs.com
     chart: rustfs
-    version: 1.0.4
-    app_version: 1.0.4
+    version: 1.0.5
+    app_version: 1.0.5
   strimzi:
     ref: oci://quay.io/strimzi-helm/strimzi-kafka-operator
     chart: strimzi-kafka-operator
@@ -71,7 +71,7 @@ platform_kafka_metadata_version: 4.3-IV0
 # image that is not in this list. The images set by the playbook itself (RustFS, the
 # bucket job, the Kafka cluster, the Envoy proxy) are taken from here.
 platform_images:
-  rustfs: docker.io/rustfs/rustfs:1.0.4
+  rustfs: docker.io/rustfs/rustfs:1.0.5
   busybox: docker.io/library/busybox:1.37.0
   aws_cli: docker.io/amazon/aws-cli:2.39.7
   envoy_proxy: docker.io/envoyproxy/envoy:distroless-v1.40.2

@@ -5,7 +5,7 @@ BeforeAll {
     $script:HyperVDir = Split-Path -Parent $PSScriptRoot
     # The real file: the owner changes its sizes, so tests only check that it parses and validates.
     $script:NodesFile = Join-Path (Split-Path -Parent $script:HyperVDir) 'nodes.yml'
-    # A copy with fixed sizes (31 vCPU, 46 GB): every test that asserts numbers or rewrites lines uses it.
+    # A copy with fixed sizes (27 vCPU, 40 GB): every test that asserts numbers or rewrites lines uses it.
     $script:FixtureFile = Join-Path $PSScriptRoot 'fixtures\nodes.yml'
     Import-Module (Join-Path $script:HyperVDir 'LabVms.psm1') -Force
     $script:KeyLine = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBj2+fakefakefakefakefakefakefakefakefakefake vaka@test'
@@ -111,10 +111,10 @@ Describe 'Get-LabConfig with the real nodes.yml' {
 Describe 'Get-LabConfig with the fixture nodes file' {
     BeforeAll { $script:Config = Get-LabConfig -Path (New-TestNodesFile) -CacheDir (Join-Path $TestDrive 'cache') }
 
-    It 'lists the 8 machines of the lab contract in creation order' {
-        @($script:Config.Nodes | ForEach-Object Name) | Should -Be @('lb', 'master1', 'master2', 'master3', 'worker1', 'worker2', 'worker3', 'worker4')
+    It 'lists the 6 machines of the lab contract in creation order' {
+        @($script:Config.Nodes | ForEach-Object Name) | Should -Be @('lb', 'master1', 'worker1', 'worker2', 'worker3', 'worker4')
         @($script:Config.Nodes | Where-Object Role -EQ 'lb' | ForEach-Object Address) | Should -Be @('10.10.0.5')
-        @($script:Config.Nodes | Where-Object Role -EQ 'control_plane' | ForEach-Object Address) | Should -Be @('10.10.0.11', '10.10.0.12', '10.10.0.13')
+        @($script:Config.Nodes | Where-Object Role -EQ 'control_plane' | ForEach-Object Address) | Should -Be @('10.10.0.11')
         @($script:Config.Nodes | Where-Object Role -EQ 'worker' | ForEach-Object Address) | Should -Be @('10.10.0.30', '10.10.0.31', '10.10.0.32', '10.10.0.33')
     }
 
@@ -127,15 +127,15 @@ Describe 'Get-LabConfig with the fixture nodes file' {
         $script:Config.SshUser | Should -Be 'vaka'
     }
 
-    It 'has the fixture sizes (46 GB memory, 31 vCPU)' {
-        ($script:Config.Nodes | Measure-Object MemoryGB -Sum).Sum | Should -Be 46
-        ($script:Config.Nodes | Measure-Object Vcpu -Sum).Sum | Should -Be 31
+    It 'has the fixture sizes (40 GB memory, 27 vCPU)' {
+        ($script:Config.Nodes | Measure-Object MemoryGB -Sum).Sum | Should -Be 40
+        ($script:Config.Nodes | Measure-Object Vcpu -Sum).Sum | Should -Be 27
         @($script:Config.Nodes | Where-Object DataDiskGB -GT 0 | ForEach-Object Name) | Should -Be @('worker1', 'worker2', 'worker3', 'worker4')
     }
 
     It 'derives unique unicast MAC addresses from the addresses' {
         ($script:Config.Nodes | Where-Object Name -EQ 'master1').Mac | Should -Be '02:4c:47:0a:00:0b'
-        @($script:Config.Nodes | ForEach-Object Mac | Select-Object -Unique).Count | Should -Be 8
+        @($script:Config.Nodes | ForEach-Object Mac | Select-Object -Unique).Count | Should -Be 6
     }
 
     It 'keeps the image cache in the cache folder' {
@@ -146,7 +146,7 @@ Describe 'Get-LabConfig with the fixture nodes file' {
 
 Describe 'Get-LabConfig validation' {
     It 'rejects <Case>' -TestCases @(
-        @{ Case = 'a duplicate address'; From = 'address: 10.10.0.12'; To = 'address: 10.10.0.11'; Message = '*already used*' }
+        @{ Case = 'a duplicate address'; From = 'address: 10.10.0.30'; To = 'address: 10.10.0.11'; Message = '*already used*' }
         @{ Case = 'an address outside the subnet'; From = 'address: 10.10.0.33'; To = 'address: 10.10.1.33'; Message = '*outside*' }
         @{ Case = 'a second lb'; From = "role: worker`n    address: 10.10.0.33"; To = "role: lb`n    address: 10.10.0.33"; Message = "*exactly one node needs role 'lb'*" }
         @{ Case = 'an unknown role'; From = "role: worker`n    address: 10.10.0.33"; To = "role: db`n    address: 10.10.0.33"; Message = '*must be one of*' }
@@ -234,7 +234,7 @@ Describe 'Get-LabPlan' {
         foreach ($n in $script:Config.Nodes) {
             @($script:Plan | Where-Object { $_ -match "^\s+$($n.Name)\s+$($n.Role)\s+$([regex]::Escape($n.Address))\s" }).Count | Should -Be 1
         }
-        $script:Plan | Should -Contain '  Total: 31 vCPU, 46 GB memory (static), 365 GB of dynamic disks at most.'
+        $script:Plan | Should -Contain '  Total: 27 vCPU, 40 GB memory (static), 315 GB of dynamic disks at most.'
     }
 
     It 'names the switch, NAT, image checksum and seed method' {
@@ -303,7 +303,7 @@ Describe 'lab-vms.ps1' {
     It 'plan exits 0 and prints the VM table' {
         $output = & $script:Shell -NoProfile -ExecutionPolicy Bypass -File $script:Script plan -NodesFile (New-TestNodesFile) 2>&1
         $LASTEXITCODE | Should -Be 0
-        ($output -join "`n") | Should -Match 'VMs \(8\), created in this order'
+        ($output -join "`n") | Should -Match 'VMs \(6\), created in this order'
     }
 
     It 'plan -PublicKeyFile checks that key instead of the one in nodes.yml' {

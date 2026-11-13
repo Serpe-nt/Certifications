@@ -163,8 +163,8 @@ is switched through its targeting rule, as the flag screen does it.
 | Machine | Address | vCPU | Memory |
 |---|---|---|---|
 | lb | 10.10.0.5 | 2 | 2 GB |
-| master1 to master3 | 10.10.0.11 to 10.10.0.13 | 2 | 4 GB |
-| worker1 to worker4 | 10.10.0.30 to 10.10.0.33 | 4 | 6 GB, plus a 40 GB Longhorn disk |
+| master1 | 10.10.0.11 | 2 | 4 GB |
+| worker1 to worker4 | 10.10.0.30 to 10.10.0.33 | 4 | 8 GB, plus a 40 GB Longhorn disk |
 
 Sizes are in `vm/nodes.yml`; what the lab uses of them is in `budget.md`. SSH:
 `ssh -i ~/.ssh/ansible vaka@10.10.0.30`. HAProxy statistics: http://10.10.0.5:8404/stats.

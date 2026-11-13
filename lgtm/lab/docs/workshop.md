@@ -37,6 +37,8 @@ python run.py
 python run.py solutions/03-propagation
 ```
 
+Ctrl+C stops the service, the solutions included. On Windows, `opentelemetry-instrument` would hand the service to a new process that Ctrl+C no longer reaches, so there `run.py` runs the agent's entry point itself and waits for the service (`lgtm/lab/workshop/run.py`, `INSTRUMENT_WITHOUT_EXEC`).
+
 `run.py` prints the command it starts and every `OTEL_*`, `SHOP_*` and `WORKSHOP_*` setting it passes on. The settings come from three places, the later ones winning: `lab.env` (where the lab is), the folder's `workshop.env` (what this variant sends), and your own environment.
 
 ### With Docker

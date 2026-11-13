@@ -9,7 +9,7 @@ an S3 store, a gateway, Kafka, certificates and resource metrics. Run it after `
 | Add-on | Release (chart, version) | Namespace | What the lab uses |
 |---|---|---|---|
 | Longhorn | `longhorn` (longhorn 1.13.0) | `longhorn-system` | Default StorageClass `longhorn`, two replicas per volume, data on `/var/lib/longhorn` of each worker |
-| RustFS | `rustfs` (rustfs 1.0.4) | `s3` | S3 API `rustfs-svc.s3.svc:9000`; buckets `mimir-blocks`, `mimir-ruler`, `mimir-alertmanager`, `loki-chunks`, `loki-ruler`, `tempo-traces`; Secret `lab-s3` in `s3`, `mimir`, `loki`, `tempo` |
+| RustFS | `rustfs` (rustfs 1.0.5) | `s3` | S3 API `rustfs-svc.s3.svc:9000`; buckets `mimir-blocks`, `mimir-ruler`, `mimir-alertmanager`, `loki-chunks`, `loki-ruler`, `tempo-traces`; Secret `lab-s3` in `s3`, `mimir`, `loki`, `tempo` |
 | Envoy Gateway | `envoy-gateway` (gateway-helm v1.10.0) | `gateway` | Gateway `lab` (class `lab-envoy`): HTTP on NodePort 30080, HTTPS on NodePort 30443 for `*.lab.k8s.local`, routes from all namespaces |
 | Strimzi and Kafka | `strimzi` (strimzi-kafka-operator 1.3.1) | `kafka` | Kafka 4.3.2 cluster `telemetry`, KRaft, 3 nodes with a 10 GiB volume each; `telemetry-kafka-bootstrap.kafka.svc:9092`, no authentication; records kept 24 hours or 640 MiB per partition, whichever comes first |
 | cert-manager | `cert-manager` (cert-manager v1.21.3) | `cert-manager` | ClusterIssuer `lab-ca` (a self-signed root, Secret `cert-manager/lab-root-ca`); the gateway's certificate `gateway/lab-gateway-tls` |
@@ -120,11 +120,12 @@ Real cluster (profile `full`), what Kubernetes reserves (requests) and the most 
 Per node: the control-plane nodes run none of this (they keep kubeadm's taint), and the first
 role, `platform_control_plane` (tag `control-plane`), moves CoreDNS, the Tigera operator and the
 Calico Deployments off them too: with the API server at about 880 MiB, a 2 GB master had no room
-for them (`acceptance-lab.md`, defect 1). The four workers (4 vCPU and 6 GB each, 22.75 GiB
-allocatable together) carry it all. The Longhorn manager and instance manager run on every
+for them (`acceptance-lab.md`, defect 1). The four workers (4 vCPU and 8 GB each since card L6, about
+30.7 GiB allocatable together) carry it all. The Longhorn manager and instance manager run on every
 worker (250m and 128Mi requested each); the rest is spread by the scheduler, with the three
 Kafka nodes and the two proxies on different workers where possible. On average one worker
-reserves about 580m CPU and 1.1 GiB for the platform, 20% of its memory, before the LGTM stack.
+reserves about 580m CPU and 1.1 GiB for the platform, 14% of its memory (20% on the 6 GB workers
+before card L6), before the LGTM stack.
 Measured numbers on the real cluster are in `budget.md`. The limits add up to more than the requests on purpose; they cap a
 runaway pod.
 

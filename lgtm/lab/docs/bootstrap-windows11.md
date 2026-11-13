@@ -1,7 +1,7 @@
 # Bootstrap the lab cluster on Windows 11 Pro
 
-This guide takes a Windows 11 Pro PC with nothing of the lab on it to a highly available
-Kubernetes cluster of eight Hyper-V VMs, with `kubectl` working from WSL. It uses only what is in
+This guide takes a Windows 11 Pro PC with nothing of the lab on it to a
+Kubernetes cluster of six Hyper-V VMs, with `kubectl` working from WSL. It uses only what is in
 the repository: the Hyper-V script `lgtm/lab/vm/hyperv/lab-vms.ps1`, the cloud-init seeds it
 writes, and the Ansible playbooks in `lgtm/lab/ansible/`. It is written for someone who knows
 Kubernetes and has never used this repository.
@@ -34,19 +34,17 @@ you should see and how to undo it.
 
 ## 1. What you will have at the end
 
-Eight VMs on a private Hyper-V network, made from `lgtm/lab/vm/nodes.yml`:
+Six VMs on a private Hyper-V network, made from `lgtm/lab/vm/nodes.yml`:
 
 | VM | Address | vCPU | Memory (static) | Disks (dynamic VHDX) | Runs |
 |---|---|---|---|---|---|
 | lb | 10.10.0.5 | 2 | 2 GB | 10 GB | HAProxy (6443 to the API servers; 80 and 443 to worker NodePorts 30080 and 30443; statistics on 8404) and dnsmasq for the zone `k8s.local` |
-| master1 | 10.10.0.11 | 2 | 2 GB | 25 GB | kubeadm control plane and etcd |
-| master2 | 10.10.0.12 | 2 | 2 GB | 25 GB | kubeadm control plane and etcd |
-| master3 | 10.10.0.13 | 2 | 2 GB | 25 GB | kubeadm control plane and etcd |
-| worker1 | 10.10.0.30 | 6 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
-| worker2 | 10.10.0.31 | 6 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
-| worker3 | 10.10.0.32 | 6 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
-| worker4 | 10.10.0.33 | 6 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
-| **Total** | | **32** | **40 GB** | **365 GB at most** | |
+| master1 | 10.10.0.11 | 2 | 4 GB | 25 GB | kubeadm control plane and etcd |
+| worker1 | 10.10.0.30 | 4 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
+| worker2 | 10.10.0.31 | 4 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
+| worker3 | 10.10.0.32 | 4 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
+| worker4 | 10.10.0.33 | 4 | 8 GB | 30 GB + 40 GB data | workloads; data disk at `/var/lib/longhorn` |
+| **Total** | | **20** | **38 GB** | **315 GB at most** | |
 
 - **Network.** Hyper-V internal switch `lgtm-lab`, subnet 10.10.0.0/24. Windows has 10.10.0.1 on
   the adapter `vEthernet (lgtm-lab)` and is the VMs' gateway; a Windows NAT named `lgtm-lab` takes
@@ -57,8 +55,10 @@ Eight VMs on a private Hyper-V network, made from `lgtm/lab/vm/nodes.yml`:
   `<vm>.k8s.local` for every VM, and every name under `lab.k8s.local`, all with lb's address
   except the VM names. With `-ConfigureDns`, Windows sends every `.k8s.local` lookup to lb.
 - **Kubernetes.** Ubuntu Server 24.04, Kubernetes 1.35 from `pkgs.k8s.io`, containerd, Calico
-  3.31.4 (pod network 10.100.0.0/16, service network 10.96.0.0/16). Three stacked control-plane
-  nodes behind HAProxy, so the cluster survives the loss of one master.
+  3.31.4 (pod network 10.100.0.0/16, service network 10.96.0.0/16). One control-plane node behind
+  HAProxy: the control plane is not highly available (while master1 restarts, the API is away;
+  running pods keep running), and etcd has one member. HAProxy stays so that masters can be added
+  later (`cluster.md`, "One control-plane node").
 - **Access.** SSH user `vaka` with the key `~/.ssh/ansible`, no password login. The lab
   kubeconfig is `~/.kube/lgtm-lab.config` in WSL. Nothing writes `~/.kube/config`.
 
@@ -66,11 +66,9 @@ Eight VMs on a private Hyper-V network, made from `lgtm/lab/vm/nodes.yml`:
 Windows 11 Pro host
   Hyper-V internal switch "lgtm-lab"  10.10.0.0/24   host 10.10.0.1, NAT "lgtm-lab" to the internet
   |
-  +-- lb       10.10.0.5    HAProxy :6443 -> master1-3:6443   :80/:443 -> worker1-4:30080/30443
+  +-- lb       10.10.0.5    HAProxy :6443 -> master1:6443     :80/:443 -> worker1-4:30080/30443
   |                         dnsmasq :53  cluster-endpoint.k8s.local, *.lab.k8s.local -> 10.10.0.5
   +-- master1  10.10.0.11   kube-apiserver, etcd, controller-manager, scheduler
-  +-- master2  10.10.0.12   (same, joined)
-  +-- master3  10.10.0.13   (same, joined)
   +-- worker1  10.10.0.30   kubelet, Calico; /var/lib/longhorn on the 40 GB data disk
   +-- worker2  10.10.0.31
   +-- worker3  10.10.0.32
@@ -78,7 +76,7 @@ Windows 11 Pro host
 
 WSL "archlinux" (mirrored networking)
   make cluster  -> ansible-playbook over SSH to 10.10.0.x
-  kubectl       -> https://cluster-endpoint.k8s.local:6443 -> lb -> master1-3
+  kubectl       -> https://cluster-endpoint.k8s.local:6443 -> lb -> master1
 ```
 
 ## 2. Before you start
@@ -251,18 +249,18 @@ Why a converted QCOW2 image: `lgtm/docs/adr/l1-vm-image-and-seed.md`.
 
 ### 2.7 Free memory and disk
 
-The VMs use 40 GB of static memory: a running VM holds all of its memory, whatever the guest
-uses. The disks are dynamic: 365 GB at most, planned for up to about 90 GB of real use in
+The VMs use 38 GB of static memory: a running VM holds all of its memory, whatever the guest
+uses. The disks are dynamic: 315 GB at most, planned for up to about 90 GB of real use in
 `hyperv.vm_path` (`C:\Hyper-V\lgtm-lab`), plus a few GB of image cache (the downloaded image and
 the converted base VHDX) in `lgtm\lab\vm\hyperv\.cache\`.
 
-`lab-vms.ps1 plan` checks both (section 3.1). *Run here (2026-11-10):* 61.6 GB on the host,
-21.6 GB left for Windows; 849.1 GB free on C:. To put the VMs on another drive, change
+`lab-vms.ps1 plan` checks both (section 3.1). *Run here (2026-11-13):* 61.6 GB on the host,
+23.6 GB left for Windows; 625.8 GB free on C:. To put the VMs on another drive, change
 `hyperv.vm_path` in `lgtm/lab/vm/nodes.yml` before `create`.
 
 The sizes are yours to change in `nodes.yml` (the tests of the script use their own copy of the
-file, so changing them does not break CI). The figures in this guide are those of `nodes.yml` on
-2026-11-10: lb and masters 2 GB each, workers 8 GB each, 40 GB in total. To change the memory of
+file, so changing them does not break CI). The figures in this guide are those of `nodes.yml` since
+2026-11-13 (card L6): lb 2 GB, one master with 4 GB, four workers with 8 GB, 38 GB in total. To change the memory of
 VMs that exist, see section 6.4.
 
 ### 2.8 No old entry for the API endpoint name in WSL
@@ -304,7 +302,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 plan -Configur
 inside the subnet and unique, sizes, MAC prefix, image URL and checksum format), looks for the key
 and `qemu-img`, and prints every step `create` would take.
 
-*Run here (2026-11-10), real output* (the worktree path is where the agent ran it; yours starts
+*Run here, real output* (the header and the image lines from 2026-11-10 with `-ConfigureDns`,
+the VM table and the checks from 2026-11-13 after card L6; the worktree path is where the agent ran it; yours starts
 with `C:\Users\serpe\Projects\saa-c03-tracker\lgtm`):
 
 ```
@@ -324,17 +323,15 @@ Image
   - convert with qemu-img QCOW2 to VHDX C:\Users\serpe\Projects\saa-c03-tracker\.claude\worktrees\lgtm-b1-bootstrap-guide-ee174d\lgtm\lab\vm\hyperv\.cache\ubuntu-24.04-server-cloudimg-amd64.vhdx
       qemu-img: windows: C:\Program Files\qemu\qemu-img.exe
 
-VMs (8), created in this order; folder C:\Hyper-V\lgtm-lab\<name>
+VMs (6), created in this order; folder C:\Hyper-V\lgtm-lab\<name>
   Name      Role           Address      vCPU  Memory  OS disk Data disk  MAC
   lb        lb             10.10.0.5       2    2 GB    10 GB         -  02:4c:47:0a:00:05
-  master1   control_plane  10.10.0.11      2    2 GB    25 GB         -  02:4c:47:0a:00:0b
-  master2   control_plane  10.10.0.12      2    2 GB    25 GB         -  02:4c:47:0a:00:0c
-  master3   control_plane  10.10.0.13      2    2 GB    25 GB         -  02:4c:47:0a:00:0d
-  worker1   worker         10.10.0.30      6    8 GB    30 GB     40 GB  02:4c:47:0a:00:1e
-  worker2   worker         10.10.0.31      6    8 GB    30 GB     40 GB  02:4c:47:0a:00:1f
-  worker3   worker         10.10.0.32      6    8 GB    30 GB     40 GB  02:4c:47:0a:00:20
-  worker4   worker         10.10.0.33      6    8 GB    30 GB     40 GB  02:4c:47:0a:00:21
-  Total: 32 vCPU, 40 GB memory (static), 365 GB of dynamic disks at most.
+  master1   control_plane  10.10.0.11      2    4 GB    25 GB         -  02:4c:47:0a:00:0b
+  worker1   worker         10.10.0.30      4    8 GB    30 GB     40 GB  02:4c:47:0a:00:1e
+  worker2   worker         10.10.0.31      4    8 GB    30 GB     40 GB  02:4c:47:0a:00:1f
+  worker3   worker         10.10.0.32      4    8 GB    30 GB     40 GB  02:4c:47:0a:00:20
+  worker4   worker         10.10.0.33      4    8 GB    30 GB     40 GB  02:4c:47:0a:00:21
+  Total: 20 vCPU, 38 GB memory (static), 315 GB of dynamic disks at most.
 
 For each VM
   a. Copy the base VHDX to <name>-os.vhdx and grow it to the OS disk size.
@@ -351,8 +348,8 @@ Checks
   - Hyper-V PowerShell module: installed
   - SSH public key \\wsl.localhost\archlinux\home\vaka\.ssh\ansible.pub: found
   - Host addresses: none inside 10.10.0.0/24 except the planned 10.10.0.1.
-  - Memory: 40 GB for VMs of 61.6 GB on the host, 21.6 GB left for Windows.
-  - Free space on the drive of C:\Hyper-V\lgtm-lab: 849.1 GB (the lab is planned for up to 90 GB of real use).
+  - Memory: 38 GB for VMs of 61.6 GB on the host, 23.6 GB left for Windows.
+  - Free space on the drive of C:\Hyper-V\lgtm-lab: 625.8 GB (the lab is planned for up to 90 GB of real use).
 ```
 
 **Expect** the same, with `Administrator rights: yes` in an elevated window. `qemu-img:` must
@@ -371,13 +368,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 create -Config
 ```
 
 In an elevated window it prints a `What if:` line for each change (download, conversion, switch,
-host address, NAT, eight VMs, the name resolution rule) and changes nothing. *Not run here
+host address, NAT, six VMs, the name resolution rule) and changes nothing. *Not run here
 elevated: needs an elevated PowerShell.* In a normal window it runs up to the first Hyper-V call
 and stops there. *Run here (2026-11-10), normal window, real output* (paths shortened to
 `...\hyperv`):
 
 ```
-[lab-vms] Rendered cloud-init seeds for 8 VMs.
+[lab-vms] Rendered cloud-init seeds for 6 VMs.
 What if: Performing the operation "Download to ...\hyperv\.cache\ubuntu-24.04-server-cloudimg-amd64.img" on target "https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-amd64.img".
 WARNING: qemu-img not found; the real run stops at the conversion step.
 [lab-vms] What if: convert ...\hyperv\.cache\ubuntu-24.04-server-cloudimg-amd64.img to ...\hyperv\.cache\ubuntu-24.04-server-cloudimg-amd64.vhdx
@@ -387,7 +384,7 @@ WARNING: Every step above this line ran without administrator rights. Run '.\lab
 
 **Undo:** nothing to undo.
 
-### 3.3 create: switch, NAT, image and the eight VMs
+### 3.3 create: switch, NAT, image and the six VMs
 
 *Not run here: needs an elevated PowerShell.* Elevated PowerShell:
 
@@ -397,7 +394,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 create -Config
 
 **What it does on the host, in order** (from `Invoke-LabCreate` in `LabVms.psm1`):
 
-1. **Renders the cloud-init seeds** of all eight VMs in memory (Part 2 shows them). It stops here
+1. **Renders the cloud-init seeds** of all six VMs in memory (Part 2 shows them). It stops here
    if the public key is missing.
 2. **Downloads the image** `ubuntu-24.04-server-cloudimg-amd64.img` (release `20261017`, about
    600 MB) to `lgtm\lab\vm\hyperv\.cache\` through a `.part` file, and checks its SHA-256 against
@@ -414,7 +411,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 create -Config
    through the host. Windows allows one NAT network per host
    ([Set up a NAT network](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/setup-nat-network));
    when another exists, the step fails and the message lists the NATs that exist (section 7).
-7. **Creates each VM** in the order lb, master1 to master3, worker1 to worker4, in the folder
+7. **Creates each VM** in the order lb, master1, worker1 to worker4, in the folder
    `C:\Hyper-V\lgtm-lab\<name>\`:
    - `<name>-os.vhdx`: a copy of the base VHDX, grown with `Resize-VHD` to `disk_gb` (10, 25 or
      30 GB). cloud-init grows the root partition at first boot.
@@ -440,7 +437,7 @@ It does not start the VMs. It is idempotent: what exists is kept.
 when they are created):
 
 ```
-[lab-vms] Rendered cloud-init seeds for 8 VMs.
+[lab-vms] Rendered cloud-init seeds for 6 VMs.
 [lab-vms] Downloaded and verified ...\.cache\ubuntu-24.04-server-cloudimg-amd64.img
 [lab-vms] Converted base image to ...\.cache\ubuntu-24.04-server-cloudimg-amd64.vhdx
 [lab-vms] Created VM lb.
@@ -465,7 +462,7 @@ Get-NetNat -Name lgtm-lab
 Get-DnsClientNrptRule | Where-Object Comment -EQ 'lgtm-lab'
 ```
 
-Expect eight VMs, all `Off`; the switch of type Internal; the NAT for 10.10.0.0/24; one rule
+Expect six VMs, all `Off`; the switch of type Internal; the NAT for 10.10.0.0/24; one rule
 for `.k8s.local` with name server 10.10.0.5.
 
 **Undo:** `destroy` (section 6.3). It deletes only VMs whose Notes carry `lgtm-lab` and their
@@ -480,7 +477,7 @@ NAT and port proxies that `state.json` says `create` made. It keeps the image ca
 powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 start
 ```
 
-**What it does:** `Start-VM` for each VM tagged `lgtm-lab`, in the order lb, master1 to master3,
+**What it does:** `Start-VM` for each VM tagged `lgtm-lab`, in the order lb, master1,
 worker1 to worker4. A VM that runs already is left alone; a VM that does not exist gets a warning.
 Hyper-V reserves each VM's static memory when it starts.
 
@@ -510,7 +507,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 status
 connection to port 22 of each address from Windows, with a 0.5 second timeout. It changes
 nothing.
 
-**Expect** eight rows with the columns `Name`, `Role`, `Address`, `State`, `CPU`, `MemoryGB`,
+**Expect** six rows with the columns `Name`, `Role`, `Address`, `State`, `CPU`, `MemoryGB`,
 `Uptime` and `SSH`; after the first boot every row shows `Running` and SSH `open`. `missing` means
 the VM does not exist; SSH `closed` after five minutes means the VM did not finish its first boot:
 see Part 2 and section 7.
@@ -872,7 +869,7 @@ make ping
 The first contact accepts each host key into `~/.ssh/known_hosts_lgtm-lab`
 (`StrictHostKeyChecking=accept-new`); later changes of a key are refused.
 
-**Expect** `SUCCESS` and `"ping": "pong"` for lb, master1 to master3 and worker1 to worker4.
+**Expect** `SUCCESS` and `"ping": "pong"` for lb, master1 and worker1 to worker4.
 `UNREACHABLE` with a timeout means WSL does not reach 10.10.0.0/24 (section 7); `Permission
 denied (publickey)` means the VMs were created with another key.
 
@@ -905,7 +902,8 @@ cd ansible && ANSIBLE_CONFIG=$PWD/ansible.cfg ../.venv/bin/ansible-playbook site
 ```
 
 *Run here (2026-11-10):* six plays, 14 tasks on lb, 25 in "Common setup", 12 in
-`master_init`, 7 per control-plane join, 6 per worker join, 5 for the kubeconfig. Every run
+`master_init`, 7 per control-plane join (none with one master: the play matches no host and is
+skipped), 6 per worker join, 5 for the kubeconfig. Every run
 prints a `[DEPRECATION WARNING]` for `ansible.builtin.apt_repository` in `k8s_packages` (it goes
 away in ansible-core 2.25); it is harmless today.
 
@@ -914,10 +912,10 @@ original `k8s-provision` playbooks (commit `8442dee`), from `ansible/CHANGES.md`
 
 | # | Play | Hosts | Roles, in order | What the roles do | Changed from `k8s-provision`, and why |
 |---|---|---|---|---|---|
-| 1 | Load balancer and lab DNS | `load_balancer` (lb) | `ssh_hardening`, `node_prereqs`, `lb_haproxy`, `lb_dnsmasq` | `ssh_hardening`: writes `/etc/ssh/sshd_config.d/hardened.conf` (checked with `sshd -t`), allowed user `vaka`, restarts `ssh.socket`. `node_prereqs`: chrony. `lb_haproxy`: installs HAProxy, renders `/etc/haproxy/haproxy.cfg` from the inventory (6443 to master1 to master3 with an HTTPS `/healthz` check; 80 and 443 to the workers' NodePorts 30080 and 30443 with a TCP check; statistics on 8404). `lb_dnsmasq`: dnsmasq on 10.10.0.5 only, the zone `k8s.local`, `cluster-endpoint.k8s.local` and `*.lab.k8s.local` to 10.10.0.5, a record for every VM, other names forwarded to 1.1.1.1 and 9.9.9.9; it checks the endpoint resolves. | New play. `kubeadm init` needs `cluster-endpoint.k8s.local` to resolve and 6443 to answer, so the load balancer comes first; the original had a hand-made HAProxy (`haproxy.cfg`, now the role's template with generated server lines and a TCP check on the ingress ports, because the lab gateway has no `/healthz` route). |
+| 1 | Load balancer and lab DNS | `load_balancer` (lb) | `ssh_hardening`, `node_prereqs`, `lb_haproxy`, `lb_dnsmasq` | `ssh_hardening`: writes `/etc/ssh/sshd_config.d/hardened.conf` (checked with `sshd -t`), allowed user `vaka`, restarts `ssh.socket`. `node_prereqs`: chrony. `lb_haproxy`: installs HAProxy, renders `/etc/haproxy/haproxy.cfg` from the inventory (6443 to every control-plane node, master1 in this lab, with an HTTPS `/healthz` check; 80 and 443 to the workers' NodePorts 30080 and 30443 with a TCP check; statistics on 8404). `lb_dnsmasq`: dnsmasq on 10.10.0.5 only, the zone `k8s.local`, `cluster-endpoint.k8s.local` and `*.lab.k8s.local` to 10.10.0.5, a record for every VM, other names forwarded to 1.1.1.1 and 9.9.9.9; it checks the endpoint resolves. | New play. `kubeadm init` needs `cluster-endpoint.k8s.local` to resolve and 6443 to answer, so the load balancer comes first; the original had a hand-made HAProxy (`haproxy.cfg`, now the role's template with generated server lines and a TCP check on the ingress ports, because the lab gateway has no `/healthz` route). |
 | 2 | Common setup | `k8s_cluster` (masters and workers) | `ssh_hardening`, `swapoff`, `k8s_kernel_modules`, `containerd`, `network`, `node_prereqs`, `k8s_packages` | `swapoff`: `swapoff -a`, removes a `/swapfile` mount. `k8s_kernel_modules`: `overlay`, `br_netfilter`, IP forwarding and the bridge netfilter sysctls. `containerd`: refreshes the apt cache (the first apt task on these hosts), installs containerd, writes the default configuration once, sets `SystemdCgroup = true`. `network`: points systemd-resolved at 10.10.0.5 for `~k8s.local` (`/etc/systemd/resolved.conf.d/k8s.conf`); writes no netplan file here because cloud-init configured the card (`network_manage_k8s_interface: false`). `node_prereqs`: chrony; on workers also open-iscsi, nfs-common, cryptsetup, dmsetup, the `iscsi_tcp` and `dm_crypt` modules, iscsid, multipath kept off Longhorn devices, and the empty 40 GB disk formatted ext4 with label `longhorn` and mounted at `/var/lib/longhorn`. `k8s_packages`: the `pkgs.k8s.io` v1.35 apt repository, kubelet, kubeadm and kubectl held, `KUBELET_EXTRA_ARGS=--node-ip=<address>`. | Targets `k8s_cluster` instead of `all`, so lb gets no Kubernetes; adds `node_prereqs`. `containerd`: the default file is written once (`creates:`); before, every run rewrote it, undid the cgroup edit and restarted containerd. The install also refreshes the apt cache, because on a fresh cloud image it is the first apt task and the seed skips `apt update`. `network`: the netplan task runs only when `network_manage_k8s_interface` is true, because a single card set by cloud-init must not get a second netplan file. `k8s_packages`: the minor version comes from `k8s_minor_version` in `inventory/group_vars/all.yml`; the node-IP line is replaced, not added again; the key download runs in bash, because `/bin/sh` on Ubuntu has no `pipefail`. |
 | 3 | Initialize first master node | `control_plane[0]` (master1) | `master_init` | Writes `/etc/k8s_bootstrap/kubeadm-config.yaml` (`controlPlaneEndpoint: cluster-endpoint.k8s.local:6443`, pod subnet 10.100.0.0/16, service subnet 10.96.0.0/16, extra certificate name 10.10.0.5, node IP), runs `kubeadm init` once (skipped when `/etc/kubernetes/admin.conf` exists), copies `admin.conf` to `/home/vaka/.kube/config` on master1, applies Calico's `operator-crds.yaml` and `tigera-operator.yaml` server-side, then the Installation (interface `eth0`, pool 10.100.0.0/16, block size 26, no encapsulation, outgoing NAT), APIServer, Goldmane and Whisker resources, and waits until every pod in `calico-system` is Ready. | Since Calico 3.30 the operator CRDs are a separate manifest; the original would wait forever for them. The CRD file is too large for client-side apply. kubeadm's default service subnet 10.96.0.0/12 contains the pod network 10.100.0.0/16, so it is now 10.96.0.0/16. The extra certificate name lets kubectl use the lb address when the name does not resolve. The Calico version comes from `calico_version`. |
-| 4 | Join remaining control plane nodes | `control_plane[1:]` (master2, master3), one at a time | `control_plane_join` | Skipped on a node that has `/etc/kubernetes/kubelet.conf`. Otherwise, on master1: `kubeadm init phase upload-certs --upload-certs` and `kubeadm token create --print-join-command`; on the node: a JoinConfiguration in `/root/k8s-join-config.yaml` (root, 0600), `kubeadm join`, then the file is removed. | The whole join is skipped once joined, so a re-run creates no tokens and uploads no certificates; the join file (bootstrap token and certificate key) moved from a world-readable `/tmp` file to `/root` and is deleted after use. |
+| 4 | Join remaining control plane nodes | `control_plane[1:]`, one at a time (no host in this lab: the play is skipped) | `control_plane_join` | Skipped on a node that has `/etc/kubernetes/kubelet.conf`. Otherwise, on master1: `kubeadm init phase upload-certs --upload-certs` and `kubeadm token create --print-join-command`; on the node: a JoinConfiguration in `/root/k8s-join-config.yaml` (root, 0600), `kubeadm join`, then the file is removed. | The whole join is skipped once joined, so a re-run creates no tokens and uploads no certificates; the join file (bootstrap token and certificate key) moved from a world-readable `/tmp` file to `/root` and is deleted after use. |
 | 5 | Join workers | `workers` (worker1 to worker4) | `worker_join` | The same as play 4 without the certificate upload and the control-plane section. | Same as play 4. |
 | 6 | Write the lab kubeconfig on the control machine | `control_plane[0]` (master1) | `kubeconfig_fetch` | Refuses to write `~/.kube/config`; reads `/etc/kubernetes/admin.conf` from master1 and writes `~/.kube/lgtm-lab.config` (mode 0600) in WSL with the server `https://cluster-endpoint.k8s.local:6443` and the cluster, user and context names `lgtm-lab`, `lgtm-lab-admin`, `lgtm-lab`. | New. The original left the kubeconfig on master1 only. |
 
@@ -957,8 +955,8 @@ make cluster-check
   and both fixes; then `kubectl --kubeconfig ~/.kube/lgtm-lab.config get --raw /readyz` must print `ok`;
 - finally `KUBECONFIG=~/.kube/lgtm-lab.config kubectl get nodes -o wide`.
 
-**Expect** `failed=0`, the messages `API servers up behind HAProxy: master1, master2, master3`
-and `Nodes: ...` with all seven Kubernetes nodes, then seven nodes `Ready`, INTERNAL-IP
+**Expect** `failed=0`, the messages `API servers up behind HAProxy: master1`
+and `Nodes: ...` with all five Kubernetes nodes, then five nodes `Ready`, INTERNAL-IP
 10.10.0.x, version v1.35.x.
 
 **Undo:** nothing to undo.
@@ -1008,9 +1006,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 start
 ```
 
 `stop` shuts the guests down (`Stop-VM` without `-TurnOff`, so the guest shuts down cleanly) in the
-order worker4 to worker1, master3 to master1, lb. `start` starts them in the reverse order: lb
-first, because it carries the API endpoint and the lab DNS that every node uses; then the three
-masters, so etcd regains its quorum (two of three) quickly; the workers last. Give the cluster
+order worker4 to worker1, master1, lb. `start` starts them in the reverse order: lb
+first, because it carries the API endpoint and the lab DNS that every node uses; then master1,
+with etcd and the API server; the workers last. Give the cluster
 three minutes, then check from WSL:
 
 ```bash
@@ -1189,7 +1187,7 @@ What the agent ran on 2026-11-10 while writing this guide, and what only the own
 | Python, make, kubectl in WSL | 2.4 | Run here: 3.14.8, 4.4.1, v1.36.1 |
 | SSH key pair | 2.5 | Run here: both files exist; `plan` reports `found` |
 | qemu-img | 2.6 | Run here: not found at first; after the owner's winget install, `plan` finds `C:\Program Files\qemu\qemu-img.exe` |
-| Memory and disk | 2.7 | Run here (`plan`): 21.6 GB left, 849.1 GB free |
+| Memory and disk | 2.7 | Run here (`plan`, 2026-11-13): 23.6 GB left, 625.8 GB free |
 | Endpoint name in WSL | 2.8 | Run here: `10.10.0.5` (after the owner corrected `/etc/hosts`) |
 | `lab-vms.ps1 plan -ConfigureDns` | 3.1 | Run here: output shown |
 | `create -ConfigureDns -WhatIf` | 3.2 | Run here in a normal window (stops at the first Hyper-V call, as designed); elevated: not run here, needs an elevated PowerShell |

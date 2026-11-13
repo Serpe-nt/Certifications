@@ -36,8 +36,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 plan -Configur
 ```
 
 - [ ] Expect: "Plan for the LGTM lab", the switch, address and NAT steps, the name resolution rule
-  for `.k8s.local`, the image URL with its SHA-256, and a table of 8 VMs: lb 10.10.0.5, master1 to
-  master3 10.10.0.11 to .13, worker1 to worker4 10.10.0.30 to .33. "Total: 32 vCPU, 40 GB memory".
+  for `.k8s.local`, the image URL with its SHA-256, and a table of 6 VMs: lb 10.10.0.5, master1
+  10.10.0.11, worker1 to worker4 10.10.0.30 to .33. "Total: 20 vCPU, 38 GB memory".
 - [ ] Under "Checks": the key is `found`, the Hyper-V module is `installed`, qemu-img is found (in
   the Image section), no WARNING about host addresses, memory or free space.
 - Undo: nothing to undo.
@@ -51,7 +51,7 @@ cd C:\Users\serpe\Projects\saa-c03-tracker\lgtm\lab\vm\hyperv
 powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 create -ConfigureDns -WhatIf
 ```
 
-- [ ] Expect a list of "What if:" lines (download, convert, switch, address, NAT, 8 VMs, the DNS
+- [ ] Expect a list of "What if:" lines (download, convert, switch, address, NAT, 6 VMs, the DNS
   rule) and no error. Nothing is changed.
 
 ```powershell
@@ -61,7 +61,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 create -Config
 - [ ] Expect `[lab-vms]` lines: image downloaded and verified (about 600 MB), base image
   converted, "Created VM lb" through "Created VM worker4", "Create finished". It takes a few
   minutes. Windows may briefly show a new drive while each seed disk is written; ignore it.
-- [ ] Hyper-V Manager shows 8 VMs, all Off, each with Notes `lgtm-lab`.
+- [ ] Hyper-V Manager shows 6 VMs, all Off, each with Notes `lgtm-lab`.
 - If it stops with an error: copy the red message. Running `create` again continues where it
   stopped; parts that exist are kept.
 - If `New-NetNat` fails: the message lists the NAT networks that exist. Windows may allow only one;
@@ -138,7 +138,7 @@ make ping
   and `lgtm/lab/ansible/.ansible/`, nothing system-wide).
 - [ ] `make inventory` ends with `ok=2 changed=0` or `changed=1`; `git status` shows no change
   to `ansible/inventory/hosts.yml` unless you changed `nodes.yml`.
-- [ ] `make ping` prints `SUCCESS` and `"ping": "pong"` for lb, master1 to master3 and worker1 to
+- [ ] `make ping` prints `SUCCESS` and `"ping": "pong"` for lb, master1 and worker1 to
   worker4.
 - Undo: `make forget-host-keys` forgets the host keys accepted here.
 
@@ -166,9 +166,9 @@ kubectl get nodes -o wide
 kubectl get pods -A
 ```
 
-- [ ] `make cluster-check` ends with `failed=0`, with "API servers up behind HAProxy: master1,
-  master2, master3" and "Nodes: ..." listing all 7 Kubernetes nodes, and `kubectl get nodes`
-  shows master1 to master3 and worker1 to worker4 `Ready`, INTERNAL-IP 10.10.0.x, v1.35.x.
+- [ ] `make cluster-check` ends with `failed=0`, with "API servers up behind HAProxy: master1"
+  and "Nodes: ..." listing all 5 Kubernetes nodes, and `kubectl get nodes`
+  shows master1 and worker1 to worker4 `Ready`, INTERNAL-IP 10.10.0.x, v1.35.x.
 - [ ] `kubectl get pods -A`: everything in `kube-system`, `calico-system`, `tigera-operator`
   is `Running`.
 - [ ] On a worker, the data disk is mounted:
@@ -176,8 +176,8 @@ kubectl get pods -A
   shows an ext4 file system of about 40 GB and `active` twice.
 - [ ] In PowerShell: `Resolve-DnsName cluster-endpoint.k8s.local` and
   `Resolve-DnsName grafana.lab.k8s.local` both answer 10.10.0.5.
-- [ ] In the browser, `http://10.10.0.5:8404/stats` shows the HAProxy page with the three
-  `k8s_api_servers` green. The worker backends stay red until the gateway exists (card L2).
+- [ ] In the browser, `http://10.10.0.5:8404/stats` shows the HAProxy page with the one
+  `k8s_api_servers` server (master1) green. The worker backends stay red until the gateway exists (card L2).
 
 ## 8. Run it again (WSL)
 
@@ -197,7 +197,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 start
 
 Wait 3 minutes, then in WSL `make cluster-check`.
 
-- [ ] `stop` shuts down workers, then masters, then lb; `start` brings them back in the reverse
+- [ ] `stop` shuts down workers, then master1, then lb; `start` brings them back in the reverse
   order; `make cluster-check` passes again.
 
 ## 10. Tear down (only when you want the lab gone)
@@ -212,7 +212,7 @@ rm ~/.kube/lgtm-lab.config
 ```
 
 - [ ] `destroy` asks for each VM, the DNS rule, the NAT and the switch; after it, Hyper-V Manager
-  shows none of the 8 VMs, `Get-VMSwitch lgtm-lab` and `Get-NetNat lgtm-lab` find nothing, and
+  shows none of the 6 VMs, `Get-VMSwitch lgtm-lab` and `Get-NetNat lgtm-lab` find nothing, and
   `C:\Hyper-V\lgtm-lab` holds no VM folders.
 - The image cache in `lgtm\lab\vm\hyperv\.cache\` is kept for the next `create`; delete it by hand
   to free the space.
