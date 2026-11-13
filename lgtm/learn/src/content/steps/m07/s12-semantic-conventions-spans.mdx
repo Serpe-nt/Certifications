@@ -115,7 +115,7 @@ An HTTP server instrumentation handles `GET /orders/8812`. Its framework gives i
 
   Instrumentation must not use the URI path as a target by default; every order would get its own span name.
 
-- /orders/{id}, made by replacing the number in the path
+- `/orders/{id}`, made by replacing the number in the path
 
   The target must come from the framework's route template, which is missing here. The instrumentation does not invent one.
 

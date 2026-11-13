@@ -75,7 +75,7 @@ When two sources give the same key, the SDK merges them and the updating resourc
 
 ## A collector can add attributes on the way
 
-The resource is not only the SDK's business. A Collector between the service and the backend can add or overwrite resource attributes. The lab's gateway adds `cluster="lgtm-lab"` and `k8s.cluster.name` to everything, and its Kubernetes attributes processor adds the pod, the namespace, the node and the Deployment. That processor finds the pod by the IP address of the incoming connection unless it is told otherwise. Keep this in mind for step 7: your workshop service does not run in a pod, so the address the gateway sees belongs to something else.
+A Collector between the service and the backend can also add or overwrite resource attributes. The lab's gateway adds `cluster="lgtm-lab"` and `k8s.cluster.name` to everything, and its Kubernetes attributes processor adds the pod, the namespace, the node and the Deployment. That processor finds the pod by the IP address of the incoming connection unless it is told otherwise. Keep this in mind for step 7: your workshop service does not run in a pod, so the address the gateway sees belongs to something else.
 
 <InLab>
 The shop's resources show all three sources. `telemetry.sdk.language` is `go` on checkout and `dotnet` on cart, set by their SDKs. `service.namespace` is `opentelemetry-demo`, which the shop's chart passes in `OTEL_RESOURCE_ATTRIBUTES`. `k8s.pod.name` and `cluster` were added by the gateway.
