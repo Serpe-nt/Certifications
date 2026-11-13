@@ -1,0 +1,126 @@
+---
+id: m08-s04
+title: Metrics in the workshop service
+kind: lab
+minutes: 25
+order: 4
+exam:
+  - cert: otca
+    domain: O2
+    competency: "Signals (Tracing, Metric, Log)"
+  - cert: otca
+    domain: O2
+    competency: Data Model
+tags: [otel-metric-instruments, otel-metrics-sdk]
+check:
+  kind: exact
+  prompt: Paste the type that Mimir's metadata gives workshop_checkouts_active, the up-down counter.
+  answers: ["gauge"]
+outcome: You can add a counter, an up-down counter and a histogram to a service with the meter API, and find each one in Mimir under the name and labels the OTLP translation gave it.
+terms:
+  - term: Unit suffix
+    def: The unit word, such as _seconds, that the translation adds to a metric name in Prometheus.
+  - term: job and instance
+    def: Labels built from service.namespace/service.name and service.instance.id when OTLP metrics enter Mimir.
+  - term: target_info
+    def: A series per resource that holds the resource attributes not turned into labels.
+sources:
+  - title: Prometheus and OpenMetrics compatibility (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/
+    checked: 2026-11-13
+  - title: Configure the OpenTelemetry Collector to write metrics into Mimir (Grafana Mimir)
+    url: https://grafana.com/docs/mimir/latest/configure/configure-otel-collector/
+    checked: 2026-11-13
+  - title: Instrumentation, metrics (OpenTelemetry Python)
+    url: https://opentelemetry.io/docs/languages/python/instrumentation/
+    checked: 2026-11-13
+  - title: Using Prometheus as your OpenTelemetry backend (Prometheus)
+    url: https://prometheus.io/docs/guides/opentelemetry/
+    checked: 2026-11-13
+---
+
+<Problem>
+You named the instrument `workshop.compute.duration`, with the unit `s`. In Grafana nobody will type that name: Mimir stores Prometheus series, and dots are not allowed in classic Prometheus names. Before you build a dashboard on your new metrics, you need to know what each instrument is called in Mimir and which labels came with it.
+</Problem>
+
+<Idea>
+The metrics you record travel over OTLP to the collector gateway and on to Mimir, which translates each OpenTelemetry metric into Prometheus series. The name gets underscores, a unit suffix and, for counters, `_total`; attributes become labels; the resource becomes `job`, `instance` and a `target_info` series. Reading the translated names once makes every later query easy.
+</Idea>
+
+## Four instruments in the code
+
+Solution `04-metrics` adds a meter to the service you finished in module m07. It gets the meter from the API, as the tracer: `metrics.get_meter("workshop")`. The agent you start with `opentelemetry-instrument` sets up the SDK behind it. Then it creates the instruments once, at module level:
+
+- `workshop.checkouts`, a counter with the unit `{checkout}`, incremented once per checkout with the attribute `outcome` (placed, declined, out_of_stock and so on);
+- `workshop.checkouts.active`, an up-down counter: `add(1)` when a checkout starts, `add(-1)` in a `finally` block when it ends;
+- `workshop.compute.duration`, a histogram in seconds with suggested bounds from 0.001 to 5, recorded with the attribute `workshop.compute.n`;
+- `workshop.inventory.stock`, an observable gauge whose callback reads every SKU's stock from SQLite.
+
+Two settings in `workshop.env` turn the metrics on: `OTEL_METRICS_EXPORTER=otlp`, and `OTEL_METRIC_EXPORT_INTERVAL=15000`, so that a change shows within 15 seconds instead of 60.
+
+## How the names change on the way into Mimir
+
+Mimir follows the OpenTelemetry rules for turning OTLP metrics into Prometheus series. Characters that Prometheus names do not allow become `_`. The unit is turned into a word and added, unless the name already ends in it: `s` becomes `_seconds`. A unit in braces, such as `{checkout}`, is only an annotation and is dropped. A cumulative monotonic sum gets `_total`. An up-down counter is a sum that is not monotonic, so it becomes a gauge without `_total`. A histogram becomes the classic `_bucket`, `_sum` and `_count` series.
+
+<Compare caption="One instrument, two names">
+  <Col title="In the code">workshop.checkouts {checkout}, workshop.checkouts.active, workshop.compute.duration s, workshop.inventory.stock {item}</Col>
+  <Col title="In Mimir" hot>workshop_checkouts_total, workshop_checkouts_active, workshop_compute_duration_seconds_bucket, workshop_inventory_stock</Col>
+</Compare>
+
+Attributes become labels the same way: `workshop.compute.n` becomes `workshop_compute_n`. The resource is handled apart. `service.namespace` and `service.name` together become `job="workshop/workshop"`, and `service.instance.id`, which the Python SDK generates for each process, becomes `instance`. The lab's Mimir also copies a few resource attributes, `service_name` among them, onto every series. The others, such as `deployment.environment.name` and the SDK's version, go to a separate `target_info` series that you can join on `job` and `instance`.
+
+## Where the data passes on the lab
+
+<Flow caption="The workshop's metrics on their way to Mimir">
+  <Stage title="Workshop on your PC" kicker="SDK">Periodic reader, every 15 seconds, OTLP over HTTP.</Stage>
+  <Stage title="otlp.lab.k8s.local" kicker="Gateway">The lab's gateway routes /v1/metrics to the collector gateway.</Stage>
+  <Stage title="Collector gateway" kicker="otel">Adds cluster="lgtm-lab" and sends to Mimir's /otlp.</Stage>
+  <Stage title="Mimir, tenant lab" kicker="mimir">Translates to Prometheus series.</Stage>
+</Flow>
+
+<InLab>
+Besides your four metrics, the service now sends `http_server_request_duration_seconds` from the Flask instrumentation and `db_client_operation_duration_seconds` from the SQLite one, without any code from you. Tempo's metrics generator also writes `traces_spanmetrics_*` series for `service_name="workshop"` from your traces.
+</InLab>
+
+<Trap>
+The name in your code is not the name you query. Look up the translated name once, in Explore or in Mimir's metadata, before you write a dashboard or an alert; a query on `workshop_checkouts_active_total` or `workshop.compute.duration` returns nothing and does not warn you.
+</Trap>
+
+<Do>
+1. In a terminal, go to `lgtm/lab/workshop` and stop the service from module m07 if it still runs (Ctrl+C). Compare the last tracing solution with the metrics one: <Cmd>git diff --no-index solutions/03-propagation/app.py solutions/04-metrics/app.py</Cmd> Find `get_meter`, the four `create_` calls and the `add()` and `record()` calls. Then compare the settings: <Cmd>git diff --no-index solutions/03-propagation/workshop.env solutions/04-metrics/workshop.env</Cmd>
+2. Start the solution and wait for the line `Running on http://127.0.0.1:8000`: <Cmd>python run.py solutions/04-metrics</Cmd>
+3. In a second terminal, in the same folder, make traffic for 30 seconds: <Cmd>python load.py --rate 5 --duration 30</Cmd> It places checkouts, some of which are declined on purpose, and calls `/compute`.
+4. Wait 15 seconds for the next export. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, choose the data source `mimir` and run this query to list what the service sends: <Query lang="promql">{`count by (__name__) ({service_name="workshop"})`}</Query> Your four metrics are there under their Prometheus names.
+5. Query the counter by outcome. You see `placed` and `declined`: <Query lang="promql">{`sum by (outcome) (workshop_checkouts_total{service_name="workshop"})`}</Query>
+6. Query the up-down counter and look at its labels: `job="workshop/workshop"`, an `instance` that is a UUID, and no `_total` in the name. Its value is 0 or close to it, because checkouts end quickly. <Query lang="promql">{`workshop_checkouts_active{service_name="workshop"}`}</Query>
+7. Read the type Mimir stored for it. In PowerShell type `curl.exe` instead of `curl`: <Cmd>{`curl -H "X-Scope-OrgID: lab" "http://mimir.lab.k8s.local/prometheus/api/v1/metadata?metric=workshop_checkouts_active"`}</Cmd> Paste the value of `type` in the check below.
+8. Stop the service with Ctrl+C. Step 6 starts the next solution.
+</Do>
+
+<Done>
+Explore listed `workshop_checkouts_total`, `workshop_checkouts_active`, `workshop_compute_duration_seconds_bucket` and `workshop_inventory_stock` for `service_name="workshop"`, and Mimir's metadata gave the up-down counter the type gauge.
+</Done>
+
+<Trap practice>
+Your series also carry `k8s_pod_name` and other `k8s_*` labels of a pod in namespace `gateway`. They describe the lab's Envoy gateway, the last hop before the collector, not your PC: the collector's Kubernetes attributes processor matched the address the data came from. Ignore them for the workshop.
+</Trap>
+
+<Question id="q-m08-s04" answer="d">
+A service has an up-down counter named `queue.jobs.waiting` with the unit `{job}`. It is exported over OTLP with the default temporality into a backend that follows the OpenTelemetry rules for Prometheus. Which series do you query?
+
+- `queue_jobs_waiting_total`, a counter
+
+  Only monotonic sums get `_total` and become counters. An up-down counter can go down.
+
+- `queue_jobs_waiting_jobs`, a gauge
+
+  A unit in braces is an annotation and is dropped. It does not become a suffix.
+
+- `queue.jobs.waiting`, a gauge
+
+  With the default translation, dots in names are replaced with underscores.
+
+- `queue_jobs_waiting`, a gauge
+
+  A cumulative sum that is not monotonic follows the gauge rules, the dots become underscores, and the `{job}` unit is dropped.
+</Question>
