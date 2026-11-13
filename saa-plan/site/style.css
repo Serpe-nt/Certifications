@@ -1,15 +1,16 @@
-/* SAA-C03 plan in the Field Manual design system: a learning app as a mission console and its printed manual.
-   Tokens (colour, space, stroke, cut, type) come from fm/tokens.css, the components from fm/bundle.css; this file maps
-   the app's own markup onto them. Carbon (dark) and Paper (light) follow the system unless Settings picks one.
-   The rules: black, white and one live signal (acid lime); alert only for what needs attention; square corners or
-   45-degree cuts; lines, not depth (no shadows, glows, gradients or blur); sans for reading, mono for facts and labels;
-   motion in steps at constant speed. The quiz, the mock, the drill, results, badges and the celebrations are in fx.css. */
+/* SAA-C03 plan in the Datum design system, in its "Excimer" colours (the owner's reference poster): a near-black
+   ground ruled by a yellow-tinted modular grid, charcoal plates, and one cadmium yellow for what is live, the view's one
+   title and the marks that lock onto it. Tokens come from dm/tokens.css (dark only), the components from dm/bundle.css;
+   this file maps the app's own markup onto them, and ground.js draws the poster behind the page.
+   The rules (Datum's README): one subject per view; structure is hairlines (rule, and grid for the poster's yellow
+   lines), ink for what is current or focused; square corners or 45-degree cuts; no shadows, glows, gradients or blur;
+   sans (Saira) for reading, uppercase mono (IBM Plex Mono) for labels and facts. Motion: one arrival per view (the
+   ground draws in, crosshairs lock on, the content switches on in order), one live element, eased feedback
+   (cubic-bezier(.16,1,.3,1) for what travels, linear for what switches). The quiz, the mock, the drill, results,
+   badges and the celebrations are in fx.css. */
 
 /* ---------- ground ---------- */
 :root{color-scheme:dark;--wrap:1240px;--gut:var(--space-8);--rail:var(--space-12)}
-@media (prefers-color-scheme:light){:root:not([data-theme]){color-scheme:light}}
-:root[data-theme="light"]{color-scheme:light}
-:root[data-theme="dark"]{color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html{background:var(--paper);scrollbar-gutter:stable}   /* the card doesn't jump sideways when one step scrolls and the next doesn't */
@@ -25,18 +26,36 @@ mark{background:var(--signal);color:var(--on-signal);padding:0 2px}
 input,select,textarea{accent-color:var(--ink);caret-color:var(--ink)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-/* the backdrop: generated geometry fixed behind the page (app.js bdDraw), never information */
+/* the ground: the poster drawn behind the page (ground.js via app.js bdDraw), never information. Hairlines in grid,
+   dots on the crossings, crosshairs and arrow marks in signal, plates and halftones in plate, discs and the ring in
+   paper-sunk, yellow filaments meeting in a junction; the day's number as a ghost in paper-raised. */
 .bd-host{position:fixed;inset:0;z-index:0;pointer-events:none;isolation:isolate}
-.bd-host .fm-backdrop{position:absolute;inset:0;z-index:0}
+.bd-host .dm-backdrop{position:absolute;inset:0;z-index:0}
+.ground{display:block;width:100%;height:100%}
+.g-line{fill:none;stroke:var(--grid);stroke-width:1}
+.g-node{fill:none;stroke:var(--grid-mark);stroke-width:3;stroke-linecap:round}
+.g-cross{fill:none;stroke:var(--signal);stroke-width:1.5}
+.g-tri{fill:var(--signal)}
+.g-plate{fill:var(--plate);opacity:.6}
+.g-pat{fill:var(--grid-mark)}
+.g-pat-l{fill:none;stroke:var(--grid-mark);stroke-width:1.2}
+.g-disc circle{fill:var(--paper-sunk)}
+.g-disc path{fill:none;stroke:var(--rule);stroke-width:1.5}
+.g-ring{fill:none;stroke:var(--paper-sunk)}
+.g-fil{fill:none;stroke:var(--signal);stroke-width:1.4;stroke-linecap:round;stroke-dasharray:1;opacity:.72}
+.g-blob{fill:var(--signal);opacity:.9}
+body.in-flow .g-fil{opacity:.4}
+body.in-flow .g-blob{opacity:.5}
+.g-ghost{font:800 52vh/1 var(--font-display);font-stretch:62%;letter-spacing:-.02em;fill:var(--paper-raised)}
 .wrap{position:relative;z-index:1;max-width:calc(var(--wrap) + 2 * var(--gut));margin:0 auto;padding:var(--space-8) var(--gut) 140px}
 
 /* the labels: uppercase mono, one to three words */
-.tb-k,.fm-label,.nx-k,.c-meta,.box-h,.side-t,.sub-h,.ov-h,.fl-count,.fl-blk,.week,.rd-nk,.ch-n,.sr-k{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+.tb-k,.dm-label,.nx-k,.c-meta,.box-h,.side-t,.sub-h,.ov-h,.fl-count,.fl-blk,.week,.rd-nk,.ch-n,.sr-k{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 
 /* ---------- buttons: outline mono, primary filled with the action colour and cut bottom-right, ghost bracketed ---------- */
 button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:36px;padding:0 var(--space-4);font:500 12px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;text-align:center;
   color:var(--ink);background:linear-gradient(var(--ink),var(--ink)) left/0 100% no-repeat var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-radius:0;cursor:pointer;
-  transition:background-size var(--fm-step) steps(4,end),color var(--fm-tick) steps(1,end)}
+  transition:background-size var(--dm-step) var(--dm-ease),color var(--dm-tick) linear,border-color var(--dm-tick) linear}
 @media (hover:hover){button:not(:disabled):hover,.btn:hover{background-size:100% 100%;color:var(--on-ink)}}
 button:not(:disabled):active,.btn:active{transform:translate(1px,1px)}
 button.primary,.btn.primary{border-color:transparent;color:var(--on-action);font-weight:600;
@@ -71,16 +90,17 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .t-quiz::before{background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
 
 /* ---------- the rail: code block, where you are, the sync notice, the day, the focus timer ---------- */
-.timer{position:sticky;top:0;z-index:25;height:var(--rail);background:var(--paper);border-bottom:var(--stroke-hair) solid var(--ink)}
+.timer{position:sticky;top:0;z-index:25;height:var(--rail);background:var(--paper);border-bottom:var(--stroke-hair) solid var(--rule)}
 .tm-bar{position:absolute;left:0;right:0;bottom:-1px;height:var(--stroke-bold);pointer-events:none}
 .tm-fill{display:block;height:100%;width:0;background:var(--signal-edge);transition:width .9s linear}
 .timer.break .tm-fill{background:var(--ink)}
-.timer.over .tm-fill{background:var(--alert);animation:tm-over var(--fm-beat) steps(2,jump-none) infinite}
+.timer.over .tm-fill{background:var(--alert);animation:tm-over var(--dm-beat) steps(2,jump-none) infinite}
 .timer:not(.running) .tm-fill{background:var(--ink-3)}
 .tm-row{position:relative;height:100%;display:flex;align-items:stretch;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 .tm-row>*{display:flex;align-items:center}
 .tm-row>*+*{border-left:var(--stroke-hair) solid var(--rule)}
-.rl-code{padding:0 var(--space-6);background:var(--action);color:var(--on-action);font-weight:600;text-decoration:none;white-space:nowrap}
+.rl-code{gap:var(--space-3);padding:0 var(--space-6) 0 var(--space-4);background:var(--action);color:var(--on-action);font-weight:600;text-decoration:none;white-space:nowrap}
+.rl-mark{flex:none;width:10px;height:28px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:miter}   /* the poster's mark: a crossed box, a bow, a cross */
 .rl-code:hover{background:var(--action);color:var(--on-action);text-decoration:underline;text-underline-offset:4px}
 .rl-nav{gap:var(--space-3);padding:0 var(--space-4);color:var(--ink-3);white-space:nowrap}
 .rl-nav a{color:var(--ink-2);text-decoration:none;border-bottom:var(--stroke-bold) solid transparent;padding:var(--space-1) 0}
@@ -89,7 +109,7 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .sync-w{flex:1;min-width:0;padding:0 var(--space-3)}
 .sync-w:empty,.sync-w:has(>[hidden]:only-child){border-left:0}
 .rl-pos{gap:var(--space-3);padding:0 var(--space-4);white-space:nowrap}
-.rl-pos .fm-data{font-size:11px;letter-spacing:.08em}
+.rl-pos .dm-data{font-size:11px;letter-spacing:.08em}
 .tm-chip{display:flex;align-items:stretch}
 .tm-chip button{min-height:0;height:100%;border:0;padding:0 var(--space-4);background-color:var(--paper);font-size:11px}
 .tm-go{width:48px;border-right:var(--stroke-hair) solid var(--rule)!important;font-size:12px!important}
@@ -102,7 +122,7 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .timer.break.running .tm-go{background-color:var(--ink);color:var(--on-ink)}
 .timer.over .tm-mode,.timer.over .tm-time{color:var(--alert-text)}
 .timer.away .tm-mode{color:var(--alert-text)}
-.tm-pop{position:absolute;right:0;top:calc(100% + 1px);width:300px;display:block!important;background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-top:var(--stroke-bar) solid var(--ink);padding:var(--space-4);z-index:26;text-transform:none;letter-spacing:0}
+.tm-pop{position:absolute;right:0;top:calc(100% + 1px);width:300px;display:block!important;background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--grid-mark);padding:var(--space-4);z-index:26;text-transform:none;letter-spacing:0}
 .tm-pop[hidden]{display:none!important}
 .tm-btns{display:flex;gap:var(--space-2)}
 .tm-btns button{flex:1}
@@ -118,27 +138,43 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 @media (max-width:900px){.sync-st .ss-l{display:none}.sync-st .ss-s{display:inline}}
 
 /* ---------- the title bar: label, the one display title, the plan's numbers, the header buttons ---------- */
-.tb{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-4) var(--space-8);align-items:end;margin:0 0 var(--space-8)}
-.tb-title{display:grid;gap:var(--space-2);min-width:0}
-.tb-title .tb-k{color:var(--ink-3);justify-self:start}
+/* The poster's own composition: the one title, bold and yellow, set large on a black plate; the plan's numbers under
+   it to the right as key: value lines in mono (like ART DIRECTION: ECHO), the keys in yellow. */
+.tb{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-4) var(--space-12);align-items:end;margin:var(--space-4) 0 var(--space-8)}
+.tb-title{grid-row:1/3}   /* the title on the left; the numbers and the header buttons stacked on the right, so Start stays in the first screen */
+.tb-title{display:grid;gap:var(--space-4);min-width:0;justify-items:start}
+.tb-title .tb-k{color:var(--ink-3)}
 .tb-title .tb-k,.tb-tools>button{background-color:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}   /* plates: no text bare on the backdrop */
-.tb h1{margin:0;font:800 clamp(40px,5.4vw,64px)/.9 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:0;color:var(--ink);text-wrap:balance}
-.tb-cells{display:grid;grid-template-columns:repeat(3,auto);margin:0;border:var(--stroke-hair) solid var(--ink);background:var(--paper)}
-.tb-cell{padding:var(--space-2) var(--space-4);border-top:var(--stroke-bar) solid var(--ink)}
-.tb-cell+.tb-cell{border-left:var(--stroke-hair) solid var(--ink)}
-.tb-cell dt{color:var(--ink-3)}
-.tb-cell dd{margin:2px 0 0;font:600 20px/1.1 var(--font-display);white-space:nowrap}
-.tb-tools{grid-column:1/-1;display:flex;gap:var(--space-2) var(--space-4);flex-wrap:wrap;justify-content:flex-end;border-top:var(--stroke-hair) solid var(--rule);padding-top:var(--space-2)}
+.tb-h{width:fit-content;max-width:14ch;margin:0;font:700 clamp(48px,5.2vw,80px)/.9 var(--font-display);letter-spacing:-.04em;color:var(--signal);text-wrap:balance;
+  background:var(--paper);box-shadow:0 0 0 var(--space-3) var(--paper)}
+.tb-cells{grid-column:2;display:grid;grid-template-columns:auto auto;column-gap:var(--space-8);min-width:300px;margin:0;background:var(--paper);box-shadow:0 0 0 var(--space-3) var(--paper)}
+.tb-cell{display:contents}
+.tb-cell :is(dt,dd){padding:var(--space-1) 0;border-top:var(--stroke-hair) solid var(--grid)}
+.tb-cell:first-child :is(dt,dd){border-top-color:var(--grid-mark)}
+.tb-cell dt{color:var(--signal)}
+.tb-cell dt::after{content:":"}
+.tb-cell dd{margin:0;text-align:right;font:500 13px/16px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--ink)}
+.tb-tools{grid-column:2;display:flex;gap:var(--space-2) var(--space-4);flex-wrap:wrap;justify-content:flex-end}
 body.in-flow .tb{display:none}
 
 /* section headers: an index chip, a mono title, a rule (bundle.css); the overview's own headings and panels count up */
 #home{counter-reset:sec}
-.fm-section{margin:0}
-.fm-section__title{font-size:11px}
-.fm-section .fm-data{font-size:13px;color:var(--ink-2);background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* the app's own pieces Datum has no class for (the Field Manual had them): an index chip, the rail's mini bar of days,
+   a quiet stat, the slanted ticks in the hero tab */
+.dm-section__idx,.dm-idx{font:600 11px/16px var(--font-mono);letter-spacing:.08em;padding:0 var(--space-1);background:var(--signal);color:var(--on-signal)}
+.dm-seg--mini{width:96px;height:var(--space-2);margin:0}
+.dm-seg--mini>i{border-width:0;background:var(--rule)}
+.dm-seg--mini>.is-done{background:var(--ink)}
+.dm-seg--mini>.is-now{background:var(--signal);margin:-2px 0}
+.dm-stat--quiet{border-top-color:var(--ink-3)}
+.dm-slants{display:inline-block;flex:none;width:var(--space-8);height:var(--space-2);background:repeating-linear-gradient(135deg,var(--grid-mark) 0 3px,transparent 3px 7px)}
+.dm-section{margin:0}
+.dm-section__title{font-size:11px}
+.dm-section .dm-data{font-size:13px;color:var(--ink-2);background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ov-h,.panel>summary{counter-increment:sec;display:flex;align-items:center;gap:var(--space-3);margin:var(--space-12) 0 var(--space-6);color:var(--ink)}
-.ov-h::before,.panel>summary::before{content:"/" counter(sec,decimal-leading-zero);font:600 11px/16px var(--font-mono);letter-spacing:.08em;padding:0 var(--space-1);background:var(--signal);color:var(--on-signal)}
-.ov-h::after{content:"";flex:1;border-top:var(--stroke-hair) solid var(--rule)}
+/* a section header: the poster's arrow mark pointing at the title, then a grid hairline to the edge */
+.ov-h::before,.panel>summary::before{content:"";flex:none;width:8px;height:12px;background:var(--signal);clip-path:polygon(0 0,100% 50%,0 100%)}
+.ov-h::after{content:"";flex:1;border-top:var(--stroke-hair) solid var(--grid)}
 .ov-h{font-size:11px}
 .ov-h,.nx-cal,.nx-fin{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}   /* a plate: no text bare on the backdrop */
 .nx-cal,.nx-fin{width:fit-content;max-width:100%}
@@ -147,20 +183,27 @@ body.in-flow .tb{display:none}
 .next{margin:0 0 var(--space-8)}
 .nx-h{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .nx-h>*{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
+.next:not(.all-done) .nx-h .nx-k{display:none}   /* the hero frame's tab already says Today / Next up */
 .nx-k{color:var(--ink);padding:0 var(--space-1);background:var(--signal)!important;color:var(--on-signal);box-shadow:none!important}
 .nx-st{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-left:auto}
 .nx-st b{color:var(--ink)}
 .nx-cal{margin:0 0 var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
-.nx-body{display:grid;gap:var(--space-6) var(--space-8)}
+.nx-body{position:relative;display:grid;gap:var(--space-6) var(--space-8)}
+/* crosshairs locked onto the corners of the view's subject (the hero, the step and its sidebar): the poster's + marks */
+:is(.nx-body,.fl-body)::before{content:"";position:absolute;z-index:2;inset:calc(var(--space-4) * -1);pointer-events:none;--x:linear-gradient(var(--signal),var(--signal));
+  background:var(--x) 0 9px/19px 1px,var(--x) 9px 0/1px 19px,var(--x) 100% 9px/19px 1px,var(--x) calc(100% - 9px) 0/1px 19px,
+    var(--x) 0 calc(100% - 9px)/19px 1px,var(--x) 9px 100%/1px 19px,var(--x) 100% calc(100% - 9px)/19px 1px,var(--x) calc(100% - 9px) 100%/1px 19px;background-repeat:no-repeat}
 @media (min-width:900px){.nx-body{grid-template-columns:minmax(0,2fr) minmax(320px,1fr);align-items:stretch}}
-.nx-day.fm-frame{--tab:150px;--foot:120px;display:flex;flex-direction:column;gap:var(--space-6);padding:calc(var(--notch) + var(--space-6)) var(--space-6) calc(var(--space-6) + var(--space-6))}
+.nx-day.dm-frame{--tab:150px;--foot:120px;display:flex;flex-direction:column;gap:var(--space-6);padding:calc(var(--notch) + var(--space-6)) var(--space-6) calc(var(--space-6) + var(--space-6))}
 .hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-6);align-items:start}
 .hero-n{min-width:200px;gap:var(--space-3)!important}
-.hero-n .fm-dotnum{width:auto;height:auto;max-height:104px}
+.hero-n .dm-dotnum{width:auto;height:auto;max-height:104px}
+.hero-n .dm-dot-on{fill:var(--signal)}   /* the view's one figure, lit in the poster's yellow */
+.hero-n .dm-dot-off{fill:var(--rule)}
 .hero-x{display:grid;gap:var(--space-3);min-width:0}
 .hero-t{margin:0;font:600 30px/1.1 var(--font-sans);color:var(--ink);text-wrap:balance}
 .goal{margin:0;color:var(--ink-2);font-size:16px;line-height:1.55;max-width:68ch}
-.hero .fm-meta{max-width:440px}
+.hero .dm-meta{max-width:440px}
 .hero-p{display:grid;gap:var(--space-2);margin-top:auto}
 .hero-p>.muted{font:400 13px/20px var(--font-mono);color:var(--ink-3)}
 /* one segment per card of the day, grouped like its blocks: done filled ink, the next one signal and standing proud */
@@ -172,7 +215,7 @@ body.in-flow .tb{display:none}
 .segs i.q{border-style:dashed}
 .segs i.q.on{border-style:solid}
 /* the next step: the current panel (ink outline, live triangle in its cut), the big button at its foot */
-.nx-go.fm-cut{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-3);padding:var(--space-6)}
+.nx-go.dm-cut{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-3);padding:var(--space-6)}
 .nx-gk{align-self:stretch;display:flex;justify-content:space-between;gap:var(--space-3);padding-right:var(--space-6);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
 .nx-gk .muted{color:var(--ink-3)}
 .nx-step{margin:0;font-size:19px;line-height:1.45;max-width:62ch;color:var(--ink)}
@@ -181,11 +224,11 @@ body.in-flow .tb{display:none}
 .nx-a{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;align-self:stretch;margin-top:auto;padding-top:var(--space-4)}
 .nx-go .big{flex:1 1 100%;min-height:56px;font-size:14px;justify-content:space-between}
 .next.all-done .nx-fin{margin:var(--space-6) 0;font-size:18px;color:var(--ink-2)}
-.next.all-done .fm-bracketed{display:block;font:800 clamp(36px,6vw,64px)/.95 var(--font-display);font-stretch:62%;text-transform:uppercase;color:var(--ink);margin-bottom:var(--space-3)}
+.next.all-done .dm-bracketed{display:block;font:700 clamp(40px,6vw,80px)/.92 var(--font-display);letter-spacing:-.04em;color:var(--signal);margin-bottom:var(--space-3)}
 .next.all-done .nx-a{max-width:420px}
 /* warm-up / review: a notice above the hero */
 .nx-warm{display:flex;gap:var(--space-2) var(--space-4);align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 var(--space-4);padding:var(--space-2) var(--space-3) var(--space-2) calc(var(--space-6) + var(--space-3));
-  background:linear-gradient(var(--signal-edge),var(--signal-edge)) var(--space-6) 0/1px 100% no-repeat,linear-gradient(var(--signal),var(--signal)) left/var(--space-6) 100% no-repeat var(--paper-raised);border:var(--stroke-hair) solid var(--ink);font-size:15px}
+  background:linear-gradient(var(--signal),var(--signal)) var(--space-4) 50%/8px 8px no-repeat var(--paper-raised);border:var(--stroke-hair) solid var(--ink);font-size:15px}
 .nx-warm>span:first-child::before{content:"> ";font-family:var(--font-mono);color:var(--ink-3)}
 .nx-wb{display:flex;gap:var(--space-2);align-items:center}
 
@@ -196,20 +239,20 @@ body.in-flow .tb{display:none}
 
 /* ---------- where you stand: stat tiles sharing borders ---------- */
 .stats{margin:0 0 var(--space-6)}
-.st-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:var(--paper);border:var(--stroke-hair) solid var(--ink);border-top:0}
-.st.fm-stat{min-width:0;border-left:0}
-.st.fm-stat+.st.fm-stat{border-left:var(--stroke-hair) solid var(--ink)}
+.st-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:var(--paper);border:var(--stroke-hair) solid var(--rule);border-top:0}
+.st.dm-stat{min-width:0;border-left:0}
+.st.dm-stat+.st.dm-stat{border-left:var(--stroke-hair) solid var(--rule)}
 .st .tb-k{color:var(--ink-3)}
-.st .fm-stat__num{font-size:clamp(28px,2.6vw,40px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.st .fm-stat__num small{font-size:12px}
+.st .dm-stat__num{font-size:clamp(28px,2.6vw,40px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st .dm-stat__num small{font-size:12px}
 button.st-lv{display:grid;justify-content:stretch;align-items:start;text-align:left;min-height:0;padding:var(--space-3) var(--space-4) var(--space-4);font:inherit;letter-spacing:0;text-transform:none;background:var(--paper);background-image:none;border:0;border-top:var(--stroke-bar) solid var(--ink-3)}
 button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink)}
-.st-lv .fm-stat__num small{display:block;margin:var(--space-1) 0 0;font-size:11px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-lv .dm-stat__num small{display:block;margin:var(--space-1) 0 0;font-size:11px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .xpbar{display:block;height:var(--space-1);background:var(--rule)}
-.xpbar>span{display:block;height:100%;background:var(--ink);transition:width var(--fm-boot) steps(8,end)}
+.xpbar>span{display:block;height:100%;background:var(--ink);transition:width var(--dm-arrive) var(--dm-ease)}
 .bar{height:var(--space-1);background:var(--rule)}
 .stats .bar{margin-top:var(--space-2)}
-.bar>div{height:100%;width:0;background:var(--ink);transition:width var(--fm-boot) steps(10,end)}
+.bar>div{height:100%;width:0;background:var(--signal);transition:width 900ms var(--dm-ease)}   /* the plan done: the overview's one bar, in yellow */
 .pbar{display:block;height:var(--space-1);background:var(--rule);margin-top:var(--space-2)}
 .pbar>span{display:block;height:100%;background:var(--ink)}
 
@@ -219,7 +262,7 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
 .panel>summary::-webkit-details-marker{display:none}
 .panel>summary .sm-t,.panel>summary .muted{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
 .panel>summary .muted{text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink-2)}
-.panel>summary::after{content:"[ + ]";margin-left:auto;padding-left:var(--space-3);color:var(--ink-3);border-left:0;background:linear-gradient(var(--rule),var(--rule)) left center/calc(100% - 3.6em) 1px no-repeat;flex:1;text-align:right;white-space:nowrap}
+.panel>summary::after{content:"[ + ]";margin-left:auto;padding-left:var(--space-3);color:var(--ink-3);border-left:0;background:linear-gradient(var(--grid),var(--grid)) left center/calc(100% - 3.6em) 1px no-repeat;flex:1;text-align:right;white-space:nowrap}
 .panel[open]>summary::after{content:"[ – ]"}
 .panel>summary:hover::after{color:var(--ink)}
 .panel>:not(summary){margin-left:0;margin-right:0}
@@ -229,8 +272,8 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
 #scores>:not(summary)+:not(summary){border-top:0}
 #scores>.verdict{margin:0}
 .p-intro{margin:0 0 var(--space-4);max-width:68ch;color:var(--ink-2);font-size:15px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));background:var(--paper);border-top:var(--stroke-hair) solid var(--ink);border-left:var(--stroke-hair) solid var(--ink)}
-.place{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-4);font-size:14.5px;background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--ink);border-bottom:var(--stroke-hair) solid var(--ink);color:var(--ink-2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));background:var(--paper);border-top:var(--stroke-hair) solid var(--rule);border-left:var(--stroke-hair) solid var(--rule)}
+.place{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-4);font-size:14.5px;background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--rule);border-bottom:var(--stroke-hair) solid var(--rule);color:var(--ink-2)}
 .place h3{display:flex;align-items:center;gap:var(--space-2);margin:0;font:600 17px/1.25 var(--font-sans);color:var(--ink)}
 .place .url{font:400 12px/16px var(--font-mono);color:var(--ink-3)}
 .place ul{list-style:none;padding:0;margin:0;display:grid;gap:var(--space-1)}
@@ -256,11 +299,11 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
 .db .fi,.wk .fi,.c-tags .fi{display:block;height:100%;background:var(--ink);clip-path:polygon(0 0,calc(100% - var(--space-3)) 0,100% 100%,0 100%)}
 .db.weak .fi,.wk .fi.low,.c-tags .fi.low{background:var(--alert)}
 .db.weak span:first-child{color:var(--alert-text);font-weight:600}
-.verdict{margin-top:var(--space-4);padding:var(--space-3) var(--space-4) var(--space-3) calc(var(--space-6) + var(--space-4));font-size:15px;color:var(--ink);border:var(--stroke-hair) solid var(--ink);
-  background:linear-gradient(var(--ink),var(--ink)) left/var(--space-6) 100% no-repeat var(--paper-raised)}
+.verdict{margin-top:var(--space-4);padding:var(--space-3) var(--space-4) var(--space-3) calc(var(--space-6) + var(--space-4));font-size:15px;color:var(--ink);border:var(--stroke-hair) solid var(--rule);
+  background:linear-gradient(var(--ink-3),var(--ink-3)) var(--space-4) calc(var(--space-3) + 6px)/8px 8px no-repeat var(--paper-raised)}   /* a marker, not a colour edge */
 .verdict:empty{display:none}
-.verdict.go{background-image:linear-gradient(var(--signal-edge),var(--signal-edge)),linear-gradient(var(--signal),var(--signal));background-position:var(--space-6) 0,left;background-size:1px 100%,var(--space-6) 100%;border-color:var(--ink)}
-.verdict.mid{border-color:var(--alert);background-image:repeating-linear-gradient(135deg,var(--alert) 0 var(--stroke-bar),transparent var(--stroke-bar) calc(var(--stroke-bar) * 2))}
+.verdict.go{background-image:linear-gradient(var(--signal),var(--signal));border-color:var(--grid-mark)}
+.verdict.mid{border-color:var(--alert);background-image:linear-gradient(var(--alert),var(--alert));background-size:8px 4px}   /* half a marker: close, not there */
 .verdict.no{border-color:var(--alert);background-image:linear-gradient(var(--alert),var(--alert))}
 .verdict b{font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 .time-log .db.tl,.db.tl{grid-template-columns:80px minmax(0,1fr) 140px}
@@ -268,17 +311,21 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
 /* ---------- the plan as a lattice: one cell per day, a week per row ---------- */
 .map{margin-top:var(--space-12)}
 .week{margin:var(--space-8) 0 var(--space-4)}
-.week .fm-section__idx{background:var(--paper);color:var(--ink);outline:var(--stroke-hair) solid var(--ink);outline-offset:-1px}
-.tiles{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));border-top:var(--stroke-hair) solid var(--ink);border-left:var(--stroke-hair) solid var(--ink);background:var(--paper-raised)}
-.dt.fm-cell{position:relative;min-width:0;min-height:148px;gap:var(--space-2);background-color:var(--paper-raised);transition:background-color var(--fm-tick) steps(1,end)}
+.week .dm-section__idx{background:var(--paper);color:var(--ink);outline:var(--stroke-hair) solid var(--ink);outline-offset:-1px}
+.tiles{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));border-top:var(--stroke-hair) solid var(--rule);border-left:var(--stroke-hair) solid var(--rule);background:var(--paper-raised)}
+.dt.dm-cell{position:relative;min-width:0;min-height:148px;gap:var(--space-2);background-color:var(--paper-raised);transition:background-color var(--dm-step) linear,color var(--dm-step) linear}
+/* a day is an element box (the poster's Br, Xe, O): its number set large and light, the rest small around it; hovered,
+   a [+] locks into its corner */
+.dt.dm-cell::after{content:"[+]";position:absolute;right:var(--space-2);bottom:var(--space-2);font:500 11px/1 var(--font-mono);color:currentColor;opacity:0;transform:translate(4px,4px);transition:opacity var(--dm-step) linear,transform var(--dm-step) var(--dm-ease)}
+@media (hover:hover){.dt.dm-cell:hover::after{opacity:1;transform:none}}
 @media (hover:hover){
-  .dt.fm-cell:hover{background:var(--paper);color:var(--ink)}
-  .dt.fm-cell.is-done:hover{background:var(--ink-2);color:var(--on-ink)}
-  .dt.fm-cell.is-now:hover{background:var(--signal);color:var(--on-signal)}
+  .dt.dm-cell:hover{background:var(--paper);color:var(--ink)}
+  .dt.dm-cell.is-done:hover{background:var(--ink-2);color:var(--on-ink)}
+  .dt.dm-cell.is-now:hover{background:var(--signal);color:var(--on-signal)}
 }
 a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hide the ring */
 .dt-top{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-1)}
-.dt-n{display:grid;gap:2px;font-size:30px}
+.dt-n{display:grid;gap:var(--space-1);font:300 clamp(34px,3.2vw,48px)/.9 var(--font-display);letter-spacing:-.03em}
 .dt-n small{font:500 10px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;font-stretch:100%;opacity:.75}
 .dt .today-badge{position:static;background:var(--on-signal);color:var(--signal);border-color:var(--on-signal);min-height:18px;font-size:10px;padding:0 var(--space-1)}
 .dt-t{font-weight:500;overflow-wrap:anywhere}
@@ -288,11 +335,11 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 .dt .pbar{height:var(--space-1);background:color-mix(in srgb,currentColor 25%,transparent)}
 .dt .pbar>span{background:currentColor}
 .dt.is-done .pbar{display:none}
-.fm-cell--empty{display:grid;min-height:148px;background:var(--paper);border-right:var(--stroke-hair) solid var(--ink);border-bottom:var(--stroke-hair) solid var(--ink)}
+.dm-cell--empty{display:grid;min-height:148px;background:var(--paper);border-right:var(--stroke-hair) solid var(--rule);border-bottom:var(--stroke-hair) solid var(--rule)}
 
 /* quick links: mono links in a row of rail cells */
-.links{display:flex;flex-wrap:wrap;margin:var(--space-8) 0 0;border-top:var(--stroke-hair) solid var(--ink);border-left:var(--stroke-hair) solid var(--ink)}
-.links a{display:inline-flex;align-items:center;min-height:36px;padding:0 var(--space-4);font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:var(--ink);background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--ink);border-bottom:var(--stroke-hair) solid var(--ink)}
+.links{display:flex;flex-wrap:wrap;margin:var(--space-8) 0 0;border-top:var(--stroke-hair) solid var(--rule);border-left:var(--stroke-hair) solid var(--rule)}
+.links a{display:inline-flex;align-items:center;min-height:36px;padding:0 var(--space-4);font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:var(--ink);background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--rule);border-bottom:var(--stroke-hair) solid var(--rule)}
 @media (hover:hover){.links a:hover{background:var(--ink);color:var(--on-ink)}}
 .foot{max-width:75ch;margin:var(--space-12) 0 0;padding:var(--space-3) var(--space-4);font:400 12px/18px var(--font-mono);color:var(--ink-3);background:var(--paper);border-top:var(--stroke-hair) solid var(--rule)}
 .foot::before{content:"> ";color:var(--ink-3)}
@@ -300,17 +347,19 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 .where{font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 
 /* ---------- today's goal (a dial) and this week's challenges ---------- */
-.today,.running{display:grid;gap:var(--space-4) var(--space-8);margin:0 0 var(--space-6);padding:var(--space-4) var(--space-6);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
+.today,.running{display:grid;gap:var(--space-4) var(--space-8);margin:0 0 var(--space-6);padding:var(--space-4) var(--space-6);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
 .today{grid-template-columns:minmax(280px,1fr) 2fr}
 .today h3,.running h3{margin:0 0 var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
 .today h3 .muted,.running h3 .muted{text-transform:none;letter-spacing:0;font-size:12px}
 .td-goal{display:grid;grid-template-columns:88px 1fr;gap:var(--space-1) var(--space-4);align-items:center}
-.td-goal .fm-dial__ring,.ring-v{grid-area:1/1}
-.td-goal .fm-dial__ring{width:88px;height:88px}
-.td-goal.hit .fm-tick-live{stroke:var(--signal-edge)}
+.td-goal{grid-template-rows:88px auto}
+.td-goal .dm-dial__ring{grid-area:1/1}
+.ring-v{grid-area:1/1/3/2;grid-template-rows:88px auto;align-items:center;row-gap:var(--space-1)}   /* the figure inside the ring, its caption under it */
+.td-goal .dm-dial__ring{width:88px;height:88px}
+.td-goal.hit .dm-tick-live{stroke:var(--signal-edge)}
 .ring-v{display:grid;justify-items:center;align-self:center;line-height:1.05}
 .ring-v b{font:600 22px/1 var(--font-display)}
-.ring-v small{font:400 10px/1.2 var(--font-mono);color:var(--ink-3)}
+.ring-v small{align-self:start;font:400 11px/16px var(--font-mono);white-space:nowrap;color:var(--ink-3)}
 .td-x p{margin:0;font-size:14.5px}
 .td-x .muted{font-size:13px;margin-top:var(--space-1)}
 .td-ch ul{list-style:none;margin:0;padding:0;display:grid}
@@ -342,7 +391,7 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 .rd-list .few .mt>span{background:var(--ink-3)}
 .rd-list .few .rd-s{color:var(--ink-3)}
 .rd-list .mt>i{position:absolute;top:-4px;bottom:-4px;width:var(--stroke-bold);margin-left:-1px;background:var(--ink)}
-.rd-next{margin-top:var(--space-6);padding:var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
+.rd-next{margin-top:var(--space-6);padding:var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
 .rd-nk{display:inline-block;padding:0 var(--space-1);background:var(--signal);color:var(--on-signal)}
 .rd-next p{margin:var(--space-2) 0 var(--space-3);font-size:15px}
 .why-bars{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);max-width:680px}
@@ -354,8 +403,8 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 /* charts: dots and stepped hairlines, square columns; a tooltip and a hairline on hover or with the arrow keys */
 .tr-ctl{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:0 0 var(--space-4)}
 .tr-ctl button[aria-pressed="true"],.dg-rel button[aria-pressed="true"],.la-nav button.on,.seg-p button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
-.tr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--paper);border-top:var(--stroke-hair) solid var(--ink);border-left:var(--stroke-hair) solid var(--ink)}
-.tr-fig{position:relative;margin:0;padding:var(--space-3) var(--space-3) var(--space-2);background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--ink);border-bottom:var(--stroke-hair) solid var(--ink)}
+.tr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--paper);border-top:var(--stroke-hair) solid var(--rule);border-left:var(--stroke-hair) solid var(--rule)}
+.tr-fig{position:relative;margin:0;padding:var(--space-3) var(--space-3) var(--space-2);background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--rule);border-bottom:var(--stroke-hair) solid var(--rule)}
 .tr-fig:focus-visible{outline:var(--stroke-bold) solid var(--ink);outline-offset:calc(var(--stroke-bold) * -2)}
 .tr-fig figcaption{margin:0 0 var(--space-1);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
 .ch{display:block;width:100%;height:auto;overflow:visible}
@@ -404,7 +453,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .fl-top{display:flex;gap:var(--space-3) var(--space-4);align-items:flex-end;flex-wrap:wrap;margin-bottom:var(--space-6)}
 .fl-day{display:flex;gap:var(--space-1) var(--space-4);align-items:baseline;flex-wrap:wrap;flex:1 1 360px;min-width:0}
 .fl-day>:not(.today-badge){background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
-.fl-dn{font:800 44px/.9 var(--font-display);font-stretch:125%;text-transform:uppercase;letter-spacing:-.01em}
+.fl-dn{font:700 52px/.9 var(--font-display);letter-spacing:-.04em;color:var(--signal)}   /* the day view's one title, yellow like the overview's */
 .fl-tt{font:600 20px/1.25 var(--font-sans);color:var(--ink)}
 .fl-dd{font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .fl-tools{display:flex;gap:var(--space-1) var(--space-3);flex-wrap:wrap;background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
@@ -434,11 +483,11 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .fl-count{color:var(--ink);white-space:nowrap}
 
 /* the card: an article panel with one cut corner; the step's label, its headline, where to do it, then the boxes */
-.card{position:relative;padding:var(--space-6) var(--space-6) var(--space-8);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);
+.card{position:relative;padding:var(--space-6) var(--space-6) var(--space-8);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);
   clip-path:polygon(0 0,calc(100% - var(--chamfer-l)) 0,100% var(--chamfer-l),100% 100%,0 100%)}
-.card::after{content:"";position:absolute;top:0;right:0;width:var(--chamfer-l);height:var(--chamfer-l);background:linear-gradient(to bottom left,transparent calc(50% - .75px),var(--ink) calc(50% - .75px),var(--ink) calc(50% + .75px),transparent calc(50% + .75px))}
-.card.in,.side.in{animation:fm-flick var(--fm-boot) steps(4,end)}
-@keyframes fm-flick{0%,25%{opacity:1}50%{opacity:.3}75%,100%{opacity:1}}   /* one dip from visible: never hidden */
+.card::after{content:"";position:absolute;top:0;right:0;width:var(--chamfer-l);height:var(--chamfer-l);background:linear-gradient(to bottom left,transparent calc(50% - .75px),var(--rule) calc(50% - .75px),var(--rule) calc(50% + .75px),transparent calc(50% + .75px))}
+/* a new step arrives: a yellow scan line runs along the card's top edge, then its parts switch on in order (motion block) */
+.card::before{content:"";position:absolute;top:0;left:0;right:var(--chamfer-l);height:var(--stroke-bold);background:var(--signal-edge);transform:scaleX(0);transform-origin:left;pointer-events:none}
 .c-h{display:flex;gap:var(--space-2) var(--space-3);align-items:center;flex-wrap:wrap;min-height:24px}
 .c-meta{color:var(--ink-3)}
 .c-h .pill{margin-left:auto}
@@ -447,7 +496,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .c-n{margin:var(--space-2) 0 0;color:var(--ink-2);font-size:16px}
 .c-kick{margin:var(--space-6) 0 0;font:500 12px/18px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
 .c-kick b{color:var(--ink-2);font-weight:500}
-.c-hl{margin:var(--space-2) 0 var(--space-4);font:800 clamp(32px,4vw,52px)/.95 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:0;color:var(--ink);text-wrap:balance}
+.c-hl{margin:var(--space-2) 0 var(--space-4);max-width:24ch;font:600 clamp(30px,3.4vw,46px)/1.02 var(--font-display);letter-spacing:-.03em;color:var(--ink);text-wrap:balance}
 .c-where{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin:var(--space-2) 0 0;padding:var(--space-2) var(--space-2) var(--space-2) var(--space-3);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule)}
 .c-where .bi{display:none}
 .c-where .where{flex:1 1 0;min-width:0;font-size:13px;line-height:20px}
@@ -462,9 +511,9 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .c-open{margin:var(--space-2) 0 0;padding:0;list-style:none;display:grid;gap:var(--space-1)}
 .c-open li::before{content:"□ ";font-family:var(--font-mono);color:var(--ink-3)}
 .c-w{margin-top:var(--space-3)}
-.c-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:var(--space-6) 0 0;border:var(--stroke-hair) solid var(--ink);border-top:0}
-.c-facts div{padding:var(--space-3) var(--space-4) var(--space-4);border-top:var(--stroke-bar) solid var(--ink)}
-.c-facts div+div{border-left:var(--stroke-hair) solid var(--ink)}
+.c-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:var(--space-6) 0 0;border:var(--stroke-hair) solid var(--rule);border-top:0}
+.c-facts div{padding:var(--space-3) var(--space-4) var(--space-4);border-top:var(--stroke-hair) solid var(--grid-mark)}
+.c-facts div+div{border-left:var(--stroke-hair) solid var(--rule)}
 .c-facts dt{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 .c-facts dd{margin:var(--space-1) 0 0;font:600 22px/1.2 var(--font-display)}
 
@@ -474,11 +523,11 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .box-h .bi{flex:none;width:8px;height:8px;background:var(--ink)}
 .box>p{margin:0}
 .txt{text-wrap:pretty}
-.b-why{border-color:var(--ink)}
+.b-why{border-color:var(--grid-mark)}   /* the why: framed in the poster's yellow hairline */
 .b-why .bi{width:10px;height:10px;background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
 .b-why p{font-size:19px;line-height:1.6;color:var(--ink);max-width:68ch}
 .b-why p+p{margin-top:var(--space-3);padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule)}   /* the problem, then the idea that answers it */
-.b-do{border-color:var(--ink)}
+.b-do{border-color:var(--rule)}
 .c-do{margin:0;padding:0;list-style:none;counter-reset:do;display:grid;gap:var(--space-3);font-size:17px;line-height:1.55}
 /* the number hangs in the margin: the step is running text (terms, code), so it must stay one flow, not grid cells */
 .c-do li{counter-increment:do;position:relative;padding-left:44px}
@@ -488,7 +537,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .b-trap .bi{width:24px;height:10px;background:repeating-linear-gradient(135deg,var(--alert) 0 3px,transparent 3px 6px)}
 .b-trap .box-h{color:var(--alert-text)}
 .b-trap p{font-size:16.5px;line-height:1.55}
-.b-q{border-color:var(--ink)}
+.b-q{border-color:var(--rule)}
 .b-q .bi{background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
 .cq-q{margin:0 0 var(--space-3);font-size:17px;line-height:1.55}
 .cq-a{display:flex;gap:var(--space-3) var(--space-4);align-items:center;flex-wrap:wrap;margin-top:var(--space-3);font-size:14px}
@@ -502,7 +551,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .notes-l textarea,.b-notes textarea{display:block;width:100%;margin-top:var(--space-1);min-height:96px;resize:vertical;padding:var(--space-2) var(--space-3);font:400 15px/24px var(--font-sans);color:var(--ink);
   background:var(--paper-sunk) repeating-linear-gradient(transparent 0 23px,var(--rule) 23px 24px);background-attachment:local;border:var(--stroke-hair) solid var(--ink);border-radius:0;text-transform:none;letter-spacing:0}
 .card .c-notes{margin-top:var(--space-8)}
-.saved{margin-left:var(--space-2);opacity:0;color:var(--ink);text-transform:uppercase;transition:opacity var(--fm-step) steps(2,end)}
+.saved{margin-left:var(--space-2);opacity:0;color:var(--ink);text-transform:uppercase;transition:opacity var(--dm-step) linear}
 .saved.show{opacity:1}
 .saved::before{content:"[ ✓ ";color:var(--ink-3)}
 .saved::after{content:" ]";color:var(--ink-3)}
@@ -536,13 +585,13 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .cue-l .muted{font-size:13px}
 .c-prac{display:flex;gap:var(--space-2) var(--space-3);align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:var(--space-3);padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule);font-size:14px}
 .c-la{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);font-size:14.5px}
-.side{padding:var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-top:var(--stroke-bar) solid var(--ink)}
+.side{padding:var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--grid-mark)}
 .side .box{background:var(--paper)}
 .side-t{margin:0;color:var(--ink)}
 .in-note{margin:var(--space-1) 0 0;font-size:14.5px;white-space:pre-wrap;color:var(--ink-2)}
 /* Where they go: an article and the sidebar beside it, like a post on DEV. Only the page scrolls: no panel has a scroll
    bar of its own, everything shows in full. Under 1300 px the sidebar's panels follow the article; phones get one column. */
-.fl-body{display:grid;gap:var(--space-4);align-items:start;grid-template-areas:"card" "right" "left"}
+.fl-body{position:relative;display:grid;gap:var(--space-4);align-items:start;grid-template-areas:"card" "right" "left"}
 #card{grid-area:card;min-width:0}
 #side-r{grid-area:right;min-width:0}
 #side-l{grid-area:left;min-width:0}
@@ -560,7 +609,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
   .side-cols{grid-template-columns:minmax(0,1fr)}
 }
 /* the three buttons stay at the bottom of the window, on a rail of their own */
-.fl-nav{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:1fr auto 1fr;gap:var(--space-3);align-items:center;padding:var(--space-3) max(var(--space-4),calc((100% - 1000px)/2));background:var(--paper);border-top:var(--stroke-hair) solid var(--ink)}
+.fl-nav{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:1fr auto 1fr;gap:var(--space-3);align-items:center;padding:var(--space-3) max(var(--space-4),calc((100% - 1000px)/2));background:var(--paper);border-top:var(--stroke-hair) solid var(--rule)}
 .fl-b{justify-self:start}
 .fl-n{justify-self:end}
 .fl-nav>button{min-height:44px}
@@ -583,9 +632,9 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 @media (max-width:640px){.g::after{position:fixed;left:12px;right:12px;bottom:86px;width:auto;max-width:none;font-size:15px;padding:var(--space-3)}}
 
 /* ---------- dialogs (the quiz, sheet and search shells are in fx.css) ---------- */
-dialog{max-width:min(560px,94vw);padding:var(--space-6);color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink);border-top:var(--stroke-bar) solid var(--ink);border-radius:0;overscroll-behavior:contain}   /* scrolling a long dialog to its end doesn't scroll the page under it */
-dialog::backdrop{background:color-mix(in srgb,var(--paper-sunk) 82%,transparent)}
-dialog h2{margin:0 0 var(--space-3);font:800 32px/.95 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:0;color:var(--ink)}
+dialog{max-width:min(560px,94vw);padding:var(--space-6);color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--grid-mark);border-radius:0;overscroll-behavior:contain}   /* scrolling a long dialog to its end doesn't scroll the page under it */
+dialog::backdrop{background:color-mix(in srgb,var(--paper-sunk) 86%,transparent)}
+dialog h2{margin:0 0 var(--space-3);font:600 30px/1.05 var(--font-display);letter-spacing:-.03em;color:var(--ink)}
 dialog h2 .muted{font:400 13px var(--font-mono);text-transform:none}
 .field{display:block;margin:var(--space-4) 0;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
 .field input,.field select{display:block;width:100%;margin-top:var(--space-1);text-transform:none;letter-spacing:0}
@@ -666,7 +715,7 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
   #sheet[data-kind="dg"] .dg-part{margin-top:0;position:sticky;top:0;max-height:calc(92vh - 90px);overflow:auto}
   #sheet[data-kind="dg"] .dg-part .k-list li{grid-template-columns:1fr}
 }
-.dg-part{margin-top:var(--space-3);padding:var(--space-3) var(--space-4);background:var(--paper);border:var(--stroke-hair) solid var(--ink)}
+.dg-part{margin-top:var(--space-3);padding:var(--space-3) var(--space-4);background:var(--paper);border:var(--stroke-hair) solid var(--rule)}
 .dg-pn{margin:0 0 var(--space-1);font:600 17px/1.3 var(--font-sans)}
 .dg-pw{margin:0 0 var(--space-2);font-size:15px}
 .dg-part .k-list{font-size:14.5px}
@@ -691,7 +740,7 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
 @media (max-width:760px){
   .la-t,.la-t tbody,.la-t tr,.la-t th,.la-t td{display:block;width:auto}
   .la-t thead{display:none}
-  .la-t tr{margin:var(--space-2) 0;border:var(--stroke-hair) solid var(--ink)}
+  .la-t tr{margin:var(--space-2) 0;border:var(--stroke-hair) solid var(--rule)}
   .la-t th,.la-t td{border:0}
   .la-t td{border-top:var(--stroke-hair) solid var(--rule)}
   .la-t td::before{content:attr(data-col);display:block;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
@@ -722,7 +771,8 @@ body.focus-view #card{zoom:1.06}
   .wrap{padding-top:var(--space-6)}
   .rl-nav{display:none}
   .tb{grid-template-columns:1fr;margin-bottom:var(--space-6)}
-  .tb-cells{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tb-title,.tb-cells,.tb-tools{grid-column:1;grid-row:auto}
+  .tb-cells{min-width:0;width:100%}
   .tb-tools{justify-content:flex-start}
   .hero{grid-template-columns:1fr}
   .hero-n{min-width:0;max-width:260px}
@@ -732,27 +782,26 @@ body.focus-view #card{zoom:1.06}
 }
 @media (max-width:640px){
   .rl-code{padding:0 var(--space-3)}
-  .rl-pos .fm-seg--mini,.tm-mode,.tm-caret{display:none}   /* a phone's rail: code block, the day, the time */
+  .rl-pos .dm-seg--mini,.tm-mode,.tm-caret{display:none}   /* a phone's rail: code block, the day, the time */
   .rl-pos{padding:0 var(--space-3)}
   .sync-w{padding:0 var(--space-1)}
   .tm-chip button{padding:0 var(--space-3)}
   .tm-go{width:40px}
   .tm-pop{width:min(300px,100vw)}
-  .tb-cell{padding:var(--space-2) var(--space-3)}
-  .tb-cell dd{font-size:16px}
+  .tb-h{font-size:clamp(44px,13vw,60px)}
   .st-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .st-grid .st:nth-child(4n+1){border-left:var(--stroke-hair) solid var(--ink)}
+  .st-grid .st:nth-child(4n+1){border-left:var(--stroke-hair) solid var(--rule)}
   .st-grid .st:nth-child(odd){border-left:0}
   .st-grid .st:nth-child(n+3){border-top-width:var(--stroke-bar)}
-  .nx-day.fm-frame{--tab:128px;--foot:96px;padding:calc(var(--notch) + var(--space-4)) var(--space-4) calc(var(--space-6) + var(--space-4))}
-  .nx-go.fm-cut{padding:var(--space-4)}
+  .nx-day.dm-frame{--tab:128px;--foot:96px;padding:calc(var(--notch) + var(--space-4)) var(--space-4) calc(var(--space-6) + var(--space-4))}
+  .nx-go.dm-cut{padding:var(--space-4)}
   .hero-t{font-size:24px}
   .nx-step{font-size:17px}
   .nx-where{display:none}   /* the card says where; here the button comes first */
   .nx-st{margin-left:0;flex-basis:100%}
   .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .dt.fm-cell,.fm-cell--empty{min-height:120px}
-  .fm-cell--empty{display:none}
+  .dt.dm-cell,.dm-cell--empty{min-height:120px}
+  .dm-cell--empty{display:none}
   .fl-dn{font-size:34px}
   .card{padding:var(--space-4) var(--space-4) var(--space-6)}
   .c-t{font-size:19px}
@@ -773,8 +822,8 @@ body.focus-view #card{zoom:1.06}
   .cues tr{display:block;padding:var(--space-2) 0;border-bottom:var(--stroke-hair) solid var(--rule)}
   .cues td{display:block;border:0;padding:2px 0}
   .s-disp{grid-template-columns:1fr}
-  .week .fm-section{flex-wrap:wrap}
-  .week .fm-section .fm-data{max-width:none;white-space:normal;flex-basis:100%}
+  .week .dm-section{flex-wrap:wrap}
+  .week .dm-section .dm-data{max-width:none;white-space:normal;flex-basis:100%}
   .sync-st .ss-i{display:none}
 }
 
@@ -796,15 +845,41 @@ body.focus-view #card{zoom:1.06}
   button.sm,.btn.sm{min-height:36px;padding:0 var(--space-3)}
 }
 
-/* ---------- motion: boot once, in steps; the effects switch and the system setting both stop it ---------- */
+/* ---------- motion: one arrival per view, one live element, eased feedback ---------- */
+/* Arrival. The ground draws itself like the poster being plotted: the grid's hairlines run out one after another, the
+   crossing dots switch on, plates and discs fade up, the crosshairs lock on (turned 45 degrees and twice their size,
+   they settle onto their crossing), then the filaments trace in from their junction. The overview's rows switch on in
+   order (Datum's dm-arrive on #home) and the subject's corner crosshairs lock on. A new step: a yellow scan line runs
+   along the card's top edge and the card's parts switch on in order. A resize redraws the same view still. */
 @media (prefers-reduced-motion:no-preference){
-  /* the frame, the current panel, stat tiles and cells boot themselves (bundle.css); only the live segment pulses here */
-  :root:not(.fx-off) .segs i.nx{animation:fm-pulse var(--fm-beat) steps(2,jump-none) infinite}
+  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-line{stroke-dasharray:1;animation:g-draw 1100ms var(--dm-ease) backwards;animation-delay:calc(var(--i,0) * 45ms)}
+  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-node{animation:dm-on 500ms linear 600ms backwards}
+  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) :is(.g-plate,.g-tex,.g-disc,.g-ring,.g-tri){animation:dm-on 900ms linear backwards;animation-delay:calc(250ms + var(--i,0) * 90ms)}
+  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-cross{transform-box:fill-box;transform-origin:center;animation:g-lock 700ms var(--dm-ease) backwards;animation-delay:calc(700ms + var(--i,0) * 140ms)}
+  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-fil{animation:g-draw 1900ms var(--dm-ease) backwards;animation-delay:calc(1000ms + var(--i,0) * 110ms)}
+  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-blob{transform-box:fill-box;transform-origin:center;animation:g-pop 520ms var(--dm-ease) 950ms backwards}
+  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-ghost{animation:dm-on 1400ms linear backwards}
+  :root:not([data-dm-motion="off"]) :is(.nx-body,.fl-body)::before{animation:x-lock 760ms var(--dm-ease) 200ms backwards}
+  :root:not([data-dm-motion="off"]) .card.in::before{animation:x-scan 820ms var(--dm-ease)}
+  :root:not([data-dm-motion="off"]) :is(.card,.side).in>*{animation:x-on 420ms var(--dm-ease) backwards;animation-delay:calc(var(--n,0) * 60ms)}
+  :is(.card,.side).in>:nth-child(2){--n:1}
+  :is(.card,.side).in>:nth-child(3){--n:2}
+  :is(.card,.side).in>:nth-child(n+4){--n:3}
+  /* Live: one element per view. The overview: the next step's segment beats. The day view: the ground's live crosshair. */
+  :root:not(.fx-off):not([data-dm-motion="calm"]) .segs i.nx{animation:x-pulse var(--dm-beat) steps(1) infinite}
+  :root:not(.fx-off):not([data-dm-motion="calm"]) body.in-flow .g-cross.is-live{animation:g-lock 700ms var(--dm-ease) 700ms backwards,x-beat var(--dm-beat) steps(1) 1500ms infinite}
 }
-@keyframes fm-pulse{50%{background:var(--paper-raised)}}
+@keyframes g-draw{from{stroke-dashoffset:1}}
+@keyframes g-lock{from{opacity:0;transform:rotate(45deg) scale(2.4)}}
+@keyframes g-pop{from{opacity:0;transform:scale(0)}}
+@keyframes x-lock{from{opacity:0;transform:scale(1.04) rotate(.4deg)}}
+@keyframes x-scan{0%{transform:scaleX(0);opacity:1}62%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+@keyframes x-on{from{opacity:0;transform:translateY(6px)}}
+@keyframes x-pulse{50%{background:var(--paper-raised)}}
+@keyframes x-beat{50%{opacity:.2}}
 /* the motion levels (Settings, or effects off): calm stops the loops, off holds everything still */
-:root[data-fm-motion="calm"] :is(.timer.over .tm-fill,.segs i.nx){animation:none!important}
-:root[data-fm-motion="off"] *,:root[data-fm-motion="off"] *::before,:root[data-fm-motion="off"] *::after{animation:none!important;transition:none!important}
+:root[data-dm-motion="calm"] :is(.timer.over .tm-fill,.segs i.nx,.g-cross.is-live){animation:none!important}
+:root[data-dm-motion="off"] *,:root[data-dm-motion="off"] *::before,:root[data-dm-motion="off"] *::after{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 
 /* print: ink on white, no backdrop, no buttons */

@@ -1002,14 +1002,15 @@ try {
   await setState(page, s => { s.settings = { start: new Date().toISOString().slice(0, 10), fx: false, sound: false }; s.inotes = { [Object.keys(window.STEP_TAGS)[0]]: "zebra <img src=x id=pwnS> crossing" }; });
   await page.reload();
   await page.click("#b-set");
-  await page.selectOption("#s-theme", "dark");
+  assert.equal(await page.locator("#s-theme").count(), 0, "no theme choice: the app is dark only");
   await page.selectOption("#s-size", "l");
   await page.click('#settings button[value="save"]');
-  await page.waitForFunction(() => !document.getElementById("settings").open && document.documentElement.dataset.theme, null, { timeout: 3000 }).catch(() => {});   // the dialog's close event comes a moment after the click
-  assert.deepEqual(await page.evaluate(() => [document.documentElement.dataset.theme, document.documentElement.dataset.size]), ["dark", "l"], "theme and text size apply");
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue("--paper").trim()), "#0E100F", "dark colours (Field Manual Carbon paper) although the system is light");
+  await page.waitForFunction(() => !document.getElementById("settings").open && document.documentElement.dataset.size, null, { timeout: 3000 }).catch(() => {});   // the dialog's close event comes a moment after the click
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.size), "l", "text size applies");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue("--paper").trim()), "#111111", "dark colours (Datum, Excimer paper) although the system is light");
+  assert.ok(await page.evaluate(() => document.querySelectorAll("#bd .ground .g-line").length > 4), "the ground is drawn: the poster's grid");
   await page.reload();
-  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark", "and stay after a reload");
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.size), "l", "and stays after a reload");
   await openCard(page, HELPDAY, HELP);
   assert.ok(await page.locator("#side-l").isVisible() && await page.locator("#side-r").isVisible());
   await page.click("#fl-tools [data-focus-view]");

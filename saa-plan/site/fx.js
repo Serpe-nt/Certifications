@@ -1,25 +1,26 @@
-// Celebration effects, drawn the Field Manual way: a canvas of square pieces, dot-matrix bursts, viewfinder brackets,
-// scan lines and rising packets in the theme's own inks (signal, ink, paper), plus Web Audio sounds and the banner,
-// toast and badges. No dependencies. Everything moves like a machine: the canvas is redrawn in steps (25 a second) on a
-// 4 px grid, pieces turn in 45-degree steps and cut out at the end of their life; nothing fades, glows or blurs.
+// Celebration effects, drawn in Datum's Excimer colours (the owner's poster): a canvas of square pieces and yellow
+// crosshair marks, dot-matrix bursts, viewfinder brackets, scan lines, rising packets and, on the top rungs, yellow
+// filaments that grow out from a junction like the poster's, all in the theme's own inks (signal, ink, paper), plus
+// Web Audio sounds and the banner, toast and badges. No dependencies. Pieces move smoothly (drawn every frame), turn in
+// 45-degree steps and cut out at the end of their life; nothing glows or blurs.
 // A ladder, from small to large: step → block → quiz unlocked → day → week → all, plus a sound and a burst on every
 // quiz answer and bigger bursts at each streak mark.
 window.FX = (() => {
   let fxOn = true, soundOn = true;
   let cv = null, ctx = null, W = 0, H = 0, raf = 0, prev = 0, acc = 0, drawn = 0, clock = 0;
-  let parts = [], rockets = [], frames = [], cells = [], scans = [];
+  let parts = [], rockets = [], frames = [], cells = [], scans = [], strands = [];
   let actx = null, out = null, bEl = null, vEl = null, bT = 0, tEl = null, tT = 0, bdWrap = null, glowT = 0;
   const bdQ = [];   // badges waiting for a free place
   const MAX_PARTS = 6000;   // the biggest celebrations stay smooth on a slow machine
   const MAX_CELLS = 9000;
   const FRAME = 1000 / 60;  // the simulation runs in fixed 60 Hz steps, whatever the screen's refresh rate
-  const STEP = 40;          // ...and is drawn every 40 ms: motion in steps, not smooth
-  const GRID = 4;           // positions snap to a 4 px grid
+  const STEP = 0;           // ...and is drawn on every frame the screen gives (Datum: eased, not stepped)
+  const GRID = 1;           // no snapping: pieces travel smoothly
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const R = (a, b) => a + Math.random() * (b - a);
   const pick = a => a[(Math.random() * a.length) | 0];
   const snap = v => Math.round(v / GRID) * GRID;
-  const motion = () => fxOn && !reduce.matches && document.documentElement.dataset.fmMotion !== "off";
+  const motion = () => fxOn && !reduce.matches && document.documentElement.dataset.dmMotion !== "off";
   // No emoji in the interface: whatever a caller passes, pictographs go (the system's own glyphs ↗ and ▶ stay).
   const plain = s => String(s == null ? "" : s).replace(/(?![↗▶])\p{Extended_Pictographic}️?/gu, "").replace(/^\s+/, "");
   // A modal dialog sits in the browser's top layer, above everything else on the page:
@@ -32,8 +33,8 @@ window.FX = (() => {
   let C = {};
   function pal() {
     const cs = getComputedStyle(document.documentElement), v = (n, f) => cs.getPropertyValue(n).trim() || f;
-    C = { sig: v("--signal", "#D4F23A"), edge: v("--signal-edge", "#D4F23A"), ink: v("--ink", "#E8EAE8"), ink3: v("--ink-3", "#8A908D"),
-      raised: v("--paper-raised", "#171A18"), paper: v("--paper", "#0E100F"), rule: v("--rule", "#343836"), alert: v("--alert", "#FF5A2E") };
+    C = { sig: v("--signal", "#F7D123"), edge: v("--signal-edge", "#F7D123"), ink: v("--ink", "#EDEBE4"), ink3: v("--ink-3", "#8E8A7F"),
+      raised: v("--paper-raised", "#1C1C1B"), paper: v("--paper", "#111111"), rule: v("--rule", "#36342C"), alert: v("--alert", "#FF5533") };   // fallbacks = dm/tokens.css
   }
   // Mixes of pieces by heat. "raised" pieces are paper with an ink outline, so they read on either theme.
   const MIX = {
@@ -77,7 +78,7 @@ window.FX = (() => {
   // Square pieces thrown from a point. shapes: "sq" (a square plate), "bar" (a 3:1 strip), "px" (one dot-matrix pixel).
   // They turn in 45-degree steps (every few ticks), not smoothly.
   function burst(x, y, n, o = {}) {
-    const { speed = 7, angle = -Math.PI / 2, spread = Math.PI * 2, gravity = 0.22, ttl = [50, 90], size = [4, 8], shapes = ["sq", "bar", "sq", "px"], colors = MIX.base } = o;
+    const { speed = 7, angle = -Math.PI / 2, spread = Math.PI * 2, gravity = 0.22, ttl = [50, 90], size = [4, 8], shapes = ["sq", "bar", "plus", "px"], colors = MIX.base } = o;
     n = Math.min(n, MAX_PARTS - parts.length);
     for (let i = 0; i < n; i++) {
       const a = angle + R(-spread / 2, spread / 2), v = speed * R(0.45, 1.1);
@@ -148,7 +149,7 @@ window.FX = (() => {
   // two bursts from the bottom corners, at 45 degrees
   function cannons(n, colors = MIX.base) {
     const speed = Math.sqrt(0.5 * H * 0.85);
-    const o = { speed, spread: 0.4, gravity: 0.25, ttl: [100, 150], size: [5, 9], shapes: ["sq", "bar", "bar", "px"], colors };
+    const o = { speed, spread: 0.4, gravity: 0.25, ttl: [100, 150], size: [5, 9], shapes: ["sq", "bar", "plus", "px"], colors };
     burst(0, H, n, { ...o, angle: -Math.PI / 4 });
     burst(W, H, n, { ...o, angle: (-Math.PI * 3) / 4 });
   }
@@ -170,6 +171,18 @@ window.FX = (() => {
       }, 40);
     });
   }
+  // Filaments, the poster's yellow strands: n curves grow out of a junction at (x, y) to points far off, each bending
+  // once, while the junction swells into a body; they hold, then cut out. The top rungs only.
+  function filaments(x, y, n, delay = 0, c = "sig") {
+    later(delay, () => {
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + R(-0.35, 0.35), len = R(0.35, 0.75) * Math.max(W, H);
+        const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len, bend = R(-0.5, 0.5) * len;
+        strands.push({ x, y, cx: (x + ex) / 2 - Math.sin(a) * bend, cy: (y + ey) / 2 + Math.cos(a) * bend, ex, ey, c, life: 0, ttl: R(80, 110), grow: R(26, 40) });
+      }
+      run();
+    });
+  }
   // The open dialog's edge lights up (a long run of right answers): an outline that steps out twice and is gone.
   // An outline, not a transform: a transform would move the fixed layers inside the dialog (canvas, badges) with it.
   function glow(c = "var(--signal)") {
@@ -184,6 +197,7 @@ window.FX = (() => {
   function update() {
     clock++;
     scans = scans.filter(s => ++s.life < s.ttl);
+    strands = strands.filter(s => ++s.life < s.ttl);
     frames = frames.filter(f => { f.life++; f.r += 9 * (1 - f.life / f.ttl) + 2; return f.life < f.ttl; });
     cells = cells.filter(c => clock < c.off);
     rockets = rockets.filter(r => {
@@ -214,6 +228,12 @@ window.FX = (() => {
       return;
     }
     if (p.shape === "px") { ctx.fillStyle = C[p.c]; ctx.fillRect(x - s / 2, y - s / 2, s, s); return; }
+    if (p.shape === "plus") {   // the poster's crosshair mark: two thin bars, turning in 45-degree steps
+      const a = s * 1.4, t = Math.max(1.5, s / 4);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(p.rot * Math.PI / 4);
+      ctx.fillStyle = C[p.c === "raised" ? "ink" : p.c]; ctx.fillRect(-a / 2, -t / 2, a, t); ctx.fillRect(-t / 2, -a / 2, t, a);
+      ctx.restore(); return;
+    }
     const w = p.shape === "bar" ? s * 1.6 : s, h = p.shape === "bar" ? Math.max(2, s / 2.2) : s;
     ctx.save(); ctx.translate(x, y); ctx.rotate(p.rot * Math.PI / 4);
     ctx.fillStyle = C[p.c]; ctx.fillRect(-w / 2, -h / 2, w, h);
@@ -231,6 +251,18 @@ window.FX = (() => {
         ctx.fillStyle = k === 1 ? C[s.c] : C.rule;
         for (let x = (k % 2) * p / 2; x < W; x += p) ctx.fillRect(x, yy, 2, 2);
       }
+    }
+    ctx.lineCap = "round";
+    for (const s of strands) {   // a filament: the curve drawn up to how far it has grown, the junction a filled body
+      const g = Math.min(1, s.life / s.grow), e = 1 - (1 - g) ** 3, late = s.life > s.ttl * 0.8;
+      ctx.strokeStyle = C[s.c]; ctx.fillStyle = C[s.c]; ctx.lineWidth = late ? 1 : 1.6;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y);
+      for (let k = 1; k <= 28; k++) {
+        const t = e * k / 28, u = 1 - t;
+        ctx.lineTo(u * u * s.x + 2 * u * t * s.cx + t * t * s.ex, u * u * s.y + 2 * u * t * s.cy + t * t * s.ey);
+      }
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.x, s.y, 3 + 7 * e, 0, Math.PI * 2); ctx.fill();
     }
     for (const c of cells) if (clock >= c.on) { ctx.fillStyle = C[c.c]; ctx.fillRect(c.x - c.s / 2, c.y - c.s / 2, c.s, c.s); }
     ctx.lineWidth = 2;
@@ -258,7 +290,7 @@ window.FX = (() => {
     const loop = now => {
       acc = Math.min(acc + now - prev, 250); prev = now;
       while (acc >= FRAME) { update(); acc -= FRAME; }
-      const busy = parts.length || rockets.length || frames.length || cells.length || scans.length;
+      const busy = parts.length || rockets.length || frames.length || cells.length || scans.length || strands.length;
       if (now - drawn >= STEP || !busy) { drawn = now; draw(); }
       if (busy) raf = requestAnimationFrame(loop);
       else { raf = 0; ctx.clearRect(0, 0, W, H); }
@@ -373,7 +405,7 @@ window.FX = (() => {
   const sound = (n, arg) => { if (soundOn && SND[n]) SND[n](arg); };
 
   // ---------- banner (a panel in the middle of the screen) and toast (one system line above the buttons) ----------
-  // The banner is a Field Manual panel: a mono label line with the time, the title as a bracketed display word,
+  // The banner is a Datum panel: a mono label line with the time, the title as a bracketed display word,
   // the facts as a terminal line. The top rungs (day, week, all) stay up longer, carry a dot-matrix code that switches
   // on dot by dot, wipe in from the top in steps and dim the page around them (the veil, an effect: only with motion).
   // Each is bigger than the one below: day a raised panel, week the panel in the other theme, all the one signal block.
@@ -388,7 +420,7 @@ window.FX = (() => {
     const ms = BANNER_MS[kind] || 3200, veil = TOP[kind] && motion();
     if (veil && vEl.parentNode !== host()) host().appendChild(vEl);
     vEl.className = "fx-veil k-" + kind;
-    bEl.className = "fx-banner k-" + kind + (kind === "week" ? " fm-invert" : "");
+    bEl.className = "fx-banner k-" + kind + (kind === "week" ? " dm-invert" : "");
     icon = plain(icon);
     // a top rung always carries its mark: the caller's dot-matrix code, or a plain square
     if (!icon && TOP[kind]) icon = "■";
@@ -428,7 +460,7 @@ window.FX = (() => {
   }
   function bdShow(icon, title, sub, tier) {
     const el = document.createElement("div");
-    el.className = "fx-badge k-" + tier + (tier === "epic" ? " fm-invert" : "");
+    el.className = "fx-badge k-" + tier + (tier === "epic" ? " dm-invert" : "");
     el.innerHTML = `<span class="bd-i" aria-hidden="true">${plain(icon) || "■"}</span><span class="bd-x"><span class="bd-t">${plain(title)}</span>${sub ? `<span class="bd-s">${plain(sub)}</span>` : ""}</span>`;
     bdWrap.appendChild(el);
     // a dot-matrix burst round the code cell once the badge has landed
@@ -564,6 +596,7 @@ window.FX = (() => {
       const x = W / 2, y = H * 0.38;
       scan(0, "edge", 40);
       frame(x, y, "edge"); frame(x, y, "ink", 160); frame(x, y, "edge", 320);
+      filaments(x, y, 5, 80);
       grid(x, y, 10, MIX.base, 120, 12);
       pixels(x, y, 50, { speed: 14 });
       for (let k = 0; k < 3; k++) later(k * 600, () => cannons(150));
@@ -578,6 +611,7 @@ window.FX = (() => {
       const x = W / 2, y = H * 0.38;
       scan(0, "edge", 40); scan(1500, "sig", 40);
       ["edge", "ink", "sig", "edge"].forEach((c, k) => frame(x, y, c, k * 170, 30));
+      filaments(x, y, 7, 80); filaments(W * 0.18, H * 0.8, 4, 1500); filaments(W * 0.82, H * 0.8, 4, 1500);
       grid(x, y, 13, MIX.hot, 120, 12); grid(x, y, 8, MIX.epic, 1500, 14);
       pixels(x, y, 80, { speed: 16, colors: MIX.hot });
       for (let k = 0; k < 5; k++) later(k * 560, () => cannons(170, MIX.hot));
@@ -594,6 +628,7 @@ window.FX = (() => {
       const x = W / 2, y = H * 0.38;
       scan(0, "sig", 44); scan(2300, "edge", 44); scan(4600, "sig", 44);
       ["edge", "sig", "ink", "edge", "sig", "ink", "edge", "sig", "ink"].forEach((c, k) => frame(x, y, c, k * 150, 32));
+      for (const [at, fx, fy, n] of [[80, x, y, 9], [2300, W * 0.15, H * 0.75, 5], [2300, W * 0.85, H * 0.75, 5], [4600, x, y, 9]]) filaments(fx, fy, n, at);
       grid(x, y, 16, MIX.epic, 120, 12); grid(x, y, 12, MIX.sig, 2300, 14); grid(x, y, 16, MIX.epic, 4600, 12);
       pixels(x, y, 110, { speed: 18, colors: MIX.epic });
       for (let k = 0; k < 8; k++) later(k * 600, () => cannons(180, MIX.epic));

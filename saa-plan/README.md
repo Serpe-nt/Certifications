@@ -7,8 +7,9 @@ The plan follows two learning plans on AWS Skill Builder: the **AWS Solutions Ar
 ```
 site/
   index.html     page layout: rail, overview, one-step card view, dialogs
-  fm/            the Field Manual design system: tokens, components, generated art (vendored)
-  style.css      the app in Field Manual (Carbon dark, Paper light)
+  dm/            the Datum design system: tokens (Excimer colours, dark only), components, art (vendored)
+  ground.js      the poster drawn behind the page: grid, plates, crosshairs, filaments
+  style.css      the app in Datum, Excimer colours (dark only)
   fx.css         quiz, results, badges and celebration styles
   plan.js        the plan: days, steps, links, time estimates, the topics each step teaches, glossary, cleanup list
   quiz/          question pools: meta.js (topics, AWS links), d01–d15.js (no d07), mock1–2.js (65 each)
