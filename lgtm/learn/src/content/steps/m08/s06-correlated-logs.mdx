@@ -1,0 +1,118 @@
+---
+id: m08-s06
+title: Correlated logs from the workshop service
+kind: lab
+minutes: 25
+order: 6
+exam:
+  - cert: otca
+    domain: O2
+    competency: "Signals (Tracing, Metric, Log)"
+tags: [otel-logs-api]
+check:
+  kind: exact
+  prompt: Paste the severity_number that Loki stores on a "checkout failed" line of the workshop service.
+  answers: ["17"]
+outcome: You can send a service's existing log lines over OTLP with their trace context, find them in Loki by their fields, and go from a log line to its trace.
+terms:
+  - term: Structured metadata
+    def: Key-value pairs that Loki stores with each log line without making them stream labels.
+  - term: Index label
+    def: A Loki stream label; for OTLP logs, a short list of resource attributes such as service.name.
+  - term: extra=
+    def: The argument of a Python logging call whose keys become attributes of the OpenTelemetry log record.
+sources:
+  - title: Ingesting logs to Loki using OpenTelemetry Collector (Grafana Loki)
+    url: https://grafana.com/docs/loki/latest/send-data/otel/
+    checked: 2026-11-13
+  - title: Agent configuration, logging (OpenTelemetry Python)
+    url: https://opentelemetry.io/docs/zero-code/python/configuration/
+    checked: 2026-11-13
+  - title: Logs SDK, emit a LogRecord (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/sdk/
+    checked: 2026-11-13
+  - title: Logs data model (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/data-model/
+    checked: 2026-11-13
+---
+
+<Problem>
+A customer says a checkout failed at 14:02. The workshop service logged "checkout failed: card declined" at that minute, among a hundred other lines. In module m07 you would have searched Tempo for the trace. Now you want to start from the log line and land on the very trace that wrote it, without matching times by eye.
+</Problem>
+
+<Idea>
+Solution `05-logs` changes no log call. It installs the logging instrumentation and turns the logs exporter on, so each Python log record also leaves over OTLP with the trace ID and span ID of the span that was active. Loki keeps those IDs and the record's attributes as structured metadata, and Grafana links the trace ID to Tempo.
+</Idea>
+
+## What solution 05 changes
+
+The service already called `log.info`, `log.warning` and `log.exception`. The solution adds the package `opentelemetry-instrumentation-logging` and sets `OTEL_LOGS_EXPORTER=otlp`. The agent then attaches its handler to Python's root logger. Two small code changes make the records richer. Keys passed with `extra=` become attributes of the record, such as `workshop.sku`. And `log.exception` inside an `except` block adds the exception's type, message and stack trace, which the SDK sets as `exception.*` attributes.
+
+A third setting, `OTEL_PYTHON_LOG_CORRELATION=true`, is only for the console. It changes the format of the lines on standard output so that they show `trace_id` and `span_id` too. Lines written outside any span, such as the startup messages, show `trace_id=0`.
+
+## How a record lands in Loki
+
+Loki maps an OTLP log record onto its own model. A short default list of resource attributes becomes index labels: `service_name`, `service_namespace`, `service_instance_id`, `deployment_environment_name` and the `k8s_*` names. The lab adds `cluster`. The body becomes the log line. Everything else is stored with the line as structured metadata: the other resource attributes, the scope name, and the record's fields and attributes, among them `trace_id`, `span_id`, `severity_text` and `severity_number`. Dots become underscores on the way, as in Mimir.
+
+Structured metadata is not part of the stream selector. You filter on it after the selector, with a label filter such as `| severity_text="ERROR"`.
+
+<Compare caption="Where the parts of one record end up in Loki">
+  <Col title="Index labels">service_name, service_namespace, service_instance_id, deployment_environment_name, cluster, k8s_*</Col>
+  <Col title="Log line">The body: checkout failed: card declined for 203.92 USD</Col>
+  <Col title="Structured metadata" hot>trace_id, span_id, severity_text, severity_number, scope_name, workshop_sku, exception_type</Col>
+</Compare>
+
+## From the line to the trace
+
+The lab's Loki data source in Grafana has a derived field for trace IDs, provisioned with the lab. When you expand a line that carries `trace_id`, Grafana offers a link that opens the trace in Tempo. The span ID on the line is the span that was active when the line was written: for the slow-compute warning that is the server span `GET /compute`, because the `fibonacci` span had already ended.
+
+<InLab>
+The lab's gateway sends the workshop's logs to Loki's `/otlp` endpoint as tenant `lab`, the same way as the shop's. The shop's logs carry `trace_id` in the same place, which is how module m02 jumped from a trace to its logs.
+</InLab>
+
+<Trap>
+Do not put `trace_id` inside the braces of a Loki query: it is structured metadata, not a stream label. Write `{service_name="workshop"} | trace_id="..."`; a selector with `trace_id` in the braces matches no stream.
+</Trap>
+
+<Do>
+1. In a terminal in `lgtm/lab/workshop`, see what the logs solution adds: <Cmd>git diff --no-index solutions/04-metrics/app.py solutions/05-logs/app.py</Cmd> <Cmd>git diff --no-index solutions/04-metrics/workshop.env solutions/05-logs/workshop.env</Cmd> <Cmd>git diff --no-index solutions/04-metrics/requirements.txt solutions/05-logs/requirements.txt</Cmd>
+2. Start it and wait for `Running on http://127.0.0.1:8000`. The startup lines now show `trace_id=0 span_id=0`: they were written outside any span. <Cmd>python run.py solutions/05-logs</Cmd>
+3. In a second terminal, make one slow computation, then 20 seconds of traffic. The first call takes about a second and logs a warning; the traffic declines some checkouts on purpose. <Cmd>curl http://127.0.0.1:8000/compute?n=36</Cmd> <Cmd>python load.py --rate 5 --duration 20</Cmd>
+4. In the service's terminal, find the line `slow compute: n=36 took ...` and note its `trace_id`.
+5. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, choose the data source `loki`, set the time range to the last 15 minutes, and run: <Query lang="logql">{`{service_name="workshop"} |= "slow compute"`}</Query> Expand the line. Its fields include `trace_id` with the value from your terminal, `severity_text` WARN and `workshop_compute_n` 36.
+6. Click the link next to `trace_id`. Tempo opens the trace with the spans `GET /compute` and `fibonacci`.
+7. Back in Explore, list the failed checkouts: <Query lang="logql">{`{service_name="workshop"} | severity_text="ERROR"`}</Query> Expand one line. It carries `exception_type` PaymentError, `exception_message`, `exception_stacktrace` and `workshop_sku`. Paste its `severity_number` in the check below.
+8. Stop the service with Ctrl+C.
+</Do>
+
+<Done>
+The warning in Loki had the same `trace_id` as the line in your terminal, its link opened that trace in Tempo, and the failed checkouts carried the exception's fields and a severity number in the ERROR range.
+</Done>
+
+<Trap practice>
+The warning appears only when the computation takes more than half a second. On a fast PC use `n=37` or `n=38`. Keep Loki's time range short, 15 minutes or less: the lab's object store has little memory to spare. The fields `otelTraceID` and `otelSpanID` repeat the IDs: the console format setting added them to the Python record; use `trace_id` and `span_id`.
+</Trap>
+
+<Remember>
+The log calls stayed the same. The logging bridge adds trace_id and span_id from the active span, Loki keeps them as structured metadata, and you filter on them after the stream selector.
+</Remember>
+
+<Question id="q-m08-s06" answer="a">
+You have a trace ID from Tempo and want the workshop's log lines of that request in Loki. Which query works on this lab?
+
+- `{service_name="workshop"} | trace_id="99f566aa8525156f8f9b7df8a1e4a232"`
+
+  The stream selector picks the service by an index label, and the label filter then matches the structured metadata field trace_id.
+
+- `{service_name="workshop", trace_id="99f566aa8525156f8f9b7df8a1e4a232"}`
+
+  trace_id is structured metadata, not a stream label, so no stream matches this selector.
+
+- `{trace_id="99f566aa8525156f8f9b7df8a1e4a232"}`
+
+  A selector needs stream labels, and trace_id is not one. This matches nothing.
+
+- `{service_name="workshop"} |= "trace_id=99f566aa8525156f8f9b7df8a1e4a232"`
+
+  This searches the log line text, and the body holds only the message. The IDs on stdout come from the console format, not from the OTLP record.
+</Question>
