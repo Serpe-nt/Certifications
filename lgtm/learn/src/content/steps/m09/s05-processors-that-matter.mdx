@@ -47,6 +47,9 @@ sources:
   - title: Filter processor (opentelemetry-collector-contrib v0.165.0)
     url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/filterprocessor/README.md
     checked: 2026-11-13
+  - title: OpenTelemetry Collector chart 0.178.2, useGOMEMLIMIT (GitHub)
+    url: https://github.com/open-telemetry/opentelemetry-helm-charts/blob/opentelemetry-collector-0.178.2/charts/opentelemetry-collector/values.yaml
+    checked: 2026-11-13
   - title: telemetrygen (opentelemetry-collector-contrib v0.165.0)
     url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/cmd/telemetrygen/README.md
     checked: 2026-11-13
@@ -64,25 +67,25 @@ The memory limiter protects the Collector by refusing data before memory runs ou
 
 ## The memory limiter refuses before it is too late
 
-The memory limiter checks memory use every `check_interval`. Its hard limit is `limit_mib`; its soft limit is `limit_mib` minus `spike_limit_mib`. Above the soft limit it refuses new data, by returning an error to the component before it in the pipeline. That error is retryable: a well-behaved receiver passes it back to the sender, which retries later. Above the hard limit it also forces a garbage collection. When memory drops below the soft limit again, data flows normally.
+The memory limiter checks memory use every `check_interval`. Its hard limit is `limit_mib`; its soft limit is `limit_mib` minus `spike_limit_mib`. Instead of fixed MiB values you can give `limit_percentage` and `spike_limit_percentage`, shares of the memory the container may use; a fixed `limit_mib` wins if both are set. Above the soft limit it refuses new data, by returning an error to the component before it in the pipeline. That error is retryable: a well-behaved receiver passes it back to the sender, which retries later. Above the hard limit it also forces a garbage collection. When memory drops below the soft limit again, data flows normally.
 
-So the memory limiter turns a crash into back-pressure. It must be the first processor, so that it refuses data before anything else stores it. The README also recommends the environment variable `GOMEMLIMIT` at 80% of the hard limit, and `limit_percentage` instead of `limit_mib` when the container has a memory limit. Refused data is lost for good only when the sender does not retry.
+So the memory limiter turns a crash into back-pressure. It must be the first processor, so that it refuses data before anything else stores it. The README adds two recommendations. In a container with a memory limit, use the percentage settings, so the limits follow the container's size. And set the environment variable `GOMEMLIMIT` to 80% of the Collector's hard memory limit. The README does not say which limit it means there; the Collector Helm chart reads it as the container's limit (its `useGOMEMLIMIT` sets 80% of `resources.limits.memory`, which is 409MiB for the lab gateway's 512Mi), and the practice file below does the same. Its container may use 160 MiB, so `limit_percentage: 80` and `spike_limit_percentage: 20` give a hard limit of 128 MiB and a soft limit of 96 MiB, and `GOMEMLIMIT` is 128MiB. Refused data is lost for good only when the sender does not retry.
 
 ## Batching: in the exporter or in a processor
 
 Fewer, larger requests compress better and need fewer connections. The `batch` processor sends a batch when it reaches `send_batch_size` items (8192 by default) or when `timeout` passes (200 ms by default), whichever comes first. `send_batch_max_size` sets an upper limit and splits larger batches.
 
-Exporters can now batch by themselves, in their sending queue (`sending_queue` with a `batch` block). The processor guide says to prefer the exporter's batching where it exists, and the Collector warns at startup when one pipeline has both a batch processor and an exporter with queue batching turned on. You will meet the `batch` processor in many existing configurations, including the lab gateway, so you need to read both.
+Exporters can now batch by themselves, in their sending queue (`sending_queue` with a `batch` block). The processor guide says to prefer the exporter's batching where it exists, and the Collector warns at startup when one pipeline has both a batch processor and an exporter with queue batching turned on. You will meet the `batch` processor in many existing configurations, including the lab gateway, so you need to read both. The practice file uses the processor for that reason; its only exporter, `debug`, prints to the log and has no queue to batch in.
 
 ## Changing attributes: resource or attributes
 
 The `resource` processor changes resource attributes, those that describe who produced the data: `service.name`, a host, a cluster. The `attributes` processor changes the attributes of each span, log record or data point. Both take a list of actions: `insert` (only if missing), `update` (only if present), `upsert` (either), `delete`, `hash` and a few more. Neither can rename a span: the attributes processor works only on attributes.
 
-Both READMEs now say that the `transform` processor supersedes them, and to migrate to it. They still work in 0.165.0, and the lab gateway uses `resource`. Step 6 shows the same changes written in OTTL.
+Both READMEs now say that the `transform` processor supersedes them, and to migrate to it. They still work in 0.165.0, and the lab gateway uses `resource`. The practice file uses both on purpose, because you will read them in existing configurations; for new work, step 6 shows the same kind of change written in OTTL.
 
 ## Filtering: drop what nobody will read
 
-The `filter` processor drops telemetry that matches OTTL conditions. Under `traces.span`, `logs.log_record` or `metrics.datapoint` you list conditions; if any one of them is true, the item is dropped. Put the filter early, right after the memory limiter, so that later processors do not spend work on data that will be thrown away.
+The `filter` processor drops telemetry that matches OTTL conditions. Under `trace_conditions`, `metric_conditions` or `log_conditions` you list conditions with prefixed paths, such as `span.name == "okey-dokey-0"`; if any one of them is true, the item is dropped. Older configurations, and many examples online, use the legacy form `traces: span:` with unprefixed paths, which the 0.165.0 README marks as deprecated. Put the filter early, right after the memory limiter, so that later processors do not spend work on data that will be thrown away.
 
 <InLab>
 Your practice Collector runs in its own namespace, `learn-m09`, with two containers in one pod. `telemetrygen` sends one trace per second to `localhost:4317`; each trace has a root span `lets-go` and a child span `okey-dokey-0`. The Collector prints what reaches its `debug` exporter to its log.
@@ -109,13 +112,12 @@ data:
     processors:
       memory_limiter:
         check_interval: 1s
-        limit_mib: 100
-        spike_limit_mib: 20
+        limit_percentage: 80
+        spike_limit_percentage: 20
       filter/drop-child:
         error_mode: ignore
-        traces:
-          span:
-            - 'name == "okey-dokey-0"'
+        trace_conditions:
+          - 'span.name == "okey-dokey-0"'
       resource/env:
         attributes:
           - key: deployment.environment.name

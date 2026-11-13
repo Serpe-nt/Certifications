@@ -33,6 +33,9 @@ sources:
   - title: Internal telemetry (OpenTelemetry Collector)
     url: https://opentelemetry.io/docs/collector/internal-telemetry/
     checked: 2026-11-13
+  - title: Using Prometheus as your OpenTelemetry backend, name translation (Prometheus)
+    url: https://prometheus.io/docs/guides/opentelemetry/
+    checked: 2026-11-13
   - title: Target Allocator (OpenTelemetry)
     url: https://opentelemetry.io/docs/platforms/kubernetes/operator/target-allocator/
     checked: 2026-11-13
@@ -90,7 +93,7 @@ You read the gateway's load per replica, saw its export queues far from full, an
 </Done>
 
 <Trap practice>
-The guide writes metric names without `_total`, as the Collector exposes them on its own endpoint. The same counters in Mimir carry `_total`; a query without it returns nothing.
+The guide writes metric names without `_total`, as the Collector exposes them on its own endpoint. The same counters in Mimir carry `_total`, because OTLP metric names are translated the Prometheus way, which appends `_total` to a counter; a query without it returns nothing.
 </Trap>
 
 <Remember>

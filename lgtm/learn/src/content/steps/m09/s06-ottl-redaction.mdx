@@ -102,13 +102,12 @@ data:
     processors:
       memory_limiter:
         check_interval: 1s
-        limit_mib: 100
-        spike_limit_mib: 20
+        limit_percentage: 80
+        spike_limit_percentage: 20
       filter/drop-child:
         error_mode: ignore
-        traces:
-          span:
-            - 'name == "okey-dokey-0"'
+        trace_conditions:
+          - 'span.name == "okey-dokey-0"'
       transform/redact:
         error_mode: ignore
         trace_statements:

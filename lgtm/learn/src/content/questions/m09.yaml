@@ -34,7 +34,7 @@
     - text: "Nothing, because the batch processor is allowed anywhere in a pipeline"
       why: "Position is free, but a repeated ID in the same list is not allowed."
   answer: [2]
-  source: https://opentelemetry.io/docs/collector/architecture/
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/service/pipelines/config.go
 
 - id: q-m09-003
   tags: [collector-config]
@@ -460,13 +460,13 @@
     - text: "The same query with the data source prometheus instead of mimir"
       why: "The lab's Prometheus does not scrape the gateway; its metrics are in Mimir."
     - text: "rate(otelcol_exporter_sent_spans_total[5m])"
-      why: "Stored in Mimir, the counter carries the _total suffix."
+      why: "Mimir translates OTLP metric names the Prometheus way, which appends _total to a counter (a monotonic sum)."
     - text: "rate(otelcol_exporter_sent_spans{level=\"detailed\"}[5m])"
       why: "The metrics level is not a label, and the name is still wrong."
     - text: "rate(otelcol_processor_outgoing_items[5m])"
       why: "The name lacks _total in the same way, and it counts processors."
   answer: [1]
-  source: https://opentelemetry.io/docs/collector/internal-telemetry/
+  source: https://prometheus.io/docs/guides/opentelemetry/
 
 - id: q-m09-030
   tags: [collector-debugging, collector-config]
@@ -547,3 +547,35 @@
       why: "Schemas are fetched from their URLs."
   answer: [0]
   source: https://opentelemetry.io/docs/specs/otel/schemas/
+
+- id: q-m09-035
+  tags: [collector-reliability]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: "An exporter sets <code>retry_on_failure: {max_elapsed_time: 0}</code>. The backend is down for an hour and the queue never fills. What happens to the first batch that failed?"
+  options:
+    - text: "It is dropped at once, because 0 turns retrying off"
+      why: "Retries are turned off with enabled: false; 0 here means no time limit."
+    - text: "It is dropped after the default 300 seconds"
+      why: "The default applies only when the key is left out."
+    - text: "It is retried until the backend returns, with no time limit"
+      why: "The exporter helper README says retries never stop when max_elapsed_time is 0."
+    - text: "It is written to disk after the first failure"
+      why: "Nothing goes to disk without a storage extension on the queue."
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/exporter/exporterhelper/README.md
+
+- id: q-m09-036
+  tags: [otel-schemas]
+  exam: {cert: otca, domain: O4, competency: Schema Management}
+  q: "Spans arrive with the schema URL <code>https://opentelemetry.io/schemas/1.20.0</code>, and a translator must bring them to 1.43.0. How does it apply the schema file's changes?"
+  options:
+    - text: "It applies only the changes listed under 1.43.0"
+      why: "Each version lists the changes since the one before it, so one entry is not enough."
+    - text: "It applies each version's changes in turn, from 1.21.0 up to 1.43.0"
+      why: "The file format applies the transformations of every version in the range, one step at a time."
+    - text: "It looks up each attribute in the 1.43.0 registry by its old name"
+      why: "Schema files hold changes between versions, not a lookup of old names."
+    - text: "It cannot, because only neighbouring versions can be translated"
+      why: "Any older version in the same family can be walked forward step by step."
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/schemas/file_format_v1.1.0/
