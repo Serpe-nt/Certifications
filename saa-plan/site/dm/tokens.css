@@ -1,0 +1,59 @@
+/* Datum tokens for the SAA-C03 plan: the Datum token set (tokens.json, version 4) with its colours retuned to the
+   "Excimer" theme, taken from the owner's reference poster: a near-black frame, charcoal plates, hairlines and marks in
+   one cadmium yellow. Dark only (the owner chose no light theme), so there is no Paper block and data-theme does nothing.
+   Three tokens are the app's own, for the ground (app.js / ground.js): --plate, --grid, --grid-mark. */
+:root {
+  --paper: #111111;
+  --paper-raised: #1C1C1B;
+  --paper-sunk: #0A0A0A;
+  --plate: #2A2925;
+  --ink: #EDEBE4;
+  --ink-2: #BCB9AF;
+  --ink-3: #8E8A7F;
+  --rule: #36342C;
+  --grid: #4A4329;
+  --grid-mark: #6E6232;
+  --signal: #F7D123;
+  --signal-edge: #F7D123;
+  --on-signal: #111111;
+  --alert: #FF5533;
+  --alert-text: #FF7A5E;
+  --on-alert: #111111;
+  --on-ink: var(--paper);
+  --action: var(--signal);
+  --on-action: var(--on-signal);
+  --inv-paper: #E3E0D6;
+  --inv-paper-raised: #EEECE5;
+  --inv-paper-sunk: #D3D0C5;
+  --inv-ink: #111111;
+  --inv-ink-2: #3A3830;
+  --inv-ink-3: #5C594F;
+  --inv-rule: #B4B0A3;
+  --inv-signal-edge: #111111;
+  --inv-alert: #D93A12;
+  --inv-alert-text: #A12C05;
+  --inv-action: #111111;
+  --inv-on-action: #EDEBE4;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --radius-none: 0px;
+  --radius-dot: 50%;
+  --radius-pill: 999px;
+  --stroke-hair: 1px;
+  --stroke-bold: 2px;
+  --stroke-bar: 6px;
+  --chamfer: 10px;
+  --chamfer-l: 16px;
+  --chamfer-xl: 32px;
+  --notch: 24px;
+  --font-display: Saira, "Exo 2", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: Saira, "Exo 2", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}

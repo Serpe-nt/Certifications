@@ -1,14 +1,16 @@
-/* Celebrations (fx.js) and everything inside the quiz, mock exam, drill, results and sheet dialogs, in the Field Manual
-   style: square corners or one 45-degree cut, hairlines instead of shadows, paper and ink with signal for what is live or
-   right and alert for what is wrong. Motion is stepped: response animations play unless data-fm-motion="off" or the
-   system asks for reduced motion; loops also stop with the effects switch (.fx-off) and data-fm-motion="calm". */
+/* Celebrations (fx.js) and everything inside the quiz, mock exam, drill, results and sheet dialogs, in Datum's
+   Excimer colours: square corners or one 45-degree cut, hairlines instead of shadows, paper and ink with the poster's
+   yellow for what is live or right and alert for what is wrong; big words in bold Saira, sentence case. Motion is
+   eased (Datum: cubic-bezier(.16,1,.3,1) for what travels, linear for what switches): response animations play unless
+   data-dm-motion="off" or the system asks for reduced motion; loops also stop with the effects switch (.fx-off) and
+   data-dm-motion="calm". Every celebration of the ladder is kept, recoloured. */
 
 /* ================= celebrations ================= */
 .fx-canvas{position:fixed;inset:0;pointer-events:none;z-index:50}
 
 /* The banner: a cut panel in the middle of the screen. A mono label line with the time, the title as a bracketed display
    word, the facts as a terminal line. Ladder: block and info small; day a raised panel with a live triangle in its cut;
-   week the panel in the other theme (fm-invert, set by fx.js) with an echo; all the one signal block, the biggest. */
+   week the panel in the other theme (dm-invert, set by fx.js) with an echo; all the one signal block, the biggest. */
 .fx-banner{--cut:var(--chamfer-l);--b-line:var(--ink);--b-fill:var(--paper-raised);--b-size:26px;
   position:fixed;left:50%;top:38%;z-index:60;isolation:isolate;pointer-events:none;width:max-content;max-width:min(92vw,960px);
   transform:translate(-50%,-50%);visibility:hidden;padding:var(--space-3) var(--space-8) var(--space-4) var(--space-4);
@@ -23,7 +25,7 @@
 .fx-banner .b-i{width:fit-content;max-width:100%;margin:0 0 var(--space-3);padding:var(--space-3);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule);
   font:600 40px/1 var(--font-mono);color:var(--ink)}
 .fx-banner .b-i svg{display:block;width:auto;height:var(--bi-h,64px);max-width:100%}
-.fx-banner .b-t{font:600 var(--b-size)/1.02 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
+.fx-banner .b-t{font:700 var(--b-size)/.95 var(--font-display);letter-spacing:-.035em;color:var(--b-title,var(--signal))}
 .fx-banner .b-s{margin-top:var(--space-2);max-width:68ch;font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .fx-banner .b-s::before{content:"> ";color:var(--ink-3)}
 .fx-banner .b-s::after{content:"_";color:var(--ink)}
@@ -31,10 +33,10 @@
 .fx-banner.k-block{--b-size:32px}
 .fx-banner.k-day{--b-size:clamp(44px,8vw,76px);--bi-h:72px;padding:var(--space-4) var(--space-12) var(--space-6) var(--space-6);
   background:linear-gradient(to bottom left,var(--signal-edge) calc(50% - 2px),transparent calc(50% - 2px)) top right/var(--cut) var(--cut) no-repeat}
-.fx-banner.k-week{--cut:var(--chamfer-xl);--b-size:clamp(52px,10vw,100px);--bi-h:96px;padding:var(--space-6) var(--space-16) var(--space-8) var(--space-8);
+.fx-banner.k-week{--b-title:var(--ink);--cut:var(--chamfer-xl);--b-size:clamp(52px,10vw,100px);--bi-h:96px;padding:var(--space-6) var(--space-16) var(--space-8) var(--space-8);
   background:linear-gradient(to bottom left,var(--signal-edge) calc(50% - 2px),transparent calc(50% - 2px)) top right/var(--cut) var(--cut) no-repeat;
   outline:var(--stroke-hair) solid var(--ink-3);outline-offset:var(--space-2)}   /* an echo: an offset outline round the panel */
-.fx-banner.k-all{--cut:var(--chamfer-xl);--b-size:clamp(60px,12vw,132px);--bi-h:120px;padding:var(--space-8) var(--space-16) var(--space-8) var(--space-8);
+.fx-banner.k-all{--b-title:var(--on-signal);--cut:var(--chamfer-xl);--b-size:clamp(60px,12vw,132px);--bi-h:120px;padding:var(--space-8) var(--space-16) var(--space-8) var(--space-8);
   --b-fill:var(--signal);--b-line:var(--on-signal);--ink:var(--on-signal);--ink-2:var(--on-signal);--ink-3:var(--on-signal);--rule:var(--on-signal);color:var(--on-signal);
   outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:var(--space-2)}
 .fx-banner.k-all .b-i{--rule:color-mix(in srgb,var(--signal) 22%,var(--on-signal));--ink:var(--signal);background:var(--on-signal);border-color:var(--on-signal)}
@@ -72,7 +74,7 @@ dialog .fx-badges{top:14px}   /* a modal covers the rail */
 .bd-i{flex:none;display:grid;place-items:center;min-width:56px;margin:var(--stroke-hair) 0 var(--stroke-hair) var(--stroke-hair);padding:0 var(--space-2);
   border-right:var(--stroke-hair) solid var(--ink);font:600 14px/1 var(--font-mono);letter-spacing:.04em;font-variant-numeric:tabular-nums;color:var(--ink)}
 .bd-x{display:grid;align-content:center;gap:2px;min-width:0;padding:var(--space-2) var(--space-8) var(--space-2) var(--space-3)}
-.bd-t{font:600 24px/1 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:.01em}
+.bd-t{font:600 22px/1.05 var(--font-display);letter-spacing:-.025em}
 .bd-s{font:400 12px/16px var(--font-mono);color:var(--ink-2)}
 .fx-badge.k-silver .bd-i{background:var(--ink);color:var(--on-ink)}
 .fx-badge.k-gold .bd-i,.fx-badge.k-level .bd-i,.fx-badge.k-epic .bd-i{background:var(--signal);color:var(--on-signal);border-right-color:var(--signal-edge)}
@@ -80,8 +82,8 @@ dialog .fx-badges{top:14px}   /* a modal covers the rail */
 .fx-badge.k-epic .bd-i{color:var(--inv-on-action,var(--on-signal))}
 
 /* the strip: the dot of the step just finished pops, the dots of a finished block step up one after another */
-:root:not([data-fm-motion="off"]) .dot.pop::before{animation:fx-dot-pop 480ms steps(1) both}
-:root:not([data-fm-motion="off"]) .fl-g.wave .dot::before{animation:fx-dot-wave 320ms steps(1) both}
+:root:not([data-dm-motion="off"]) .dot.pop::before{animation:fx-dot-pop 480ms steps(1) both}
+:root:not([data-dm-motion="off"]) .fl-g.wave .dot::before{animation:fx-dot-wave 320ms steps(1) both}
 .fl-g.wave .dot:nth-child(2)::before{animation-delay:70ms}
 .fl-g.wave .dot:nth-child(3)::before{animation-delay:140ms}
 .fl-g.wave .dot:nth-child(4)::before{animation-delay:210ms}
@@ -90,10 +92,10 @@ dialog .fx-badges{top:14px}   /* a modal covers the rail */
 
 /* ================= the quiz, sheet and search dialogs: one shell ================= */
 dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;padding:0;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;   /* overflow-x: a row's one-off jitter never brings up a sideways scroll bar */   /* dvh: the part of a phone's screen not under its address bar */
-  background:var(--paper);color:var(--ink);border:var(--stroke-hair) solid var(--ink);border-top:var(--stroke-bar) solid var(--ink);border-radius:0;box-shadow:none}
+  background:var(--paper);color:var(--ink);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--grid-mark);border-radius:0;box-shadow:none}
 .qz-h{position:sticky;top:0;z-index:3;display:flex;gap:var(--space-1) var(--space-4);align-items:center;flex-wrap:wrap;padding:var(--space-3) 56px var(--space-3) var(--space-6);
   background:var(--paper-raised);border-bottom:var(--stroke-hair) solid var(--ink)}
-.qz-h h2{margin:0;font:600 28px/1.05 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
+.qz-h h2{margin:0;font:600 26px/1.1 var(--font-display);letter-spacing:-.03em;color:var(--ink)}
 .qz-meta{display:flex;gap:var(--space-1) var(--space-4);flex-wrap:wrap;align-items:center;font:400 12px/20px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-2)}
 .qz-meta .ok{color:var(--ink);font-weight:600}
 .qz-meta .bad{color:var(--alert-text);font-weight:600}
@@ -162,7 +164,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 /* where to study this: a raised panel of rows; on wide screens it leaves the card for the free space to its left,
    top edge level with the card's (--qzdh = the card's height, set in app.js), so the answers and Next fit without
    scrolling. The card is 780px wide and centred; the panel keeps a 16px gap to it and to the screen edge. */
-.qz-study{margin-top:var(--space-4);padding:var(--space-3) var(--space-4) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
+.qz-study{margin-top:var(--space-4);padding:var(--space-3) var(--space-4) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
 .qz-sh{margin-bottom:var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 .qz-refs{list-style:none;padding:0;margin:0;display:grid;gap:0}
 .qz-refs>li{padding:var(--space-2) 0;border-top:var(--stroke-hair) solid var(--rule)}
@@ -173,7 +175,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 .qz-doc{margin-top:var(--space-3);font-size:14px}
 @media (min-width:1360px){
   #quiz .qz-side{position:fixed;top:max(4vh,calc(50vh - var(--qzdh,92vh) / 2));right:calc(50% + 406px);width:min(380px,calc(50% - 422px));max-height:92vh;overflow:auto;margin:0;
-    padding:var(--space-3) var(--space-4) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
+    padding:var(--space-3) var(--space-4) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
 }
 
 /* why a question was missed: one click, the pressed reason filled ink */
@@ -242,18 +244,18 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 /* the result (Result: a frame with a bracketed verdict, the score on a dial and a ruler, the quiz's id as a barcode in
    its foot), with the GIF beside it */
 .qz-res{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-4) var(--space-6);align-items:start;margin-bottom:var(--space-2);color:var(--ink)}
-.qz-res.fm-frame{--tab:150px;--foot:300px}
+.qz-res.dm-frame{--tab:150px;--foot:300px}
 .qz-res.has-gif{grid-template-columns:minmax(0,1fr) auto}
 .qz-res-t{display:grid;gap:var(--space-3);min-width:0}
-.qz-vd{margin:0;font:600 44px/1 var(--font-display);font-stretch:62%;text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
+.qz-vd{margin:0;font:700 56px/.92 var(--font-display);letter-spacing:-.04em;color:var(--signal)}   /* the result's one title, yellow */
 .qz-vd.is-alert{color:var(--alert)}
 .qz-res-m{display:flex;gap:var(--space-4) var(--space-6);align-items:center;flex-wrap:wrap}
 .qz-res-x{flex:1 1 200px;display:grid;gap:var(--space-1);min-width:0}
 .qz-score{font:600 40px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--ink)}
 .qz-score small{font:400 13px/20px var(--font-mono);color:var(--ink-3)}
 .qz-msg{font-size:15px;color:var(--ink-2)}
-.qz-res .fm-ruler{padding-top:var(--space-8)}
-.qz-res .fm-frame__foot svg{display:block;width:auto;height:10px}
+.qz-res .dm-ruler{padding-top:var(--space-8)}
+.qz-res .dm-frame__foot svg{display:block;width:auto;height:10px}
 .qz-gif{margin:0;display:grid;gap:var(--space-1);justify-items:start}
 .qz-gif img{display:block;height:170px;width:min(260px,80vw);object-fit:cover;border:var(--stroke-hair) solid var(--rule);border-radius:0;background:var(--paper-sunk)}
 .qz-gif figcaption{font:500 10px/12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
@@ -265,7 +267,7 @@ button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
 .stars span.on{background:var(--signal);border-color:var(--signal-edge)}
 .rw-x{flex:1 1 220px;display:grid;gap:var(--space-1);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .rw-l{display:flex;gap:var(--space-2);align-items:baseline;flex-wrap:wrap}
-.rw-l b{font:600 22px/1 var(--font-display);font-stretch:62%;text-transform:uppercase;color:var(--ink)}
+.rw-l b{font:600 22px/1 var(--font-display);letter-spacing:-.025em;color:var(--ink)}
 .rw-l .xp-up{margin-left:auto}
 .qz-rw .xpbar,.lv-x .xpbar{display:block;height:var(--space-2);margin:0;background:var(--rule);border-radius:0;overflow:hidden}
 .qz-rw .xpbar>span,.lv-x .xpbar>span{display:block;height:100%;background:var(--ink);border-radius:0}
@@ -319,7 +321,7 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 
 /* ---------- the "Which service?" drill ---------- */
 .dr-req{margin:6px 0 var(--space-4);font:500 22px/1.3 var(--font-sans);color:var(--ink)}
-.dr-svc{display:grid;gap:var(--space-1);font:600 34px/1.05 var(--font-display);font-stretch:62%;text-transform:uppercase}
+.dr-svc{display:grid;gap:var(--space-1);font:600 34px/1.05 var(--font-display);letter-spacing:-.03em}
 .dr-svc .muted{font:500 11px/16px var(--font-mono);letter-spacing:.08em;color:var(--ink-3)}
 .dr-long .qz-t{font-size:15px;line-height:1.35}
 .dr-modes{display:grid;grid-template-columns:1fr 1fr;gap:0}
@@ -338,11 +340,11 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 .flip.shaky{color:var(--alert-text);border-color:var(--alert)}
 
 /* ---------- badges and level (the sheet) ---------- */
-.lv{display:flex;gap:var(--space-4);align-items:center;padding:var(--space-3) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
-.lv-n{padding-right:var(--space-4);border-right:var(--stroke-hair) solid var(--rule);font:600 56px/.9 var(--font-display);font-stretch:125%;font-variant-numeric:tabular-nums;color:var(--ink)}
+.lv{display:flex;gap:var(--space-4);align-items:center;padding:var(--space-3) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
+.lv-n{padding-right:var(--space-4);border-right:var(--stroke-hair) solid var(--rule);font:300 64px/.9 var(--font-display);letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--signal)}
 .lv-n small{display:block;margin-bottom:var(--space-1);font:500 11px/16px var(--font-mono);font-stretch:100%;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 .lv-x{flex:1;display:grid;gap:6px;font-size:14.5px}
-.lv-x b{font:600 24px/1 var(--font-display);font-stretch:62%;text-transform:uppercase}
+.lv-x b{font:600 24px/1 var(--font-display);letter-spacing:-.025em}
 .ach{list-style:none;padding:0;margin:var(--space-4) 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0}
 .ach li{display:flex;gap:10px;align-items:flex-start;margin:0 calc(var(--stroke-hair) * -1) calc(var(--stroke-hair) * -1) 0;padding:10px var(--space-3);font-size:14px;
   color:var(--ink-2);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink)}
@@ -354,40 +356,40 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 .ach-x .muted{font:400 12px/16px var(--font-mono);color:var(--ink-3)}
 
 /* ================= motion =================
-   Response (80-480 ms, stepped): answers, badges, the banner. Off with data-fm-motion="off" or reduced motion. */
-:root:not([data-fm-motion="off"]) .fx-banner.show{animation:fx-wipe-down var(--fm-boot) steps(6) both}
-:root:not([data-fm-motion="off"]) .fx-banner.show .b-t{animation:fm-type 420ms steps(14) both;animation-delay:200ms}
-:root:not([data-fm-motion="off"]) .fx-banner.show .b-s{animation:fm-type 720ms steps(24) both;animation-delay:480ms}
-:root:not([data-fm-motion="off"]) .fx-veil.show{animation:fx-veil-in var(--fm-step) steps(3) both}
-:root:not([data-fm-motion="off"]) .fx-toast.show{animation:fx-wipe-right var(--fm-step) steps(4) both}
-:root:not([data-fm-motion="off"]) .fx-badge{animation:fx-drop var(--fm-boot) steps(6) both}
-:root:not([data-fm-motion="off"]) .fx-badge .bd-i{animation:fm-flicker-in var(--fm-boot) steps(1) both;animation-delay:240ms}
-:root:not([data-fm-motion="off"]) .fx-badge.out{animation:fx-lift 240ms steps(4) both}
-:root[data-fm-motion="off"] .fx-badge.out{visibility:hidden}
-:root:not([data-fm-motion="off"]) dialog.fx-glow{animation:fx-edge 1200ms steps(1) both}
-:root:not([data-fm-motion="off"]) .qz-bar>div{transition:width var(--fm-step) steps(4)}
-:root:not([data-fm-motion="off"]) #quiz .qz-side{animation:fx-wipe-down var(--fm-boot) steps(6) both}
-:root:not([data-fm-motion="off"]) .qz-verdict.fresh.ok::before{animation:fx-cap-in 260ms steps(4) both}
-:root:not([data-fm-motion="off"]) .qz-verdict.fresh.bad{animation:fm-jitter 240ms steps(4) 1}
-:root:not([data-fm-motion="off"]) .qz-fb.fresh>li.right{animation:fm-wipe 260ms steps(8) both}
-:root:not([data-fm-motion="off"]) .qz-fb.fresh>li.wrong{animation:fm-jitter 240ms steps(4) 1}
-:root:not([data-fm-motion="off"]) .dr-opts button.qz-o.right{animation:fm-wipe 260ms steps(8) both}
-:root:not([data-fm-motion="off"]) .dr-opts button.qz-o.wrong{animation:fm-jitter 240ms steps(4) 1}
-:root:not([data-fm-motion="off"]) .xp-up{animation:fm-flicker-in var(--fm-boot) steps(1) both;animation-delay:100ms}
-:root:not([data-fm-motion="off"]) .qz-meta .bump{animation:fx-bump 320ms steps(1) both}
-:root:not([data-fm-motion="off"]) .qz-meta .bad.bump{animation-name:fx-bump-bad}
-:root:not([data-fm-motion="off"]) .qz-map>button.just{animation:fx-sq 320ms steps(4) both}
-:root:not([data-fm-motion="off"]) :is(.qz-cb.up,.qz-cb.boom,.qz-cb.broke,.qz-cb.miss) .cb-m i{animation:fx-fill var(--fm-step) steps(4) both}
-:root:not([data-fm-motion="off"]) .qz-cb.up .cb-n b{animation:fm-flicker-in 240ms steps(1) both}
-:root:not([data-fm-motion="off"]) .qz-cb.boom{animation:fx-cb-boom 480ms steps(1) both}
-:root:not([data-fm-motion="off"]) :is(.qz-cb.broke,.qz-cb.miss){animation:fm-jitter 240ms steps(4) 1}
-:root:not([data-fm-motion="off"]) .stars span{animation:fm-flicker-in var(--fm-boot) steps(1) both}
-:root:not([data-fm-motion="off"]) .qz-gif img{animation:fm-flicker-in var(--fm-boot) steps(1) both}
-:root:not([data-fm-motion="off"]) :is(.qz-rw,.lv-x) .xpbar>span{animation:fx-fill 640ms steps(8) both;animation-delay:300ms}
+   Response (80-480 ms, eased): answers, badges, the banner. Off with data-dm-motion="off" or reduced motion. */
+:root:not([data-dm-motion="off"]) .fx-banner.show{animation:fx-wipe-down var(--dm-arrive) var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .fx-banner.show .b-t{animation:x-type 520ms var(--dm-ease) both;animation-delay:200ms}
+:root:not([data-dm-motion="off"]) .fx-banner.show .b-s{animation:x-type 820ms var(--dm-ease) both;animation-delay:480ms}
+:root:not([data-dm-motion="off"]) .fx-veil.show{animation:fx-veil-in 320ms linear both}
+:root:not([data-dm-motion="off"]) .fx-toast.show{animation:fx-wipe-right 280ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .fx-badge{animation:fx-drop var(--dm-arrive) var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .fx-badge .bd-i{animation:x-flicker-in 360ms linear both;animation-delay:240ms}
+:root:not([data-dm-motion="off"]) .fx-badge.out{animation:fx-lift 240ms var(--dm-ease) both}
+:root[data-dm-motion="off"] .fx-badge.out{visibility:hidden}
+:root:not([data-dm-motion="off"]) dialog.fx-glow{animation:fx-edge 1200ms steps(1) both}
+:root:not([data-dm-motion="off"]) .qz-bar>div{transition:width 260ms var(--dm-ease)}
+:root:not([data-dm-motion="off"]) #quiz .qz-side{animation:fx-wipe-down var(--dm-arrive) var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-verdict.fresh.ok::before{animation:fx-cap-in 300ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-verdict.fresh.bad{animation:x-jitter 280ms var(--dm-ease) 1}
+:root:not([data-dm-motion="off"]) .qz-fb.fresh>li.right{animation:x-wipe 320ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-fb.fresh>li.wrong{animation:x-jitter 280ms var(--dm-ease) 1}
+:root:not([data-dm-motion="off"]) .dr-opts button.qz-o.right{animation:x-wipe 320ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .dr-opts button.qz-o.wrong{animation:x-jitter 280ms var(--dm-ease) 1}
+:root:not([data-dm-motion="off"]) .xp-up{animation:x-flicker-in 360ms linear both;animation-delay:100ms}
+:root:not([data-dm-motion="off"]) .qz-meta .bump{animation:fx-bump 320ms steps(1) both}
+:root:not([data-dm-motion="off"]) .qz-meta .bad.bump{animation-name:fx-bump-bad}
+:root:not([data-dm-motion="off"]) .qz-map>button.just{animation:fx-sq 360ms linear both}
+:root:not([data-dm-motion="off"]) :is(.qz-cb.up,.qz-cb.boom,.qz-cb.broke,.qz-cb.miss) .cb-m i{animation:fx-fill 320ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-cb.up .cb-n b{animation:x-flicker-in 240ms linear both}
+:root:not([data-dm-motion="off"]) .qz-cb.boom{animation:fx-cb-boom 480ms steps(1) both}
+:root:not([data-dm-motion="off"]) :is(.qz-cb.broke,.qz-cb.miss){animation:x-jitter 280ms var(--dm-ease) 1}
+:root:not([data-dm-motion="off"]) .stars span{animation:x-flicker-in 420ms linear both}
+:root:not([data-dm-motion="off"]) .qz-gif img{animation:x-flicker-in 420ms linear both}
+:root:not([data-dm-motion="off"]) :is(.qz-rw,.lv-x) .xpbar>span{animation:fx-fill 900ms var(--dm-ease) both;animation-delay:300ms}
 /* Signal (loops, only on what is live): the banner's cursor, the hot meter's heat cells. Also off with the effects switch. */
-:root:not([data-fm-motion="off"]):not([data-fm-motion="calm"]):not(.fx-off) .fx-banner.show .b-s::after{animation:fm-blink 1s steps(1) infinite}
-:root:not([data-fm-motion="off"]):not([data-fm-motion="calm"]):not(.fx-off) :is(.qz-cb.h3,.qz-cb.h4) .cb-f i{animation:fm-pulse var(--fm-beat) steps(1) infinite}
-:root:not([data-fm-motion="off"]):not([data-fm-motion="calm"]):not(.fx-off) :is(.qz-cb.h3,.qz-cb.h4) .cb-f i:nth-child(2n){animation-delay:600ms}
+:root:not([data-dm-motion="off"]):not([data-dm-motion="calm"]):not(.fx-off) .fx-banner.show .b-s::after{animation:x-blink 1s steps(1) infinite}
+:root:not([data-dm-motion="off"]):not([data-dm-motion="calm"]):not(.fx-off) :is(.qz-cb.h3,.qz-cb.h4) .cb-f i{animation:x-pulse var(--dm-beat) steps(1) infinite}
+:root:not([data-dm-motion="off"]):not([data-dm-motion="calm"]):not(.fx-off) :is(.qz-cb.h3,.qz-cb.h4) .cb-f i:nth-child(2n){animation-delay:600ms}
 @keyframes fx-wipe-down{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(-16px)}}
 @keyframes fx-wipe-right{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0)}}
 @keyframes fx-veil-in{from{opacity:0}}
@@ -401,6 +403,11 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
 @keyframes fx-fill{from{width:var(--from,0%)}}
 @keyframes fx-cb-boom{0%,49%{background:var(--signal);color:var(--on-signal);border-color:var(--signal-edge);outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:2px}50%,100%{outline-color:transparent}}
 @keyframes fx-dot-pop{0%,32%{background:var(--signal);outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:3px}33%,65%{outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:5px}66%,100%{outline-color:transparent}}
+@keyframes x-type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes x-wipe{from{background-size:0 100%}}
+@keyframes x-jitter{0%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}100%{transform:none}}
+@keyframes x-flicker-in{0%{opacity:0}35%{opacity:1}55%{opacity:.4}100%{opacity:1}}
+@keyframes x-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 @keyframes fx-dot-wave{0%,49%{background:var(--signal);border-color:var(--signal-edge)}}
 @media (prefers-reduced-motion:reduce){
   :is(.fx-banner,.fx-banner *,.fx-veil,.fx-toast,.fx-badge,.fx-badge *,dialog.fx-glow,.qz-bar>div,#quiz .qz-side,.qz-verdict,.qz-fb>li,.dr-opts .qz-o,.xp-up,.qz-meta .bump,
@@ -427,8 +434,8 @@ button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
   .qz-body{padding:var(--space-4) var(--space-4) var(--space-6)}
   .qz-q{font-size:16px}
   .qz-res.has-gif{grid-template-columns:minmax(0,1fr)}
-  .qz-res.fm-frame{--tab:120px;--foot:200px;padding-left:var(--space-4);padding-right:var(--space-4)}
-  .qz-res .fm-frame__foot svg{display:none}
+  .qz-res.dm-frame{--tab:120px;--foot:200px;padding-left:var(--space-4);padding-right:var(--space-4)}
+  .qz-res .dm-frame__foot svg{display:none}
   .qz-gif img{height:150px}
   .qz-vd{font-size:36px}
   .lv-n{font-size:44px}

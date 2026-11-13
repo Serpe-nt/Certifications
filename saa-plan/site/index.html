@@ -4,15 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta name="theme-color" content="#E6E8E6" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0E100F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#111111">
 <title>SAA-C03 Plan</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M0 0H24L32 8V32H0Z' fill='%23D4F23A'/><path d='M7 9H25M7 16H25M7 23H17' stroke='%23121413' stroke-width='3'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M0 0H24L32 8V32H0Z' fill='%23F7D123'/><path d='M8 8H24V24H8ZM8 8L24 24M24 8L8 24' fill='none' stroke='%23111111' stroke-width='2.5'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wdth,wght@50..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="fm/tokens.css">
-<link rel="stylesheet" href="fm/bundle.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wdth,wght@50..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&family=Exo+2:wght@300..800&display=swap">
+<link rel="stylesheet" href="dm/tokens.css">
+<link rel="stylesheet" href="dm/bundle.css">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="fx.css">
 </head>
@@ -22,7 +21,7 @@
 <div id="timer" class="timer">
   <div class="tm-bar" aria-hidden="true"><span class="tm-fill"></span></div>
   <div class="tm-row">
-    <a class="rl-code" href="#" data-home-link aria-label="SAA-C03 plan, overview">SAA-C03</a>
+    <a class="rl-code" href="#" data-home-link aria-label="SAA-C03 plan, overview"><svg class="rl-mark" viewBox="0 0 12 34" aria-hidden="true"><path d="M1 1H11V11H1ZM1 1L11 11M11 1L1 11M1 13L11 21V13L1 21ZM1 23L11 33M11 23L1 33"/></svg>SAA-C03</a>
     <span class="rl-nav" id="rl-nav"></span>
     <!-- shown only when changes can't reach the server: offline, signed out, or no answer -->
     <span class="sync-w" role="status"><button type="button" class="sync-st" id="sync-st" hidden><span class="ss-i" aria-hidden="true">[ ! ]</span><span class="ss-s"></span><span class="ss-l"></span></button></span>
@@ -39,19 +38,19 @@
   </div>
 </div>
 
-<!-- The Field Manual backdrop: generated geometry behind everything, seeded with the view (app.js bdDraw); holds no information -->
-<div class="bd-host" aria-hidden="true"><div class="fm-backdrop" id="bd"></div></div>
+<!-- The ground: the poster's grid, plates, marks and filaments behind everything, seeded with the view (ground.js, app.js bdDraw); holds no information -->
+<div class="bd-host" aria-hidden="true"><div class="dm-backdrop" id="bd"></div></div>
 
 <div class="wrap">
 
 <!-- The title bar: what this is, the one display title, where the plan stands, the header buttons -->
-<header class="tb" data-fm-clear>
+<header class="tb" data-dm-clear>
   <div class="tb-title">
+    <h1 class="tb-h">Solutions Architect Associate</h1>
     <span class="tb-k">SAA-C03 / Study plan</span>
-    <h1 class="display-c">Solutions Architect Associate</h1>
   </div>
   <dl class="tb-cells">
-    <div class="tb-cell"><dt class="tb-k">Sheet</dt><dd id="tb-sheet"></dd></div>
+    <div class="tb-cell"><dt class="tb-k">Calendar</dt><dd id="tb-sheet"></dd></div>
     <div class="tb-cell"><dt class="tb-k" id="tb-exam-k">Exam</dt><dd id="tb-exam"></dd></div>
     <div class="tb-cell"><dt class="tb-k">Done</dt><dd id="tb-pct"></dd></div>
   </dl>
@@ -65,7 +64,7 @@
 
 <!-- Overview, today first: the day to work on with its next step and one big button, then what needs you today
      (still running, today's goal), practice, where you stand (numbers, readiness, trends, scores), the days as tiles -->
-<div id="home">
+<div id="home" class="dm-arrive">
 <div id="slip" class="slip" role="status" hidden></div>
 
 <section id="next" class="next" aria-live="polite"></section>
@@ -118,7 +117,7 @@
   <p class="p-intro">AWS splits learning, the actual cloud, and exam booking into different sites with different logins. Every step says which one it uses.</p>
   <div class="grid">
     <div class="place">
-      <h3><span class="fm-idx">①</span> Skill Builder</h3>
+      <h3><span class="dm-idx">①</span> Skill Builder</h3>
       <span class="url">skillbuilder.aws</span>
       <ul>
         <li>The learning site you already use (login: AWS Builder ID).</li>
@@ -128,7 +127,7 @@
       </ul>
     </div>
     <div class="place">
-      <h3><span class="fm-idx">②</span> Lab sandbox</h3>
+      <h3><span class="dm-idx">②</span> Lab sandbox</h3>
       <span class="url">opened from inside a lab on Skill Builder</span>
       <ul>
         <li>Each AWS SimuLearn or AWS Builder Lab opens a <b>temporary AWS account</b> that AWS gives you.</li>
@@ -137,7 +136,7 @@
       </ul>
     </div>
     <div class="place">
-      <h3><span class="fm-idx">③</span> Your own AWS account</h3>
+      <h3><span class="dm-idx">③</span> Your own AWS account</h3>
       <span class="url">console.aws.amazon.com</span>
       <ul>
         <li>A real, permanent cloud account you create on Day 1.</li>
@@ -146,7 +145,7 @@
       </ul>
     </div>
     <div class="place">
-      <h3><span class="fm-idx">④</span> Certification account</h3>
+      <h3><span class="dm-idx">④</span> Certification account</h3>
       <span class="url">aws.training → Certification</span>
       <ul>
         <li>Only for booking and managing the exam.</li>
@@ -250,8 +249,6 @@
     <label class="field">Daily XP goal <small>The dial on the overview. A day's quiz with its steps is worth about 400.</small>
       <select id="s-goal"><option>100</option><option>150</option><option>200</option><option>300</option><option>400</option><option>600</option></select></label>
     <div class="s-disp">
-      <label class="field">Theme <small>This browser only.</small>
-        <select id="s-theme"><option value="">Follow the system</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
       <label class="field">Text size <small>Cards, panels and quizzes.</small>
         <select id="s-size"><option value="">Normal</option><option value="l">Larger</option><option value="xl">Largest</option></select></label>
       <label class="field">Motion <small>This browser only. Calm stops the loops; off holds everything still.</small>
@@ -340,7 +337,8 @@
 <script src="keys/r1.js"></script>
 <script src="keys/t1.js"></script>
 <script src="keys/s0.js"></script>
-<script src="fm/art.js"></script>
+<script src="dm/datum.js"></script>
+<script src="ground.js"></script>
 <script src="qcore.js"></script>
 <script src="fx.js"></script>
 <script src="app.js"></script>
