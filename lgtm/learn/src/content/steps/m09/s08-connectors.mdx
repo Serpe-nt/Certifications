@@ -130,7 +130,7 @@ Your traces pipeline fed a connector, and a metrics pipeline printed RED metrics
 </Done>
 
 <Trap practice>
-Do not judge the counter by its first flush. On the lab, the first flush after a restart printed `Value: 0` for both `calls` data points while the duration histogram already showed `Count: 7`. From the second flush on, `calls` matched the histogram's count (15, 22, 30), and both kept growing by about 7.5 a flush: one trace a second for 15 seconds. Both are cumulative, so each flush repeats the total since the Collector started.
+Do not judge the counter by its first flush. On the lab, the first flush after a restart printed `Value: 0` for both `calls` data points while the duration histogram already showed `Count: 7`. From the second flush on, `calls` matched the histogram's count (15, 22, 30), and both grew by 7 or 8 at each flush. Both are cumulative, so each flush repeats the total since the Collector started.
 </Trap>
 
 <Remember>
