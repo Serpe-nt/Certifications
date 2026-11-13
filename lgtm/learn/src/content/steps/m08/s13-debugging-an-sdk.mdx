@@ -1,0 +1,127 @@
+---
+id: m08-s13
+title: "Debugging an SDK: console exporter and self-diagnostics"
+kind: lab
+minutes: 22
+order: 13
+exam:
+  - cert: otca
+    domain: O4
+    competency: Debugging Pipelines
+  - cert: otca
+    domain: O2
+    competency: SDK Pipelines
+tags: [otel-sdk-debugging]
+check:
+  kind: exact
+  prompt: Paste the value of the attribute workshop.compute.result on the fibonacci span that the console exporter printed for /compute?n=20.
+  answers: ["6765"]
+outcome: You can make an SDK print what it produces next to what it exports, read its own warnings and its self-observability metrics, and so tell an instrumentation problem from an export problem.
+terms:
+  - term: Console exporter
+    def: An exporter that prints telemetry to standard output, meant for debugging; its format is not standardized.
+  - term: Self-diagnostics
+    def: The errors and warnings an OpenTelemetry library logs about itself instead of throwing them into the application.
+  - term: Self-observability metrics
+    def: Metrics an SDK records about its own parts, such as spans exported or the size of a processor's queue, named otel.sdk.*.
+sources:
+  - title: Metrics exporter, standard output (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/sdk_exporters/stdout/
+    checked: 2026-11-13
+  - title: Environment variable specification, exporter selection (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-13
+  - title: Error handling, self-diagnostics (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/error-handling/
+    checked: 2026-11-13
+  - title: Self-observability (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/self-observability/
+    checked: 2026-11-13
+  - title: Semantic conventions for OpenTelemetry SDK metrics
+    url: https://opentelemetry.io/docs/specs/semconv/otel/sdk-metrics/
+    checked: 2026-11-13
+  - title: Python zero-code instrumentation, configuring the agent (OpenTelemetry)
+    url: https://opentelemetry.io/docs/zero-code/python/
+    checked: 2026-11-13
+---
+
+<Problem>
+A developer adds a span attribute, deploys, and the attribute is not in Tempo. Was it never recorded, or recorded and lost on the way? The trace passes the SDK, the PC's network, the lab's gateway, the collector, Kafka and Tempo. Guessing which hop dropped it wastes an afternoon. The first question is simpler: what did the SDK produce?
+</Problem>
+
+<Idea>
+Ask the SDK itself. A console exporter, added next to OTLP, prints every span, metric and log record the SDK produces, so you see the data before it leaves the process. The SDK also reports on itself: it logs the errors it swallows, and newer SDKs record metrics about their own processors and exporters.
+</Idea>
+
+## The console exporter shows what the SDK made
+
+Every exporter variable accepts `console` as a value, and an implementation may accept a comma-separated list. With `OTEL_TRACES_EXPORTER=console,otlp` the Python agent builds two pipelines: spans are printed on standard output and still sent to the lab. Each span shows its name, its trace ID and span ID, its parent, its kind, its status, its attributes and its resource. For metrics, the console exporter prints each data point with its temporality; the Python output gives it as the protobuf number, 2 for cumulative and 1 for delta.
+
+The specification asks that this exporter be documented as a tool for debugging and learning: its output format is not standardized and may change, so never parse it in production. When the console shows the attribute and the backend does not, the problem is downstream of the SDK. When the console does not show it either, look at the code.
+
+## The SDK's own log
+
+The error handling principles forbid the SDK to throw its errors into your application. In return, when a library suppresses an error, it should log it in the way the language usually logs. In Python that means the standard `logging` module under logger names that start with `opentelemetry`, so the SDK's warnings appear in the service's own output, for example `Transient error ... encountered while exporting spans batch, retrying in 0.85s.` The specification also requires SDKs to let you change how their errors are handled, for example with a handler of your own.
+
+Some setting names hint at the log level. `OTEL_LOG_LEVEL` is the standard variable for the SDK's internal logger, and the Node.js documentation describes it with levels from `none` to `all`. Check your language: `OTEL_PYTHON_LOG_LEVEL`, for example, belongs to the logging instrumentation and sets the level of the console log format, not the SDK's diagnostics.
+
+## Metrics about the SDK itself
+
+The specification asks SDKs to emit self-observability telemetry, and the semantic conventions name the metrics: `otel.sdk.span.started`, `otel.sdk.processor.span.queue.size`, `otel.sdk.exporter.span.exported` and their counterparts for logs and metric points. Both are marked as in development. An exporter that fails records the failed items in `otel.sdk.exporter.span.exported` with an `error.type` attribute, after its last retry. In the Python SDK of the workshop the variable `OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED=true` switches them on.
+
+<Flow caption="Where to look, from the inside out">
+  <Stage title="Console exporter" kicker="Inside the process">Was the span made, with this attribute?</Stage>
+  <Stage title="SDK log" kicker="Inside the process">Did the exporter report an error or a retry?</Stage>
+  <Stage title="otel.sdk.* metrics" kicker="Over time">How many items were exported, how many failed, how full is the queue?</Stage>
+  <Stage title="Collector" kicker="Module m09">Did the next hop receive it?</Stage>
+</Flow>
+
+<InLab>
+The shop's SDKs already send self-observability metrics to Mimir: query `otel_sdk_exporter_span_exported_total` or `otel_sdk_processor_span_queue_size` and you see them for checkout, ad, fraud-detection, recommendation and other services. recommendation turns them on with `OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED`, as you will now.
+</InLab>
+
+<Trap>
+The console exporter is not a replacement for the OTLP one. Add it with a comma list, `console,otlp`; setting only `console` stops the data from reaching the lab while you debug.
+</Trap>
+
+<Do>
+1. In `lgtm/lab/workshop`, set three variables in a terminal. In PowerShell: <Cmd>{`$env:OTEL_TRACES_EXPORTER = "console,otlp"; $env:OTEL_METRICS_EXPORTER = "console,otlp"; $env:OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED = "true"`}</Cmd> In bash: <Cmd>export OTEL_TRACES_EXPORTER=console,otlp OTEL_METRICS_EXPORTER=console,otlp OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED=true</Cmd>
+2. Start the logs solution in that terminal and wait for `Running on http://127.0.0.1:8000`: <Cmd>python run.py solutions/05-logs</Cmd>
+3. In a second terminal, call the computation once: <Cmd>curl http://127.0.0.1:8000/compute?n=20</Cmd>
+4. Within about five seconds the first terminal prints the request's two spans as JSON. Find the one with `"name": "fibonacci"`, note that its `parent_id` is the `span_id` of `GET /compute`, and read its attribute `workshop.compute.result`. Paste that value in the check below.
+5. Wait for the next metrics export, up to 15 seconds. Find `"name": "workshop.compute.duration"` and its `"aggregation_temporality": 2`, which means cumulative.
+6. In the same output, find `"name": "otel.sdk.exporter.span.exported"`. Its data point has `otel.component.name` `otlp_http_span_exporter/0`, `server.address` `otlp.lab.k8s.local` and no `error.type`: the exports succeeded.
+7. Stop the service with Ctrl+C and remove the three variables: `Remove-Item Env:OTEL_TRACES_EXPORTER, Env:OTEL_METRICS_EXPORTER, Env:OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED` in PowerShell, `unset OTEL_TRACES_EXPORTER OTEL_METRICS_EXPORTER OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED` in bash.
+</Do>
+
+<Done>
+The console showed the `fibonacci` span with its attribute and its parent, the metrics with their temporality, and the SDK's own count of exported spans with no error.
+</Done>
+
+<Trap practice>
+The output is long: the metrics export prints every instrument, the SDK's own included. Search the terminal for the name you want rather than scrolling. Spans named `SELECT` without a parent come from the SQLite query that the stock gauge's callback runs at every collection, and `DROP`, `CREATE` and `INSERT` from the service's startup; none of them is from your request.
+</Trap>
+
+<Remember>
+Debug from the inside out: `console,otlp` shows what the SDK made, its log shows what it could not send, and the `otel.sdk.*` metrics count both over time.
+</Remember>
+
+<Question id="q-m08-s13" answer="c">
+A span attribute is missing in the backend. The team adds the console exporter next to OTLP, and the console shows the span with the attribute. What does that tell them?
+
+- The SDK never recorded the attribute, so the code must be fixed.
+
+  The console prints what the SDK produced. The attribute is there, so the code recorded it.
+
+- The console exporter added the attribute itself, so the result proves nothing.
+
+  Exporters encode and send what the SDK hands them; they do not invent attributes.
+
+- The SDK produced it, so the cause lies after the SDK: in export, the Collector or the backend.
+
+  With the attribute in the SDK's own output, look at the export path next: the SDK log, the exporter's metrics, then the Collector.
+
+- The OTLP exporter cannot send attributes that the console exporter also prints.
+
+  Both exporters get the same data from their own processors; one does not take it from the other.
+</Question>
