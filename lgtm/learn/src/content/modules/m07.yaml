@@ -1,0 +1,6 @@
+id: m07
+title: "OpenTelemetry: the model and tracing"
+goal: Instrument a service for traces by hand and explain every object the SDK creates.
+order: 7
+quiz: true
+exams: [otca]

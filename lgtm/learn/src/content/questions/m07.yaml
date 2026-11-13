@@ -1,0 +1,598 @@
+# Module m07 OpenTelemetry: the model and tracing: quiz pool. Card C6, 2026-11-13.
+# Sources: opentelemetry.io pages, the W3C Trace Context Recommendation, the Python API
+# reference and the Collector contrib READMEs at v0.165.0, fetched on 2026-11-13. The log
+# is lgtm/docs/verification/m07.md. No question repeats one of the mock pools.
+
+- id: q-m07-001
+  tags: [otel-overview]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: "A team says: 'We moved all services to OpenTelemetry, so we can switch off our tracing backend.' What is wrong with that plan?"
+  options:
+    - text: "OpenTelemetry stores traces for 48 hours only, so long-term storage is still needed"
+      why: "OpenTelemetry stores no traces at all. Forty-eight hours is the retention of this lab's Tempo."
+    - text: "OpenTelemetry generates and moves telemetry but stores none, so a backend is still needed"
+      why: "Storage and visualization are left to other tools; OpenTelemetry is not a backend."
+    - text: "The Collector keeps traces, but only in its own format that dashboards cannot read"
+      why: "The Collector receives, processes and forwards telemetry. It is not a store."
+    - text: "Nothing is wrong, because the SDK keeps traces in memory and serves them to Grafana"
+      why: "The SDK exports spans and keeps them only until they are sent."
+  answer: [1]
+  source: https://opentelemetry.io/docs/what-is-opentelemetry/
+
+- id: q-m07-002
+  tags: [otel-overview]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: "The status page lists metrics as API stable, SDK mixed, protocol stable. A team asks whether OTLP's format for metrics may still break. What does the status tell them?"
+  options:
+    - text: "The format may still break, because a signal is only stable when all its parts are"
+      why: "Status is given per part. The protocol part of metrics is stable."
+    - text: "The format may break once more, on the day the metrics SDK becomes stable"
+      why: "A stable protocol stays backward compatible. The SDK's status does not change that."
+    - text: "Its protocol is stable; 'mixed' describes the SDK, not the wire format"
+      why: "The page gives one status per part, and the metrics data model is stable in OTLP."
+    - text: "Metrics have no protocol yet, so there is no wire format that could break"
+      why: "The status page lists the metrics protocol as stable."
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/status/
+
+- id: q-m07-003
+  tags: [otel-overview]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: "Which signal has no OTLP part and no Collector part, according to the status page?"
+  options:
+    - text: "Logs"
+      why: "The logs data model is part of OTLP, and the Collector processes logs."
+    - text: "Profiles"
+      why: "Profiles have a protocol, which the page lists as in development."
+    - text: "Metrics"
+      why: "Metrics have a stable protocol and Collector support."
+    - text: "Baggage"
+      why: "Baggage only attaches keys and values to a transaction for downstream services, so it has no OTLP or Collector part."
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/status/
+
+- id: q-m07-004
+  tags: [otel-overview]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: "Your company's backend cannot receive OTLP yet. Which extension does the 'What is OpenTelemetry' page name for this case?"
+  options:
+    - text: "A custom propagator for the backend's header format"
+      why: "Propagators move context between services. They do not deliver data to a backend."
+    - text: "A new exporter that sends telemetry to that backend"
+      why: "The page names a new exporter for a custom backend that does not yet support OTLP."
+    - text: "A resource detector that finds the backend's address"
+      why: "Resource detectors describe the entity that produces telemetry, not where it goes."
+    - text: "A new semantic convention for the backend's field names"
+      why: "Conventions name the data. They do not change how it is delivered."
+  answer: [1]
+  source: https://opentelemetry.io/docs/what-is-opentelemetry/
+
+- id: q-m07-005
+  tags: [otel-api-sdk]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: "Three libraries in an application are instrumented with the OpenTelemetry API. Who decides which exporter the application uses?"
+  options:
+    - text: "Each library's author, in the library's own package"
+      why: "Library authors depend on the API only and must not reference SDK packages."
+    - text: "The application owner, when setting up the SDK"
+      why: "The SDK is installed and managed by the application owner, who uses its constructors and configures the exporters."
+    - text: "The API, which picks OTLP for every library"
+      why: "The API has no exporters. Without an SDK it records nothing."
+    - text: "The Collector, which tells each library where to send data"
+      why: "The Collector receives what the application sends. It does not configure the application."
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/overview/
+
+- id: q-m07-006
+  tags: [otel-api-sdk, otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: "A service has no SDK installed, but a propagator is configured and its libraries call the API. A request arrives with a traceparent header, and the service calls a second service. What does the second service receive?"
+  options:
+    - text: "No traceparent, because without an SDK the API drops all context"
+      why: "Without an SDK the Trace API still returns a non-recording span that carries the parent's span context."
+    - text: "A traceparent with a new trace ID, because the API starts a fresh trace"
+      why: "Without an SDK no new span contexts are created."
+    - text: "The incoming span context, carried on by a non-recording span"
+      why: "The API returns a non-recording span with the extracted span context, so it can be injected into the next call."
+    - text: "An error, because the API refuses to inject without an SDK"
+      why: "The API must not fail in the absence of an SDK."
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/trace/api/
+
+- id: q-m07-007
+  tags: [otel-api-sdk]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: "The OpenTelemetry project keeps an exporter for a popular analysis tool. It is optional and implements the SDK's exporter interface. What kind of package is it?"
+  options:
+    - text: "A Core package, because every exporter is defined by the specification"
+      why: "Only plugins the specification itself defines, such as the OTLP exporter, are Core packages."
+    - text: "API Contrib, because it is optional"
+      why: "API Contrib packages depend on the API alone. An exporter also needs the SDK."
+    - text: "Part of the API, so that libraries can call it"
+      why: "Libraries never call exporters. Exporters plug into the SDK."
+    - text: "SDK Contrib, because it is optional and depends on the SDK"
+      why: "Contrib packages that also depend on the SDK are SDK Contrib."
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/overview/
+
+- id: q-m07-008
+  tags: [otel-resources]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: "A Deployment sets <code>OTEL_RESOURCE_ATTRIBUTES=team=checkout,owners=ana,li</code>. What should a conforming SDK do?"
+  options:
+    - text: "Keep team and owners=ana, and drop the part it cannot read"
+      why: "On an error while reading the variable, the whole value should be discarded, not only one part."
+    - text: "Set owners to 'ana,li', because values may contain commas"
+      why: "Commas inside keys and values must be percent-encoded, as %2C."
+    - text: "Discard the whole variable and report an error"
+      why: "A comma inside a value must be percent-encoded, and on any error the entire value should be discarded."
+    - text: "Stop the application, because the resource is invalid"
+      why: "The specification asks for an error report, not for the application to stop."
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/resource/sdk/
+
+- id: q-m07-009
+  tags: [otel-resources]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: "A service runs on Kubernetes. The team wants the pod name on its spans without writing it in the code. Which two places can add it? (Choose two.)"
+  options:
+    - text: "A Kubernetes resource detector loaded with the SDK"
+      why: "Resource detectors read the environment at start-up, and Kubernetes is a common one."
+    - text: "The instrumentation scope of the HTTP server library"
+      why: "A scope names the code that made a span. It holds no pod details."
+    - text: "A Kubernetes attributes processor in a Collector on the way"
+      why: "The processor finds the pod that sent the data and adds its attributes to the resource."
+    - text: "Baggage from the caller, which becomes a resource attribute"
+      why: "Baggage is not turned into attributes unless code or a processor copies it, and it describes the request, not the pod."
+    - text: "A span event that the SDK adds when the pod starts"
+      why: "The SDK adds no such event, and events are not resource attributes."
+  answer: [0, 2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/k8sattributesprocessor/README.md
+
+- id: q-m07-010
+  tags: [otel-resources]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: "In a trace, the front proxy's resource shows <code>telemetry.sdk.name=envoy</code>, and checkout's shows <code>opentelemetry</code>. What does that tell you?"
+  options:
+    - text: "Envoy's own tracer made the spans, not the OpenTelemetry SDK"
+      why: "The OpenTelemetry SDK must use the value opentelemetry; any other SDK must use a name of its own."
+    - text: "The proxy runs an older version of the OpenTelemetry SDK"
+      why: "The version is in telemetry.sdk.version. The name identifies the SDK itself."
+    - text: "The Collector renamed the SDK when it forwarded the spans"
+      why: "The value comes from the producing SDK. Nothing in the lab renames it."
+    - text: "The spans failed validation and Tempo tagged them"
+      why: "Tempo stores the resource it receives. It does not tag spans this way."
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/semconv/resource/
+
+- id: q-m07-011
+  tags: [otel-resources]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: "The workshop runs on a PC and sends OTLP through the lab's Envoy gateway to the Collector. Its spans carry <code>k8s.pod.name</code> of the Envoy pod. Why?"
+  options:
+    - text: "The Python SDK detected the Envoy pod as its host"
+      why: "The workshop's SDK runs on the PC and set no Kubernetes attributes."
+    - text: "Envoy wrote its own pod name into the OTLP payload it forwarded"
+      why: "The gateway forwards the request; the attribute was added later, in the Collector."
+    - text: "The Collector matched the pod by the connection's IP address"
+      why: "Without association rules, the Kubernetes attributes processor matches the pod by the IP address of the incoming connection."
+    - text: "OTEL_RESOURCE_ATTRIBUTES on the PC listed the Envoy pod"
+      why: "The workshop's variable holds service.namespace and deployment.environment.name only."
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/k8sattributesprocessor/README.md
+
+- id: q-m07-012
+  tags: [otel-instrumentation-scope]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: "Two modules of one application both call <code>trace.get_tracer(\"shop.checkout\")</code> with no version. What do their spans show as instrumentation scope?"
+  options:
+    - text: "Two scopes, one per module, because each call creates a scope"
+      why: "A scope is identified by its name, version, schema URL and attributes, not by the call site."
+    - text: "One scope, shop.checkout, shared by both modules"
+      why: "Both tracers have the same identity, so their spans share one scope."
+    - text: "The module file names, which the SDK adds as scope attributes"
+      why: "The SDK adds no file names to the scope."
+    - text: "No scope, because a scope needs a version"
+      why: "The version is optional; only the name is required."
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/instrumentation-scope/
+
+- id: q-m07-013
+  tags: [otel-instrumentation-scope]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: "Which TraceQL query finds the spans that the library <code>github.com/XSAM/otelsql</code> created, in any service?"
+  options:
+    - text: "<code>{ resource.service.name = \"otelsql\" }</code>"
+      why: "The library is not a service. service.name names the process."
+    - text: "<code>{ span.db.system.name = \"github.com/XSAM/otelsql\" }</code>"
+      why: "db.system.name names the database product, such as postgresql."
+    - text: "<code>{ instrumentation:name = \"github.com/XSAM/otelsql\" }</code>"
+      why: "The intrinsic field instrumentation:name holds the scope name of each span."
+    - text: "<code>{ name = \"github.com/XSAM/otelsql\" }</code>"
+      why: "name is the span name, such as astronomy-db, not the scope."
+  answer: [2]
+  source: https://grafana.com/docs/tempo/latest/traceql/construct-traceql-queries/
+
+- id: q-m07-014
+  tags: [otel-instrumentation-scope]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: "Code asks the TracerProvider for a tracer with an empty name. What must the API do?"
+  options:
+    - text: "Throw an exception, so the developer fixes the name"
+      why: "The API must return a working tracer instead of throwing."
+    - text: "Return null, so the code can check for it"
+      why: "The API must not return null here."
+    - text: "Use the service.name from the resource as the scope name instead"
+      why: "The resource does not fill in a missing scope name."
+    - text: "Return a working tracer with an empty name and log a message"
+      why: "A working tracer is returned as a fallback; its name should be empty and a message should be logged."
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/trace/api/
+
+- id: q-m07-015
+  tags: [otel-spans]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: "A Go handler receives a gRPC call and, inside it, runs a query on its database server. Which kinds should the two spans have?"
+  options:
+    - text: "Server for the incoming call, client for the database query"
+      why: "Server spans handle incoming calls; a call to a database is an outgoing call that waits for the answer."
+    - text: "Server for both, because both run inside the server process"
+      why: "The kind describes the relation to another process, not where the code runs."
+    - text: "Internal for both, because no message queue is involved"
+      why: "Internal is for work with no remote side. Both operations have one."
+    - text: "Consumer for the call and producer for the query"
+      why: "Producer and consumer are for deferred work, where the caller does not wait."
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/trace/api/
+
+- id: q-m07-016
+  tags: [otel-spans]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: "Code sets a span's status to Error with the description 'timeout'. A later line sets the status to Unset. What status does the span end with?"
+  options:
+    - text: "Unset, because the last call to set a status wins"
+      why: "An attempt to set Unset should be ignored."
+    - text: "Ok, because Unset after Error means it recovered"
+      why: "Nothing turns Unset into Ok."
+    - text: "Error with 'timeout'; the attempt to set Unset is ignored"
+      why: "The status code should remain as it is; an attempt to set Unset should be ignored."
+    - text: "Unset with the description timeout"
+      why: "A description goes only with Error, and Unset is not applied."
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/trace/api/
+
+- id: q-m07-017
+  tags: [otel-spans]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: "A tool shows a span ID with 32 hexadecimal characters. What is wrong?"
+  options:
+    - text: "Nothing: span IDs and trace IDs have the same length"
+      why: "A trace ID has 16 bytes, a span ID 8."
+    - text: "The tool added the trace flags to the span ID"
+      why: "Trace flags are one byte, two characters, and are kept apart from the ID."
+    - text: "A span ID has 8 bytes, 16 characters; 32 is a trace ID's length"
+      why: "The span ID is made of 8 random bytes and the trace ID of 16."
+    - text: "The span ID was taken from tracestate, where IDs are longer"
+      why: "tracestate holds vendor key-value pairs, not the span ID."
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/overview/
+
+- id: q-m07-018
+  tags: [otel-spans]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: "A developer sets a span's status to Ok with the description 'all good'. What does the API do with the description?"
+  options:
+    - text: "It stores it, so the backend shows it next to Ok"
+      why: "A description must only be used with Error."
+    - text: "It turns the status into Error, because only errors have descriptions"
+      why: "The status stays Ok; only the description is dropped."
+    - text: "It moves the description into an attribute named status.description"
+      why: "No such attribute is made."
+    - text: "It ignores it: a description goes only with Error"
+      why: "The description must be ignored for the Ok and Unset codes."
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/trace/api/
+
+- id: q-m07-019
+  tags: [otel-spans, semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: "The semantic convention page for exceptions on spans has the status Deprecated. Where does it send you instead?"
+  options:
+    - text: "To the conventions for exceptions in logs"
+      why: "The page says to use the semantic conventions for exceptions in logs instead."
+    - text: "To span links that point to an error span"
+      why: "Links relate spans; they are not how exceptions are recorded."
+    - text: "To the span status description alone"
+      why: "The description is a short message, not a replacement for the exception record."
+    - text: "To metrics that count exceptions per service"
+      why: "The page does not point to metrics."
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/
+
+- id: q-m07-020
+  tags: [otel-spans]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: "A loop adds 200 events to one span, with the SDK's default limits. How many events does the span keep?"
+  options:
+    - text: "All 200, because events have no limit"
+      why: "Events have a default limit, OTEL_SPAN_EVENT_COUNT_LIMIT."
+    - text: "128, the default limit; the rest are dropped"
+      why: "The default limit is 128 events, and the message is printed at most once per span."
+    - text: "64, half of the default limit for attributes"
+      why: "The event limit is its own setting, also 128 by default."
+    - text: "None, because the span is dropped when it goes over a limit"
+      why: "Only the events over the limit are discarded."
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+
+- id: q-m07-021
+  tags: [otel-sampling, otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: "A service runs the default sampler. A request arrives with <code>traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00</code>. What happens to the service's server span?"
+  options:
+    - text: "It is sampled, because the default sampler is AlwaysOn"
+      why: "The default is ParentBased, with AlwaysOn only for root spans."
+    - text: "Not sampled: ParentBased follows the flag 00"
+      why: "For a remote parent that was not sampled, ParentBased calls AlwaysOff by default."
+    - text: "It is sampled with probability one half, as the default ratio"
+      why: "No ratio applies by default."
+    - text: "It starts a new trace, because the flags make the header invalid"
+      why: "Flags 00 are valid; they only say the caller did not sample."
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+
+- id: q-m07-022
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: "Python code calls <code>token = context.attach(ctx)</code> to make a context with baggage current. Why must it call <code>context.detach(token)</code> afterwards?"
+  options:
+    - text: "To send the baggage on to the next service"
+      why: "Inject sends it. Detach only changes what is current."
+    - text: "To restore the previous context for the code that follows"
+      why: "Every attach should be followed by a detach, which restores the context that was current before."
+    - text: "To free the baggage, which would otherwise be exported as attributes"
+      why: "Baggage is never exported as attributes unless code or a processor copies it."
+    - text: "To end the current span and send it to the exporter"
+      why: "Ending a span is a separate call; detach does not end spans."
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/context/
+
+- id: q-m07-023
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: "A request carries <code>traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01</code>. What must the receiver do with it?"
+  options:
+    - text: "Accept it and start a span with no parent"
+      why: "A parent ID of all zeros is invalid, so the trace ID is not used either."
+    - text: "Replace the zeros with a new span ID and go on"
+      why: "A receiver does not repair an invalid header."
+    - text: "Reject the whole request with an HTTP 400 answer"
+      why: "Tracing rules decide about the header, not about the request."
+    - text: "Ignore the header: a parent ID of all zeros is invalid"
+      why: "The W3C Recommendation says vendors must ignore traceparent when the parent ID is invalid."
+  answer: [3]
+  source: https://www.w3.org/TR/trace-context/
+
+- id: q-m07-024
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O2, competency: Context Propagation}
+  q: "Service A puts <code>tenant=acme</code> into baggage. Service B, in the middle, runs OpenTelemetry instrumentation with default propagators and never touches baggage. Does service C, after B, receive the entry?"
+  options:
+    - text: "Yes: instrumentations propagate baggage with the context"
+      why: "Baggage travels with the context, and instrumentations propagate it automatically."
+    - text: "No, because B must copy every baggage entry by hand"
+      why: "B's instrumentation passes the entries on without code."
+    - text: "No, because baggage reaches only the first service after the one that set it"
+      why: "Baggage goes to every service downstream while the context is propagated."
+    - text: "Only if B adds the entry as a span attribute first"
+      why: "Attributes and baggage are separate. An attribute is not propagated."
+  answer: [0]
+  source: https://opentelemetry.io/docs/concepts/signals/baggage/
+
+- id: q-m07-025
+  tags: [otel-context-propagation]
+  exam: {cert: otca, domain: O4, competency: Context Propagation}
+  q: "After a change, the workshop's calls to the shop appear in separate traces. The requests instrumentation is disabled, and the code now calls <code>requests.get(url)</code> with no headers. What fixes it?"
+  options:
+    - text: "Set OTEL_PROPAGATORS=tracecontext,baggage in workshop.env"
+      why: "The propagators are already the default; nothing calls them."
+    - text: "Switch the shop's services over to the B3 propagation format"
+      why: "The shop reads W3C headers. The problem is that none are sent."
+    - text: "Make a client span and inject the context into the request's headers"
+      why: "With no instrumentation, the code must make the client span and inject the context into the request itself."
+    - text: "Raise the sampler ratio so that the shop's spans are kept"
+      why: "Sampling does not join traces; propagation does."
+  answer: [2]
+  source: https://opentelemetry.io/docs/languages/python/propagation/
+
+- id: q-m07-026
+  tags: [otel-zero-code, semantic-conventions]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: "A Python service under opentelemetry-instrument sends database spans with <code>db.statement</code>. The team's queries use <code>db.query.text</code>. What should they set?"
+  options:
+    - text: "<code>OTEL_SEMCONV_STABILITY_OPT_IN=database</code>"
+      why: "With database, the instrumentations emit the stable database conventions and stop emitting the old ones."
+    - text: "<code>OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=sqlite3</code>"
+      why: "That removes the database spans instead of renaming their attributes."
+    - text: "<code>OTEL_RESOURCE_ATTRIBUTES=db.query.text=true</code>"
+      why: "Resource attributes describe the service, not the names a library uses."
+    - text: "<code>OTEL_TRACES_EXPORTER=database</code>"
+      why: "That variable picks an exporter, and database is not one."
+  answer: [0]
+  source: https://opentelemetry.io/docs/languages/python/instrumentation/
+
+- id: q-m07-027
+  tags: [otel-zero-code]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: "The Python agent instruments the service's redis client, and the team does not want those spans. Which setting removes them and keeps the rest?"
+  options:
+    - text: "<code>OTEL_TRACES_EXPORTER=none</code>"
+      why: "That stops all trace export, not only the redis spans."
+    - text: "<code>OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=redis</code>"
+      why: "The variable lists instrumentation entry points the agent must not load."
+    - text: "<code>OTEL_PYTHON_REQUESTS_EXCLUDED_URLS=redis</code>"
+      why: "That excludes URLs from HTTP instrumentations; it does not unload redis."
+    - text: "<code>OTEL_TRACES_SAMPLER=always_off</code>"
+      why: "That drops every span of the service."
+  answer: [1]
+  source: https://opentelemetry.io/docs/zero-code/python/configuration/
+
+- id: q-m07-028
+  tags: [otel-zero-code]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: "A colleague starts a service with <code>opentelemetry-instrument --exporter_otlp_endpoint http://collector:4318 python app.py</code>. You must move this setting into the Deployment's environment. Which variable is it?"
+  options:
+    - text: "<code>EXPORTER_OTLP_ENDPOINT</code>"
+      why: "The variable needs the OTEL_ prefix."
+    - text: "<code>OTEL_PYTHON_EXPORTER_OTLP_ENDPOINT</code>"
+      why: "The OTEL_PYTHON_ prefix is for Python-specific options only."
+    - text: "<code>OTEL_EXPORTER_OTLP_ENDPOINT</code>"
+      why: "Write the option in upper case and put OTEL_ in front."
+    - text: "<code>OTEL_COLLECTOR_ENDPOINT</code>"
+      why: "No such standard variable exists."
+  answer: [2]
+  source: https://opentelemetry.io/docs/zero-code/python/configuration/
+
+- id: q-m07-029
+  tags: [otel-sampling]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: "Two services start their own traces with TraceIdRatioBased: one at 0.1, one at 0.5, in the same SDK. Which statement about one trace ID holds?"
+  options:
+    - text: "The two decisions are independent random draws"
+      why: "The decision is a deterministic hash of the trace ID, not a random draw."
+    - text: "A trace ID kept at 0.5 is always kept at 0.1 too"
+      why: "It is the other way round: the lower ratio keeps a subset."
+    - text: "A trace ID kept at 0.1 is always kept at 0.5 too"
+      why: "A ratio sampler with a higher ratio must sample every trace that a lower ratio samples."
+    - text: "No trace ID can be kept by both"
+      why: "The kept sets overlap: the lower ratio's set lies inside the higher one's."
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+
+- id: q-m07-030
+  tags: [otel-sampling]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: "A team wants to keep every trace that contains an error, and 5% of the others. Can a sampler in the SDK do this?"
+  options:
+    - text: "Yes, with parentbased_traceidratio and an argument of 0.05"
+      why: "That keeps 5% of all traces, errors included or not."
+    - text: "Yes, if the code sets error attributes when the span starts"
+      why: "Errors happen later in the trace, often in other services, after the decision."
+    - text: "No: a head sampler decides before errors are known"
+      why: "Head sampling cannot ensure that all traces with an error are kept; that needs tail sampling."
+    - text: "No, because SDK samplers cannot read span attributes"
+      why: "Samplers can read the attributes given at creation; the problem is the timing."
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/sampling/
+
+- id: q-m07-031
+  tags: [otel-sampling]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: "What does the trace SDK specification say about TraceIdRatioBased today?"
+  options:
+    - text: "It is removed, and SDKs must reject the traceidratio setting"
+      why: "SDKs must keep it unchanged until at least January 1, 2027."
+    - text: "Deprecated in favour of ProbabilitySampler; kept unchanged until 2027"
+      why: "The page deprecates it in favour of the composable ProbabilitySampler and forbids changing it before January 1, 2027."
+    - text: "It is the default sampler for root spans in every SDK"
+      why: "The default for root spans is AlwaysOn inside ParentBased."
+    - text: "It is stable and recommended as the only sampler of a service"
+      why: "The page recommends it only for root spans, inside ParentBased."
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+
+- id: q-m07-032
+  tags: [otel-sdk-pipeline]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: "A custom span processor sets an attribute in OnEnd, but the attribute never reaches the backend. Why?"
+  options:
+    - text: "In OnEnd the span has ended and may not be changed"
+      why: "OnEnd receives a span that is already ended, and modifying it is not allowed."
+    - text: "OnEnd runs only for spans that were not sampled"
+      why: "OnEnd runs for every recording span."
+    - text: "Attributes set by processors are dropped by the exporter"
+      why: "Exporters send what the span holds; they do not filter processor attributes."
+    - text: "Processors may only add events, not attributes"
+      why: "In OnStart a processor gets a read and write span and can add attributes."
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+
+- id: q-m07-033
+  tags: [otel-sdk-pipeline]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: "A team sets <code>OTEL_BSP_SCHEDULE_DELAY=1000</code>. What changes in the batch span processor?"
+  options:
+    - text: "Each batch holds at most 1000 spans"
+      why: "The batch size is OTEL_BSP_MAX_EXPORT_BATCH_SIZE."
+    - text: "An export may take up to 1000 milliseconds before it is cancelled"
+      why: "That is OTEL_BSP_EXPORT_TIMEOUT."
+    - text: "The queue holds 1000 spans before it drops new ones"
+      why: "That is OTEL_BSP_MAX_QUEUE_SIZE."
+    - text: "Exports happen at most one second apart, not five"
+      why: "The schedule delay is the interval between exports, 5000 milliseconds by default."
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+
+- id: q-m07-034
+  tags: [otel-sdk-pipeline, otel-sampling]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: "A processor counts spans in OnStart. The service uses parentbased_traceidratio with 0.2, and the count is far below the number of requests. Why?"
+  options:
+    - text: "OnStart runs only for the root span of each trace"
+      why: "OnStart runs for every recording span, root or not."
+    - text: "The batch processor runs first and removes spans"
+      why: "Processors run in registration order, and none removes spans from another."
+    - text: "Spans the sampler dropped never reach a processor"
+      why: "Processors receive only spans whose IsRecording is true, and dropped spans are not recording."
+    - text: "OnStart is called only after the exporter succeeds"
+      why: "OnStart is called when the span starts, before any export."
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+
+- id: q-m07-035
+  tags: [semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: "A database span has <code>db.query.summary</code> set to <code>SELECT orders</code>, <code>db.operation.name</code> set to <code>SELECT</code> and <code>db.collection.name</code> set to <code>shop.orders</code>. What should the span be named?"
+  options:
+    - text: "SELECT shop.orders"
+      why: "Operation and target are used only when no summary is available."
+    - text: "SELECT orders"
+      why: "When a query summary is available, the span name is the summary."
+    - text: "SELECT"
+      why: "The operation alone is not a rule of the conventions when better names exist."
+    - text: "postgresql"
+      why: "The system name is used only when nothing better is known."
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/semconv/db/database-spans/
+
+- id: q-m07-036
+  tags: [semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: "A consumer calls <code>poll()</code> to pull messages from a queue. Which span kind do the messaging conventions give the receive span?"
+  options:
+    - text: "Consumer, because it receives messages"
+      why: "Consumer is the kind of a process span. A receive span is a request the code makes."
+    - text: "Producer, because the queue produces the messages"
+      why: "Producer is for creating or sending messages."
+    - text: "Server, because the queue sends data to the application"
+      why: "The application asks for the messages and waits; it is not serving a request."
+    - text: "Client, because the application asks and waits"
+      why: "The messaging conventions give the receive operation the client kind."
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/
+
+- id: q-m07-037
+  tags: [semantic-conventions]
+  exam: {cert: otca, domain: O1, competency: Semantic Conventions}
+  q: "The workshop's client span for a call to the shop receives a 404. By the HTTP conventions, what status should the client span have?"
+  options:
+    - text: "Unset, because a 4xx is the client's own mistake"
+      why: "Unset for a 4xx applies to server spans."
+    - text: "Ok, because the server answered"
+      why: "Instrumentation should not set Ok."
+    - text: "Error, because the client span got a 4xx answer"
+      why: "For 4xx codes the status should be Error on a client span and left Unset on a server span."
+    - text: "Unset, because only network failures are errors"
+      why: "4xx and 5xx answers on a client span should be errors."
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/semconv/http/http-spans/

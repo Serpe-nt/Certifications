@@ -1,0 +1,111 @@
+---
+id: m07-s02
+title: "API and SDK: why two layers"
+kind: concept
+minutes: 10
+order: 2
+exam:
+  - cert: otca
+    domain: O2
+    competency: Composability and Extension
+tags: [otel-api-sdk]
+outcome: You can say which package a library and an application each depend on, what the API does when no SDK is installed, and who configures the SDK.
+terms:
+  - term: No-op implementation
+    def: The minimal implementation inside the API. It returns valid objects and records nothing.
+  - term: Application owner
+    def: Whoever builds and runs the final program. They choose, install and configure the SDK.
+  - term: Plugin
+    def: A part that the SDK loads through its plugin interfaces, such as an exporter or a propagator.
+  - term: Contrib package
+    def: An optional plugin or instrumentation package kept by the OpenTelemetry project, separate from the SDK.
+sources:
+  - title: Overview, API, SDK and Contrib packages (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/overview/
+    checked: 2026-11-13
+  - title: OpenTelemetry client design principles (specification)
+    url: https://opentelemetry.io/docs/specs/otel/library-guidelines/
+    checked: 2026-11-13
+  - title: Tracing API, behavior without an installed SDK (specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/api/
+    checked: 2026-11-13
+  - title: Baggage API (specification)
+    url: https://opentelemetry.io/docs/specs/otel/baggage/api/
+    checked: 2026-11-13
+  - title: Instrumentation for OpenTelemetry Python
+    url: https://opentelemetry.io/docs/languages/python/instrumentation/
+    checked: 2026-11-13
+---
+
+<Problem>
+You maintain a database client that forty teams use. You want it to create a span for every query. If your package brings an SDK, an exporter and a network address with it, every team gets telemetry it did not ask for, and two libraries can pull in two different SDK versions. Teams that do not use OpenTelemetry at all would pay for it.
+</Problem>
+
+OpenTelemetry solves this by splitting each language client into two layers that ship as separate packages.
+
+<Idea>
+The API is what code calls to create telemetry; the SDK is what records, processes and exports it. A library depends on the API only, and the application owner decides whether to install and configure an SDK. Without an SDK, the API calls do nothing, at almost no cost, so an instrumented library works the same in an application that does not use OpenTelemetry.
+</Idea>
+
+## Who imports what
+
+The specification draws the line by who imports the package. The API holds the public interfaces that third-party libraries and application code import. The SDK is the implementation of the API, and inside one application it is installed and managed by the application owner. The specification states it as a rule: instrumentation authors must not reference any SDK package, only the API. To make that possible, the API and the SDK must ship as separate artifacts.
+
+<Compare caption="What each kind of author depends on">
+  <Col title="Library or instrumentation author" hot>The API only. Calls create spans; the author never knows which SDK runs behind them.</Col>
+  <Col title="Application owner">The API and the SDK, plus the exporters and other plugins the application needs, configured in code or by environment variables.</Col>
+</Compare>
+
+The SDK also has public interfaces of its own that are not part of the API, because they are not shared across libraries. There are two kinds. Constructors build and configure the SDK, and application owners use them. Plugin interfaces let others add parts, such as a new exporter, and plugin authors implement them.
+
+## The API alone does nothing, safely
+
+The API package contains a minimal implementation. When no SDK is installed, the application still builds and runs, and no telemetry is delivered anywhere. The objects this minimal implementation returns are valid: a call that starts a span returns a span object, not null, so the library needs no extra checks. And it should cost as little as possible, so users who never turn OpenTelemetry on are not slowed down.
+
+There is one exception to "does nothing". Without an SDK, the Trace API still passes on a span context it receives. If a configured propagator extracted a context from an incoming request, the API returns a non-recording span that carries that context, so it can still be injected into the next call. It creates no new span contexts. The Baggage API goes further: it must work fully without an SDK, so that baggage can cross processes even where nothing is recorded.
+
+<Flow caption="One call from a library, with and without an SDK">
+  <Stage title="Library code" kicker="API call">start a span named "query"</Stage>
+  <Stage title="No SDK installed" kicker="Minimal implementation">A valid, non-recording span; nothing is exported.</Stage>
+  <Stage title="SDK installed" kicker="Implementation">The span is recorded, processed and exported.</Stage>
+</Flow>
+
+## The application turns it on
+
+To get telemetry, the application takes a dependency on the SDK and configures exporters and other plugins, so the data reaches a backend. The SDK replaces the minimal implementation in a way that differs by language. The Python page puts it plainly: an application uses the SDK to set OpenTelemetry up and the API to instrument its code; a library installs only the API package and emits nothing on its own until it runs inside an application with an SDK.
+
+The two layers also have their own version numbers. A release of an SDK states which version of the specification it implements, and which API version it works with when that matters.
+
+Around the SDK sit the Contrib packages: optional plugins and instrumentation kept by the OpenTelemetry project, separate from the SDK. A Contrib package that depends only on the API, such as an instrumentation library, is API Contrib; one that also needs the SDK, such as an exporter for a backend, is SDK Contrib. Plugins that the specification itself defines, such as the OTLP exporter and the W3C Trace Context propagator, are Core packages, not Contrib.
+
+<InLab>
+In step 8 you add spans to the workshop service with `from opentelemetry import trace`, which is the API. The SDK, the exporter and the sampler come from the agent `opentelemetry-instrument` that step 7 puts in front of the service. The code never names them.
+</InLab>
+
+<Trap>
+Installing the API package in an application does not produce telemetry. Without an SDK every span is a no-op, and no error tells you so.
+</Trap>
+
+<Remember>
+Libraries depend on the API; the application owner installs and configures the SDK. Without an SDK the API is a cheap no-op that still passes on a context it was given.
+</Remember>
+
+<Question id="q-m07-s02" answer="a">
+You write a shared HTTP client library that forty services use, and you want it to create a span for every request. Which OpenTelemetry package should the library depend on?
+
+- The OpenTelemetry API package only, nothing else
+
+  Instrumentation must depend on the API only, so the application owner can choose the SDK or none at all.
+
+- The SDK and an OTLP exporter, so spans reach a backend
+
+  Choosing the SDK and the exporter is the application owner's job. A library must not reference SDK packages.
+
+- The SDK only, because the API has no implementation
+
+  The API has a minimal no-op implementation, so a library can call it whether or not an SDK is present.
+
+- The OpenTelemetry Collector, which receives the spans
+
+  The Collector is a separate program that receives telemetry. A library does not link against it.
+</Question>

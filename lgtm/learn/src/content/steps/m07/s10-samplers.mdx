@@ -1,0 +1,122 @@
+---
+id: m07-s10
+title: "Samplers: always on, ratio, parent-based"
+kind: concept
+minutes: 14
+order: 10
+exam:
+  - cert: otca
+    domain: O2
+    competency: SDK Pipelines
+  - cert: otca
+    domain: O2
+    competency: Configuration
+tags: [otel-sampling]
+outcome: You can explain head sampling, choose and configure the built-in samplers, and predict what a service does with a parent that was or was not sampled.
+terms:
+  - term: Head sampling
+    def: Deciding whether to keep a trace when its spans are created, without looking at the whole trace.
+  - term: Sampler
+    def: The SDK component that decides, for each new span, whether it is dropped, only recorded, or recorded and sampled.
+  - term: Sampled
+    def: Chosen by the sampler, so the span is processed and exported.
+  - term: ParentBased
+    def: A sampler that follows the parent's sampled flag, and asks another sampler only for root spans.
+  - term: TraceIdRatioBased
+    def: A sampler that keeps a fixed share of traces, decided from the trace ID.
+sources:
+  - title: Sampling (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/sampling/
+    checked: 2026-11-13
+  - title: Tracing SDK, sampling and built-in samplers (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+    checked: 2026-11-13
+  - title: Environment variable specification, OTEL_TRACES_SAMPLER
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-13
+  - title: Tracing API, IsRecording (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/api/
+    checked: 2026-11-13
+---
+
+<Problem>
+Your shop makes two thousand traces a second. Nearly all of them are healthy and look the same, and storing every one costs more than the team's budget for the backend. You need fewer traces, but whole ones: a trace with half its spans missing is worse than none.
+</Problem>
+
+<Idea>
+A sampler in the SDK decides, when a span is created, whether it is recorded and exported. The decision goes into the sampled flag of the span context, travels to the next services, and a parent-based sampler there follows it, so a trace is kept or dropped as a whole. The default is ParentBased with AlwaysOn for root spans: every trace that starts here is kept, and a child follows its parent's flag.
+</Idea>
+
+## Head sampling decides at the start
+
+Sampling keeps a representative part of the traces to cut cost. A sampled trace or span is one the sampler chose: it is processed and exported. Not sampled means it is not. The concepts page suggests sampling when you produce about 1,000 traces a second or more, or when most traces show healthy traffic with little variation, and not when you produce only tens of small traces a second.
+
+A sampler in the SDK does head sampling: the decision is made as early as possible, without seeing the rest of the trace. The common form decides from the trace ID and a percentage, so every service that sees the same trace ID can reach the same decision. Head sampling is easy to understand, to configure and to run. Its limit is that it cannot keep all traces that will contain an error, because nobody knows that at the start. Deciding after the whole trace is seen is tail sampling, done in a Collector; module m09 covers it.
+
+## What a sampler sees, and what it answers
+
+The SDK asks the sampler before it creates a span. The sampler gets the parent context, the trace ID, the span's name and kind, the attributes given at creation and the links given at creation. It cannot see anything added later, which is why step 5 asked for attributes at creation.
+
+It answers with one of three decisions:
+
+<Compare caption="The three sampling decisions">
+  <Col title="DROP">Not recording, not sampled. Attributes and events are thrown away; no processor sees the span.</Col>
+  <Col title="RECORD_ONLY">Recording but not sampled. Span processors see it, exporters do not.</Col>
+  <Col title="RECORD_AND_SAMPLE" hot>Recording and sampled. Processors and exporters see it, and the sampled flag goes to the children.</Col>
+</Compare>
+
+Code can ask a span whether it is recording, and skip expensive work, such as building a large attribute, when it is not.
+
+## The built-in samplers
+
+AlwaysOn samples every span. AlwaysOff samples none. TraceIdRatioBased samples a fixed share of traces, decided from a deterministic hash of the trace ID; a sampler with a higher ratio keeps every trace that a lower ratio keeps, plus more. It ignores the parent's sampled flag.
+
+ParentBased wraps other samplers. For a root span it calls the sampler you give it as `root`. For a span with a parent it follows the parent's flag: by default AlwaysOn when the parent was sampled and AlwaysOff when it was not, the same whether the parent is remote or local. Each of these four cases can be given another sampler.
+
+These four are the samplers to know. The specification lists more: ProbabilitySampler and CompositeSampler, with its composable samplers, are marked Development; JaegerRemoteSampler, which loads its settings from a backend, and AlwaysRecord, which turns DROP into RECORD_ONLY, carry no status of their own on the page.
+
+The specification has deprecated TraceIdRatioBased in favour of a newer ProbabilitySampler, whose status is Development. SDKs must not remove or change TraceIdRatioBased before January 1, 2027, and the specification recommends using it only for root spans, inside ParentBased, because its exact algorithm was never specified and two SDKs may decide differently for the same trace ID.
+
+<Flow caption="ParentBased(root=TraceIdRatioBased(0.1)) at one service">
+  <Stage title="No parent" kicker="Root span">The ratio decides: about 1 trace in 10 is sampled.</Stage>
+  <Stage title="Parent sampled" kicker="Child span">Follows the parent: sampled.</Stage>
+  <Stage title="Parent not sampled" kicker="Child span">Follows the parent: dropped.</Stage>
+</Flow>
+
+## Choosing a sampler with environment variables
+
+`OTEL_TRACES_SAMPLER` picks the sampler. Its default is `parentbased_always_on`. Other values include `always_on`, `always_off`, `traceidratio`, `parentbased_always_off` and `parentbased_traceidratio`. `OTEL_TRACES_SAMPLER_ARG` gives the ratio for the two ratio samplers, a number from 0 to 1, with 1.0 when it is not set. An argument the sampler cannot use is logged and then ignored, as if it were not set.
+
+So `OTEL_TRACES_SAMPLER=parentbased_traceidratio` with `OTEL_TRACES_SAMPLER_ARG=0.25` keeps about a quarter of the traces that start at this service, and follows the caller's decision for the rest.
+
+<InLab>
+Neither the shop nor the workshop sets `OTEL_TRACES_SAMPLER`, so their SDKs run the default, ParentBased with AlwaysOn, and every trace reaches Tempo. The beacon chooses its sampler in code instead: its Go SDK is built with `sdktrace.AlwaysSample()`, which is AlwaysOn.
+</InLab>
+
+<Trap>
+Set the ratio sampler as the root of ParentBased, not alone. Plain `traceidratio` ignores the caller's flag, so a service further down may drop spans of traces that the first service kept, and traces arrive with holes.
+</Trap>
+
+<Remember>
+Default: ParentBased with AlwaysOn at the root. For fewer traces, `parentbased_traceidratio` and a ratio in `OTEL_TRACES_SAMPLER_ARG`. Head sampling cannot pick the traces with errors; that needs tail sampling.
+</Remember>
+
+<Question id="q-m07-s10" answer="d">
+The frontend runs the default sampler. The order service behind it sets `OTEL_TRACES_SAMPLER=traceidratio` and `OTEL_TRACES_SAMPLER_ARG=0.1`. What happens to traces that the frontend sampled?
+
+- The order service follows the frontend's flag, so they are complete
+
+  Plain traceidratio ignores the parent's sampled flag; only ParentBased follows it.
+
+- The order service samples none of them, because a ratio sampler drops spans with a remote parent
+
+  The ratio sampler does not look at the parent at all. It decides by the trace ID.
+
+- The order service raises its ratio to 1.0, because the parent was sampled
+
+  No sampler changes its ratio at run time because of a parent.
+
+- It keeps about one in ten of them, so most lack its spans
+
+  TraceIdRatioBased ignores the parent's flag and decides by the trace ID alone, which leaves holes in traces the frontend kept.
+</Question>
