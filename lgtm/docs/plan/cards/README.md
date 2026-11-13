@@ -114,5 +114,7 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 7 | `w7-c7-otel-metrics-logs-config.md` | C7 module m08 OpenTelemetry: metrics, logs and configuration |
 | 7 | `w7-c8-otel-collector.md` | C8 module m09 OpenTelemetry Collector |
 | before 8 | `w8-l6-lab-v3.md` | L6 lab version 3: one master, 8 GB workers, defects fixed, rebuilt with the owner |
+| before 8 | `w8-w1-new-shape-and-checks.md` | W1 modules m00 to m06 follow the new lab; every lab check run again |
+| before 8 | `w8-w2-otel-walk.md` | W2 the unverified actions of m07, m08 and m09, walked with the owner |
 
 Cards for wave 8 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.

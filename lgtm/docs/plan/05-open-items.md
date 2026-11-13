@@ -8,7 +8,6 @@ The text is written and its facts are checked, but these actions were not done a
 
 | Module | What is unverified |
 |---|---|
-| m01 Helm | Step 18: sign in to Grafana, open a Shop dashboard, place an order. |
 | m07 OpenTelemetry tracing | Every Grafana click of steps 3 to 9 and 12 (the data was read from Tempo's API instead). Step 5: the token check in the site (the token was read from Tempo, not entered with the lab seed). |
 | m08 OpenTelemetry metrics, logs, configuration | The Grafana Explore clicks of steps 4, 6, 8 and 12, and the link from a log line to its trace in step 6 (the same queries ran through the APIs). |
 | m09 OpenTelemetry Collector | Everything in the cluster: the practice Collector in `learn-m09` (steps 5, 6, 8, 12, 13), the fault flag `emitRawPii` in step 6 (never switched on, so "the raw value does not reach Loki or Tempo" is untested), the Grafana clicks of step 11. Every configuration was validated and run locally in the contrib 0.165.0 image. Two things to look at during the walk: in a local run the span metrics connector reported `calls` as 0 while its duration histogram counted every span (step 8), and step 13 assumes a rolling update of one replica keeps the old pod while the new one fails. |
@@ -24,17 +23,19 @@ The text is written and its facts are checked, but these actions were not done a
 | `lgtm/lab/workshop/.venv` is not git-ignored | found 2026-11-13 | |
 | The workers are close to their memory limit | 2026-11-12 | worker1 at 85 to 87% in use, worker2 at 90% of memory requested. Wave 7 put nothing in the cluster for that reason. Card L6 answers it: one master instead of three, workers at 8 GB instead of 6 (the owner's decision of 2026-11-13). |
 
-Card L6 (`cards/w8-l6-lab-v3.md`) takes all five rows and rebuilds the lab.
+Card L6 (`cards/w8-l6-lab-v3.md`) takes all five rows. Its part 1 is merged (pull request 67): the broker advertises a name with its namespace, RustFS is pinned to 1.0.5 (upstream issue 9145 describes the retention; the limit stays at 1536Mi so the rebuild shows whether 1.0.5 holds; the fallback is a scheduled restart), and `run.py` stops the service on Ctrl+C on Windows. They count as fixed when the rebuilt lab shows it (part 2).
 
 ## What the walk needs from the owner
 
 Asked of each worker on 2026-11-13. The walk runs on the rebuilt lab, after card L6.
 
-- A Grafana sign-in in the browser pane of the session that walks: m01 steps 18 and 19, m04 step 13, m06 steps 6, 8 and 12, m07 steps 3 to 9 and 12, m08 steps 4, 6, 8 and 12, m09 steps 6 and 11.
+- Done on 2026-11-13, each in its own worker's session after the owner signed in there: m01 steps 18 and 19 (pull request 65) and steps 16 and 17 (68), m04 step 13 (66), m06 steps 6, 8 and 12 (64).
+- A Grafana sign-in in the browser pane of the session that walks: m07 steps 3 to 9 and 12, m08 steps 4, 6, 8 and 12, m09 steps 6 and 11 (card W2), and the checks of m05 (card W1).
 - A go-ahead, said in that session, to create and delete `learn-m09` and to switch the flag `emitRawPii` on for a few minutes.
 - The lab seed in the site's settings, for the token check of m07 step 5 (the rebuild makes a new seed).
 - Left alone on purpose: `make reset` (m01 step 20), pushing a delta metric into Mimir (m08), changing a lab release to settle four inferences of m06, editing WSL's `/etc/hosts` for a Ctrl+C test (m07).
-- Small defects the answers showed: the m04 log lacks the unverified row for step 13's Grafana clicks; two notes in the m01 log still say Kafka must be fixed first.
+
+Two cards follow the rebuild: W1 (`cards/w8-w1-new-shape-and-checks.md`) corrects m00 to m06 for the new shape and runs every lab check of those modules again; W2 (`cards/w8-w2-otel-walk.md`) walks m07 to m09.
 
 The new lab shape also changes lesson text and check answers: m00 (five steps, with the checks "8 VMs" and "3 etcd pods"), m04 (step 11's check and a few lines), m05 (step 2's check), m06 (a few lines and one question).
 

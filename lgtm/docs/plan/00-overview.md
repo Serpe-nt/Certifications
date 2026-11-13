@@ -183,7 +183,8 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | 6 | C5 Kubernetes monitoring | module m06 | 12 steps on where cluster metrics and logs come from |
 | 7 | C6, C7, C8 | modules m07, m08, m09 | OpenTelemetry: the model and tracing; metrics, logs and configuration; the Collector |
 | before 8 | L6 lab version 3 | `lgtm/lab/**` | One master and 8 GB workers; the gateway's Kafka scrape, the object store's memory and the workshop on Windows fixed; the lab rebuilt from nothing with the owner and accepted |
-| before 8 | W1 walk and topology fix | the verification logs and the steps a walk or the new shape changes | Every lesson action still marked unverified is walked on the rebuilt lab with the owner signed in; m00, m04, m05 and m06 follow the new node counts |
+| before 8 | W1 the lessons follow the new lab | modules m00 to m06, where the new shape or a failed check requires it | m00 builds the lab a learner now builds; every lab check of m00 to m06 is run again on the rebuilt lab |
+| before 8 | W2 walk of the OpenTelemetry modules | modules m07 to m09, where the walk shows a step wrong | Every action still marked unverified is done as a learner does it, with the owner signed in to Grafana and a go-ahead for `learn-m09` |
 | 8 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
 | 8 to 10 | C9 to C16 content | one module each | Modules m10 to m17, three sessions at a time, in order |
 | 11 | C17 capstone | module m18 | Game days, interview bank, the exam steps (the mock pools exist since wave 4) |
