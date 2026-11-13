@@ -1,0 +1,111 @@
+---
+id: m09-s01
+title: "Why a Collector: the agent and gateway patterns"
+kind: concept
+minutes: 12
+order: 1
+exam:
+  - cert: otca
+    domain: O3
+    competency: Deployment
+tags: [collector-deployment]
+outcome: You can say what a Collector takes off an application's hands, and choose between no Collector, an agent and a gateway for a given setup.
+terms:
+  - term: OpenTelemetry Collector
+    def: A program that receives telemetry, processes it and exports it to one or more backends.
+  - term: Agent pattern
+    def: A Collector runs next to the application, as a sidecar in its pod or as a DaemonSet pod on its node.
+  - term: Gateway pattern
+    def: Applications and agents send OTLP to one central endpoint, served by one or more Collector replicas.
+  - term: Agent-to-gateway
+    def: Both patterns at once. Small agents on every host forward to a central gateway tier.
+sources:
+  - title: Collector (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/
+    checked: 2026-11-13
+  - title: Architecture (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/architecture/
+    checked: 2026-11-13
+  - title: No Collector (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/deploy/other/no-collector/
+    checked: 2026-11-13
+  - title: Agent deployment pattern (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/deploy/agent/
+    checked: 2026-11-13
+  - title: Gateway deployment pattern (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/deploy/gateway/
+    checked: 2026-11-13
+  - title: Agent-to-gateway deployment pattern (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/deploy/other/agent-to-gateway/
+    checked: 2026-11-13
+---
+
+<Problem>
+Forty services send traces straight to a vendor's backend, each with the vendor's API key in its own settings. Security asks for card numbers to be removed from span attributes by Friday, and finance wants to try a cheaper backend next quarter. Both requests mean a change and a redeploy in forty code bases, owned by twelve teams.
+</Problem>
+
+The work in that scene belongs to nobody's application. It is plumbing between the applications and the backend, and it can live in one place.
+
+<Idea>
+The OpenTelemetry Collector is a separate program that receives telemetry, processes it and exports it to one or more backends. An SDK hands its data to a Collector over OTLP and is done; retries, batching, encryption and the removal of sensitive data happen in the Collector. Where the Collector runs gives the two basic patterns: next to the application (an agent) or as a central service (a gateway).
+</Idea>
+
+## What an application should not have to do
+
+Sending straight from the SDK to a backend is the simplest setup, and the OpenTelemetry docs call it a good way to start, in development or at small scale. The cost shows up later. Every change to how data is collected, processed or ingested is a code change. The application is tied to one backend, and each language's SDK supports only a limited set of exporters.
+
+A Collector moves that work out of the process. The application sends OTLP to a nearby address and gets back to its real job. The Collector then retries when the backend is down, puts data into batches, encrypts the connection and can filter out sensitive fields. The default OTLP exporters of the SDKs already point at a local Collector address, so starting one is often all it takes to begin.
+
+## Agent: one Collector beside each application
+
+In the agent pattern the Collector runs alongside the application or on the same host. On Kubernetes that means a sidecar container in the application's pod, or a DaemonSet with one Collector pod per node. Each SDK is configured with the address of its local Collector.
+
+The docs list two advantages: it is easy to start, and each application maps clearly to one Collector. The drawbacks are that it scales poorly across teams and infrastructure, and that it is hard to change when the setup grows more complex. A rule that should apply everywhere has to reach every agent.
+
+## Gateway: one endpoint for everything
+
+In the gateway pattern, applications and other Collectors send to a single OTLP endpoint. Behind it run one or more Collector replicas as a standalone service, for example a Kubernetes Deployment, usually one endpoint per cluster, data center or region. A load balancer in front spreads the traffic over the replicas.
+
+The gateway is where central decisions live: credentials for the backends are kept in one place, and policies such as filtering or sampling are set once. The price is one more system that can fail, extra latency when Collectors are chained, and more resources in total.
+
+<Compare caption="Three ways to get telemetry to a backend">
+  <Col title="No Collector">The SDK exports straight to the backend. Nothing extra to run; every change means a code change and a redeploy.</Col>
+  <Col title="Agent">A Collector beside each application, as a sidecar or a DaemonSet. Simple and one-to-one; hard to scale and to change everywhere.</Col>
+  <Col title="Gateway">One OTLP endpoint served by Collector replicas. Central credentials and policies; one more service to run.</Col>
+</Compare>
+
+## Agents and gateways together
+
+The two patterns combine well. Agents stay small: they receive from local applications, add facts about their host and forward everything to the gateway. The gateway does the heavy, central work, such as sampling, filtering and transformation, and it is the stable way out of the cluster that holds credentials and handles retries. The docs also say when not to bother: if applications can send OTLP to the backend directly, you collect no host metrics or logs and you need no central processing, a simpler pattern is enough.
+
+<InLab>
+The lab runs a gateway only: the Deployment `otel-gateway` in the namespace `otel`, two replicas. The shop's services send to it themselves; the checkout service, for example, has `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-gateway.otel.svc:4318`.
+</InLab>
+
+<Trap>
+A gateway does not remove the need for retries in the SDK. The hop from the application to the gateway can fail too; the gateway only makes the hop to the backend more robust.
+</Trap>
+
+<Remember>
+The Collector takes plumbing out of the application: retries, batching, encryption, filtering, the choice of backend. An agent runs beside the application, a gateway is one central endpoint, and large setups use both.
+</Remember>
+
+<Question id="q-m09-s01" answer="b">
+A company runs 300 nodes on Kubernetes. Every node needs its host metrics collected, and the security team wants one place where API keys for the backend are kept and where tail sampling runs. Which pattern fits?
+
+- Gateway Collectors only, scraping every node from the central tier
+
+  Host metrics are collected on the host itself. A central tier cannot read 300 nodes' local metrics without an agent on each.
+
+- Agents on every node that forward to a central gateway tier
+
+  The agents collect host data locally; the gateway holds the credentials and runs the central processing.
+
+- No Collector, with every SDK exporting to the backend
+
+  Each service would hold the API key and host metrics would not be collected at all.
+
+- A sidecar Collector in every pod, each with the backend's API key
+
+  That spreads the key into every pod and still gives no central place for tail sampling.
+</Question>
