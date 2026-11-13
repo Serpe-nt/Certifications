@@ -1,0 +1,6 @@
+id: m08
+title: "OpenTelemetry: metrics, logs and configuration"
+goal: Add metrics and correlated logs to a service, and configure and debug its SDK without touching code.
+order: 8
+quiz: true
+exams: [otca]

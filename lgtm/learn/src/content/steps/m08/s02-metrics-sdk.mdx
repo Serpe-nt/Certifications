@@ -1,0 +1,133 @@
+---
+id: m08-s02
+title: "The metrics SDK: readers, views, aggregation, temporality"
+kind: concept
+minutes: 22
+order: 2
+exam:
+  - cert: otca
+    domain: O2
+    competency: SDK Pipelines
+  - cert: otca
+    domain: O2
+    competency: Data Model
+tags: [otel-metrics-sdk]
+outcome: You can say what a reader, a view and an aggregation do to a measurement, and choose the temporality a Prometheus-style backend such as Mimir accepts.
+terms:
+  - term: MetricReader
+    def: The SDK object that collects metrics from the SDK and hands them to one exporter.
+  - term: Periodic exporting reader
+    def: A MetricReader that collects on a timer, every 60 seconds by default, and pushes to its exporter.
+  - term: View
+    def: A rule that selects instruments and changes their stream, such as its name, its attributes or its aggregation.
+  - term: Aggregation
+    def: The way many measurements become one data point, such as a sum, a last value or a histogram.
+  - term: Aggregation temporality
+    def: Whether a data point covers the time since the stream started (cumulative) or since the last collection (delta).
+  - term: Metric stream
+    def: The output of one instrument after its view, with one data point per attribute set at each collection.
+sources:
+  - title: Metrics SDK (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+    checked: 2026-11-13
+  - title: Metrics data model, temporality (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/data-model/
+    checked: 2026-11-13
+  - title: Metrics exporter, OTLP (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/sdk_exporters/otlp/
+    checked: 2026-11-13
+  - title: Prometheus and OpenMetrics compatibility (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/
+    checked: 2026-11-13
+  - title: Using Prometheus as your OpenTelemetry backend (Prometheus)
+    url: https://prometheus.io/docs/guides/opentelemetry/
+    checked: 2026-11-13
+  - title: Configuration parameters, otel_native_delta_ingestion (Grafana Mimir 3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+    checked: 2026-11-13
+---
+
+<Problem>
+A colleague reads that delta temporality saves memory and sets `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=delta` on the workshop service. The service runs, the exporter reports no error, and yet the next morning `workshop_checkouts_total` has no new samples in Mimir. Nothing in the code changed. Only the way the SDK reports its sums did.
+</Problem>
+
+Step 1 was about the API: what your code calls. This step is about the SDK behind it, which decides what leaves the process.
+
+<Idea>
+The SDK aggregates measurements in memory, one data point per attribute set. A reader collects those points, on a timer or when a scraper asks, and hands them to its exporter. Views change what is kept and how it is aggregated, and the temporality says whether each point is a running total or only the change since the last collection.
+</Idea>
+
+## From a measurement to an exported point
+
+When your code calls `add(1)`, nothing is sent. The SDK adds the value to the aggregation for that instrument and attribute set. Later a MetricReader collects all current points and passes them to its exporter. For push exporters such as OTLP, the reader is a periodic exporting reader: it collects every 60 seconds by default and gives each export 30 seconds before it cancels it. The environment variables `OTEL_METRIC_EXPORT_INTERVAL` and `OTEL_METRIC_EXPORT_TIMEOUT` change both. A pull exporter, such as a Prometheus endpoint, is a reader that collects when it is scraped.
+
+One meter provider can have several readers, each with its own exporter and schedule: OTLP every minute and a Prometheus endpoint for a local scraper, for example. Collecting on one reader does not affect the others.
+
+<Flow caption="The path of one measurement">
+  <Stage title="Instrument" kicker="API">add(1) with the attribute outcome=placed.</Stage>
+  <Stage title="View and aggregation" kicker="SDK">Selects the stream, filters attributes, sums the value into one point.</Stage>
+  <Stage title="MetricReader" kicker="SDK">Collects every point on its timer, in its temporality.</Stage>
+  <Stage title="Exporter" kicker="SDK">Sends the batch, for example over OTLP.</Stage>
+</Flow>
+
+## Views change the stream before it is aggregated
+
+Without a view, every instrument becomes one stream with the default aggregation of its kind, as step 1 listed. A view lets the person who runs the application change that without touching the instrumentation. It has two halves. The selection picks instruments by name (`*` matches all), type, unit, or the name, version and schema URL of their meter, and an instrument must match every criterion given. The stream configuration then sets what changes:
+
+- a new name or description for the stream;
+- the attribute keys to keep, so that a library's histogram with method and status code becomes a count per status code only;
+- the aggregation: drop, default, sum, last value, explicit bucket histogram with your own bounds, or base-2 exponential histogram;
+- the cardinality limit for that stream (step 3).
+
+A view with the drop aggregation switches an instrument off. A match-all view with drop, plus views for the few instruments you want, keeps only those. When a view and an instrument's advisory parameter, such as suggested bucket bounds, set the same thing, the view wins.
+
+## Cumulative or delta
+
+Sums and histograms carry an aggregation temporality, and every point has a start time and an end time. With cumulative temporality, every point repeats the start time: the counter reports everything since the stream began. With delta temporality, each point starts where the last one ended and reports only what happened in between.
+
+<Compare caption="The same counter, collected three times">
+  <Col title="Cumulative" hot>(T0, T1] 5, then (T0, T2] 8, then (T0, T3] 12. If one export fails, the next point still holds the total.</Col>
+  <Col title="Delta">(T0, T1] 5, then (T1, T2] 3, then (T2, T3] 4. Each point holds only the change since the last collection.</Col>
+</Compare>
+
+The reader takes its temporality from the exporter, and without one it uses cumulative. The OTLP exporter defaults to cumulative and reads `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`. With `delta`, counters, observable counters and histograms switch to delta, while up-down counters of both kinds stay cumulative. With `lowmemory`, only the synchronous counter and the histogram switch to delta.
+
+The memory claim is true. With cumulative temporality the SDK must keep every attribute set it has ever seen, so its memory grows with cardinality. With delta, the SDK can forget a set of a synchronous instrument after each collection.
+
+## What a Prometheus-style backend does with each
+
+Prometheus counters are cumulative, and the conversion rules in the OpenTelemetry specification follow from that. A cumulative monotonic sum becomes a Prometheus counter and gets `_total`. A cumulative sum that is not monotonic, such as an up-down counter, follows the rules for gauges, which by default give a Prometheus gauge. A delta monotonic sum may be converted to cumulative by the receiver. A delta histogram may be converted, or must be dropped.
+
+Whether a receiver converts depends on the product. Prometheus does it only behind the experimental feature flag `otlp-deltatocumulative`. Mimir 3.2 has a setting `otel_native_delta_ingestion`, experimental and false by default, and its reference says that while it is off, delta metrics are rejected.
+
+<InLab>
+The workshop service exports cumulative metrics every 15 seconds (`OTEL_METRIC_EXPORT_INTERVAL=15000` in its `workshop.env`) to the collector gateway, which forwards them to Mimir's `/otlp` endpoint. The lab's Mimir values do not set `otel_native_delta_ingestion`, so delta sums would be rejected there. That is the empty graph in the scene above.
+</InLab>
+
+<Trap>
+Delta works only where the receiver supports it. Before you change the temporality preference, find out what the backend does with delta points; for Prometheus and Mimir, keep the default `cumulative`.
+</Trap>
+
+<Remember>
+The SDK aggregates in memory, a reader collects, an exporter sends, and views reshape streams on the way. Cumulative points repeat the start time, delta points advance it, and Prometheus-style backends expect cumulative.
+</Remember>
+
+<Question id="q-m08-s02" answer="c">
+A service sets `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=delta`. Which of its instruments is still exported with cumulative temporality?
+
+- The counter of requests served
+
+  With the delta preference, counters switch to delta. They are the main case the setting is for.
+
+- The histogram of request durations
+
+  Histograms switch to delta with this preference, together with counters and observable counters.
+
+- The up-down counter of requests in progress
+
+  The delta preference keeps up-down counters, synchronous and asynchronous, on cumulative.
+
+- The observable counter of CPU time used
+
+  Observable counters switch to delta with this preference. They stay cumulative only with `lowmemory`.
+</Question>
