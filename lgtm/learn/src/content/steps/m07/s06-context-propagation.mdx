@@ -1,0 +1,135 @@
+---
+id: m07-s06
+title: "Context propagation: W3C Trace Context and Baggage"
+kind: lab
+minutes: 18
+order: 6
+exam:
+  - cert: otca
+    domain: O2
+    competency: Context Propagation
+tags: [otel-context-propagation]
+check:
+  kind: regex
+  prompt: Write the traceparent header that checkout sent with its call to payment in the trace you opened (version, trace ID, span ID and flags, joined by hyphens).
+  pattern: "00-(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-01"
+outcome: You can explain how the context moves inside a process and between processes, write a traceparent header from a span, and say what baggage is for and what it must never carry.
+terms:
+  - term: Context
+    def: An immutable object that carries the current span and the baggage through a process.
+  - term: Propagator
+    def: A component that writes a context into a carrier on the way out (inject) and reads it back on the way in (extract).
+  - term: Carrier
+    def: The thing the context travels in, usually the headers of an HTTP request or the metadata of a message.
+  - term: traceparent
+    def: The W3C header with the version, trace ID, parent span ID and trace flags of the caller.
+  - term: Baggage
+    def: Key-value pairs that travel with the context to every service downstream.
+sources:
+  - title: Context propagation (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/context-propagation/
+    checked: 2026-11-13
+  - title: Context (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/context/
+    checked: 2026-11-13
+  - title: Propagators API (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/context/api-propagators/
+    checked: 2026-11-13
+  - title: Trace Context (W3C Recommendation)
+    url: https://www.w3.org/TR/trace-context/
+    checked: 2026-11-13
+  - title: Baggage (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/signals/baggage/
+    checked: 2026-11-13
+  - title: Environment variable specification, OTEL_PROPAGATORS
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-13
+---
+
+<Problem>
+Checkout calls payment over gRPC, and payment runs in another process, in another language, on another node. For payment's span to join checkout's trace, something must carry the trace ID and the caller's span ID across the network. And the customer's loyalty tier, known only where the request came in, is needed three services further down.
+</Problem>
+
+<Idea>
+Inside a process, OpenTelemetry keeps the current span and the baggage in a context object. Between processes, propagators inject that context into the carrier of an outgoing call, such as its headers, and extract it on the other side. By default they use the W3C `traceparent` header for the span context and the W3C `baggage` header for baggage.
+</Idea>
+
+## The context inside one process
+
+A context is a small immutable object. Writing a value into it returns a new context that holds the old values and the new one; the old context does not change. A language keeps one context as the current one. When Python code runs `with tracer.start_as_current_span(...)`, the new span becomes current inside the block, so spans started there take it as their parent and the previous context comes back after the block. Code can also attach a context by hand and detach it later with the token that attach returned.
+
+Traces, baggage and the other signals all read the same context. That is why one mechanism carries both the span context and the baggage.
+
+## Inject on the way out, extract on the way in
+
+A propagator works on a carrier. On an outgoing call it reads the span context and the baggage from the current context and injects them into the carrier, for example as HTTP headers. On an incoming call it extracts them from the carrier and returns a new context that holds them. The new server span takes the extracted span context as its remote parent. If a header cannot be parsed, extract must not throw an exception and must not store a value, so a valid context that was already there is kept.
+
+Instrumentation libraries usually do this for you; the Propagators API is there for the cases they do not cover. Which propagators run is set with `OTEL_PROPAGATORS`. Its default is `tracecontext,baggage`. Other known values include `b3`, `b3multi`, `xray` and `none`. A note on the API: unless something configures propagators, the API uses no-op ones, which is why an SDK or an agent must set them up.
+
+<Flow caption="One call, one header, one parent">
+  <Stage title="Checkout" kicker="Client span">The client span for the call is current; its span context is injected.</Stage>
+  <Stage title="traceparent" kicker="Carrier">00-trace ID-client span ID-01 travels in the gRPC metadata.</Stage>
+  <Stage title="Payment" kicker="Server span">Extracts the header; its server span has the same trace ID and checkout's client span as parent.</Stage>
+</Flow>
+
+## Reading a traceparent header
+
+The W3C Trace Context Recommendation defines the header as four fields joined by hyphens: version, trace ID, parent ID and trace flags, all in lower-case hexadecimal. For example:
+
+`traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01`
+
+Version `00` is the current format. The trace ID has 32 characters (16 bytes). The parent ID has 16 characters (8 bytes): it is the span ID of the caller's span, the client span that made the call. The flags `01` mean sampled. A trace ID or a parent ID of all zeros is invalid, and a receiver must then ignore the header. A second header, `tracestate`, carries up to 32 vendor entries.
+
+## Baggage rides along with the context
+
+Baggage is a key-value store that lives next to the context and travels with it, in the W3C `baggage` header. It is meant for values known at the start of a request that services further down need: an account ID, a product ID, a customer tier. Instrumentations propagate it automatically.
+
+Baggage is not the same as attributes. A baggage entry appears on no span, metric or log until code reads it and adds it, although several languages offer a baggage span processor that does this for every span. And baggage travels in plain headers, often to services you do not own, and nothing checks that an entry is genuine. Keep credentials, API keys and personal data out of it.
+
+<InLab>
+The shop uses the default propagators. When checkout (Go) calls payment (Node.js), the `traceparent` travels in the gRPC metadata, which is why payment's server span hangs under checkout's client span in Tempo.
+</InLab>
+
+<Trap>
+The parent ID in `traceparent` is the caller's client span, not the caller's server span and not the root span. Inject while the client span is current, or the receiver will hang its span in the wrong place.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> with the data source `tempo` and the query type TraceQL, time range the last 15 minutes. Find checkout's calls to payment: <Query lang="traceql">{`{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" }`}</Query>
+2. Open one trace. Copy the trace ID from the header of the trace view.
+3. Click checkout's span `oteldemo.PaymentService/Charge`. Its kind is client. Copy its span ID from the span details.
+4. Click payment's span with the same name, below it. Its kind is server, and its parent is the span from action 3.
+5. Write the header checkout sent: `00`, a hyphen, the trace ID, a hyphen, the span ID of action 3, a hyphen, `01`. Paste it in the check below.
+</Do>
+
+<Done>
+You wrote by hand the header that checkout's propagator wrote into the gRPC metadata, and saw payment's server span take that span as its parent.
+</Done>
+
+<Trap practice>
+Use the span ID of checkout's client span, not of payment's server span: the parent ID in the header is the caller's. Write the IDs in lower case and keep all 32 and 16 characters; an ID copied from a search result can lose its leading zeros.
+</Trap>
+
+<Remember>
+Context in a process, propagators between processes: inject on the way out, extract on the way in. `traceparent` is `version-traceid-parentid-flags`; baggage travels beside it and becomes an attribute only if code puts it there.
+</Remember>
+
+<Question id="q-m07-s06" answer="b">
+Checkout calls payment. In the trace, payment's server span has a parent span. Which span is it?
+
+- Checkout's server span, the operation that decided to call payment
+
+  The caller injects the context while its client span for the call is current, so that client span is the parent.
+
+- Checkout's client span for that call, whose span ID travelled as the parent ID in traceparent
+
+  The parent ID in traceparent is the span ID of the caller's client span, and the receiver takes it as its remote parent.
+
+- The root span of the trace, because all remote spans hang under the root
+
+  Only the trace ID is shared with the root. The parent is the span that made the call.
+
+- None, because a span from another process starts a new root with the same trace ID
+
+  Extracting the context gives the server span a remote parent; a trace has one root.
+</Question>
