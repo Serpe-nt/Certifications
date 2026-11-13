@@ -1,0 +1,168 @@
+---
+id: m09-s06
+title: "OTTL and the transform processor: redact personal data"
+kind: lab
+minutes: 30
+order: 6
+exam:
+  - cert: otca
+    domain: O3
+    competency: Transforming Data
+tags: [collector-ottl]
+flags: [emitRawPii]
+check:
+  kind: exact
+  prompt: Paste the value of user.hash that your practice Collector writes on the spans.
+  answers: ["2d985f691975ed96ce710fc7f6272a38c0c6ae910798dfd12c24365ed185bfd4"]
+outcome: You can write OTTL statements in the transform processor that delete, hash or mask a field, and prove on the lab that raw personal data stops at the gateway.
+terms:
+  - term: OTTL
+    def: The OpenTelemetry Transformation Language, used by the transform, filter and routing components to read and change telemetry.
+  - term: Statement
+    def: One OTTL line, a function call with arguments and an optional where condition.
+  - term: Path
+    def: An OTTL reference to a field, such as span.attributes["user.email"]; its first word names the context.
+  - term: Context
+    def: The level a statement works on, such as resource, scope, span, spanevent, log, metric or datapoint.
+  - term: error_mode
+    def: What the transform processor does when a statement fails, ignore (the default), silent or propagate.
+  - term: Redaction processor
+    def: A processor that keeps only allowed attribute keys and masks values whose key or content matches a pattern.
+sources:
+  - title: Transform processor (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/transformprocessor/README.md
+    checked: 2026-11-13
+  - title: OTTL functions, SHA256 and replace_pattern (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/pkg/ottl/ottlfuncs/README.md
+    checked: 2026-11-13
+  - title: Redaction processor (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/redactionprocessor/README.md
+    checked: 2026-11-13
+  - title: Transforming telemetry (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/transforming-telemetry/
+    checked: 2026-11-13
+---
+
+<Problem>
+To chase a payment bug, a developer adds the customer's e-mail address and the full card number as span attributes and ships it on a Friday. On Monday the traces backend, run by another company in another country, holds three days of card numbers. Rolling back the code stops new leaks; the gateway could have stopped all of them.
+</Problem>
+
+A gateway that every span passes through is the one place where a rule about personal data can be enforced for all services at once.
+
+<Idea>
+The transform processor runs OTTL statements on every span, log record or metric that passes. A statement is a function call with an optional `where` condition, such as `delete_key(span.attributes, "user.email")`. With three functions you can delete a value, replace it with a hash, or mask part of it, before anything leaves the Collector.
+</Idea>
+
+## Statements, paths and contexts
+
+The transform processor takes one list of statements per signal: `trace_statements`, `metric_statements`, `log_statements`. It runs them in order on each item. A path names a field, and its first word is the context: `span.attributes["user.email"]`, `resource.attributes["service.name"]`, `log.body`. Inside `trace_statements` you may use the contexts `resource`, `scope`, `span` and `spanevent`, but not `log`; the processor infers the context from the paths you use.
+
+Statements can fail, for example when a function gets the wrong type. `error_mode` decides what happens: `ignore`, the default and the recommended mode, logs the error and goes on with the next statement; `silent` does the same without logging; `propagate` returns the error up the pipeline, and the whole payload is dropped.
+
+## Delete, hash or mask
+
+`delete_key(span.attributes, "demo.payment.card_cvv")` removes an attribute. `set(span.attributes["user.hash"], SHA256(span.attributes["user.email"]))` keeps something you can still group and compare by, since the same address always gives the same hash, without keeping the address. `replace_pattern(span.attributes["demo.payment.card_number"], "^\\d{4}-\\d{4}-\\d{4}-", "****-****-****-")` masks the first twelve digits and leaves the last four, the part support staff need.
+
+Order matters inside the list. To keep a hash of the e-mail, the `set` with `SHA256` must run before the `delete_key` of the e-mail. A `where` clause such as `where span.attributes["user.email"] != nil` skips spans that do not have the field. Inside a Collector configuration a `$` must be written `$$`, which matters for `replace_pattern` with `$1` groups.
+
+## Two processors in the lab gateway
+
+The gateway's traces pipeline runs `transform/redact_sensitive_data` and then `redaction`. The transform deletes `demo.payment.card_cvv` and `user.email`, writes `user.hash`, and masks `demo.payment.card_number` with the statement above. Its statements use the older form with `context: span` and paths without a prefix, such as `attributes["user.email"]`; both forms are valid.
+
+The `redaction` processor is a second line. With `allow_all_keys: true` it keeps every attribute key, but it masks the values of keys that match `blocked_key_patterns`: `demo.payment.card_pin`, `password`, `secret`. `demo.payment.card_number` is in `ignored_keys`, so the value the transform already masked passes untouched. `summary: info` lets the processor add count attributes, such as `redaction.masked.count`, when it masks something.
+
+<Flow caption="A checkout span with emitRawPii on, through the gateway">
+  <Stage title="checkout" kicker="Sends">user.email, demo.payment.card_number, demo.payment.card_cvv.</Stage>
+  <Stage title="transform" kicker="Changes">Deletes the CVV and the e-mail, adds user.hash, masks the number.</Stage>
+  <Stage title="redaction" kicker="Masks">Values of keys like password or secret; skips the card number.</Stage>
+  <Stage title="Tempo" kicker="Stores">user.hash and ****-****-****-1234, nothing raw.</Stage>
+</Flow>
+
+<InLab>
+The fault flag `emitRawPii` makes the checkout service add `user.email`, `demo.payment.card_number` and `demo.payment.card_cvv` to its order span, and the payment service add the card number and CVV to its `charge` span. Nothing in the shop's logs changes: these are span attributes only.
+</InLab>
+
+<Trap>
+A plain SHA-256 of an e-mail address is not anonymous. Anyone with a list of addresses can hash them and compare. The redaction processor's README recommends HMAC hash functions, which need a secret key, for low-entropy data such as IP addresses, and e-mail addresses are just as easy to guess.
+</Trap>
+
+<Do>
+1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 again first. Save this as `m09-config-s06.yaml`; it replaces the Collector's configuration with one that redacts: <Cmd>{`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: m09-collector
+  namespace: learn-m09
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: localhost:4317
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 100
+        spike_limit_mib: 20
+      filter/drop-child:
+        error_mode: ignore
+        traces:
+          span:
+            - 'name == "okey-dokey-0"'
+      transform/redact:
+        error_mode: ignore
+        trace_statements:
+          - set(span.attributes["user.hash"], SHA256(span.attributes["user.email"])) where span.attributes["user.email"] != nil
+          - delete_key(span.attributes, "user.email")
+          - replace_pattern(span.attributes["demo.payment.card_number"], "^\\\\d{4}-\\\\d{4}-\\\\d{4}-", "****-****-****-")
+      batch:
+        timeout: 2s
+    exporters:
+      debug:
+        verbosity: detailed
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, filter/drop-child, transform/redact, batch]
+          exporters: [debug]`}</Cmd>
+2. Apply it, then restart the Collector so that it reads the new file: <Cmd>kubectl apply -f m09-config-s06.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 rollout status deploy/m09-collector</Cmd>
+3. Read the span attributes: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector --tail=30</Cmd> `user.email` is gone, `user.hash` holds 64 hexadecimal characters, and `demo.payment.card_number` reads `****-****-****-1111`. Paste the value of `user.hash` in the check below.
+4. Now the gateway. Read its redaction statements: <Cmd>kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' | grep -A12 'transform/redact_sensitive_data:'</Cmd>
+5. Note the time in UTC, then open <LabLink to="flags" path="/feature">the flag screen</LabLink> and switch `emitRawPii` on. The load generator places orders all the time; wait two minutes.
+6. In <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, pick the data source `tempo`, set the time range to the last 15 minutes and run this TraceQL query: <Query lang="traceql">{`{ resource.service.name = "checkout" && span.user.hash != nil } | select(span.user.hash, span.demo.payment.card_number)`}</Query> The order spans carry `user.hash` and a card number that starts with `****-****-****-`.
+7. Look for raw values; both queries return no traces: <Query lang="traceql">{`{ span.user.email != nil }`}</Query> <Query lang="traceql">{`{ span.demo.payment.card_cvv != nil }`}</Query> Then the logs, with the data source `loki`, over the last 15 minutes: <Query lang="logql">{`{service_name=~"checkout|payment"} |~ "[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{4}"`}</Query> No lines.
+8. Switch `emitRawPii` off on the flag screen, and check that every flag on the screen is off. The flag was on for about five minutes; keep it under fifteen.
+</Do>
+
+<Done>
+Your own transform hashed, deleted and masked the fields you chose, and on the lab the raw e-mail, CVV and card number never reached Tempo or Loki while the shop sent them.
+</Done>
+
+<Trap practice>
+A ConfigMap mounted as a volume is updated in the pod after a while, but the Collector reads its file only at startup. Without the `rollout restart` in action 2, the old configuration keeps running.
+</Trap>
+
+<Remember>
+OTTL statements run in order, one function call each, with an optional `where`. Delete what nobody needs, hash what you must still match on, mask what people must partly see, and do it in the gateway before any exporter.
+</Remember>
+
+<Question id="q-m09-s06" answer="c">
+A transform processor with `error_mode: ignore` runs `set(span.attributes["user.hash"], SHA256(span.attributes["user.id"]))` followed by `delete_key(span.attributes, "user.id")`. On some spans `user.id` is an integer. What happens to those spans?
+
+- They are dropped, because a failed statement drops its payload
+
+  Dropping the payload is what `propagate` does, not `ignore`.
+
+- They keep `user.id`, because the processor stops at the first error
+
+  With `ignore` the processor goes on with the next statement.
+
+- They get no `user.hash`, and `user.id` is deleted by the next statement
+
+  SHA256 accepts only strings; the failed statement is logged and skipped, and the delete still runs.
+
+- They get a hash of the number's text, because SHA256 converts the value first
+
+  SHA256 returns an error for any target that is not a string.
+</Question>
