@@ -1,0 +1,130 @@
+---
+id: m08-s08
+title: Configuration by environment variables
+kind: lab
+minutes: 22
+order: 8
+exam:
+  - cert: otca
+    domain: O2
+    competency: Configuration
+tags: [otel-env-config]
+check:
+  kind: exact
+  prompt: Paste the job label of the workshop series that carry service_version="0.8.0".
+  answers: ["gateway/workshop"]
+outcome: You can configure an SDK's service name, resource, exporters and intervals with the standard OTEL_ variables, predict how odd values are read, and see the result in the backend.
+terms:
+  - term: OTEL_RESOURCE_ATTRIBUTES
+    def: A variable with key=value pairs, separated by commas, that become resource attributes.
+  - term: OTEL_SDK_DISABLED
+    def: A variable that, when "true", makes the SDK a no-op for every signal.
+  - term: Exporter selection
+    def: The variables OTEL_TRACES_EXPORTER, OTEL_METRICS_EXPORTER and OTEL_LOGS_EXPORTER, each otlp by default.
+  - term: Language-specific variable
+    def: A variable named OTEL_ plus a language plus a feature, such as OTEL_PYTHON_DISABLED_INSTRUMENTATIONS.
+sources:
+  - title: Environment variable specification (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-13
+  - title: General SDK configuration (OpenTelemetry SDK configuration)
+    url: https://opentelemetry.io/docs/languages/sdk-configuration/general/
+    checked: 2026-11-13
+  - title: Resource SDK, environment variable (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/resource/sdk/
+    checked: 2026-11-13
+  - title: Agent configuration (OpenTelemetry Python)
+    url: https://opentelemetry.io/docs/zero-code/python/configuration/
+    checked: 2026-11-13
+  - title: k8sattributes processor (OpenTelemetry Collector contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/k8sattributesprocessor/README.md
+    checked: 2026-11-13
+---
+
+<Problem>
+The same workshop code runs on your PC against the lab, in a test container against a debug collector, and one day in production. Each place needs another endpoint, maybe another sampler, a shorter export interval for testing, and an environment name on every signal. Changing code for each place is how a test endpoint ends up in production.
+</Problem>
+
+<Idea>
+The specification defines one set of `OTEL_` environment variables with the same names and the same parsing in every language. An SDK, or an agent such as `opentelemetry-instrument`, reads them at startup, so the place that runs the service decides where its telemetry goes. Each variable has an equivalent setting in code, and an implementation may support only some of the variables.
+</Idea>
+
+## The variables you will meet first
+
+The variables come in groups that follow the SDK's own parts:
+
+<Layers caption="The common variables, from the whole SDK down to one part">
+  <Layer title="General">OTEL_SERVICE_NAME, OTEL_RESOURCE_ATTRIBUTES, OTEL_SDK_DISABLED, OTEL_LOG_LEVEL, OTEL_PROPAGATORS, OTEL_TRACES_SAMPLER and its _ARG</Layer>
+  <Layer title="Exporter selection">OTEL_TRACES_EXPORTER, OTEL_METRICS_EXPORTER, OTEL_LOGS_EXPORTER: otlp, console or none</Layer>
+  <Layer title="OTLP exporter">OTEL_EXPORTER_OTLP_ENDPOINT, _PROTOCOL, _HEADERS, _TIMEOUT, _COMPRESSION, each also per signal</Layer>
+  <Layer title="Processors and readers" hot>OTEL_BSP_* for spans, OTEL_BLRP_* for logs, OTEL_METRIC_EXPORT_INTERVAL and _TIMEOUT for metrics</Layer>
+</Layers>
+
+A few defaults are worth knowing by heart. Every exporter variable defaults to `otlp`. The propagators default to `tracecontext,baggage`, the sampler to `parentbased_always_on`. The batch span processor waits 5000 milliseconds between exports and queues 2048 spans; the batch log processor waits 1000 milliseconds. The OTLP timeout is 10 seconds per export. `OTEL_SERVICE_NAME` wins over a `service.name` inside `OTEL_RESOURCE_ATTRIBUTES`.
+
+Beside the common set, each language may add its own variables named `OTEL_` plus the language plus the feature. The workshop uses two: `OTEL_PYTHON_DISABLED_INSTRUMENTATIONS` and `OTEL_PYTHON_LOG_CORRELATION`. The Python agent also takes every setting as a command-line flag: `--exporter_otlp_endpoint` is `OTEL_EXPORTER_OTLP_ENDPOINT` in lower case without the prefix.
+
+## How values are read
+
+The specification is strict about parsing, and the rules decide what happens after a typing mistake:
+
+- An empty value is the same as no value, so the default applies.
+- A boolean is true only for the word `true`, in any case. `1`, `yes` and `on` all mean false, and the SDK should log a warning for any value that is not `true` or `false`.
+- A number the SDK cannot parse is ignored with a warning.
+- An enum value is read without regard to case; an unknown value is ignored with a warning.
+
+`OTEL_SDK_DISABLED=true` turns every signal into a no-op without touching the code. It does not switch off the propagators, so trace context still passes through the service. Supporting these variables is optional for an implementation, so check your language's documentation for the ones it reads.
+
+## One variable is one value
+
+A variable you set replaces the whole value from anywhere else; it is not merged key by key. `OTEL_RESOURCE_ATTRIBUTES` holds a list such as `key1=value1,key2=value2`. If you set it to add one key, the keys you did not write are gone. The workshop's `run.py` reads `lab.env`, then the solution's `workshop.env`, then your own environment, and the later one wins for each variable.
+
+<InLab>
+The shop's chart sets the same kind of variables on every service: `OTEL_SERVICE_NAME` with the service's name, `OTEL_EXPORTER_OTLP_ENDPOINT` with the collector gateway's gRPC or HTTP address, `OTEL_RESOURCE_ATTRIBUTES`, and `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative` written out.
+</InLab>
+
+<Trap>
+`OTEL_SDK_DISABLED=1` does not disable anything. Only the word `true` counts as true, so the SDK keeps running and should warn about the value it did not understand.
+</Trap>
+
+<Do>
+1. In `lgtm/lab/workshop`, read `lab.env` and `solutions/04-metrics/workshop.env`. `lab.env` sets `OTEL_RESOURCE_ATTRIBUTES=service.namespace=workshop,deployment.environment.name=learner-pc`.
+2. Set one resource attribute of your own, as if you only wanted to add a version. In PowerShell: <Cmd>{`$env:OTEL_RESOURCE_ATTRIBUTES = "service.version=0.8.0"`}</Cmd> In bash: <Cmd>export OTEL_RESOURCE_ATTRIBUTES=service.version=0.8.0</Cmd>
+3. Start the metrics solution in the same terminal. The settings it prints show `OTEL_RESOURCE_ATTRIBUTES=service.version=0.8.0` and nothing else in that variable. <Cmd>python run.py solutions/04-metrics</Cmd>
+4. In a second terminal, make 20 seconds of traffic, then wait 15 seconds: <Cmd>python load.py --rate 5 --duration 20</Cmd>
+5. In <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `mimir`, compare the series from step 4 with the new ones: <Query lang="promql">{`count by (job, service_namespace, service_version) (workshop_checkouts_total{service_name="workshop"})`}</Query> The new series have `service_version="0.8.0"`, but their namespace is no longer `workshop`.
+6. Paste the `job` label of the series with `service_version="0.8.0"` in the check below.
+7. Stop the service with Ctrl+C and remove your variable: `Remove-Item Env:OTEL_RESOURCE_ATTRIBUTES` in PowerShell, `unset OTEL_RESOURCE_ATTRIBUTES` in bash. To add a version for real, write the whole list: `service.namespace=workshop,deployment.environment.name=learner-pc,service.version=0.8.0`.
+</Do>
+
+<Done>
+The new series carried `service_version="0.8.0"`, and their `job` was not `workshop/workshop` any more, because your variable replaced the whole list from `lab.env`.
+</Done>
+
+<Trap practice>
+The namespace did not just disappear: the lab's collector gateway filled it in. Its Kubernetes attributes processor matches each connection to a pod, here the lab's Envoy gateway in namespace `gateway`, and it is configured to add `service.namespace` from that pod when a resource has none. That is why the job reads `gateway/workshop`.
+</Trap>
+
+<Remember>
+The `OTEL_` variables configure any SDK the same way; empty means unset, only `true` is true, and bad values are ignored with a warning. A variable you set replaces the whole value, lists included.
+</Remember>
+
+<Question id="q-m08-s08" answer="b">
+A Helm chart sets `OTEL_SDK_DISABLED=1` on a Java service to stop its telemetry during an incident. Spans still arrive in the backend. Why?
+
+- The variable only disables traces; metrics and logs need their own variables.
+
+  When it takes effect, OTEL_SDK_DISABLED applies to all signals. The problem is the value.
+
+- Only the string `true`, in any case, is read as true; `1` is read as false, so the SDK stays enabled.
+
+  The specification defines true by the word true alone and tells implementations not to accept other values as true.
+
+- Environment variables are read only when the image is built, so the pod must be rebuilt.
+
+  The SDK reads the variables when the process starts; a new pod with the right value is enough.
+
+- The agent ignores any variable that is not also set as a system property.
+
+  The Java agent reads environment variables as well as system properties.
+</Question>
