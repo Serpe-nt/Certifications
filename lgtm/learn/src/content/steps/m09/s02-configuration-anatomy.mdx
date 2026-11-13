@@ -1,0 +1,112 @@
+---
+id: m09-s02
+title: "Configuration anatomy: components, pipelines and the service section"
+kind: concept
+minutes: 15
+order: 2
+exam:
+  - cert: otca
+    domain: O3
+    competency: Configuration
+  - cert: otca
+    domain: O3
+    competency: Pipelines
+tags: [collector-config, collector-pipelines]
+outcome: You can read any Collector configuration file, say which components actually run, and trace the path data takes through each pipeline.
+terms:
+  - term: Receiver
+    def: A component that gets data into the Collector, by listening on a port or by pulling it, as a scraper does.
+  - term: Processor
+    def: A component in the middle of a pipeline that changes, enriches, drops or batches data.
+  - term: Exporter
+    def: A component that sends data out of the Collector, usually to a backend over the network.
+  - term: Connector
+    def: A component that is the exporter of one pipeline and the receiver of another.
+  - term: Extension
+    def: A component that adds a capability, such as a health check, without touching telemetry.
+  - term: Pipeline
+    def: A path for one signal type, from receivers through processors in order to exporters.
+  - term: Component ID
+    def: The name of a configured component, written type or type/name, such as otlp_http/loki.
+sources:
+  - title: Configuration (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/configuration/
+    checked: 2026-11-13
+  - title: Architecture (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/architecture/
+    checked: 2026-11-13
+  - title: Troubleshooting, null maps (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/troubleshooting/
+    checked: 2026-11-13
+---
+
+<Problem>
+Your first ticket on the platform team: "logs from the payment service are missing". You open the Collector's configuration and find 200 lines with `otlp`, `otlp_http/loki`, `transform/sanitize_logs` and a `service` block at the bottom. Before you can say where a log record goes, you need to know how the file is put together.
+</Problem>
+
+A Collector configuration looks long, but it has only a few kinds of parts, and one rule decides which of them run.
+
+<Idea>
+The top of the file defines components: receivers, processors, exporters, connectors and extensions. Defining a component does not start it. The `service` section at the bottom lists the pipelines, and only the components a pipeline names (and the extensions `service` names) are created when the Collector starts.
+</Idea>
+
+## Define first, then enable
+
+Each top-level section holds components of one class, keyed by a component ID in the form `type[/name]`. The type picks the code, for example `otlp_http`. The optional name after the slash lets you configure the same type more than once: `otlp_http/loki` and `otlp_http/mimir` are two exporters of one type with two endpoints. Many components have usable defaults, so a bare name such as `batch:` is a full definition. Any setting you write replaces the default for that setting.
+
+Then comes `service`, with three parts: `extensions`, `pipelines` and `telemetry`. A receiver, processor or exporter that no pipeline names is simply not created, and an extension that is not listed under `service.extensions` does not start. The Collector logs no error for an unused component, which is why a forgotten line in `service` is a common reason for "my processor does nothing".
+
+## A pipeline is a typed path
+
+Each pipeline has a type: `traces`, `metrics` or `logs`. You can have several of one type with names, such as `metrics` and `metrics/scraper`. Every component in a pipeline must support that type, or the Collector refuses to load the configuration.
+
+<Flow caption="How data moves through one pipeline">
+  <Stage title="Receivers" kicker="One or more">All of them push into the first processor.</Stage>
+  <Stage title="Processors" kicker="In list order">Each one hands its output to the next.</Stage>
+  <Stage title="Fan-out" kicker="After the last">Every exporter gets its own copy.</Stage>
+  <Stage title="Exporters" kicker="One or more">Send the data out, usually over the network.</Stage>
+</Flow>
+
+The order of `processors` is the order of work, so it matters. Two rules about sharing are worth knowing. When one receiver is named in several pipelines, the Collector creates one receiver and fans its data out to all of them. When one processor ID is named in several pipelines, each pipeline gets its own instance with the same settings and its own state. A processor ID may appear only once inside one pipeline.
+
+## Values that come from outside the file
+
+`${env:NAME}` puts an environment variable into the configuration, and `${env:NAME:-fallback}` uses `fallback` when the variable is not set. Because `$` starts an expansion, a literal dollar sign is written `$$`. The Collector also merges several `--config` sources in order, and `--set` overrides single keys after the merge. When files are merged, a later empty value such as `processors:` wipes out the earlier map; write `processors: {}` or leave the key out.
+
+Before you roll a change out, `otelcol-contrib validate --config=FILE` checks the file without starting any pipeline. It catches a pipeline that names an undefined component and a type that does not support the pipeline's signal.
+
+## Extensions and the Collector's own telemetry
+
+Extensions work beside the pipelines and never see telemetry: `health_check` answers liveness probes, `pprof` profiles the process, `zpages` shows live pages about the pipelines. Authentication for receivers and exporters is also an extension, referenced by ID from the component that uses it. The `service.telemetry` block configures the Collector's own logs and metrics, which you will read in steps 12 and 13.
+
+<InLab>
+The gateway's receivers listen on `${env:MY_POD_IP}:4317` and `:4318`: the chart fills `MY_POD_IP` from the pod's IP. Its three exporters are `otlp_http/mimir`, `otlp_http/loki` and `otlp_grpc/tempo`, one type used twice with different endpoints and a second type for Tempo.
+</InLab>
+
+<Trap>
+A component under `processors:` with no error in the log is not proof that it runs. Check that its ID is in the pipeline you think it is in.
+</Trap>
+
+<Remember>
+Components are defined at the top and enabled in `service`. A pipeline has one signal type, runs processors in list order and gives every exporter its own copy.
+</Remember>
+
+<Question id="q-m09-s02" answer="c">
+An exporter is configured with `endpoint: ${env:BACKEND_URL:-http://localhost:4318}`. The Collector's container has no variable `BACKEND_URL`. What happens at startup?
+
+- The Collector refuses to start because the variable is missing
+
+  A missing variable without a fallback expands to an empty value; with a fallback the Collector uses the fallback.
+
+- The endpoint is the literal text `${env:BACKEND_URL:-http://localhost:4318}`
+
+  The `${env:...}` syntax is expanded when the configuration loads; a literal dollar would need `$$`.
+
+- The exporter sends to `http://localhost:4318`
+
+  The text after `:-` is the default used when the variable is not set.
+
+- The exporter is skipped and its pipeline runs without it
+
+  The Collector never drops a configured exporter from a pipeline on its own.
+</Question>
