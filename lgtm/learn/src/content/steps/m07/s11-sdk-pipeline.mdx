@@ -1,0 +1,121 @@
+---
+id: m07-s11
+title: "The SDK pipeline: span processors and exporters"
+kind: concept
+minutes: 14
+order: 11
+exam:
+  - cert: otca
+    domain: O2
+    competency: SDK Pipelines
+tags: [otel-sdk-pipeline]
+outcome: You can draw the path of a span through the SDK, choose between the simple and the batch processor, set the batch limits, and say what shutdown and flush are for.
+terms:
+  - term: Span processor
+    def: An SDK hook called when a span starts and ends. The built-in ones hand finished spans to an exporter.
+  - term: Span exporter
+    def: The plugin that encodes finished spans and sends them to one destination, such as OTLP or the console.
+  - term: Batch span processor
+    def: A processor that queues finished spans and exports them in batches, on a timer or when a batch is full.
+  - term: ForceFlush
+    def: A call that makes processors and exporters send everything they hold now.
+sources:
+  - title: Tracing SDK, span processor and span exporter (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+    checked: 2026-11-13
+  - title: Environment variable specification, batch span processor
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-13
+  - title: OpenTelemetry client design principles, exporters (specification)
+    url: https://opentelemetry.io/docs/specs/otel/library-guidelines/
+    checked: 2026-11-13
+  - title: Instrumentation for OpenTelemetry Python, acquire a tracer
+    url: https://opentelemetry.io/docs/languages/python/instrumentation/
+    checked: 2026-11-13
+  - title: Python zero-code instrumentation, configuring the agent
+    url: https://opentelemetry.io/docs/zero-code/python/
+    checked: 2026-11-13
+---
+
+<Problem>
+Three questions came up in one week. During a traffic spike, a service lost spans before they ever left the process. A nightly job that runs for two seconds sends no trace at all. And a developer wants to see spans on the console while they still go to the collector. All three are about the same thing: what happens to a span between `end()` and the backend.
+</Problem>
+
+<Idea>
+Inside the SDK, a span that the sampler kept passes through the span processors registered on the TracerProvider, in the order they were registered. Each processor starts a small pipeline that ends in its own exporter. The batch processor queues finished spans and sends them in batches; the simple processor sends each span as it ends.
+</Idea>
+
+## From the tracer to the exporter
+
+The TracerProvider owns the trace configuration: the span processors, the ID generator, the span limits and the sampler. Tracers only create spans. A span the sampler did not drop is recording, and only recording spans reach the processors. The processors then see every recording span, and the exporters only the sampled ones (step 10).
+
+<Flow caption="The path of one span through the SDK">
+  <Stage title="Tracer" kicker="Create">The code starts a span; the sampler decides.</Stage>
+  <Stage title="Span processors" kicker="OnStart, OnEnd">Called in the order they were registered.</Stage>
+  <Stage title="Exporter" kicker="Export">Encodes a batch and sends it to one destination.</Stage>
+</Flow>
+
+A processor has hooks for the span's life. `OnStart` runs when a span starts, on the same thread, so it must not block; a processor can still change the span there, which is how a baggage span processor copies baggage into attributes. `OnEnd` runs when the span has ended and receives it read-only. A newer hook, `OnEnding`, runs just before the span becomes read-only; its status is Development. `Shutdown` and `ForceFlush` complete the interface. You can write processors of your own.
+
+Each processor registered on the provider starts one pipeline, and the SDK must let every pipeline end in its own exporter. Two exporters therefore mean two processors.
+
+## Simple or batch
+
+The SDK must offer two processors. The simple processor hands each span to its exporter as soon as the span ends. The batch processor collects ended spans in a queue and exports them in batches.
+
+<Compare caption="The two built-in span processors">
+  <Col title="Simple">One export per ended span, at once. Every span costs one call to the exporter.</Col>
+  <Col title="Batch" hot>A queue, and an export when the delay passes or a batch is full. Fewer, larger exports; the agents in this lab use it.</Col>
+</Compare>
+
+The batch processor has four settings, each with an environment variable. `OTEL_BSP_MAX_QUEUE_SIZE` is the size of the queue, 2048 spans by default; when it is full, new spans are dropped. `OTEL_BSP_SCHEDULE_DELAY` is the longest wait between two exports, 5000 milliseconds. `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` is the largest batch, 512, and it must not be larger than the queue; a full batch is exported without waiting for the delay. `OTEL_BSP_EXPORT_TIMEOUT` is how long one export may take, 30000 milliseconds.
+
+## What the exporter does, and what it does not
+
+An exporter has three functions: `Export`, `Shutdown` and `ForceFlush`. `Export` receives a batch of finished spans, encodes them and sends them, and reports success or failure; it must not block forever. Retrying is the exporter's job, because it depends on the protocol, and the built-in processors must not retry. OTLP, for example, defines its own rules for retries. The client design principles ask SDKs to ship an OTLP exporter, a standard output exporter for debugging and an in-memory exporter for tests.
+
+## Shutdown and flush
+
+The batch processor holds spans in memory for up to five seconds. If the process ends before the next export, those spans are lost, unless the application shuts the SDK down first. `Shutdown` on the TracerProvider calls `Shutdown` on every processor, which includes a flush. `ForceFlush` exports what is waiting right away, and is meant for cases that need it, such as a function platform that may freeze the process after each call.
+
+In Python the whole pipeline can be built in code:
+
+```python
+provider = TracerProvider()
+provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+trace.set_tracer_provider(provider)
+```
+
+Or, with the agent, by an environment variable: `OTEL_TRACES_EXPORTER=console,otlp` asks for two exporters, so the SDK builds two pipelines.
+
+<InLab>
+In the workshop, the Python SDK 1.45.2 that the agent loads builds one batch span processor for each exporter named in `OTEL_TRACES_EXPORTER`, here one for OTLP. The beacon builds its pipeline in Go code with `sdktrace.WithBatcher`, setting the queue to 2048 spans and the batch to 512.
+</InLab>
+
+<Trap>
+Raising `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` above `OTEL_BSP_MAX_QUEUE_SIZE` does not make batches bigger: the batch size must be less than or equal to the queue size. To keep more spans during a spike, raise the queue.
+</Trap>
+
+<Remember>
+Tracer, sampler, span processors in registration order, one exporter per processor. Batch: queue 2048, delay 5000 ms, batch 512, timeout 30000 ms. Shut the provider down before the process exits.
+</Remember>
+
+<Question id="q-m07-s11" answer="b">
+An exporter's call to the backend fails with a temporary network error. Where does the specification put the logic to retry it?
+
+- In the batch span processor, which keeps the batch and calls Export again
+
+  The specification says the default span processors should not implement retry logic.
+
+- In the exporter, because the right retry rules depend on its protocol and backend
+
+  Concurrent requests and retries are the exporter's responsibility; OTLP, for example, defines its own retry logic.
+
+- In the sampler, which marks the spans to be sampled again
+
+  The sampler decides whether a span is recorded when it starts. It has no part in export.
+
+- In the application code, which must catch the error from span.end()
+
+  End must return fast and must not block on I/O; exporting happens later and is not seen by the code that ended the span.
+</Question>
