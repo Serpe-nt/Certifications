@@ -179,7 +179,7 @@ Python code raises an exception inside `with tracer.start_as_current_span("charg
 
   Leaving the with block ends the span whether or not an exception was raised.
 
-- It is ended with status Ok, because the SDK only records outcomes the code sets
+- It ends with status Ok, as nothing else set a status
 
   Nothing sets Ok by itself. The defaults record the exception and set Error.
 

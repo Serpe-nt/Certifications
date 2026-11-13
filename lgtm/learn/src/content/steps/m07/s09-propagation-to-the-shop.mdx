@@ -46,7 +46,7 @@ sources:
 ---
 
 <Problem>
-In step 7 the trace went on into the shop by itself, because the requests instrumentation injected the header. One day you will call something no library covers: an in-house queue client, a protocol of your own. Then you have to do what that library did, and you should know what it was. And the shop has one hop where a header in a call is not enough: an order goes through Kafka and is processed later by another service.
+In step 7 the trace went on into the shop by itself, because the requests instrumentation injected the header. One day you will call something no library covers, such as an in-house queue client. Then you have to do what that library did, and you should know what it was. And the shop has one hop where a header in a call is not enough: an order goes through Kafka and is processed later by another service.
 </Problem>
 
 <Idea>
@@ -178,7 +178,7 @@ In the lab, fraud-detection's `process orders` span carries a link to checkout's
 
   Kafka messages do carry headers; the creation context travels in them.
 
-- A span has one parent, and a consumer may process messages from many producers or run inside another span
+- A span has one parent, but a consumer may handle messages from many producers
 
   Links are the one structure that works for batches and for consumers that already have an ambient context.
 

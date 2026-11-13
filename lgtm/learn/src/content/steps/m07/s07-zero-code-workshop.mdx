@@ -159,7 +159,7 @@ Distro, exporter and one instrumentation per library, then `opentelemetry-instru
 <Question id="q-m07-s07" answer="a">
 A Flask service runs under `opentelemetry-instrument` with the Flask and requests instrumentations. A function in it computes a discount in plain Python, with no library call. What does the trace show for that function?
 
-- Nothing of its own: its time is inside the server span, with no span for the function
+- No span of its own; its time is part of the server span
 
   The agent patches instrumented libraries. Plain Python code gets no span unless you add one with the API.
 

@@ -119,7 +119,7 @@ An HTTP server instrumentation handles `GET /orders/8812`. Its framework gives i
 
   The target must come from the framework's route template, which is missing here. The instrumentation does not invent one.
 
-- GET, the method alone
+- GET, the HTTP method alone, with no target
 
   With no low-cardinality target available, an HTTP span is named after the method alone.
 

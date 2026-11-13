@@ -121,7 +121,7 @@ Checkout calls payment. In the trace, payment's server span has a parent span. W
 
   The caller injects the context while its client span for the call is current, so that client span is the parent.
 
-- Checkout's client span for that call, whose span ID travelled as the parent ID in traceparent
+- Checkout's client span for that call, named in traceparent
 
   The parent ID in traceparent is the span ID of the caller's client span, and the receiver takes it as its remote parent.
 

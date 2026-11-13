@@ -107,7 +107,7 @@ An exporter's call to the backend fails with a temporary network error. Where do
 
   The specification says the default span processors should not implement retry logic.
 
-- In the exporter, because the right retry rules depend on its protocol and backend
+- In the exporter, whose protocol defines the retry rules
 
   Concurrent requests and retries are the exporter's responsibility; OTLP, for example, defines its own retry logic.
 

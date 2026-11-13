@@ -114,7 +114,7 @@ The frontend runs the default sampler. The order service behind it sets `OTEL_TR
 
   No sampler changes its ratio at run time because of a parent.
 
-- The order service keeps about one in ten of them by trace ID, so most of these traces lack its spans
+- It keeps about one in ten of them, so most lack its spans
 
   TraceIdRatioBased ignores the parent's flag and decides by the trace ID alone, which leaves holes in traces the frontend kept.
 </Question>

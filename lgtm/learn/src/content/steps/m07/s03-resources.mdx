@@ -113,7 +113,7 @@ A service sets `OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=staging` in
 
   The specification merges the environment variable as the secondary resource. The value from code wins.
 
-- production, because the resource given in code has priority over the environment variable
+- production, because code has priority over the variable
 
   The SDK merges OTEL_RESOURCE_ATTRIBUTES as the secondary resource, so the user-provided resource wins.
 
