@@ -1,0 +1,122 @@
+---
+id: m07-s01
+title: What OpenTelemetry is, part by part
+kind: concept
+minutes: 10
+order: 1
+exam:
+  - cert: otca
+    domain: O1
+    competency: Telemetry Data
+  - cert: otca
+    domain: O2
+    competency: Composability and Extension
+tags: [otel-overview]
+outcome: You can name the parts of OpenTelemetry, say what each one does and where it runs, and give the status of each part for traces, metrics and logs.
+terms:
+  - term: Specification
+    def: The cross-language document that says what every API, SDK and protocol of OpenTelemetry must do.
+  - term: API
+    def: The interfaces that code calls to create telemetry. Libraries and applications import it.
+  - term: SDK
+    def: The implementation of the API that records, processes and exports the data. The application owner installs it.
+  - term: OTLP
+    def: The OpenTelemetry Protocol, the standard format and transport for traces, metrics and logs.
+  - term: Collector
+    def: A vendor-neutral program that receives, processes and exports telemetry.
+  - term: Instrumentation library
+    def: A package that adds OpenTelemetry calls to another library, such as an HTTP server or a database client.
+sources:
+  - title: What is OpenTelemetry?
+    url: https://opentelemetry.io/docs/what-is-opentelemetry/
+    checked: 2026-11-13
+  - title: Components (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/components/
+    checked: 2026-11-13
+  - title: Status (OpenTelemetry specifications)
+    url: https://opentelemetry.io/docs/specs/status/
+    checked: 2026-11-13
+  - title: Overview (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/overview/
+    checked: 2026-11-13
+---
+
+<Problem>
+Your company has a Java service with a Jaeger client, a Go service with a Prometheus client and a Python service with a vendor's agent. Now the company wants a different backend. Every service has to be instrumented again, by three teams, in three different ways. The code that makes telemetry is tied to the tool that stores it.
+</Problem>
+
+OpenTelemetry was made to cut that tie. It gives every language the same way to produce telemetry and one way to send it, and it leaves the storage to whatever backend you pick.
+
+<Idea>
+OpenTelemetry is an open source framework and toolkit that generates, exports and collects traces, metrics and logs. It is a set of parts: a specification, an API and an SDK per language, a protocol called OTLP, semantic conventions, instrumentation libraries and a Collector. It is not a backend: storing and showing the data is left to other tools.
+</Idea>
+
+## A toolkit with no storage of its own
+
+OpenTelemetry stops where the data reaches a backend. It does not keep traces and it draws no dashboards. In this course Tempo, Mimir and Loki store the data and Grafana shows it. Jaeger, Prometheus and commercial products can do the same job.
+
+The project names two principles. You own the data you generate, so no vendor locks you in. And you learn one set of APIs and conventions, whatever language or backend you use. OpenTelemetry is a CNCF project. It came from the merger of two older projects, OpenTracing and OpenCensus, which both tried to solve the same problem on their own.
+
+## The parts, from the rules down to the wire
+
+Each part has one job, and the parts fit on top of each other.
+
+<Layers caption="The parts of OpenTelemetry, from the rules to the data on the wire">
+  <Layer title="Specification">Cross-language rules for the API, the SDK and the data.</Layer>
+  <Layer title="API">The calls your code and libraries make to create spans, metrics and logs.</Layer>
+  <Layer title="SDK">The implementation in each language that records, processes and exports.</Layer>
+  <Layer title="Instrumentation libraries and zero-code agents">Telemetry for common frameworks, with or without a code change.</Layer>
+  <Layer title="OTLP and the Collector" hot>One protocol for the data, and a program that receives, processes and forwards it.</Layer>
+</Layers>
+
+The specification is a document. It defines the API (the data types and operations that create telemetry), the SDK (what a language implementation must do: configuration, processing, export) and the data: OTLP and the semantic conventions. The semantic conventions are the agreed names for common data, such as `http.request.method`; module m02 introduced them.
+
+Each language has its own API and SDK that follow the specification. On top of them sit instrumentation libraries: packages that add telemetry to frameworks you already use, such as an HTTP server or a database client. Where a language allows it, zero-code instrumentation loads the API, the SDK and these libraries into a program without a change to its code.
+
+OTLP is the protocol that carries the data. The Collector is a vendor-neutral proxy: it receives telemetry in OTLP and other formats, processes and filters it, and sends it to one or more backends. The Components page calls the Collector a best practice in production.
+
+## One signal, four parts, each with a status
+
+The specification grows signal by signal. Traces, metrics, logs and baggage are signals, and all of them rest on one shared mechanism, context propagation (step 6). The status page gives each signal four core parts: the API, the SDK, OTLP and the Collector, where the Collector's status is the same as the protocol's.
+
+The parts of one signal do not all reach the same status at the same time. The status page lists them like this today:
+
+<Compare caption="Status per signal and part, as the status page states it">
+  <Col title="Tracing" hot>API stable, SDK stable, protocol stable. The page calls the tracing specification completely stable.</Col>
+  <Col title="Metrics">API stable, SDK mixed, protocol stable.</Col>
+  <Col title="Logs">Bridge API stable, SDK stable, protocol stable. Baggage: API and SDK stable, no protocol. Profiles: protocol in development.</Col>
+</Compare>
+
+A component moves through a lifecycle: Draft, Experimental, Stable, Deprecated, Removed. Stable means backward compatible with long-term support. Each language client is developed on its own, so the page advises you to check a client's own repository for what it supports.
+
+<InLab>
+The shop's services use the OpenTelemetry SDKs for Go, Node.js, .NET, Java and Python and send OTLP to the Collector `otel-gateway` in the namespace `otel`. The Collector forwards traces to Tempo, metrics to Mimir and logs to Loki.
+</InLab>
+
+<Trap>
+OpenTelemetry is not a tracing backend, and "we use OpenTelemetry" says nothing about where the data is stored. Ask which backend receives the OTLP.
+</Trap>
+
+<Remember>
+Specification, API, SDK, instrumentation, OTLP, Collector, semantic conventions. The backend is your choice and is not part of OpenTelemetry.
+</Remember>
+
+<Question id="q-m07-s01" answer="c">
+A manager asks which part of the lab's telemetry stack OpenTelemetry provides. Which job is outside OpenTelemetry?
+
+- Defining the protocol that carries spans from a service to the gateway
+
+  OTLP is OpenTelemetry's own protocol.
+
+- Receiving, processing and forwarding telemetry between services and backends
+
+  That is the job of the OpenTelemetry Collector.
+
+- Storing traces for two days and drawing them in a dashboard
+
+  Storage and visualization are left to backends such as Tempo and Grafana.
+
+- Agreeing on the attribute name for the HTTP method of a request
+
+  The semantic conventions are part of OpenTelemetry.
+</Question>
