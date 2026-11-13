@@ -63,8 +63,8 @@ Two settings in `workshop.env` turn the metrics on: `OTEL_METRICS_EXPORTER=otlp`
 Mimir follows the OpenTelemetry rules for turning OTLP metrics into Prometheus series. Characters that Prometheus names do not allow become `_`. The unit is turned into a word and added, unless the name already ends in it: `s` becomes `_seconds`. A unit in braces, such as `{checkout}`, is only an annotation and is dropped. A cumulative monotonic sum gets `_total`. An up-down counter is a sum that is not monotonic, so it becomes a gauge without `_total`. A histogram becomes the classic `_bucket`, `_sum` and `_count` series.
 
 <Compare caption="One instrument, two names">
-  <Col title="In the code">workshop.checkouts {checkout}, workshop.checkouts.active, workshop.compute.duration s, workshop.inventory.stock {item}</Col>
-  <Col title="In Mimir" hot>workshop_checkouts_total, workshop_checkouts_active, workshop_compute_duration_seconds_bucket, workshop_inventory_stock</Col>
+  <Col title="In the code">`workshop.checkouts` with unit `{checkout}`, `workshop.checkouts.active`, `workshop.compute.duration` with unit `s`, `workshop.inventory.stock` with unit `{item}`</Col>
+  <Col title="In Mimir" hot>`workshop_checkouts_total`, `workshop_checkouts_active`, `workshop_compute_duration_seconds_bucket`, `workshop_inventory_stock`</Col>
 </Compare>
 
 Attributes become labels the same way: `workshop.compute.n` becomes `workshop_compute_n`. The resource is handled apart. `service.namespace` and `service.name` together become `job="workshop/workshop"`, and `service.instance.id`, which the Python SDK generates for each process, becomes `instance`. The lab's Mimir also copies a few resource attributes, `service_name` among them, onto every series. The others, such as `deployment.environment.name` and the SDK's version, go to a separate `target_info` series that you can join on `job` and `instance`.
