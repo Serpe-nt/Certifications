@@ -10,8 +10,8 @@ tags: [lab-setup]
 check:
   kind: exact
   prompt: How many etcd pods run in the namespace kube-system?
-  answer: "3"
-outcome: You can confirm with read-only kubectl commands that the lab cluster is healthy and highly available before you install anything on it.
+  answer: "1"
+outcome: You can confirm with read-only kubectl commands that the lab cluster is healthy before you install anything on it.
 terms:
   - term: Static pod
     def: A pod the kubelet starts from a file on its node; kubeadm runs the control plane this way.
@@ -23,54 +23,54 @@ sources:
     checked: 2026-11-12
   - title: Operating etcd clusters for Kubernetes
     url: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/
-    checked: 2026-11-12
+    checked: 2026-11-13
   - title: Options for highly available topology (Kubernetes)
     url: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/
-    checked: 2026-11-12
+    checked: 2026-11-13
   - title: Command line tool (kubectl)
     url: https://kubernetes.io/docs/reference/kubectl/
     checked: 2026-11-12
 ---
 
 <Problem>
-`make cluster` ended without an error. Before you put a whole observability stack on top, you want proof: seven nodes, three API servers, three etcd members, and kubectl talking to the cluster through the load balancer, not to one master by chance.
+`make cluster` ended without an error. Before you put a whole observability stack on top, you want proof: five nodes, an API server and an etcd member on master1, and kubectl talking to the cluster through the load balancer, not to master1 by chance.
 </Problem>
 
 <Idea>
-A few read-only kubectl commands answer all of it. They show where kubectl connects, which versions run, which nodes are ready, and that each control-plane node runs its own API server and etcd member. Nothing here changes the cluster.
+A few read-only kubectl commands answer all of it. They show where kubectl connects, which versions run, which nodes are ready, and that the control-plane node runs its own API server and etcd member. Nothing here changes the cluster.
 </Idea>
 
 ## Where kubectl connects
 
-`kubectl cluster-info` prints the API address. In this lab it must be `https://cluster-endpoint.k8s.local:6443`, the name that points at `lb`. If it shows a master's own address, you are not testing the load balancer. `kubectl version` prints the client and the server version; both should be 1.35.
+`kubectl cluster-info` prints the API address. In this lab it must be `https://cluster-endpoint.k8s.local:6443`, the name that points at `lb`. If it shows master1's own address, you are not testing the load balancer. `kubectl version` prints the client and the server version; both should be 1.35.
 
-## Seven nodes, two roles
+## Five nodes, two roles
 
-`kubectl get nodes -o wide` lists master1 to master3 with the role `control-plane` and worker1 to worker4 with no role, all `Ready`, with addresses from 10.10.0.11 to 10.10.0.33 and containerd as runtime. The masters carry the taint `node-role.kubernetes.io/control-plane:NoSchedule`, so ordinary pods land on the workers only.
+`kubectl get nodes -o wide` lists master1 with the role `control-plane` and worker1 to worker4 with no role, all `Ready`, with the addresses 10.10.0.11 and 10.10.0.30 to 10.10.0.33 and containerd as runtime. master1 carries the taint `node-role.kubernetes.io/control-plane:NoSchedule`, so ordinary pods land on the workers only.
 
 ## The control plane runs as pods
 
-kubeadm starts the control plane as static pods: the kubelet on each master runs them from files on that node. Their names end with the node name: `kube-apiserver-master1`, `etcd-master2` and so on. Each of the three masters runs an API server, a controller manager, a scheduler and an etcd member.
+kubeadm starts the control plane as static pods: the kubelet on the master runs them from files on that node. Their names end with the node name: `kube-apiserver-master1`, `etcd-master1` and so on. master1 runs an API server, a controller manager, a scheduler and an etcd member.
 
 <Figures caption="What a healthy empty lab shows" unit="Count">
-  <Stat label="Nodes Ready" value="7" amount={7} max={7} hot />
-  <Stat label="API server pods" value="3" amount={3} max={7} />
-  <Stat label="etcd pods" value="3" amount={3} max={7} />
-  <Stat label="kube-proxy pods, one per node" value="7" amount={7} max={7} />
+  <Stat label="Nodes Ready" value="5" amount={5} max={5} hot />
+  <Stat label="API server pods" value="1" amount={1} max={5} />
+  <Stat label="etcd pods" value="1" amount={1} max={5} />
+  <Stat label="kube-proxy pods, one per node" value="5" amount={5} max={5} />
 </Figures>
 
-Three etcd members matter. The etcd cluster fails when a majority of its members is lost. With three members, losing one leaves two of three, still a majority. Kubernetes asks for at least three stacked control-plane nodes for this reason.
+Production clusters run more than one etcd member. The etcd cluster fails when a majority of its members is lost, and the Kubernetes guide to operating etcd asks for an odd number of members. With three, losing one leaves two of three, still a majority, so Kubernetes asks for at least three stacked control-plane nodes in a highly available cluster. This lab runs one, to give its memory to the workers. While master1 restarts, the API server is away: kubectl and Helm wait, and pods that already run keep serving. `lgtm/lab/docs/cluster.md`, section "One control-plane node", shows how to add masters back.
 
 <InLab>
 At this point the cluster holds only Kubernetes itself and Calico, in `kube-system`, `calico-system` and `tigera-operator`. Everything else comes in module m01.
 </InLab>
 
 <Trap>
-Use labels, not pod counts, to check the control plane. Later modules add their own pods to `kube-system`, so "how many pods in kube-system" changes, while the etcd and API server pods stay at three.
+Use labels, not pod counts, to check the control plane. Later modules add their own pods to `kube-system`, so "how many pods in kube-system" changes, while the etcd and API server pods stay at one each.
 </Trap>
 
 <Remember>
-One endpoint through `lb`, seven nodes `Ready`, and three of each control-plane pod: that is a healthy lab.
+One endpoint through `lb`, five nodes `Ready`, and one of each control-plane pod on master1: that is a healthy lab.
 </Remember>
 
 <Do>
@@ -82,7 +82,7 @@ kubectl version`}</Cmd>
    The control plane runs at `https://cluster-endpoint.k8s.local:6443`, and both versions start with v1.35.
 3. List the nodes:
    <Cmd>{`kubectl get nodes -o wide`}</Cmd>
-4. See the taint on a master:
+4. See the taint on master1:
    <Cmd>{`kubectl describe node master1 | grep Taints`}</Cmd>
 5. List the control-plane pods with the node each runs on:
    <Cmd>{`kubectl get pods -n kube-system -l tier=control-plane -o wide`}</Cmd>
@@ -91,15 +91,15 @@ kubectl version`}</Cmd>
 </Do>
 
 <Done>
-Seven nodes are `Ready`, the endpoint is the `lb` name, and each master runs its own `etcd-` and `kube-apiserver-` pod.
+Five nodes are `Ready`, the endpoint is the `lb` name, and master1 runs the `etcd-` and `kube-apiserver-` pods.
 </Done>
 
 <Question id="q-m00-s06" answer="a">
 `kubectl cluster-info` prints `https://10.10.0.11:6443`. What does that tell you?
 
-- kubectl talks to master1 directly, so losing master1 cuts you off
+- kubectl talks to master1 directly and skips the load balancer
 
-  10.10.0.11 is master1's own address. The lab's endpoint is the lb name.
+  10.10.0.11 is master1's own address. The lab's endpoint is the lb name, which still works when masters are added.
 
 - kubectl talks to the load balancer, which is fine
 

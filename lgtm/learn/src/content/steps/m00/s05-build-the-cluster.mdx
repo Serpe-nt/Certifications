@@ -11,7 +11,7 @@ check:
   kind: exact
   prompt: Paste the name that kubectl config current-context prints with the lab kubeconfig.
   answer: lgtm-lab
-outcome: You can build the highly available cluster with one make command, run it again safely, and point kubectl at it without touching your other kubeconfig.
+outcome: You can build the cluster with one make command, run it again safely, and point kubectl at it without touching your other kubeconfig.
 terms:
   - term: Playbook
     def: An Ansible file that lists which roles run on which group of hosts, in order.
@@ -29,16 +29,16 @@ sources:
 ---
 
 <Problem>
-You have eight running VMs and nothing on them. A highly available cluster needs a load balancer in front of three API servers, the same packages on seven nodes, one `kubeadm init`, five joins in the right order, and a network plugin. Typed by hand, it takes an afternoon and never comes out the same twice.
+You have six running VMs and nothing on them. The cluster needs a load balancer in front of its API server, the same packages on five nodes, one `kubeadm init`, four joins in the right order, and a network plugin. Typed by hand, it takes an afternoon and never comes out the same twice.
 </Problem>
 
 <Idea>
-Ansible does it from WSL over SSH. One playbook, `site.yml`, runs six plays in order: the load balancer and DNS, the common node setup, `kubeadm init` on master1, the other control-plane joins, the worker joins, and a kubeconfig for you. `make cluster` runs it, and it is safe to run again.
+Ansible does it from WSL over SSH. One playbook, `site.yml`, runs six plays in order: the load balancer and DNS, the common node setup, `kubeadm init` on master1, the joins of further control-plane nodes, the worker joins, and a kubeconfig for you. `make cluster` runs it, and it is safe to run again.
 </Idea>
 
 ## Why the load balancer comes first
 
-Every node and kubectl reach the API through one name, `cluster-endpoint.k8s.local:6443`. That name points at `lb`, and HAProxy on `lb` forwards to the three API servers. `kubeadm init` already uses this endpoint, so HAProxy and the DNS must answer before the first master is set up. That is why play one configures `lb`.
+Every node and kubectl reach the API through one name, `cluster-endpoint.k8s.local:6443`. That name points at `lb`, and HAProxy on `lb` forwards to the API server on master1. Control-plane nodes added later join the same HAProxy backend, so kubectl and the nodes keep the same address. `kubeadm init` already uses this endpoint, so HAProxy and the DNS must answer before master1 is set up. That is why play one configures `lb`.
 
 ## Six plays, one run
 
@@ -46,10 +46,10 @@ Every node and kubectl reach the API through one name, `cluster-endpoint.k8s.loc
   <Stage title="lb" kicker="Play 1">HAProxy for the API and web ports, dnsmasq for k8s.local.</Stage>
   <Stage title="All nodes" kicker="Play 2">Swap off, kernel modules, containerd, Kubernetes 1.35 packages.</Stage>
   <Stage title="master1" kicker="Play 3">kubeadm init, then Calico for the pod network.</Stage>
-  <Stage title="Joins" kicker="Plays 4 to 6">master2 and master3, the workers, then your kubeconfig.</Stage>
+  <Stage title="Joins" kicker="Plays 4 to 6">Further masters (none here), the workers, then your kubeconfig.</Stage>
 </Flow>
 
-The first master runs `kubeadm init` with the pod network 10.100.0.0/16 and the service network 10.96.0.0/16, then installs Calico. The other two masters join one at a time as control-plane nodes, and the four workers join after them. The last play copies the admin kubeconfig from master1 to `~/.kube/lgtm-lab.config` in WSL.
+master1 runs `kubeadm init` with the pod network 10.100.0.0/16 and the service network 10.96.0.0/16, then installs Calico. The play that joins further control-plane nodes, one at a time, finds none in this lab and is skipped. The four workers join after it. The last play copies the admin kubeconfig from master1 to `~/.kube/lgtm-lab.config` in WSL.
 
 ## Safe to run again
 
@@ -77,7 +77,7 @@ make inventory
 make ping`}</Cmd>
 3. Build the cluster and keep a log. It takes 15 to 30 minutes and ends with a PLAY RECAP where every host has `failed=0` and `unreachable=0`:
    <Cmd>{`make cluster 2>&1 | tee ~/lgtm-cluster-first-run.log`}</Cmd>
-4. Run the read-only health check. It checks HAProxy, the DNS name and all seven nodes:
+4. Run the read-only health check. It checks HAProxy, the DNS name and all five nodes:
    <Cmd>{`make cluster-check`}</Cmd>
 5. Point kubectl at the lab for this shell and print the context:
    <Cmd>{`export KUBECONFIG=~/.kube/lgtm-lab.config
@@ -86,7 +86,7 @@ kubectl config current-context`}</Cmd>
 </Do>
 
 <Done>
-`make cluster-check` ends with `failed=0` and lists seven nodes `Ready`, and kubectl prints the lab's context.
+`make cluster-check` ends with `failed=0` and lists five nodes `Ready`, and kubectl prints the lab's context.
 </Done>
 
 <Trap practice>
