@@ -9,7 +9,7 @@ an S3 store, a gateway, Kafka, certificates and resource metrics. Run it after `
 | Add-on | Release (chart, version) | Namespace | What the lab uses |
 |---|---|---|---|
 | Longhorn | `longhorn` (longhorn 1.13.0) | `longhorn-system` | Default StorageClass `longhorn`, two replicas per volume, data on `/var/lib/longhorn` of each worker |
-| RustFS | `rustfs` (rustfs 1.0.4) | `s3` | S3 API `rustfs-svc.s3.svc:9000`; buckets `mimir-blocks`, `mimir-ruler`, `mimir-alertmanager`, `loki-chunks`, `loki-ruler`, `tempo-traces`; Secret `lab-s3` in `s3`, `mimir`, `loki`, `tempo` |
+| RustFS | `rustfs` (rustfs 1.0.5) | `s3` | S3 API `rustfs-svc.s3.svc:9000`; buckets `mimir-blocks`, `mimir-ruler`, `mimir-alertmanager`, `loki-chunks`, `loki-ruler`, `tempo-traces`; Secret `lab-s3` in `s3`, `mimir`, `loki`, `tempo` |
 | Envoy Gateway | `envoy-gateway` (gateway-helm v1.10.0) | `gateway` | Gateway `lab` (class `lab-envoy`): HTTP on NodePort 30080, HTTPS on NodePort 30443 for `*.lab.k8s.local`, routes from all namespaces |
 | Strimzi and Kafka | `strimzi` (strimzi-kafka-operator 1.3.1) | `kafka` | Kafka 4.3.2 cluster `telemetry`, KRaft, 3 nodes with a 10 GiB volume each; `telemetry-kafka-bootstrap.kafka.svc:9092`, no authentication; records kept 24 hours or 640 MiB per partition, whichever comes first |
 | cert-manager | `cert-manager` (cert-manager v1.21.3) | `cert-manager` | ClusterIssuer `lab-ca` (a self-signed root, Secret `cert-manager/lab-root-ca`); the gateway's certificate `gateway/lab-gateway-tls` |

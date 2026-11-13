@@ -32,6 +32,9 @@ ingress:
 # of chunk reads by Loki took it to 918 MiB (RSS 772 MiB), the memory stayed taken, and the
 # 1Gi limit killed it (2026-11-12, 12:06). RustFS documents no setting that caps its memory,
 # so the limit leaves room for such a burst (lgtm/docs/adr/l5b-rustfs-memory.md).
+# RustFS 1.0.4 still climbed to the 1536Mi limit every few hours and gave nothing back,
+# a known retention of 1.0.4 on a single drive; 1.0.5 carries fixes for it, and the
+# limit stays so a rebuilt lab shows whether they hold (lgtm/docs/adr/l6-rustfs-memory.md).
 resources:
   requests:
     cpu: 100m

@@ -79,18 +79,6 @@ nodes:
     vcpu: 2
     memory_gb: 3
     disk_gb: 25
-  - name: master2
-    role: control_plane
-    address: 10.10.0.12
-    vcpu: 2
-    memory_gb: 3
-    disk_gb: 25
-  - name: master3
-    role: control_plane
-    address: 10.10.0.13
-    vcpu: 2
-    memory_gb: 3
-    disk_gb: 25
   - name: worker1
     role: worker
     address: 10.10.0.30

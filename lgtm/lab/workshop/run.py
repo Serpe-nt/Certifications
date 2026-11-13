@@ -25,6 +25,25 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 
+# opentelemetry-instrument sets up the environment and then hands over to the
+# service with os.execl. On Windows execl starts a new process and ends the
+# old one, so run.py returned at once and Ctrl+C never reached the service.
+# There, run.py starts the agent's own entry point with execl replaced by a
+# child process that it waits for, and stops on Ctrl+C.
+INSTRUMENT_WITHOUT_EXEC = """
+import subprocess, sys
+from opentelemetry.instrumentation import auto_instrumentation as agent
+
+def start(path, *args):
+    try:
+        sys.exit(subprocess.call([path, *args[1:]]))
+    except KeyboardInterrupt:
+        sys.exit(130)
+
+agent.execl = start
+agent.run()
+"""
+
 
 def read_env(path):
     """KEY=VALUE lines; blank lines and # comments are skipped."""
@@ -72,6 +91,8 @@ def main(argv):
     command = shlex.split(env.pop("WORKSHOP_COMMAND", "python app.py"))
     # The SQLite file stays next to this script, whichever variant runs.
     env.setdefault("WORKSHOP_DB", str(HERE / "workshop.db"))
+    if os.name == "nt" and command[0] == "opentelemetry-instrument":
+        command = ["python", "-c", INSTRUMENT_WITHOUT_EXEC, *command[1:]]
 
     if use_venv:
         bin_dir = ensure_venv(folder)
