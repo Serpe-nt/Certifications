@@ -1,0 +1,125 @@
+---
+id: m07-s04
+title: Instrumentation scope
+kind: lab
+minutes: 12
+order: 4
+exam:
+  - cert: otca
+    domain: O2
+    competency: Data Model
+tags: [otel-instrumentation-scope]
+check:
+  kind: exact
+  prompt: Paste the instrumentation scope name of the database spans in the product-catalog service.
+  answers: ["github.com/XSAM/otelsql"]
+outcome: You can say what an instrumentation scope is, pick the right scope name for a library or for your own code, and use it to tell which code made a span.
+terms:
+  - term: Instrumentation scope
+    def: The unit of code that emitted the telemetry, named when a tracer is obtained, with an optional version.
+  - term: Tracer
+    def: The API object that creates spans. Each tracer comes from a TracerProvider and carries one scope.
+  - term: Schema URL
+    def: A link to the version of the semantic conventions that a scope or resource follows.
+sources:
+  - title: Instrumentation scope (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/instrumentation-scope/
+    checked: 2026-11-13
+  - title: Tracing API, get a Tracer (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/api/
+    checked: 2026-11-13
+  - title: Tracing SDK, tracer creation (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+    checked: 2026-11-13
+  - title: Instrumentation for OpenTelemetry Python, acquire a tracer
+    url: https://opentelemetry.io/docs/languages/python/instrumentation/
+    checked: 2026-11-13
+  - title: Construct a TraceQL query, intrinsic fields (Tempo)
+    url: https://grafana.com/docs/tempo/latest/traceql/construct-traceql-queries/
+    checked: 2026-11-13
+---
+
+<Problem>
+After an upgrade of a cache library from 2.3 to 2.4, checkout got slower. Every span in the process carries the same resource, `service.name="checkout"`, so the resource cannot tell you which spans came from the cache library, which from the gRPC library and which from the team's own code.
+</Problem>
+
+The resource answers "which process". A second label answers "which code inside the process".
+
+<Idea>
+Every tracer belongs to an instrumentation scope: a name, with an optional version, schema URL and attributes, given when the tracer is obtained. Each span carries the scope of the tracer that created it. In a backend you can filter, group and compare spans by scope, for example the spans of one library before and after its upgrade.
+</Idea>
+
+## Each tracer is named when you get it
+
+Code never creates a span out of nothing. It gets a tracer from the TracerProvider and asks the tracer for spans. Getting a tracer takes a name, which is required, and optionally a version, a schema URL and scope attributes. The SDK stores them on the tracer as its instrumentation scope, and every span the tracer makes is tagged with it.
+
+In Python that is one line: `tracer = trace.get_tracer("workshop")`. If the name is empty or missing, the API must still return a working tracer, with an empty name, and should log that the name is invalid.
+
+<Layers caption="Three answers to 'who made this span?'">
+  <Layer title="Resource">The process: service.name, service.instance.id, the pod, the host.</Layer>
+  <Layer title="Instrumentation scope" hot>The code inside the process: a library, a module or a class, with its version.</Layer>
+  <Layer title="Span">One operation, with its own name and attributes.</Layer>
+</Layers>
+
+## Which name to give
+
+The name should identify the unit of code uniquely, so the rules depend on who writes the instrumentation:
+
+- A library with built-in OpenTelemetry calls uses its own fully qualified name and version.
+- An instrumentation library that adds telemetry to another library, which has none of its own, uses its own name and version, not the name of the library it instruments.
+- Application code usually uses the class or module name, such as `CheckoutService`. All spans from one tracer share its scope, even when they come from different functions.
+
+The version is what makes the cache question answerable: spans from version 2.3 and 2.4 of a library carry different scope versions. A TracerProvider may also hand out a no-op tracer for one scope when the application owner tells the SDK to suppress that library's telemetry, so the name is also the handle for turning a library off.
+
+## Scopes on a real trace
+
+One service usually holds several scopes, one for each library that is instrumented plus one for its own code. Tempo stores the scope with each span, and TraceQL reads it with the intrinsic fields `instrumentation:name` and `instrumentation:version`.
+
+<InLab>
+In the shop, product-catalog's gRPC server spans come from the scope `go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc` version 0.71.0, and its database spans from another scope. Checkout's own spans, such as `prepareOrderItemsAndShippingQuoteFromCart`, come from a scope its developers named `checkout`.
+</InLab>
+
+<Trap>
+The scope is not the service. A span with the scope `checkout` and a span with the scope `otelgrpc` can belong to the same service; the service is on the resource, the scope tells you which code inside it made the span.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> with the data source `tempo` and the query type TraceQL, time range the last 15 minutes.
+2. List the spans of product-catalog with the scope that created each one: <Query lang="traceql">{`{ resource.service.name = "product-catalog" } | select(instrumentation:name, instrumentation:version)`}</Query> Each matching span shows its scope name and version as columns.
+3. Narrow it to the spans of kind client, the calls product-catalog makes to its database: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && kind = client } | select(instrumentation:name, instrumentation:version)`}</Query>
+4. Open one trace and look at product-catalog's spans: the gRPC server span and, below it, the database span. Their scopes differ although the resource is the same.
+5. Find checkout's own spans by their scope: <Query lang="traceql">{`{ instrumentation:name = "checkout" }`}</Query> Their names, such as `prepareOrderItemsAndShippingQuoteFromCart` and `shipOrder`, are functions of the checkout code, not of a library.
+6. Paste the scope name of product-catalog's database spans in the check below.
+</Do>
+
+<Done>
+You found two scopes inside one service and told the library's spans apart from the service's own spans by scope.
+</Done>
+
+<Trap practice>
+Copy the whole scope name as the column shows it: it is a Go module path, and a missing path segment fails the check. The first query also lists the gRPC scope, so make sure you copy the scope of a client span.
+</Trap>
+
+<Remember>
+Resource: which process. Scope: which code in the process, named when the tracer is obtained. A library names its tracer after itself and its version.
+</Remember>
+
+<Question id="q-m07-s04" answer="c">
+A developer writes an instrumentation package for a database driver that has no OpenTelemetry support of its own. Which name should the package give the tracer it obtains?
+
+- The database driver's name, because its operations are what the spans describe
+
+  The driver did not emit the telemetry. The scope names the code that did.
+
+- The service.name of the application, so the spans match the resource
+
+  The service name belongs on the resource. The scope names a unit of code.
+
+- The instrumentation package's own name, with its own version
+
+  For a library without built-in support, the scope is the name and version of the instrumentation library itself.
+
+- An empty name, so the SDK fills in a default
+
+  An empty name is invalid. The API returns a working tracer with an empty name and logs a message.
+</Question>
