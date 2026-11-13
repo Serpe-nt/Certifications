@@ -1,0 +1,138 @@
+---
+id: m09-s09
+title: "Tail sampling and the load-balancing exporter"
+kind: concept
+minutes: 15
+order: 9
+exam:
+  - cert: otca
+    domain: O3
+    competency: Scaling
+tags: [collector-tail-sampling]
+outcome: You can write tail sampling policies that keep the traces worth keeping, and explain why tail sampling on several Collectors needs a first tier that routes by trace ID.
+terms:
+  - term: Tail sampling
+    def: Deciding whether to keep a trace after its spans have arrived, so the decision can use errors, latency or attributes.
+  - term: decision_wait
+    def: How long the tail sampling processor holds a trace's spans before it decides, 30 seconds by default.
+  - term: load_balancing exporter
+    def: An exporter that sends each trace, service or stream consistently to the same backend Collector from a list.
+  - term: Routing key
+    def: What the load_balancing exporter hashes to pick a backend, such as traceID or service.
+  - term: Headless Service
+    def: A Kubernetes Service without a cluster IP, whose DNS name returns the IP of every ready pod.
+sources:
+  - title: Tail sampling processor (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/tailsamplingprocessor/README.md
+    checked: 2026-11-13
+  - title: Load-balancing exporter (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/exporter/loadbalancingexporter/README.md
+    checked: 2026-11-13
+  - title: Gateway deployment pattern (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/deploy/gateway/
+    checked: 2026-11-13
+  - title: Agent-to-gateway deployment pattern (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/deploy/other/agent-to-gateway/
+    checked: 2026-11-13
+  - title: Scaling the Collector (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/scaling/
+    checked: 2026-11-13
+---
+
+<Problem>
+The shop's traces cost too much to store, so the team sets a ratio sampler in every SDK: keep one trace in ten. A week later a customer reports a failed checkout, and its trace is not there. The SDK decided at the first span, before anyone knew the request would fail. Nine in ten error traces are thrown away with the rest.
+</Problem>
+
+A sampler at the start of a trace can only guess. A sampler at the end knows how the request went.
+
+<Idea>
+The tail sampling processor holds every span of a trace in memory, waits until the trace is probably complete, and then decides with policies: keep all errors, keep slow traces, keep a share of the rest. It only works if every span of a trace reaches the same Collector, so with more than one replica you put a tier in front that routes spans by trace ID with the load-balancing exporter.
+</Idea>
+
+## Policies decide per trace
+
+You give the processor a list of policies. Common ones are `status_code` (for example keep `ERROR`), `latency` (keep traces longer than a threshold), `probabilistic` (keep a percentage), `string_attribute`, `ottl_condition`, and the combinators `and`, `not`, `drop` and `composite`. Each policy returns a decision. If any policy says drop, the trace is not sampled; otherwise, if any policy says sample, the trace is kept; in all other cases it is not.
+
+```yaml
+processors:
+  tail_sampling:
+    decision_wait: 30s
+    num_traces: 50000
+    policies:
+      - name: keep-errors
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+      - name: keep-slow
+        type: latency
+        latency: { threshold_ms: 2000 }
+      - name: some-of-the-rest
+        type: probabilistic
+        probabilistic: { sampling_percentage: 10 }
+```
+
+## The price is memory and time
+
+By default the processor holds a trace for 30 seconds (`decision_wait`) before it decides, and keeps up to 50,000 traces in memory (`num_traces`). Spans that arrive after the decision are handled with the help of optional decision caches. Every one of those choices costs memory, which is why the memory limiter must sit in front of it, and why traces reach the backend at least `decision_wait` late.
+
+Because the processor regroups spans into new batches, it loses the connection context. `k8s_attributes` must run before it.
+
+## Why tail sampling needs two tiers
+
+Put four replicas behind a round-robin Service and the spans of one trace land on different replicas. Each replica decides on the part it holds: one keeps its spans because it saw the error, another drops its spans because it did not. The stored trace is missing spans.
+
+The fix is a first tier of Collectors with the `load_balancing` exporter. It hashes the routing key, `traceID` by default for spans, and always sends the same trace to the same second-tier Collector, which runs `tail_sampling`. The list of second-tier Collectors comes from a resolver: a `static` list, `dns` (a headless Service, polled every few seconds), `k8s` (EndpointSlices, which needs RBAC) or `aws_cloud_map`.
+
+```yaml
+exporters:
+  load_balancing:
+    routing_key: traceID
+    protocol:
+      otlp:
+        tls:
+          insecure: true
+    resolver:
+      dns:
+        hostname: otel-sampler-headless.otel.svc.cluster.local
+        port: "4317"
+```
+
+The resolver's `port` is a string. In 0.165.0, `validate` rejects an unquoted `port: 4317` with `'port' expected type 'string'`; leave the key out and the default is 4317.
+
+<Compare caption="Two ways to spread spans over tail-sampling Collectors">
+  <Col title="Round-robin Service">Spans of one trace land on different replicas, each decides on a part. Traces lose spans.</Col>
+  <Col title="load_balancing by traceID" hot>Every span of a trace goes to the same replica, which sees the whole trace.</Col>
+</Compare>
+
+When the second tier scales up or down, the hash ring changes and some traces are split for a short time. The agent-to-gateway page calls tail sampling across several gateways an advanced setup and suggests one well-resourced tail-sampling gateway unless you have robust sticky routing.
+
+<InLab>
+The lab samples nothing in the Collector: every span the shop sends reaches Tempo. Its gateway has two replicas behind a plain ClusterIP Service, so adding `tail_sampling` there would split traces; that is why this step is to read, not to run.
+</InLab>
+
+<Trap>
+A ratio sampler in the SDK and a tail sampler in the Collector multiply. If the SDK keeps 10% and the tail sampler keeps all errors, you still lose nine in ten error traces before the Collector ever sees them.
+</Trap>
+
+<Remember>
+Tail sampling decides per whole trace with policies, at the cost of memory and delay. With more than one replica, a load_balancing tier routing by traceID must make sure each trace lands on one Collector.
+</Remember>
+
+<Question id="q-m09-s09" answer="d">
+A trace has one span with status ERROR and takes 300 ms. The policies are `status_code` for ERROR, `latency` above 2000 ms, and a `drop` policy that matches spans whose `http.route` is `/health`. The trace's root span has `http.route=/health`. Is the trace kept?
+
+- Yes, because the status_code policy matched first
+
+  The order of policies does not give the first match priority here; a drop decision wins.
+
+- Yes, because two of the three policies agree
+
+  Decisions are not counted by majority.
+
+- No, because the latency policy did not match
+
+  A policy that does not match only means "no sample" from that policy; the error policy still says sample.
+
+- No, because a drop decision always means the trace is not sampled
+
+  The README's decision flow puts a drop decision before every sample decision.
+</Question>
