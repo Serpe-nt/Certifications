@@ -87,7 +87,7 @@ The scope is not the service. A span with the scope `checkout` and a span with t
 1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> with the data source `tempo` and the query type TraceQL, time range the last 15 minutes.
 2. List the spans of product-catalog with the scope that created each one: <Query lang="traceql">{`{ resource.service.name = "product-catalog" } | select(instrumentation:name, instrumentation:version)`}</Query> With Table Format set to Spans under Search Options, each matching span shows its scope name and version as columns.
 3. Narrow it to the spans of kind client, the calls product-catalog makes to its database: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && kind = client } | select(instrumentation:name, instrumentation:version)`}</Query>
-4. Open one trace and look at product-catalog's spans: the gRPC server span and, below it, the database span. Their scopes differ although the resource is the same.
+4. Open one trace and look at product-catalog's spans: the gRPC server span and, below it, the database span. The span details show the scope as Library Name and Library Version. The two scopes differ although the resource is the same.
 5. Find checkout's own spans by their scope: <Query lang="traceql">{`{ instrumentation:name = "checkout" }`}</Query> Their names, such as `prepareOrderItemsAndShippingQuoteFromCart` and `shipOrder`, are functions of the checkout code, not of a library.
 6. Paste the scope name of product-catalog's database spans in the check below.
 </Do>

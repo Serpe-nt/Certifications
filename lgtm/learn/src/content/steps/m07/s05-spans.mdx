@@ -96,7 +96,7 @@ Do not set Ok on every successful span "to be clear". Unset already means succes
 <Do>
 1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> with the data source `tempo` and the query type TraceQL, time range the last 15 minutes. Find checkout's order spans: <Query lang="traceql">{`{ resource.service.name = "checkout" && name = "oteldemo.CheckoutService/PlaceOrder" }`}</Query>
 2. Open one trace and click checkout's `oteldemo.CheckoutService/PlaceOrder` span. Read its kind (server) and its status (unset, if the order went through).
-3. In the same span, open its events. Find `prepared`, `charged` and `shipped`, and read the `demo.payment.transaction.id` attribute of `charged`.
+3. In the same span, open its events. Among them, next to three `feature_flag.evaluation` events, find `prepared`, `charged` and `shipped`, and read the `demo.payment.transaction.id` attribute of `charged`.
 4. Below it, find the span `publish orders`. Read its kind: producer. It created the Kafka message for later processing.
 5. Find the beacon's trace for this module's slot: <Query lang="traceql">{`{ resource.service.name = "beacon" && span.beacon.slot = "span-m07-1" }`}</Query> Open one trace. It has two spans.
 6. Click each of the two spans and compare their attributes. Paste the `beacon.token` you find in the check below.

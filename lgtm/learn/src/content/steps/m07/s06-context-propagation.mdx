@@ -96,7 +96,7 @@ The parent ID in `traceparent` is the caller's client span, not the caller's ser
 
 <Do>
 1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> with the data source `tempo` and the query type TraceQL, time range the last 15 minutes. Find checkout's calls to payment: <Query lang="traceql">{`{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" }`}</Query>
-2. Open one trace. Copy the trace ID from the header of the trace view.
+2. Open one trace. Copy the trace ID from the header of the trace view, which always shows all 32 characters; the list of results drops the leading zeros of a trace ID that starts with 0.
 3. Click checkout's span `oteldemo.PaymentService/Charge`. Its kind is client. Copy its span ID from the span details.
 4. Click payment's span with the same name, below it. Its kind is server, and its parent is the span from action 3.
 5. Write the header checkout sent: `00`, a hyphen, the trace ID, a hyphen, the span ID of action 3, a hyphen, `01`. Paste it in the check below.
