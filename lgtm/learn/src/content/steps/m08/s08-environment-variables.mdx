@@ -116,7 +116,7 @@ A Helm chart sets `OTEL_SDK_DISABLED=1` on a Java service to stop its telemetry 
 
   When it takes effect, OTEL_SDK_DISABLED applies to all signals. The problem is the value.
 
-- Only the string `true`, in any case, is read as true; `1` is read as false, so the SDK stays enabled.
+- Only `true` counts as true, so `1` leaves the SDK enabled.
 
   The specification defines true by the word true alone and tells implementations not to accept other values as true.
 

@@ -100,7 +100,7 @@ A team writes a span processor that sets `team.name` on each span in its `OnEnd`
 
   The built-in batching processor batches and exports; it does not filter attributes.
 
-- In OnEnd the span has already ended and may only be read, so the change is not allowed.
+- In OnEnd the span has ended and must not be changed.
 
   OnStart receives a read/write span. OnEnd receives an ended span that must not be modified.
 

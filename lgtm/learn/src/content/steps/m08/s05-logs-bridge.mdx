@@ -117,7 +117,7 @@ Why did OpenTelemetry give logs a bridge API for appenders, instead of a new log
 
   A record emitted through the Logs API directly gets the trace context too. The reason is about existing code, not about the data.
 
-- Because many logging libraries and log formats already exist, and OpenTelemetry chose to work with them rather than replace them.
+- Because so many logging libraries already exist and stay in use.
 
   The specification explains the choice by the large and varied legacy in logging. Appenders bridge those libraries into the OpenTelemetry data model.
 

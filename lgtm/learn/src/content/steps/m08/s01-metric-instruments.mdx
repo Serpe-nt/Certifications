@@ -109,7 +109,7 @@ The workshop service reports its stock with an observable gauge whose callback r
 
   The callback is not called inside a request at all. A database span would not stop a measurement from seeing a context either.
 
-- The SDK calls the callback during collection, outside any request, so there is no active span to tie the measurement to.
+- The SDK runs the callback during collection, outside any request.
 
   Measurements from asynchronous instruments cannot be associated with a context. Only synchronous instruments record inside the work that has a span.
 
