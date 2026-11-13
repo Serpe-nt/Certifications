@@ -40,8 +40,8 @@ How to spend the room:
 - **The other 4 GiB or so stays free**, because memory that no request reserves is real: Longhorn
   and Calico used about 3.5 GiB above their requests on version 2 (below), and the fault flags make
   some services grow towards their limits.
-- Per worker that leaves about 2.9 GiB under the ceiling with the lab installed, where version 2
-  left between 0.1 and 1.2 GiB. One worker is still fuller than the others when the scheduler
+- Per worker that leaves about 2.1 GiB under the ceiling (6.9 of 7.7 GiB, less 4.8) with the lab
+  installed, where version 2 left between 0.1 and 1.0 GiB. One worker is still fuller than the others when the scheduler
   places Kafka, RustFS and a Mimir ingester together: `kubectl describe node` shows it, and
   `make lab-check` fails before a volume or a Longhorn disk fills.
 
