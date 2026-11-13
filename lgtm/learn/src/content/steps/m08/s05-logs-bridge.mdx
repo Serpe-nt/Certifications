@@ -1,0 +1,131 @@
+---
+id: m08-s05
+title: "Logs: the bridge API and trace correlation"
+kind: concept
+minutes: 18
+order: 5
+exam:
+  - cert: otca
+    domain: O2
+    competency: "Signals (Tracing, Metric, Log)"
+  - cert: otca
+    domain: O2
+    competency: Data Model
+tags: [otel-logs-api]
+outcome: You can explain why OpenTelemetry bridges existing logging libraries instead of replacing them, name the fields of a log record, and say where its trace ID comes from.
+terms:
+  - term: Log appender (bridge)
+    def: A plug-in for a logging library that turns its log events into OpenTelemetry log records through the Logs API.
+  - term: Logs API
+    def: The OpenTelemetry API with a LoggerProvider and Loggers that emit LogRecords; designed mainly for appender authors.
+  - term: LogRecord
+    def: One log event in the OpenTelemetry data model, with a timestamp, severity, body, attributes and trace context.
+  - term: SeverityNumber
+    def: A number from 1 to 24 that gives a log record's level in six ranges, from TRACE to FATAL.
+  - term: Batching LogRecordProcessor
+    def: The SDK part that queues log records and hands them to the exporter in batches, once a second by default.
+sources:
+  - title: Logs (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/signals/logs/
+    checked: 2026-11-13
+  - title: OpenTelemetry Logging (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/
+    checked: 2026-11-13
+  - title: Logs API (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/api/
+    checked: 2026-11-13
+  - title: Logs data model (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/data-model/
+    checked: 2026-11-13
+  - title: Logs SDK (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/sdk/
+    checked: 2026-11-13
+  - title: Specification status summary (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/status/
+    checked: 2026-11-13
+  - title: Logs auto-instrumentation example (OpenTelemetry Python)
+    url: https://opentelemetry.io/docs/zero-code/python/logs-example/
+    checked: 2026-11-13
+---
+
+<Problem>
+The workshop service already writes log lines with Python's `logging` module: an order placed, a charge declined, the shop unreachable. A large service has hundreds of such calls, and its team will not rewrite them for a new API. Yet those lines are exactly what you want next to a trace, with the trace's ID on them.
+</Problem>
+
+<Idea>
+For traces and metrics, OpenTelemetry defined new APIs that your code calls. For logs it did not ask that. It defined a log data model and a Logs API built mainly for appenders: plug-ins that bridge an existing logging library into the OpenTelemetry SDK. The bridge adds the trace and span IDs of the current context and the resource to every record, so your existing log calls become correlated records.
+</Idea>
+
+## Why logs got a bridge, not a new API
+
+The logging world is much older and more varied than tracing. Every language has popular libraries, Java alone has Log4j and Logback, and many programs write logs in formats their operators cannot change. The specification says it chose a different path for logs because of that legacy. It defines what a log record is, maps existing formats to it, and gives library authors an API to build appenders on.
+
+The OpenTelemetry status page lists the parts as stable: the Logs Bridge API, the Logs SDK and the protocol. Language support differs: the logs page lists the Python implementation as in development, while Java, .NET, C++, PHP and Rust are stable.
+
+The Logs API can also be called directly. The current specification allows applications and instrumentation libraries to emit records with it, for example structured events with a name that a logging library cannot express. The status page and the Python documentation still describe it as an API that end users do not call. For your application's own log lines, the advice is the same in every source: keep your logging library and add an appender.
+
+## What a log record holds
+
+A record has named top-level fields and free attributes:
+
+- Timestamp, when the event happened, and ObservedTimestamp, when the collecting system saw it;
+- TraceId, SpanId and TraceFlags, from the W3C trace context;
+- SeverityText, the level as the source wrote it, and SeverityNumber;
+- Body, the message, which can be a string or structured;
+- Attributes, the extra fields of this event, and EventName for records that are events;
+- Resource and InstrumentationScope, as on spans and metrics.
+
+SeverityNumber puts every library's levels on one scale. Each level name owns four numbers, so a backend can sort and filter levels from any source.
+
+<Figures caption="SeverityNumber ranges" unit="Highest number">
+  <Stat label="TRACE" value="1 to 4" amount={4} max={24} />
+  <Stat label="DEBUG" value="5 to 8" amount={8} max={24} />
+  <Stat label="INFO" value="9 to 12" amount={12} max={24} />
+  <Stat label="WARN" value="13 to 16" amount={16} max={24} />
+  <Stat label="ERROR" value="17 to 20" amount={20} max={24} hot note="FATAL is 21 to 24." />
+</Figures>
+
+## Where the trace ID comes from
+
+When the appender emits a record, the Logs API takes the current context unless one is passed in. If a span is active, as it is inside a request handled by an instrumented framework, the SDK puts that span's trace ID and span ID on the record. Nothing in the log call names the span. The specification lists three ways a log ties to other signals: by time, by this execution context, and by the resource, which says which service and process wrote it.
+
+From there the pipeline looks like the one for spans in module m07. A LoggerProvider holds the resource and one or more processors. The batching processor queues records, at most 2048, and exports at most 512 at a time, every second by default (`OTEL_BLRP_SCHEDULE_DELAY=1000`). An exporter, OTLP or the console, sends them on.
+
+<Flow caption="A log line becomes a correlated record">
+  <Stage title="log.warning(...)" kicker="Your code">The call your service already makes.</Stage>
+  <Stage title="Appender" kicker="Logs API">Turns the event into a LogRecord and reads the current context.</Stage>
+  <Stage title="Batching processor" kicker="SDK">Adds the resource, queues and batches.</Stage>
+  <Stage title="OTLP exporter" kicker="SDK">Sends to /v1/logs with trace_id and span_id on each record.</Stage>
+</Flow>
+
+<InLab>
+In Python, the logging instrumentation attaches an OpenTelemetry handler to the root logger, and since OpenTelemetry Python 1.40.0 the agent does that by default. In the shop, the Go service checkout bridges its `slog` logger with `otelslog`, and recommendation adds a `LoggingHandler` to Python's logging in code.
+</InLab>
+
+<Trap>
+Correlation does not come from printing the trace ID into the message. The bridge sets TraceId and SpanId as fields of the record from the active context; a log call made outside any span, such as at startup, has no trace ID at all.
+</Trap>
+
+<Remember>
+Keep your logging library and add an OpenTelemetry appender. The record gets its trace ID and span ID from the current context, its resource from the SDK, and its level as a SeverityNumber from 1 to 24.
+</Remember>
+
+<Question id="q-m08-s05" answer="b">
+Why did OpenTelemetry give logs a bridge API for appenders, instead of a new logging API that every application calls, as it did for traces and metrics?
+
+- Because log records cannot carry a trace ID unless they come from a logging library.
+
+  A record emitted through the Logs API directly gets the trace context too. The reason is about existing code, not about the data.
+
+- Because many logging libraries and log formats already exist, and OpenTelemetry chose to work with them rather than replace them.
+
+  The specification explains the choice by the large and varied legacy in logging. Appenders bridge those libraries into the OpenTelemetry data model.
+
+- Because the logs signal is still experimental in the specification.
+
+  The status page lists the Logs Bridge API, the SDK and the protocol as stable.
+
+- Because the Collector, not the SDK, is meant to create log records.
+
+  The Collector can read and convert logs from files, but applications emit records through the SDK as well.
+</Question>
