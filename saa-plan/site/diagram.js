@@ -29,7 +29,11 @@ window.DG = (() => {
     const W = dg.w * U, H = dg.h * U, mk = `dg-ar-${esc(key)}`;
     let h = `<svg class="dg" viewBox="0 0 ${W} ${H}" role="group" aria-label="${esc(dg.title)}">` +
       `<defs><marker id="${mk}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>`;
+    // An area's label is drawn again above the arrows (with a halo, style.css .dg-al), so an arrow never crosses it; the
+    // copy inside the area's group stays for its text and its click target, hidden.
+    let al = "";
     for (const a of dg.areas || []) {
+      al += `<text class="dg-al" x="${a.x * U + 8}" y="${a.y * U + 16}" aria-hidden="true">${esc(a.label)}</text>`;
       h += `<g class="dg-area${a.dash ? " dash" : ""}${a.kind ? " k-" + esc(a.kind) : ""}${parts[a.id] ? " hot" : ""}"${hot(parts, a.id)}>` +
         `<rect x="${a.x * U}" y="${a.y * U}" width="${a.w * U}" height="${a.h * U}"/>` +
         `<text x="${a.x * U + 8}" y="${a.y * U + 16}">${esc(a.label)}</text></g>`;
@@ -43,6 +47,7 @@ window.DG = (() => {
       h += `<g class="dg-link"><line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" marker-end="url(#${mk})"/>` +
         (label ? `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${up ? "start" : "middle"}">${esc(label)}</text>` : "") + `</g>`;
     }
+    h += al;
     for (const n of dg.nodes || []) {
       const [cx, cy] = mid(n), ls = lines(n.label, n.w * U - 12, 12.5);
       h += `<g class="dg-node${parts[n.id] ? " hot" : ""}"${hot(parts, n.id)}>` +

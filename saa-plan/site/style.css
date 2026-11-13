@@ -409,6 +409,8 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 .ch .ax{fill:var(--ink-3);font:10px var(--font-mono)}
 .ch .ref{stroke:var(--ink);stroke-width:1;stroke-dasharray:2 3}
 .ch .ref-t{fill:var(--ink-2);font:9.5px var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+.ch :is(.ref-t,.lab){paint-order:stroke;stroke:var(--paper-raised);stroke-width:4px;stroke-linejoin:round}   /* a halo: a line or bar under a label never cuts it */
+.tr-fig:has(.tt:not([hidden])) .lab{visibility:hidden}   /* the tooltip says the value; the last-value label would sit under it */
 .ch .mk{fill:var(--ink-2)}
 .ch .mk.now{fill:var(--signal-edge)}
 .ch .ln{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-linejoin:miter}
@@ -453,6 +455,8 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .fl-dn{font:700 52px/.9 var(--font-display);letter-spacing:-.04em;color:var(--signal)}   /* the day view's one title, yellow like the overview's */
 .fl-tt{font:600 20px/1.25 var(--font-sans);color:var(--ink)}
 .fl-dd{font:400 13px/20px var(--font-mono);color:var(--ink-2)}
+.fl-day .today-badge{order:-1}
+.fl-day .fl-dn{order:-2}   /* Today sits beside the day number, so a long title wraps instead of the badge */
 .fl-tools{display:flex;gap:var(--space-1) var(--space-3);flex-wrap:wrap;background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
 .fl-tools [aria-pressed="true"]{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
 /* the strip: one square per card, grouped like the day's blocks; the count at the card's right edge */
@@ -503,6 +507,8 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .c-head{margin-bottom:var(--space-2)}
 @media (min-width:761px){.card{padding:var(--space-8) var(--space-12) var(--space-12)}}
 .c-score{margin-top:var(--space-4)}
+.box>.c-score{margin-top:0}
+.b-score .scores-grid label{padding:0;border-bottom:0}
 .c-st{margin:var(--space-4) 0 var(--space-1);max-width:72ch;font-size:16px}
 .c-st.ok{font-weight:600}
 .c-st.ok::before{content:"[ ✓ ] ";font-family:var(--font-mono);font-size:13px}
@@ -685,7 +691,8 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
 .dg text{fill:var(--ink);font-size:11.5px;letter-spacing:.02em}
 .dg-area rect{fill:none;stroke:var(--ink-3);stroke-width:1}
 .dg-area.dash rect{stroke-dasharray:4 4}
-.dg-area text{font-size:10.5px;font-weight:500;fill:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;paint-order:stroke;stroke:var(--paper-sunk);stroke-width:3px}
+.dg-area text{visibility:hidden}   /* drawn again above the arrows: .dg-al */
+.dg .dg-al{font-size:10.5px;font-weight:500;fill:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;paint-order:stroke;stroke:var(--paper-sunk);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
 .dg-area.k-public rect{fill:color-mix(in srgb,var(--ink) 4%,transparent)}
 .dg-area.k-private rect{fill:color-mix(in srgb,var(--ink) 7%,transparent)}
 .dg-area.k-onprem rect{fill:none;stroke-dasharray:1 3}
