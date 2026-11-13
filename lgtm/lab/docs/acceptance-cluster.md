@@ -221,3 +221,90 @@ rm ~/.kube/lgtm-lab.config
 
 The output of steps 1, 3 (`status`), 6 (PLAY RECAP and any failed task), 7 and 8, and every
 place where you saw something other than the expected line.
+
+## Rebuild for version 3 (2026-11-13, card L6)
+
+The lab was destroyed and built again from `main` (commit 610f51c) with one control-plane node
+and four 8 GB workers. The owner ran `destroy`, `plan -ConfigureDns`, `create -ConfigureDns`,
+`start` and `status` in an elevated PowerShell; worker L6 ran the rest in WSL. Times are UTC.
+
+`lab-vms.ps1 status` after `start`:
+
+```
+Name    Role          Address    State   CPU MemoryGB Uptime  SSH
+lb      lb            10.10.0.5  Running 0%         2 0.00:00 open
+master1 control_plane 10.10.0.11 Running 0%         4 0.00:00 open
+worker1 worker        10.10.0.30 Running 0%         8 0.00:00 open
+worker2 worker        10.10.0.31 Running 0%         8 0.00:00 open
+worker3 worker        10.10.0.32 Running 0%         8 0.00:00 open
+worker4 worker        10.10.0.33 Running 0%         8 0.00:00 open
+```
+
+| Step | Time | Result |
+|---|---|---|
+| `make forget-host-keys`, `make ping` | 12:42 | `SUCCESS` and `pong` for lb, master1, worker1 to worker4 |
+| `make cluster` | 12:43 to 12:48 | `failed=0` on every host |
+| `make cluster-check` | 12:49 | `failed=0` |
+| `make platform`, `make platform-check` | 12:50 to 13:04 | `PLATFORM CHECK PASSED (profile full)` |
+| `make lab`, `make lab-check` | 13:04 to 13:15 | `LAB CHECK PASSED` |
+
+The plays `make cluster` runs, from its log (the first play is `make inventory`):
+
+```
+PLAY [Generate the Ansible inventory from the nodes file]
+PLAY [Load balancer and lab DNS]
+PLAY [Common setup]
+PLAY [Initialize first master node]
+PLAY [Join remaining control plane nodes]
+skipping: no hosts matched
+PLAY [Join workers]
+PLAY [Write the lab kubeconfig on the control machine]
+
+PLAY RECAP
+lb       : ok=16   changed=10   unreachable=0    failed=0    skipped=1
+master1  : ok=45   changed=28   unreachable=0    failed=0    skipped=2
+worker1  : ok=46   changed=29   unreachable=0    failed=0    skipped=2
+worker2  : ok=46   changed=29   unreachable=0    failed=0    skipped=2
+worker3  : ok=46   changed=29   unreachable=0    failed=0    skipped=2
+worker4  : ok=46   changed=29   unreachable=0    failed=0    skipped=2
+```
+
+`make cluster-check` printed `API servers up behind HAProxy: master1`,
+`Nodes: master1, worker1, worker2, worker3, worker4` and
+`cluster-endpoint.k8s.local resolves to the load balancer 10.10.0.5`.
+
+### What the lessons quote
+
+Read on 2026-11-13 at 13:16, after `make lab-check` passed.
+
+```
+$ kubectl get nodes
+NAME      STATUS   ROLES           AGE   VERSION
+master1   Ready    control-plane   29m   v1.35.10
+worker1   Ready    <none>          27m   v1.35.10
+worker2   Ready    <none>          27m   v1.35.10
+worker3   Ready    <none>          27m   v1.35.10
+worker4   Ready    <none>          27m   v1.35.10
+
+$ kubectl get pods -n kube-system -l tier=control-plane
+NAME                              READY   STATUS    RESTARTS   AGE
+etcd-master1                      1/1     Running   0          29m
+kube-apiserver-master1            1/1     Running   0          29m
+kube-controller-manager-master1   1/1     Running   0          29m
+kube-scheduler-master1            1/1     Running   0          29m
+```
+
+Nodes are Ubuntu 24.04.5 LTS, kernel 6.8.0-147-generic, containerd 2.2.1. One etcd pod. Before
+`make platform` CoreDNS ran on master1 (both replicas); the platform's first role moves it to
+the workers, as before.
+
+The lab's Prometheus, through the API server proxy:
+
+| Query | Answer |
+|---|---|
+| `count by (job) (up)` | 29 series: `kubelet` 15 (kubelet, cAdvisor and probes on each of the 5 nodes), `node-exporter` 5, `coredns` 2, `prom-alertmanager` 2, `prom-prometheus` 2, `prom-operator` 1, `apiserver` 1, `kube-state-metrics` 1 |
+| `up == 0` | none; 29 active targets, 29 up |
+| `/api/v1/rules` | 31 rule files, 31 groups, 221 rules, 135 of them alerting rules |
+
+Version 2 of the lab had seven nodes, three etcd pods and three API servers behind HAProxy; with
+it `up` had more `kubelet`, `node-exporter` and `apiserver` series.
