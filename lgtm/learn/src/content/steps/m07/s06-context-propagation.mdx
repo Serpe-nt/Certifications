@@ -13,7 +13,7 @@ check:
   kind: regex
   prompt: Write the traceparent header that checkout sent with its call to payment in the trace you opened (version, trace ID, span ID and flags, joined by hyphens).
   pattern: "00-(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-01"
-outcome: You can explain how the context moves inside a process and between processes, write a traceparent header from a span, and say what baggage is for and what it must never carry.
+outcome: You can explain how the context moves inside a process and between processes, write a traceparent header from a span, and say what baggage is for and what it should not carry.
 terms:
   - term: Context
     def: An immutable object that carries the current span and the baggage through a process.

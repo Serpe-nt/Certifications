@@ -18,7 +18,7 @@ terms:
   - term: Requirement level
     def: How strongly a convention asks for an attribute, such as Required, Conditionally Required, Recommended or Opt-In.
   - term: Low cardinality
-    def: Having few distinct values. Span names must be low cardinality, so IDs belong in attributes.
+    def: Having few distinct values. Span names should be low cardinality, so IDs belong in attributes.
   - term: original_span_name
     def: The attribute in which the lab's gateway keeps a span's name before it renames the span by the conventions.
 sources:
@@ -49,20 +49,20 @@ Your workshop's database spans arrived in Tempo named `sqlite`, though the instr
 Module m02 introduced the semantic conventions as a shared dictionary. Now that you have made HTTP, database and messaging spans yourself, here are the rules for exactly those three kinds.
 
 <Idea>
-For HTTP, database and messaging operations, the semantic conventions fix the span's name, its kind, when its status is Error, and which attributes it carries at which requirement level. Names are built from attributes and must stay low cardinality. The conventions for HTTP and databases are Stable; those for messaging are in Development.
+For HTTP, database and messaging operations, the semantic conventions fix the span's name, its kind, when its status is Error, and which attributes it carries at which requirement level. Names are built from attributes and should stay low cardinality. The conventions for HTTP and databases are Stable; those for messaging are in Development.
 </Idea>
 
 ## HTTP spans
 
 An HTTP span is named `{method} {target}` when a low-cardinality target exists, and `{method}` alone when not. For a server span the target is `http.route`, the route template; for a client span it is `url.template`, when the instrumentation has one. The URI path must not be used as a target by default, because `/orders/8812` would give every order a span name of its own.
 
-A server span has kind server and must carry `http.request.method`, `url.path` and `url.scheme`, and `http.route` and `http.response.status_code` when they exist. A client span has kind client and must carry `http.request.method`, `server.address`, `server.port` and `url.full`. Status follows the rules you met in steps 8 and 9: a 5xx answer sets Error on both sides; a 4xx sets Error on a client span and leaves a server span Unset.
+A server span has kind server and must carry `http.request.method`, `url.path` and `url.scheme`, and, among the conditionally required ones, `http.route` and `http.response.status_code` when they exist. A client span has kind client and must carry `http.request.method`, `server.address`, `server.port` and `url.full`. Status follows the rules you met in steps 8 and 9: a 5xx answer sets Error on both sides; a 4xx sets Error on a client span and leaves a server span Unset.
 
 ## Database spans
 
 A database span is named after the best thing available, in this order: `db.query.summary`; then `{db.operation.name} {target}`; then the target alone; and finally `db.system.name`. The target is the collection (`db.collection.name`), a stored procedure, the namespace (`db.namespace`), or the server's address. The kind should be client.
 
-`db.system.name` is required, and `db.query.text` is recommended. `db.collection.name`, `db.namespace` and `db.operation.name` are conditionally required: required under a condition the page states for each, for `db.namespace` simply "if available".
+`db.system.name` is required, and `db.query.text` is recommended. `db.collection.name`, `db.namespace` and `db.operation.name` are among the conditionally required ones: required under a condition the page states for each, for `db.namespace` simply "if available".
 
 <Compare caption="Database span names in the lab, before and after the rule">
   <Col title="Workshop (sqlite3)">SELECT, with db.system.name and no db.operation.name: renamed to sqlite, the last choice of the rule.</Col>
@@ -117,7 +117,7 @@ An HTTP server instrumentation handles `GET /orders/8812`. Its framework gives i
 
 - `/orders/{id}`, made by replacing the number in the path
 
-  The target must come from the framework's route template, which is missing here. The instrumentation does not invent one.
+  A server span's target should be the route template, which is missing here. The instrumentation does not invent one.
 
 - GET, the HTTP method alone, with no target
 

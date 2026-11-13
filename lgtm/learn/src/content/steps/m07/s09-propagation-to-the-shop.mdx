@@ -23,7 +23,7 @@ terms:
   - term: Creation context
     def: The span context a producer attaches to a message, so consumers can relate their work to it.
   - term: OTEL_PYTHON_DISABLED_INSTRUMENTATIONS
-    def: A list of Python instrumentations the agent must not load, by entry point name.
+    def: A list of Python instrumentations the agent does not load, by entry point name.
 sources:
   - title: Propagation in OpenTelemetry Python
     url: https://opentelemetry.io/docs/languages/python/propagation/
@@ -55,7 +55,7 @@ To propagate by hand you start a client span for the outgoing call, make it curr
 
 ## Switch the library off, do its work yourself
 
-The agent loads every instrumentation it finds. `OTEL_PYTHON_DISABLED_INSTRUMENTATIONS` takes a comma-separated list of entry point names that it must skip; with `requests` in it, calls to the shop are no longer traced or propagated. Two lines go into `workshop.env`. The second one writes out the default propagators, so you can see what inject will use:
+The agent loads every instrumentation it finds. `OTEL_PYTHON_DISABLED_INSTRUMENTATIONS` takes a comma-separated list of entry point names that it skips; with `requests` in it, calls to the shop are no longer traced or propagated. Two lines go into `workshop.env`. The second one writes out the default propagators, so you can see what inject will use:
 
 ```text
 OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=requests
@@ -114,7 +114,7 @@ def checkout():
 
 In the shop, checkout does not call the fraud check directly. It writes the order to the Kafka topic `orders` in a producer span `publish orders`, and fraud-detection, a Java service with the Java agent, reads it later. The producer attaches its context to the message as the creation context, in the message's headers.
 
-On the consumer side, the messaging conventions use links as the default way to relate a consumer to a producer. A span has one parent, a consumer may handle a batch of messages from many producers, and it may already run inside another span; a link works in all these cases. So fraud-detection starts a trace of its own: a root span `receive orders` of kind consumer, and a child `process orders` with a link to checkout's `publish orders` span in the other trace.
+On the consumer side, the messaging conventions, whose status is still Development, use links as the default way to relate a consumer to a producer. A span has one parent, a consumer may handle a batch of messages from many producers, and it may already run inside another span; a link works in all these cases. So fraud-detection starts a trace of its own: a root span `receive orders` of kind consumer, and a child `process orders` with a link to checkout's `publish orders` span in the other trace.
 
 <Flow caption="One order through Kafka in the lab">
   <Stage title="checkout" kicker="Producer span">publish orders: the context is attached to the message.</Stage>

@@ -147,7 +147,7 @@
     - text: "A span event that the SDK adds when the pod starts"
       why: "The SDK adds no such event, and events are not resource attributes."
   answer: [0, 2]
-  source: https://opentelemetry.io/docs/concepts/resources/
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/k8sattributesprocessor/README.md
 
 - id: q-m07-010
   tags: [otel-resources]

@@ -55,7 +55,7 @@ The TracerProvider owns the trace configuration: the span processors, the ID gen
   <Stage title="Exporter" kicker="Export">Encodes a batch and sends it to one destination.</Stage>
 </Flow>
 
-A processor has hooks for the span's life. `OnStart` runs when a span starts, on the same thread, so it must not block; a processor can still change the span there, which is how a baggage span processor copies baggage into attributes. `OnEnd` runs when the span has ended and receives it read-only. A newer hook, `OnEnding`, runs just before the span becomes read-only; its status is Development. `Shutdown` and `ForceFlush` complete the interface. You can write processors of your own.
+A processor has hooks for the span's life. `OnStart` runs when a span starts, on the same thread, so it should not block; a processor can still change the span there, which is how a baggage span processor copies baggage into attributes. `OnEnd` runs when the span has ended and receives it read-only. A newer hook, `OnEnding`, runs just before the span becomes read-only; its status is Development. `Shutdown` and `ForceFlush` complete the interface. You can write processors of your own.
 
 Each processor registered on the provider starts one pipeline, and the SDK must let every pipeline end in its own exporter. Two exporters therefore mean two processors.
 
@@ -72,7 +72,7 @@ The batch processor has four settings, each with an environment variable. `OTEL_
 
 ## What the exporter does, and what it does not
 
-An exporter has three functions: `Export`, `Shutdown` and `ForceFlush`. `Export` receives a batch of finished spans, encodes them and sends them, and reports success or failure; it must not block forever. Retrying is the exporter's job, because it depends on the protocol, and the built-in processors must not retry. OTLP, for example, defines its own rules for retries. The client design principles ask SDKs to ship an OTLP exporter, a standard output exporter for debugging and an in-memory exporter for tests.
+An exporter has three functions: `Export`, `Shutdown` and `ForceFlush`. `Export` receives a batch of finished spans, encodes them and sends them, and reports success or failure; it must not block forever. Retrying is the exporter's job, because it depends on the protocol, and the built-in processors should not retry. OTLP, for example, defines its own rules for retries. The client design principles ask SDKs to ship, among others, an OTLP exporter, a standard output exporter for debugging and an in-memory exporter for tests.
 
 ## Shutdown and flush
 

@@ -21,7 +21,7 @@ terms:
   - term: Span context
     def: The immutable part of a span that identifies it and travels to other services, trace ID, span ID, trace flags and trace state.
   - term: Trace flags
-    def: One byte in the span context. Its lowest bit, the sampled flag, says whether the trace is being recorded.
+    def: One byte in the span context. Its lowest bit, the sampled flag, says whether the caller sampled the trace.
   - term: Trace state
     def: A list of vendor-specific key-value pairs carried in the span context.
   - term: Span kind
@@ -55,7 +55,7 @@ A span is one operation. It has a name, a kind, a start and an end, attributes, 
 
 ## The span context is the part that travels
 
-Each span holds an immutable span context with four fields. The trace ID, 16 random bytes, groups all spans of one trace. The span ID, 8 random bytes, identifies this span and becomes the parent span ID of its children. The trace flags are one byte whose lowest bit is the sampled flag. The trace state is a list of key-value pairs that tracing vendors use for their own data. The span context is what goes into the headers of an outgoing call, and it is also what a link points to.
+Each span holds an immutable span context with four fields. The trace ID, 16 random bytes, groups all spans of one trace. The span ID, 8 random bytes, identifies this span and becomes the parent span ID of its children. The trace flags are one byte. Its lowest bit is the sampled flag, which says whether the caller sampled the trace; the Trace API now defines a second flag, Random, as well. The trace state is a list of key-value pairs that tracing vendors use for their own data. The span context is what goes into the headers of an outgoing call, and it is also what a link points to.
 
 A span context made from a header that arrived from another process is marked as remote. Step 6 shows how the context is written into headers and read back.
 
@@ -81,7 +81,7 @@ The three are ordered: Ok is above Error, and Error is above Unset. Once a span 
 
 ## Event or attribute, link or parent
 
-An event is a named moment inside a span, with a timestamp and attributes of its own, like a structured log line attached to the span. Use an event when the time of the moment matters, and an attribute when it does not. Recording an exception is a special event named `exception`.
+An event is a named moment inside a span, with a timestamp and attributes of its own, like a structured log line attached to the span. Use an event when the time of the moment matters, and an attribute when it does not. An exception is often recorded as an event named `exception`, with the exception's type and message as attributes, and the lab's spans still carry such events. The semantic convention page for exceptions on spans is marked Deprecated today, in favour of recording exceptions as logs.
 
 A link points from one span to the span context of another span that is causally related, in the same trace or in another one. A span has at most one parent, so links cover what a parent cannot: a batch job that processes items from many incoming requests, a new trace started at a trust boundary, or a consumer that handles a message long after the producer's trace has ended. Links given when the span starts can be used by a sampler; links added later may not be.
 
@@ -127,7 +127,7 @@ Service A starts a client span, sets five attributes and an event on it, and cal
 
 - Its status, so B can tell whether A saw an error
 
-  The status is set when the work ends and is not part of what is propagated.
+  The status is part of the span's data, not of the span context, so it is not propagated.
 
 - Its span context: trace ID, span ID, trace flags and trace state
 

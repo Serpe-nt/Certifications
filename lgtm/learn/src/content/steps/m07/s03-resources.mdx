@@ -59,7 +59,7 @@ The resource lives on the provider. When the SDK creates its TracerProvider (or 
 
 Some attributes are always there. `service.name` is the logical name of the service; if nobody sets it, SDKs use `unknown_service`, so set it yourself, for example with `OTEL_SERVICE_NAME`. The SDK also describes itself with `telemetry.sdk.name`, `telemetry.sdk.language` and `telemetry.sdk.version`. The OpenTelemetry SDK must set `telemetry.sdk.name` to `opentelemetry`; any other SDK must use a name of its own, because that value is reserved.
 
-Resource detectors add more. Most SDKs have detectors for the operating system, the host, the process and its runtime, the container, Kubernetes and cloud providers. The specification asks for detectors of generic platforms such as Docker and Kubernetes to ship as packages separate from the SDK. A detector that finds nothing is not an error.
+Resource detectors add more. Most SDKs have detectors for the operating system, the host, the process and its runtime, the container, Kubernetes and cloud providers, among others. The specification asks for detectors of generic platforms such as Docker and Kubernetes to ship as packages separate from the SDK. A detector that finds nothing is not an error.
 
 ## Your own attributes, and which value wins
 

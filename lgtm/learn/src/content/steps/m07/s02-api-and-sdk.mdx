@@ -60,7 +60,7 @@ The SDK also has public interfaces of its own that are not part of the API, beca
 
 ## The API alone does nothing, safely
 
-The API package contains a minimal implementation. When no SDK is installed, the application still builds and runs, and no telemetry is delivered anywhere. The objects this minimal implementation returns are valid: a call that starts a span returns a span object, not null, so the library needs no extra checks. And it must cost as little as possible, so users who never turn OpenTelemetry on are not slowed down.
+The API package contains a minimal implementation. When no SDK is installed, the application still builds and runs, and no telemetry is delivered anywhere. The objects this minimal implementation returns are valid: a call that starts a span returns a span object, not null, so the library needs no extra checks. And it should cost as little as possible, so users who never turn OpenTelemetry on are not slowed down.
 
 There is one exception to "does nothing". Without an SDK, the Trace API still passes on a span context it receives. If a configured propagator extracted a context from an incoming request, the API returns a non-recording span that carries that context, so it can still be injected into the next call. It creates no new span contexts. The Baggage API goes further: it must work fully without an SDK, so that baggage can cross processes even where nothing is recorded.
 
