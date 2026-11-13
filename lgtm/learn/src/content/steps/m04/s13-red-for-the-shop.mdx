@@ -91,7 +91,7 @@ Keep `le` in the `by` clause, as step 7 showed. The OpenTelemetry conventions ad
 Only the names change from service to service. Services that speak gRPC record `rpc_server_call_duration_seconds` instead. Tempo also computes span metrics from every trace and writes them to Mimir: `traces_spanmetrics_calls_total` counts spans by `service_name`, `span_kind` and `status_code`, and `traces_spanmetrics_latency_bucket` holds their durations. That gives RED for every traced service, which is what the dashboard Shop / checkout (RED) from module m02 shows.
 
 <InLab>
-In the lab, the frontend, cart and ad services write `http_server_request_duration_seconds` to Mimir, tenant `lab`, which Grafana reaches as the data source `mimir`. The lab's Prometheus does not scrape the shop, so these queries do not work on its query page.
+In the lab, the frontend, cart and ad services write `http_server_request_duration_seconds` to Mimir, tenant `lab`, which Grafana reaches as its default data source, Mimir. The lab's Prometheus does not scrape the shop, so these queries do not work on its query page.
 </InLab>
 
 <Trap>
@@ -99,13 +99,13 @@ An empty error panel can mean zero errors or a query that matched nothing. Run t
 </Trap>
 
 <Do>
-1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> and pick the data source `mimir`. Set the time range to the last 15 minutes. Write each query below without scrolling back to Learn; compare afterwards.
-2. Find the request histogram of the frontend and its labels: <Query lang="promql">{`count by (__name__) ({service_name="frontend", __name__=~"http_server.*"})`}</Query> Then open one `http_server_request_duration_seconds_count` series and read its labels.
+1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>. It opens on the data source Mimir with the Builder editor; switch the query row to Code so you can type PromQL. Change the time range from the last hour to the last 15 minutes. Write each query below without scrolling back to Learn; compare afterwards.
+2. Find the request histogram of the frontend and its labels: <Query lang="promql">{`count by (__name__) ({service_name="frontend", __name__=~"http_server.*"})`}</Query> Then query `http_server_request_duration_seconds_count{service_name="frontend"}` and read the labels of one series in the table below the graph.
 3. Write the frontend's request rate in requests per second, summed over all its series.
 4. Write its error ratio: requests with a 5xx status code divided by all requests. Run the numerator alone first, then the whole ratio.
 5. Write its 95th percentile of request duration over five minutes.
 6. Change `frontend` to `cart` in all three queries. They work unchanged.
-7. Write the same three numbers for checkout from span metrics, using `traces_spanmetrics_calls_total` and `traces_spanmetrics_latency_bucket` with `span_kind="SPAN_KIND_SERVER"`; an error has `status_code="STATUS_CODE_ERROR"`. Compare them with the dashboard <LabLink to="grafana" path="/d/shop-red-checkout">Shop / checkout (RED)</LabLink>.
+7. Write the same three numbers for checkout from span metrics, using `traces_spanmetrics_calls_total` and `traces_spanmetrics_latency_bucket` with `span_kind="SPAN_KIND_SERVER"`; an error has `status_code="STATUS_CODE_ERROR"`. Compare them with the dashboard <LabLink to="grafana" path="/d/shop-red-checkout">Shop / checkout (RED)</LabLink> after you set its Span kind to `SPAN_KIND_SERVER`; it opens on All, which adds checkout's client, internal and producer spans. Its panels use the window `$__rate_interval` instead of `[5m]`, so their values come close to yours without matching exactly.
 8. Paste the name of the label your error query filtered on in the check below.
 </Do>
 
