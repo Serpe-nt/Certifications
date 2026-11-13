@@ -432,18 +432,19 @@ function setView(day, at, push) {
   bdDraw();
   if (moved) { shown = key; movedAt = Date.now(); scrollTo(0, 0); }
 }
-// ---------- the ground (ground.js) and the rail ----------
-// The ground is geometry only, drawn to the window and seeded with the view, so each day keeps its own drawing;
-// its one piece of text is the day's real number. The full poster on the overview, a quieter one while you read a step.
-// A new view draws itself in again (grid, crosshairs, filaments); a resize of the same view just redraws, still.
+// ---------- the backdrop (Datum.backdrop) and the rail ----------
+// The backdrop is Datum's: one figure, low in contrast, drawn to the window and seeded with the view, so each day keeps
+// its own drawing; its one piece of text is the day's real number. A small orbit on a gutter crossing on the overview,
+// the plain grid while you read a step (Datum's Operate views). A new view fades it up; a resize redraws it still.
 const bdEl = document.getElementById("bd");
-let bdKey = "", bdT = 0;
+let bdKey = "", bdT = 0, inT = 0;
 function bdDraw() {
   const d = view.day && dayOf(view.day), w = innerWidth, h = innerHeight, k = `${view.day}|${w}|${h}`;
-  if (!window.Ground || k === bdKey) return;
+  if (!window.Datum || k === bdKey) return;
   bdEl.toggleAttribute("data-dm-redraw", !!bdKey && bdKey.split("|")[0] === view.day);
   bdKey = k;
-  bdEl.innerHTML = Ground.draw({ width: w, height: h, seed: d ? d.id : "overview", quiet: !!d, ghost: d ? pad2(d.day) : "", top: 48 });
+  bdEl.innerHTML = Datum.backdrop(d ? { figure: "grid", width: w, height: h, seed: d.id, ghost: pad2(d.day) }
+    : { figure: "orbit", width: w, height: h, seed: "overview", at: [0.82, 0.3], scale: 0.62, grid: 64, glow: false });
 }
 addEventListener("resize", () => { clearTimeout(bdT); bdT = setTimeout(bdDraw, 150); });
 // where you are, in the rail: the overview, or the day and its card
@@ -739,7 +740,11 @@ function renderFlow(moved) {
     applyGlossary(cardEl);
     dgMark(cardEl);
     if (answer) flip(at, true);
-    if (moved) for (const el of [cardEl, sideL, sideR]) { el.classList.remove("in"); void el.offsetWidth; el.classList.add("in"); }
+    if (moved) {
+      for (const el of [cardEl, sideL, sideR]) { el.classList.remove("in"); void el.offsetWidth; el.classList.add("in"); }
+      // the arrival plays once: a re-render of the same card (a picked answer, a note saved) must not replay it
+      clearTimeout(inT); inT = setTimeout(() => { for (const el of [cardEl, sideL, sideR]) el.classList.remove("in"); }, 1000);
+    }
   }
 
   // Back, the card's main action, Next
@@ -931,7 +936,7 @@ function stepCardHTML(id) {
   // a step you carry out: its numbered actions (they replace the step text and its note) and how you know it worked
   if (steps) h += box("do", "", "Do it", `<ol class="c-do txt">${steps.map(s => `<li>${s}</li>`).join("")}</ol>` +
     (kp.done ? `<p class="c-done txt"><b>Done when:</b> ${kp.done}</p>` : ""), "c-doit");
-  if (SCORE_AT[id]) h += scoreFieldHTML(SCORE_AT[id]);
+  if (SCORE_AT[id] && scoreFieldHTML(SCORE_AT[id])) h += box("score", "", "Your score", scoreFieldHTML(SCORE_AT[id]));
   if (d.decision === id) { const [cls, v] = verdictHTML(); h += `<div class="verdict ${cls}" data-verdict>${v}</div>`; }
   if (g.t === "check" && CARDS[id]) {
     h += box("check", "", "Self-check", `<p class="muted">Explain it out loud first, then open the model answer and compare.</p>` +
@@ -1030,6 +1035,7 @@ function flip(id, open) {
   if (!panel || !b) return;
   panel.hidden = !open;
   b.setAttribute("aria-expanded", String(open));
+  b.textContent = open ? "Hide answer" : flipLabel(id);
 }
 
 // ---------- completing steps & celebrations ----------
@@ -1383,7 +1389,7 @@ function chartSVG(data, val, { kind, max, ref, refLabel, unit, per = 1 }) {
   for (const t of [0, top / 2, top]) g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}"/><text class="ax" x="${L - 5}" y="${(y(t) + 3.5).toFixed(1)}" text-anchor="end">${unit(t, true)}</text>`;
   for (const i of [0, Math.floor((n - 1) / 2), n - 1]) g += `<text class="ax" x="${x(i).toFixed(1)}" y="${H - 6}" text-anchor="middle">${shortD(data[i].k)}</text>`;
   // the reference line's label sits at the left end: the recent days, on the right, are the ones read most
-  if (ref) g += `<line class="ref" x1="${L}" x2="${W - R}" y1="${y(ref).toFixed(1)}" y2="${y(ref).toFixed(1)}"/><text class="ref-t" x="${L + 4}" y="${(y(ref) - 4).toFixed(1)}">${refLabel}</text>`;
+  if (ref) g += `<line class="ref" x1="${L}" x2="${W - R}" y1="${y(ref).toFixed(1)}" y2="${y(ref).toFixed(1)}"/>`;
   if (kind === "col") {
     const w = Math.min(24, Math.max(2, bw - 2));
     vs.forEach((v, i) => {
@@ -1399,6 +1405,7 @@ function chartSVG(data, val, { kind, max, ref, refLabel, unit, per = 1 }) {
   }
   // the last value is labelled; the rest are on hover, with the keys, and in the table
   const li = vs.map((v, i) => (v ? i : -1)).filter(i => i >= 0).pop();
+  if (ref && refLabel) g += `<text class="ref-t" x="${L + 4}" y="${(y(ref) - 4).toFixed(1)}">${refLabel}</text>`;
   if (li != null) { const t = unit(vs[li]), hw = t.length * 3; g += `<text class="lab" x="${Math.min(x(li), W - 2 - hw).toFixed(1)}" y="${(y(vs[li]) - 8).toFixed(1)}" text-anchor="middle">${t}</text>`; }
   g += `<line class="xh" x1="0" x2="0" y1="${T}" y2="${T + ph}" visibility="hidden"/>`;
   data.forEach((_, i) => { g += `<rect class="hit" data-i="${i}" x="${(L + bw * i).toFixed(1)}" y="${T}" width="${bw.toFixed(1)}" height="${ph}"/>`; });
@@ -2419,7 +2426,7 @@ function badgesHTML() {
     `<p class="muted">XP: ${XP.right} for a right quiz answer the first time, right after a miss, or right when it is due for review (repeats earn nothing), ${XP.step} for a completed step, ${XP.pass} for a day quiz passed, and what each badge is worth. ` +
     `Your longest run of right answers: ${S.rowBest || "none yet"}.</p>` +
     `<ul class="ach">${ACH.map(a => `<li class="${S.ach[a.id] ? "on" : ""}"><span class="ach-i">${a.i}</span><span class="ach-x"><b>${a.t}</b><span>${a.d}</span>` +
-      `<span class="muted">${S.ach[a.id] ? `Earned ${fmtD(parseDate(S.ach[a.id]))}, +${a.xp} XP` : `+${a.xp} XP`}</span></span></li>`).join("")}</ul>`;
+      `<span class="muted">${S.ach[a.id] ? `Earned ${fmtD(parseDate(S.ach[a.id]))}, +${a.xp}&nbsp;XP` : `+${a.xp}&nbsp;XP`}</span></span></li>`).join("")}</ul>`;
 }
 // ---------- search (Ctrl+K, / or 🔍): steps, key points, terms, exam wording, your notes, the notebook ----------
 const srDlg = document.getElementById("search"), srQ = document.getElementById("sr-q"), srList = document.getElementById("sr-list");
@@ -3440,3 +3447,8 @@ pull().then(() => {
   else if (S.run && S.run.done) whenFree(openQuiz);   // results left open before a reload
 });
 })();
+// A glossary term near the window's right edge opens its definition leftwards, so it stays on screen (style.css .g-r).
+for (const t of ["pointerover", "focusin"]) document.addEventListener(t, e => {
+  const g = e.target.closest && e.target.closest(".g");
+  if (g) g.classList.toggle("g-r", g.getBoundingClientRect().left > innerWidth - 330);
+});

@@ -1008,7 +1008,7 @@ try {
   await page.waitForFunction(() => !document.getElementById("settings").open && document.documentElement.dataset.size, null, { timeout: 3000 }).catch(() => {});   // the dialog's close event comes a moment after the click
   assert.equal(await page.evaluate(() => document.documentElement.dataset.size), "l", "text size applies");
   assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue("--paper").trim()), "#111111", "dark colours (Datum, Excimer paper) although the system is light");
-  assert.ok(await page.evaluate(() => document.querySelectorAll("#bd .ground .g-line").length > 4), "the ground is drawn: the poster's grid");
+  assert.ok(await page.evaluate(() => document.querySelector("#bd svg.dm-bd[data-figure='orbit']")), "the backdrop is drawn: Datum's orbit on the overview");
   await page.reload();
   assert.equal(await page.evaluate(() => document.documentElement.dataset.size), "l", "and stays after a reload");
   await openCard(page, HELPDAY, HELP);

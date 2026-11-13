@@ -1,11 +1,11 @@
 /* SAA-C03 plan in the Datum design system, in its "Excimer" colours (the owner's reference poster): a near-black
    ground ruled by a yellow-tinted modular grid, charcoal plates, and one cadmium yellow for what is live, the view's one
    title and the marks that lock onto it. Tokens come from dm/tokens.css (dark only), the components from dm/bundle.css;
-   this file maps the app's own markup onto them, and ground.js draws the poster behind the page.
+   this file maps the app's own markup onto them; the backdrop is Datum's own (Datum.backdrop).
    The rules (Datum's README): one subject per view; structure is hairlines (rule, and grid for the poster's yellow
    lines), ink for what is current or focused; square corners or 45-degree cuts; no shadows, glows, gradients or blur;
    sans (Saira) for reading, uppercase mono (IBM Plex Mono) for labels and facts. Motion: one arrival per view (the
-   ground draws in, crosshairs lock on, the content switches on in order), one live element, eased feedback
+   backdrop fades up, crosshairs lock on, the content switches on in order), one live element, eased feedback
    (cubic-bezier(.16,1,.3,1) for what travels, linear for what switches). The quiz, the mock, the drill, results,
    badges and the celebrations are in fx.css. */
 
@@ -18,35 +18,25 @@ body{margin:0;min-height:100vh;background:var(--paper);color:var(--ink);font:400
 ::selection{background:var(--signal);color:var(--on-signal)}
 :focus-visible{outline:var(--stroke-bold) solid var(--ink);outline-offset:var(--stroke-bold)}
 a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--ink-3);text-underline-offset:3px}
-a:hover{text-decoration-color:var(--ink);background:var(--signal);color:var(--on-signal)}
-b,strong{font-weight:600;color:var(--ink)}
+a:not(.btn):hover{text-decoration-color:var(--on-signal);background:var(--signal);color:var(--on-signal)}
+a:not(.btn):hover :is(b,strong,code,.muted){color:inherit}
+a:not(.btn):hover code{background:transparent;border-color:currentColor}
+b,strong{font-weight:600}   /* the colour of its container: a state fill keeps its text colour */
+:where(.muted,.goal,.p-intro,.rules,.c-n,.c-les,.qz-msg,.place,.la-why,.dg-why,.why-tip,.fl-dd,.nx-h,.nx-cal,.in-note,.c-terms dd,.rw-x,.foot) :is(b,strong){color:var(--ink)}
 .muted{color:var(--ink-3);font-weight:400}
 code,kbd{font:500 .86em var(--font-mono);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule);padding:0 4px}
+:is(.qz-fb>li.right,.dr-opts .qz-o.right,.sr-it.on,.mk-q .w.hl,.dt.is-done,.dt.is-now) code{background:transparent;border-color:currentColor;color:inherit}
 mark{background:var(--signal);color:var(--on-signal);padding:0 2px}
 input,select,textarea{accent-color:var(--ink);caret-color:var(--ink)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-/* the ground: the poster drawn behind the page (ground.js via app.js bdDraw), never information. Hairlines in grid,
-   dots on the crossings, crosshairs and arrow marks in signal, plates and halftones in plate, discs and the ring in
-   paper-sunk, yellow filaments meeting in a junction; the day's number as a ghost in paper-raised. */
+/* the ground: Datum's own backdrop (Datum.backdrop in app.js bdDraw), never information. One figure per view, low in
+   contrast and still: a small orbit on the overview, the plain grid while you read a step, the day's number as a ghost.
+   Datum draws it in ink-3; here its hairlines and registration marks take the poster's olive, its one live node yellow. */
 .bd-host{position:fixed;inset:0;z-index:0;pointer-events:none;isolation:isolate}
 .bd-host .dm-backdrop{position:absolute;inset:0;z-index:0}
-.ground{display:block;width:100%;height:100%}
-.g-line{fill:none;stroke:var(--grid);stroke-width:1}
-.g-node{fill:none;stroke:var(--grid-mark);stroke-width:3;stroke-linecap:round}
-.g-cross{fill:none;stroke:var(--signal);stroke-width:1.5}
-.g-tri{fill:var(--signal)}
-.g-plate{fill:var(--plate);opacity:.6}
-.g-pat{fill:var(--grid-mark)}
-.g-pat-l{fill:none;stroke:var(--grid-mark);stroke-width:1.2}
-.g-disc circle{fill:var(--paper-sunk)}
-.g-disc path{fill:none;stroke:var(--rule);stroke-width:1.5}
-.g-ring{fill:none;stroke:var(--paper-sunk)}
-.g-fil{fill:none;stroke:var(--signal);stroke-width:1.4;stroke-linecap:round;stroke-dasharray:1;opacity:.72}
-.g-blob{fill:var(--signal);opacity:.9}
-body.in-flow .g-fil{opacity:.4}
-body.in-flow .g-blob{opacity:.5}
-.g-ghost{font:800 52vh/1 var(--font-display);font-stretch:62%;letter-spacing:-.02em;fill:var(--paper-raised)}
+.bd-host :is(.dm-bd-fine,.dm-bd-line,.dm-bd-mark,.dm-bd-limb){stroke:var(--grid-mark)}
+.bd-host .dm-bd-node{fill:var(--grid-mark)}
 .wrap{position:relative;z-index:1;max-width:calc(var(--wrap) + 2 * var(--gut));margin:0 auto;padding:var(--space-8) var(--gut) 140px}
 
 /* the labels: uppercase mono, one to three words */
@@ -72,7 +62,7 @@ button.danger:not(:disabled):hover{background-image:linear-gradient(var(--alert)
 button:disabled{color:var(--ink-3);border-color:var(--ink-3);cursor:not-allowed;padding-right:calc(var(--space-4) + var(--space-6));
   background:no-repeat right/var(--space-6) 100% repeating-linear-gradient(135deg,var(--ink-3) 0 var(--stroke-hair),transparent var(--stroke-hair) 6px) var(--paper-raised)}
 button.primary:disabled{background:no-repeat right/var(--space-6) 100% repeating-linear-gradient(135deg,var(--ink-3) 0 var(--stroke-hair),transparent var(--stroke-hair) 6px) var(--paper-raised);color:var(--ink-3);border-color:var(--ink-3)}
-button.ghost:disabled{background:none;padding-right:var(--space-1)}
+button.ghost:disabled{background:none;padding-right:var(--space-1);border-color:transparent}
 button.sm,.btn.sm{min-height:28px;padding:0 var(--space-3);font-size:11px}
 .big{min-height:48px;padding:0 var(--space-6);font-size:13px}
 button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:inherit;letter-spacing:0;text-transform:none;text-align:left;color:var(--ink);text-decoration:underline;text-decoration-color:var(--ink-3);text-underline-offset:3px}
@@ -112,6 +102,9 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .rl-pos .dm-data{font-size:11px;letter-spacing:.08em}
 .tm-chip{display:flex;align-items:stretch}
 .tm-chip button{min-height:0;height:100%;border:0;padding:0 var(--space-4);background-color:var(--paper);font-size:11px}
+.tm-chip button:not(:disabled):hover{background-size:0 100%;color:var(--ink)}
+.tm-face:not(:disabled):hover{background-color:var(--paper-raised)}
+.timer.running .tm-chip .tm-go:not(:disabled):hover{color:var(--on-signal)}
 .tm-go{width:48px;border-right:var(--stroke-hair) solid var(--rule)!important;font-size:12px!important}
 .tm-face{gap:var(--space-3)}
 .tm-mode{color:var(--ink-3)}
@@ -154,6 +147,8 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .tb-cell dt{color:var(--signal)}
 .tb-cell dt::after{content:":"}
 .tb-cell dd{margin:0;text-align:right;font:500 13px/16px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--ink)}
+#b-fx{min-width:124px}#b-snd{min-width:108px}   /* the width of the longer word, off: the column never moves */
+#b-fx,#b-snd{justify-content:space-between}
 .tb-tools{grid-column:2;display:flex;gap:var(--space-2) var(--space-4);flex-wrap:wrap;justify-content:flex-end}
 body.in-flow .tb{display:none}
 
@@ -183,14 +178,13 @@ body.in-flow .tb{display:none}
 .next{margin:0 0 var(--space-8)}
 .nx-h{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .nx-h>*{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
-.next:not(.all-done) .nx-h .nx-k{display:none}   /* the hero frame's tab already says Today / Next up */
 .nx-k{color:var(--ink);padding:0 var(--space-1);background:var(--signal)!important;color:var(--on-signal);box-shadow:none!important}
 .nx-st{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-left:auto}
 .nx-st b{color:var(--ink)}
 .nx-cal{margin:0 0 var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .nx-body{position:relative;display:grid;gap:var(--space-6) var(--space-8)}
 /* crosshairs locked onto the corners of the view's subject (the hero, the step and its sidebar): the poster's + marks */
-:is(.nx-body,.fl-body)::before{content:"";position:absolute;z-index:2;inset:calc(var(--space-4) * -1);pointer-events:none;--x:linear-gradient(var(--signal),var(--signal));
+.nx-body::before{content:"";position:absolute;z-index:2;inset:calc(var(--space-4) * -1);pointer-events:none;--x:linear-gradient(var(--signal),var(--signal));
   background:var(--x) 0 9px/19px 1px,var(--x) 9px 0/1px 19px,var(--x) 100% 9px/19px 1px,var(--x) calc(100% - 9px) 0/1px 19px,
     var(--x) 0 calc(100% - 9px)/19px 1px,var(--x) 9px 100%/1px 19px,var(--x) 100% calc(100% - 9px)/19px 1px,var(--x) calc(100% - 9px) 100%/1px 19px;background-repeat:no-repeat}
 @media (min-width:900px){.nx-body{grid-template-columns:minmax(0,2fr) minmax(320px,1fr);align-items:stretch}}
@@ -228,8 +222,7 @@ body.in-flow .tb{display:none}
 .next.all-done .nx-a{max-width:420px}
 /* warm-up / review: a notice above the hero */
 .nx-warm{display:flex;gap:var(--space-2) var(--space-4);align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 var(--space-4);padding:var(--space-2) var(--space-3) var(--space-2) calc(var(--space-6) + var(--space-3));
-  background:linear-gradient(var(--signal),var(--signal)) var(--space-4) 50%/8px 8px no-repeat var(--paper-raised);border:var(--stroke-hair) solid var(--ink);font-size:15px}
-.nx-warm>span:first-child::before{content:"> ";font-family:var(--font-mono);color:var(--ink-3)}
+  background:linear-gradient(var(--signal),var(--signal)) var(--space-4) calc(var(--space-2) + 8px)/8px 8px no-repeat var(--paper-raised);border:var(--stroke-hair) solid var(--ink);font-size:15px}
 .nx-wb{display:flex;gap:var(--space-2);align-items:center}
 
 /* ---------- slip guard: an alert notice ---------- */
@@ -318,6 +311,8 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
    a [+] locks into its corner */
 .dt.dm-cell::after{content:"[+]";position:absolute;right:var(--space-2);bottom:var(--space-2);font:500 11px/1 var(--font-mono);color:currentColor;opacity:0;transform:translate(4px,4px);transition:opacity var(--dm-step) linear,transform var(--dm-step) var(--dm-ease)}
 @media (hover:hover){.dt.dm-cell:hover::after{opacity:1;transform:none}}
+.dt.dm-cell.is-done{background-color:var(--ink);color:var(--on-ink)}   /* state is fill (Datum): done ink */
+.dt.dm-cell.is-now{background-color:var(--signal);color:var(--on-signal)}   /* today: the signal tile */
 @media (hover:hover){
   .dt.dm-cell:hover{background:var(--paper);color:var(--ink)}
   .dt.dm-cell.is-done:hover{background:var(--ink-2);color:var(--on-ink)}
@@ -357,8 +352,8 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 .ring-v{grid-area:1/1/3/2;grid-template-rows:88px auto;align-items:center;row-gap:var(--space-1)}   /* the figure inside the ring, its caption under it */
 .td-goal .dm-dial__ring{width:88px;height:88px}
 .td-goal.hit .dm-tick-live{stroke:var(--signal-edge)}
-.ring-v{display:grid;justify-items:center;align-self:center;line-height:1.05}
-.ring-v b{font:600 22px/1 var(--font-display)}
+.ring-v{display:grid;justify-items:center;align-self:start;line-height:1.05}
+.ring-v b{font:600 17px/1 var(--font-display);font-variant-numeric:tabular-nums}   /* five digits (2,185) fit inside the ring */
 .ring-v small{align-self:start;font:400 11px/16px var(--font-mono);white-space:nowrap;color:var(--ink-3)}
 .td-x p{margin:0;font-size:14.5px}
 .td-x .muted{font-size:13px;margin-top:var(--space-1)}
@@ -403,6 +398,8 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 /* charts: dots and stepped hairlines, square columns; a tooltip and a hairline on hover or with the arrow keys */
 .tr-ctl{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:0 0 var(--space-4)}
 .tr-ctl button[aria-pressed="true"],.dg-rel button[aria-pressed="true"],.la-nav button.on,.seg-p button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+/* a pressed toggle is filled AND underlined, so the ink hover fill of the others never reads as pressed */
+:is(.tr-ctl,.dg-rel,.la-nav,.seg-p,.seg,.why-r) button:is([aria-pressed="true"],.on){text-decoration:underline;text-decoration-thickness:var(--stroke-bold);text-underline-offset:4px}
 .tr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--paper);border-top:var(--stroke-hair) solid var(--rule);border-left:var(--stroke-hair) solid var(--rule)}
 .tr-fig{position:relative;margin:0;padding:var(--space-3) var(--space-3) var(--space-2);background:var(--paper-raised);border-right:var(--stroke-hair) solid var(--rule);border-bottom:var(--stroke-hair) solid var(--rule)}
 .tr-fig:focus-visible{outline:var(--stroke-bold) solid var(--ink);outline-offset:calc(var(--stroke-bold) * -2)}
@@ -412,6 +409,8 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 .ch .ax{fill:var(--ink-3);font:10px var(--font-mono)}
 .ch .ref{stroke:var(--ink);stroke-width:1;stroke-dasharray:2 3}
 .ch .ref-t{fill:var(--ink-2);font:9.5px var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+.ch :is(.ref-t,.lab){paint-order:stroke;stroke:var(--paper-raised);stroke-width:4px;stroke-linejoin:round}   /* a halo: a line or bar under a label never cuts it */
+.tr-fig:has(.tt:not([hidden])) .lab{visibility:hidden}   /* the tooltip says the value; the last-value label would sit under it */
 .ch .mk{fill:var(--ink-2)}
 .ch .mk.now{fill:var(--signal-edge)}
 .ch .ln{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-linejoin:miter}
@@ -456,6 +455,8 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .fl-dn{font:700 52px/.9 var(--font-display);letter-spacing:-.04em;color:var(--signal)}   /* the day view's one title, yellow like the overview's */
 .fl-tt{font:600 20px/1.25 var(--font-sans);color:var(--ink)}
 .fl-dd{font:400 13px/20px var(--font-mono);color:var(--ink-2)}
+.fl-day .today-badge{order:-1}
+.fl-day .fl-dn{order:-2}   /* Today sits beside the day number, so a long title wraps instead of the badge */
 .fl-tools{display:flex;gap:var(--space-1) var(--space-3);flex-wrap:wrap;background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
 .fl-tools [aria-pressed="true"]{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
 /* the strip: one square per card, grouped like the day's blocks; the count at the card's right edge */
@@ -465,7 +466,8 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .fl-g{display:inline-flex;gap:0;padding-bottom:var(--space-1);border-bottom:var(--stroke-bold) solid transparent}
 .fl-g.cur{border-bottom-color:var(--ink)}   /* the block you are in */
 .fl-blk{flex-basis:100%;text-align:center;color:var(--ink-2)}
-.fl-blk:empty{display:none}
+.fl-blk:empty{visibility:hidden}
+.fl-blk:empty::before{content:"\00a0"}
 @media (min-width:761px){
   .fl-prog{display:grid;grid-template-columns:minmax(110px,1fr) auto minmax(110px,1fr);row-gap:var(--space-2)}
   .fl-strip{grid-column:2;grid-row:1}
@@ -484,8 +486,8 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 
 /* the card: an article panel with one cut corner; the step's label, its headline, where to do it, then the boxes */
 .card{position:relative;padding:var(--space-6) var(--space-6) var(--space-8);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);
-  clip-path:polygon(0 0,calc(100% - var(--chamfer-l)) 0,100% var(--chamfer-l),100% 100%,0 100%)}
-.card::after{content:"";position:absolute;top:0;right:0;width:var(--chamfer-l);height:var(--chamfer-l);background:linear-gradient(to bottom left,transparent calc(50% - .75px),var(--rule) calc(50% - .75px),var(--rule) calc(50% + .75px),transparent calc(50% + .75px))}
+}
+.card::after{content:"";position:absolute;top:-1px;right:-1px;width:calc(var(--chamfer-l) + 1px);height:calc(var(--chamfer-l) + 1px);background:linear-gradient(to bottom left,var(--paper) calc(50% - .75px),var(--rule) calc(50% - .75px),var(--rule) calc(50% + .75px),transparent calc(50% + .75px))}
 /* a new step arrives: a yellow scan line runs along the card's top edge, then its parts switch on in order (motion block) */
 .card::before{content:"";position:absolute;top:0;left:0;right:var(--chamfer-l);height:var(--stroke-bold);background:var(--signal-edge);transform:scaleX(0);transform-origin:left;pointer-events:none}
 .c-h{display:flex;gap:var(--space-2) var(--space-3);align-items:center;flex-wrap:wrap;min-height:24px}
@@ -505,6 +507,8 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .c-head{margin-bottom:var(--space-2)}
 @media (min-width:761px){.card{padding:var(--space-8) var(--space-12) var(--space-12)}}
 .c-score{margin-top:var(--space-4)}
+.box>.c-score{margin-top:0}
+.b-score .scores-grid label{padding:0;border-bottom:0}
 .c-st{margin:var(--space-4) 0 var(--space-1);max-width:72ch;font-size:16px}
 .c-st.ok{font-weight:600}
 .c-st.ok::before{content:"[ ✓ ] ";font-family:var(--font-mono);font-size:13px}
@@ -522,6 +526,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .box-h{display:flex;gap:var(--space-2);align-items:center;margin:0 0 var(--space-3);color:var(--ink)}
 .box-h .bi{flex:none;width:8px;height:8px;background:var(--ink)}
 .box>p{margin:0}
+.box>.cq-q,.box>.cq-v{margin:0 0 var(--space-3)}
 .txt{text-wrap:pretty}
 .b-why{border-color:var(--grid-mark)}   /* the why: framed in the poster's yellow hairline */
 .b-why .bi{width:10px;height:10px;background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
@@ -572,7 +577,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 .c-hint{margin:var(--space-2) 0 0;font-size:12.5px}
 .c-fold summary{cursor:pointer;list-style:none;margin:0}
 .c-fold summary::-webkit-details-marker{display:none}
-.c-fold summary::after{content:"[ + ]";margin-left:auto;color:var(--ink-3)}
+.c-fold summary::after{content:"[ + ]";margin-left:auto;color:var(--ink-3);white-space:nowrap}
 .c-fold[open] summary::after{content:"[ – ]"}
 .c-fold summary .muted{text-transform:none;letter-spacing:0}
 .c-fold[open] summary{margin-bottom:var(--space-3)}
@@ -627,6 +632,7 @@ body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long c
 /* glossary: a definition over the term on hover, Tab or a click; a tap on a touch screen toggles it (no sticky hover there) */
 .g{border-bottom:var(--stroke-hair) dotted currentColor;cursor:help;position:relative}
 .g::after{position:absolute;left:0;bottom:calc(100% + 6px);width:max-content;max-width:min(300px,80vw);padding:var(--space-2) var(--space-3);background:var(--ink);color:var(--on-ink);font:400 13px/1.45 var(--font-sans);z-index:30;white-space:normal;pointer-events:none;text-decoration:none;text-transform:none;letter-spacing:0}
+.g.g-r::after{left:auto;right:0}   /* a term near the window's right edge opens its definition leftwards (app.js) */
 .g.show::after,.g:focus-visible::after{content:attr(data-tip)}
 @media (hover:hover){.g:hover::after{content:attr(data-tip)}}
 @media (max-width:640px){.g::after{position:fixed;left:12px;right:12px;bottom:86px;width:auto;max-width:none;font-size:15px;padding:var(--space-3)}}
@@ -652,6 +658,7 @@ dialog h2 .muted{font:400 13px var(--font-mono);text-transform:none}
 .s-disp{display:grid;grid-template-columns:1fr 1fr;gap:0 var(--space-4)}
 .s-disp select{display:block;width:100%;margin-top:var(--space-1)}
 dialog.brk{width:min(480px,94vw)}
+[tabindex="-1"]:focus:not(:focus-visible),dialog [tabindex="-1"]:focus{outline:none}
 dialog.brk[data-kind="over"]{border-top-color:var(--alert)}
 dialog.brk p{margin:var(--space-2) 0;font-size:15.5px}
 dialog.costnag{width:min(580px,94vw);border-color:var(--alert);border-top-color:var(--alert)}
@@ -662,7 +669,8 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
 .sr-it{display:grid;gap:1px;padding:var(--space-2) var(--space-3);border-bottom:var(--stroke-hair) solid var(--rule);cursor:pointer}
 .sr-it:hover{background:var(--paper)}
 .sr-it.on{background:var(--signal);color:var(--on-signal)}
-.sr-it.on :is(.sr-h,.sr-k,.sr-s){color:var(--on-signal)}
+.sr-it.on :is(.sr-h,.sr-k,.sr-s,.sr-t){color:var(--on-signal)}
+.sr-it.on mark{background:var(--on-signal);color:var(--signal)}
 .sr-h{display:flex;gap:var(--space-2);align-items:baseline;font:400 12px var(--font-mono);color:var(--ink-3)}
 .sr-k{color:var(--ink)}
 .sr-t{font-weight:600;font-size:15px}
@@ -683,7 +691,8 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
 .dg text{fill:var(--ink);font-size:11.5px;letter-spacing:.02em}
 .dg-area rect{fill:none;stroke:var(--ink-3);stroke-width:1}
 .dg-area.dash rect{stroke-dasharray:4 4}
-.dg-area text{font-size:10.5px;font-weight:500;fill:var(--ink-3);text-transform:uppercase;letter-spacing:.08em}
+.dg-area text{visibility:hidden}   /* drawn again above the arrows: .dg-al */
+.dg .dg-al{font-size:10.5px;font-weight:500;fill:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;paint-order:stroke;stroke:var(--paper-sunk);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
 .dg-area.k-public rect{fill:color-mix(in srgb,var(--ink) 4%,transparent)}
 .dg-area.k-private rect{fill:color-mix(in srgb,var(--ink) 7%,transparent)}
 .dg-area.k-onprem rect{fill:none;stroke-dasharray:1 3}
@@ -695,7 +704,7 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
 .dg .hot{cursor:pointer}
 .dg .hot:hover rect,.dg .hot:focus rect{stroke:var(--ink);stroke-width:2}
 .dg .hot:focus{outline:none}
-.dg .hot:focus-visible rect{stroke:var(--ink);stroke-width:3}
+.dg .hot.hot:focus-visible rect{stroke:var(--ink);stroke-width:3;stroke-dasharray:none}
 .dg .hot.rel rect{stroke:var(--ink);stroke-width:2;stroke-dasharray:none}
 .dg .hot.on rect{stroke:var(--signal-edge);stroke-width:2.5}
 .dg .dg-node.hot.on rect{fill:var(--signal)}
@@ -705,6 +714,7 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
 .dg-rel{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin:0 0 var(--space-3);font-size:14px}
 .dg-pic{position:relative}
 .dg-big{position:absolute;top:var(--space-2);right:var(--space-2)}
+.dg-pic:has(>.dg-big) .dg-wrap{padding-top:calc(var(--space-2) + 40px)}
 .dg-wrap{padding:var(--space-2);overflow-x:auto;background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule)}
 @media (max-width:760px){.dg-wrap .dg{min-width:680px}}   /* readable on a phone: the picture scrolls sideways */
 #sheet[data-kind="dg"]{width:min(1440px,98vw)}
@@ -805,6 +815,7 @@ body.focus-view #card{zoom:1.06}
   .fl-dn{font-size:34px}
   .card{padding:var(--space-4) var(--space-4) var(--space-6)}
   .c-t{font-size:19px}
+  .c-t.c-hl{font-size:clamp(26px,7.5vw,34px)}
   .c-terms div{grid-template-columns:1fr;gap:0}
   .k-list li{grid-template-columns:1fr}
   .fl-nav{gap:var(--space-2);padding:var(--space-2)}
@@ -846,39 +857,26 @@ body.focus-view #card{zoom:1.06}
 }
 
 /* ---------- motion: one arrival per view, one live element, eased feedback ---------- */
-/* Arrival. The ground draws itself like the poster being plotted: the grid's hairlines run out one after another, the
-   crossing dots switch on, plates and discs fade up, the crosshairs lock on (turned 45 degrees and twice their size,
-   they settle onto their crossing), then the filaments trace in from their junction. The overview's rows switch on in
-   order (Datum's dm-arrive on #home) and the subject's corner crosshairs lock on. A new step: a yellow scan line runs
-   along the card's top edge and the card's parts switch on in order. A resize redraws the same view still. */
+/* Arrival (Datum). A new view: the backdrop fades up, the overview's rows switch on in order (dm-arrive on #home) and
+   the subject's corner crosshairs lock on. A new step: a yellow scan line runs along the card's top edge and the card's
+   parts switch on in order, once (app.js drops .in after it, so a re-render of the card, a picked answer, never replays
+   it). A resize redraws the same view still. Live: the orbit's one node drifts (Datum), the next segment beats. */
 @media (prefers-reduced-motion:no-preference){
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-line{stroke-dasharray:1;animation:g-draw 1100ms var(--dm-ease) backwards;animation-delay:calc(var(--i,0) * 45ms)}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-node{animation:dm-on 500ms linear 600ms backwards}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) :is(.g-plate,.g-tex,.g-disc,.g-ring,.g-tri){animation:dm-on 900ms linear backwards;animation-delay:calc(250ms + var(--i,0) * 90ms)}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-cross{transform-box:fill-box;transform-origin:center;animation:g-lock 700ms var(--dm-ease) backwards;animation-delay:calc(700ms + var(--i,0) * 140ms)}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-fil{animation:g-draw 1900ms var(--dm-ease) backwards;animation-delay:calc(1000ms + var(--i,0) * 110ms)}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-blob{transform-box:fill-box;transform-origin:center;animation:g-pop 520ms var(--dm-ease) 950ms backwards}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-ghost{animation:dm-on 1400ms linear backwards}
+  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw])>svg{animation:dm-on 900ms linear backwards}
   :root:not([data-dm-motion="off"]) :is(.nx-body,.fl-body)::before{animation:x-lock 760ms var(--dm-ease) 200ms backwards}
   :root:not([data-dm-motion="off"]) .card.in::before{animation:x-scan 820ms var(--dm-ease)}
   :root:not([data-dm-motion="off"]) :is(.card,.side).in>*{animation:x-on 420ms var(--dm-ease) backwards;animation-delay:calc(var(--n,0) * 60ms)}
   :is(.card,.side).in>:nth-child(2){--n:1}
   :is(.card,.side).in>:nth-child(3){--n:2}
   :is(.card,.side).in>:nth-child(n+4){--n:3}
-  /* Live: one element per view. The overview: the next step's segment beats. The day view: the ground's live crosshair. */
   :root:not(.fx-off):not([data-dm-motion="calm"]) .segs i.nx{animation:x-pulse var(--dm-beat) steps(1) infinite}
-  :root:not(.fx-off):not([data-dm-motion="calm"]) body.in-flow .g-cross.is-live{animation:g-lock 700ms var(--dm-ease) 700ms backwards,x-beat var(--dm-beat) steps(1) 1500ms infinite}
 }
-@keyframes g-draw{from{stroke-dashoffset:1}}
-@keyframes g-lock{from{opacity:0;transform:rotate(45deg) scale(2.4)}}
-@keyframes g-pop{from{opacity:0;transform:scale(0)}}
 @keyframes x-lock{from{opacity:0;transform:scale(1.04) rotate(.4deg)}}
 @keyframes x-scan{0%{transform:scaleX(0);opacity:1}62%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
 @keyframes x-on{from{opacity:0;transform:translateY(6px)}}
 @keyframes x-pulse{50%{background:var(--paper-raised)}}
-@keyframes x-beat{50%{opacity:.2}}
 /* the motion levels (Settings, or effects off): calm stops the loops, off holds everything still */
-:root[data-dm-motion="calm"] :is(.timer.over .tm-fill,.segs i.nx,.g-cross.is-live){animation:none!important}
+:root[data-dm-motion="calm"] :is(.timer.over .tm-fill,.segs i.nx,.dm-bd-drift){animation:none!important}
 :root[data-dm-motion="off"] *,:root[data-dm-motion="off"] *::before,:root[data-dm-motion="off"] *::after{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 

@@ -8,7 +8,6 @@ The plan follows two learning plans on AWS Skill Builder: the **AWS Solutions Ar
 site/
   index.html     page layout: rail, overview, one-step card view, dialogs
   dm/            the Datum design system: tokens (Excimer colours, dark only), components, art (vendored)
-  ground.js      the poster drawn behind the page: grid, plates, crosshairs, filaments
   style.css      the app in Datum, Excimer colours (dark only)
   fx.css         quiz, results, badges and celebration styles
   plan.js        the plan: days, steps, links, time estimates, the topics each step teaches, glossary, cleanup list
