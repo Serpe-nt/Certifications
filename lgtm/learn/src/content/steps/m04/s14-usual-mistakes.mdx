@@ -87,10 +87,10 @@ An empty panel is not proof of zero. Before you trust "no errors" or "no latency
 
 <Do>
 1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. For each query below, run it, name the mistake, fix it and run the fix.
-2. Query 1 should count the node exporter targets, 7: <Query lang="promql">{`count(up{job=~"node"})`}</Query>
+2. Query 1 should count the node exporter targets, 5: <Query lang="promql">{`count(up{job=~"node"})`}</Query>
 3. Query 2 should give the 90th percentile of Prometheus's HTTP requests: <Query lang="promql">{`histogram_quantile(0.9, sum(rate(prometheus_http_request_duration_seconds_bucket[5m])))`}</Query>
 4. Query 3 should give the request rate of each handler an hour ago: <Query lang="promql">{`sum by (handler) (rate(prometheus_http_requests_total[5m])) offset 1h`}</Query>
-5. Query 4 should give the CPU use of the whole cluster. Compare the two lines; the first is the wrong one: <Query lang="promql">{`avg(instance:node_cpu_utilisation:rate5m)`}</Query> <Query lang="promql">{`sum(rate(node_cpu_seconds_total{mode!~"idle|iowait|steal"}[5m])) / sum(rate(node_cpu_seconds_total[5m]))`}</Query> The masters have 2 CPUs and the workers 4, so the plain average gives each master too much weight.
+5. Query 4 should give the CPU use of the whole cluster. Compare the two lines; the first is the wrong one: <Query lang="promql">{`avg(instance:node_cpu_utilisation:rate5m)`}</Query> <Query lang="promql">{`sum(rate(node_cpu_seconds_total{mode!~"idle|iowait|steal"}[5m])) / sum(rate(node_cpu_seconds_total[5m]))`}</Query> The master has 2 CPUs and the workers 4, so the plain average gives the master too much weight.
 6. Query 5 should give how many CPUs' worth of time each node spends, in all modes together. On a node with four CPUs that is about 4: <Query lang="promql">{`sum by (instance) (node_cpu_seconds_total)`}</Query>
 7. Paste the fixed value of query 5 for instance 10.10.0.30:9100 in the check below.
 </Do>

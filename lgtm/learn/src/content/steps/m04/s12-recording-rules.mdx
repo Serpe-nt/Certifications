@@ -43,7 +43,7 @@ sources:
 ---
 
 <Problem>
-The node overview dashboard has twelve panels, and each one computes CPU use from 176 raw series with nested `sum` and `rate`. Ten people keep it open, and it refreshes every 30 seconds. The server repeats the same work hundreds of times a minute, and the panels get slower as the cluster grows.
+The node overview dashboard has twelve panels, and each one computes CPU use from 144 raw series with nested `sum` and `rate`. Ten people keep it open, and it refreshes every 30 seconds. The server repeats the same work hundreds of times a minute, and the panels get slower as the cluster grows.
 </Problem>
 
 <Idea>
@@ -93,7 +93,7 @@ A rule that stores a ratio per instance raises a trap when you want the ratio fo
 The query basics give the signs. A query that must handle a large amount of data can time out in a graph. A query that a dashboard runs on every refresh, or that is too slow to graph ad hoc, should be recorded. Alerts that use an expensive expression benefit in the same way. The recorded series costs storage, so you record what is read often, not every query you ever write.
 
 <InLab>
-The lab's Prometheus loads 30 rule groups with 86 recording rules from kube-prometheus-stack. They run every 30 seconds, except `kube-apiserver-availability.rules`, which runs every 180 seconds. You will add rules of your own in module m15, for alerts.
+The lab's Prometheus loads 30 rule groups with 86 recording rules from kube-prometheus-stack, and one group of the lab's own, `lab-volumes`, with one alert. They run every 30 seconds, except `kube-apiserver-availability.rules`, which runs every 180 seconds. You will add rules of your own in module m15, for alerts.
 </InLab>
 
 <Trap>

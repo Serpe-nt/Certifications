@@ -35,7 +35,7 @@ sources:
 ---
 
 <Problem>
-`rate(node_cpu_seconds_total[5m])` returns one series per node, per CPU and per mode: 176 lines for the lab's seven machines. Your manager asks a simpler question: which node is the busiest right now? The answer is in those lines, but only once they are added up per node.
+`rate(node_cpu_seconds_total[5m])` returns one series per node, per CPU and per mode: 144 lines for the lab's five machines. Your manager asks a simpler question: which node is the busiest right now? The answer is in those lines, but only once they are added up per node.
 </Problem>
 
 <Idea>
@@ -86,11 +86,11 @@ Three of the lab's nodes have 2 CPUs and four have 4. `count_values("cpus", inst
 </Trap>
 
 <Do>
-1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. Count the targets per job: <Query lang="promql">{`count by (job) (up)`}</Query> Eight rows, kubelet with 21.
-2. Find the busy CPU time per node: <Query lang="promql">{`sum by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m]))`}</Query> Seven rows, one per node exporter.
+1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab. Count the targets per job: <Query lang="promql">{`count by (job) (up)`}</Query> Eight rows, kubelet with 15.
+2. Find the busy CPU time per node: <Query lang="promql">{`sum by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m]))`}</Query> Five rows, one per node exporter.
 3. Wrap it in `topk` to keep the three busiest: <Query lang="promql">{`topk(3, sum by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m])))`}</Query>
 4. Group the targets by two labels: <Query lang="promql">{`sum by (job, metrics_path) (up)`}</Query> Count the rows. The kubelet appears three times, once per metrics path, and the jobs without that label appear once.
-5. Compare `without` with `by`: <Query lang="promql">{`sum without (instance, pod) (up{job="node-exporter"})`}</Query> One row, value 7, and the labels `job`, `namespace`, `service` and others are still there.
+5. Compare `without` with `by`: <Query lang="promql">{`sum without (instance, pod) (up{job="node-exporter"})`}</Query> One row, value 5, and the labels `job`, `namespace`, `service` and others are still there.
 6. Count the nodes by their number of CPUs: <Query lang="promql">{`count_values("cpus", instance:node_num_cpu:sum)`}</Query>
 7. Paste the number of rows from action 4 in the check below.
 </Do>
