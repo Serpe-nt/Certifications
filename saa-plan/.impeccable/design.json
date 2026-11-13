@@ -4,51 +4,198 @@
   "title": "Design System: SAA-C03 plan",
   "extensions": {
     "colorMeta": {
-      "signal": { "role": "primary", "displayName": "Cadmium Signal", "canonical": "#F7D123", "tonalRamp": ["#2E2606", "#4F420B", "#776311", "#A08517", "#CCAA1D", "#F7D123", "#F9DF6A", "#FCF0B8"] },
-      "alert": { "role": "secondary", "displayName": "Hazard Vermilion", "canonical": "#FF5533", "tonalRamp": ["#2E0C05", "#55170A", "#80220F", "#AE2F15", "#DA3D1E", "#FF5533", "#FF8B73", "#FFC9BD"] },
-      "paper": { "role": "neutral", "displayName": "Excimer Black", "canonical": "#111111", "tonalRamp": ["#0A0A0A", "#111111", "#1C1C1B", "#2A2925", "#36342C", "#8E8A7F", "#BCB9AF", "#EDEBE4"] },
-      "plate": { "role": "neutral", "displayName": "Poster Charcoal", "canonical": "#2A2925" },
-      "ink": { "role": "neutral", "displayName": "Bone Ink", "canonical": "#EDEBE4" },
-      "rule": { "role": "neutral", "displayName": "Umber Rule", "canonical": "#36342C" },
-      "grid": { "role": "neutral", "displayName": "Olive Grid", "canonical": "#4A4329", "tonalRamp": ["#4A4329", "#6E6232"] },
-      "inv-paper": { "role": "neutral", "displayName": "Inverse Sheet", "canonical": "#E3E0D6" }
+      "signal": {
+        "role": "primary",
+        "displayName": "Cadmium Signal",
+        "canonical": "#F7D123",
+        "tonalRamp": [
+          "#2E2606",
+          "#4F420B",
+          "#776311",
+          "#A08517",
+          "#CCAA1D",
+          "#F7D123",
+          "#F9DF6A",
+          "#FCF0B8"
+        ]
+      },
+      "alert": {
+        "role": "secondary",
+        "displayName": "Hazard Vermilion",
+        "canonical": "#FF5533",
+        "tonalRamp": [
+          "#2E0C05",
+          "#55170A",
+          "#80220F",
+          "#AE2F15",
+          "#DA3D1E",
+          "#FF5533",
+          "#FF8B73",
+          "#FFC9BD"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Excimer Black",
+        "canonical": "#111111",
+        "tonalRamp": [
+          "#0A0A0A",
+          "#111111",
+          "#1C1C1B",
+          "#2A2925",
+          "#36342C",
+          "#8E8A7F",
+          "#BCB9AF",
+          "#EDEBE4"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Bone Ink",
+        "canonical": "#EDEBE4"
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Umber Rule",
+        "canonical": "#36342C"
+      },
+      "inv-paper": {
+        "role": "neutral",
+        "displayName": "Inverse Sheet",
+        "canonical": "#E3E0D6"
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "The view's one signal title; sentence case, on a paper plate." },
-      "headline": { "displayName": "Headline", "purpose": "Step card headline and hero title." },
-      "title": { "displayName": "Title", "purpose": "The step line on a card." },
-      "lead": { "displayName": "Lead", "purpose": "The why explanation and the next step." },
-      "body": { "displayName": "Body", "purpose": "Reading text, tabular numerals." },
-      "label": { "displayName": "Label", "purpose": "Uppercase mono labels, section heads, tags, facts." },
-      "button": { "displayName": "Button", "purpose": "Uppercase mono button labels." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "The view's one signal title; sentence case, on a paper plate."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Step card headline and hero title."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "The step line on a card."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "The why explanation and the next step."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Reading text, tabular numerals."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase mono labels, section heads, tags, facts."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Uppercase mono button labels."
+      }
     },
     "shadows": [
-      { "name": "plate", "value": "0 0 0 var(--space-1) var(--paper)", "purpose": "Not a shadow: a hard paper spread that plates text over the ground (4-12px). The only box-shadow use." }
+      {
+        "name": "plate",
+        "value": "0 0 0 var(--space-1) var(--paper)",
+        "purpose": "Not a shadow: a hard paper spread that plates text over the ground (4-12px). The only box-shadow use."
+      }
     ],
     "shapes": [
-      { "name": "chamfer", "value": "10px", "purpose": "Primary button bottom-right cut." },
-      { "name": "chamfer-l", "value": "16px", "purpose": "Card top-right cut, banners." },
-      { "name": "chamfer-xl", "value": "32px", "purpose": "Datum frame corner cuts." },
-      { "name": "notch", "value": "24px", "purpose": "Datum frame tab notch." },
-      { "name": "stroke-hair", "value": "1px", "purpose": "All structure lines." },
-      { "name": "stroke-bold", "value": "2px", "purpose": "Focus ring, scan line, timer bar." },
-      { "name": "stroke-bar", "value": "6px", "purpose": "Stat tile top bars." }
+      {
+        "name": "chamfer",
+        "value": "10px",
+        "purpose": "Primary button bottom-right cut."
+      },
+      {
+        "name": "chamfer-l",
+        "value": "16px",
+        "purpose": "Card top-right cut, banners."
+      },
+      {
+        "name": "chamfer-xl",
+        "value": "32px",
+        "purpose": "Datum frame corner cuts."
+      },
+      {
+        "name": "notch",
+        "value": "24px",
+        "purpose": "Datum frame tab notch."
+      },
+      {
+        "name": "stroke-hair",
+        "value": "1px",
+        "purpose": "All structure lines."
+      },
+      {
+        "name": "stroke-bold",
+        "value": "2px",
+        "purpose": "Focus ring, scan line, timer bar."
+      },
+      {
+        "name": "stroke-bar",
+        "value": "6px",
+        "purpose": "Stat tile top bars."
+      }
     ],
     "motion": [
-      { "name": "dm-ease", "value": "cubic-bezier(.16, 1, .3, 1)", "purpose": "Everything that travels." },
-      { "name": "dm-tick", "value": "80ms linear", "purpose": "Colour and border switches." },
-      { "name": "dm-step", "value": "160ms", "purpose": "Button wipe, tile hover." },
-      { "name": "dm-arrive", "value": "480ms", "purpose": "Banners, badges, bars filling." },
-      { "name": "dm-beat", "value": "1200ms steps(1)", "purpose": "The one live element's blink; stopped by calm." },
-      { "name": "arrival", "value": "backdrop fade 900ms; corner crosshair lock 760ms; parts on 420ms, 60ms apart, once per card; scan line 820ms", "purpose": "One arrival per view." }
+      {
+        "name": "dm-ease",
+        "value": "cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Everything that travels."
+      },
+      {
+        "name": "dm-tick",
+        "value": "80ms linear",
+        "purpose": "Colour and border switches."
+      },
+      {
+        "name": "dm-step",
+        "value": "160ms",
+        "purpose": "Button wipe, tile hover."
+      },
+      {
+        "name": "dm-arrive",
+        "value": "480ms",
+        "purpose": "Banners, badges, bars filling."
+      },
+      {
+        "name": "dm-beat",
+        "value": "1200ms steps(1)",
+        "purpose": "The one live element's blink; stopped by calm."
+      },
+      {
+        "name": "arrival",
+        "value": "backdrop fade 900ms; corner crosshair lock 760ms; parts on 420ms, 60ms apart, once per card; scan line 820ms",
+        "purpose": "One arrival per view."
+      }
     ],
     "breakpoints": [
-      { "name": "phone", "value": "640px" },
-      { "name": "card-padding", "value": "761px" },
-      { "name": "stack", "value": "860px" },
-      { "name": "today-pair", "value": "900px" },
-      { "name": "tiles-4", "value": "1100px" },
-      { "name": "article-sidebar", "value": "1300px" }
+      {
+        "name": "phone",
+        "value": "640px"
+      },
+      {
+        "name": "card-padding",
+        "value": "761px"
+      },
+      {
+        "name": "stack",
+        "value": "860px"
+      },
+      {
+        "name": "today-pair",
+        "value": "900px"
+      },
+      {
+        "name": "tiles-4",
+        "value": "1100px"
+      },
+      {
+        "name": "article-sidebar",
+        "value": "1300px"
+      }
     ]
   },
   "components": [
@@ -88,9 +235,9 @@
       "name": "Step Card",
       "kind": "card",
       "refersTo": "card",
-      "description": "Article panel with a 16px top-right cut and a why-box framed in grid-mark.",
+      "description": "Article panel with a 16px top-right cut and a why-box framed in ink-3.",
       "html": "<article class=\"ds-card\"><h2 class=\"ds-card-h\">Create your AWS account</h2><section class=\"ds-box\"><h3 class=\"ds-box-h\"><i></i>Why this step</h3><p>Whoever holds the first login controls the account.</p></section></article>",
-      "css": ".ds-card{position:relative;padding:32px 48px 48px;background:var(--paper-raised,#1C1C1B);border:1px solid var(--rule,#36342C);clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%);color:var(--ink,#EDEBE4)}.ds-card-h{margin:0 0 16px;font:600 40px/1.02 var(--font-display);letter-spacing:-.03em}.ds-box{padding:16px;background:var(--paper,#111);border:1px solid var(--grid-mark,#6E6232)}.ds-box-h{display:flex;gap:8px;align-items:center;margin:0 0 12px;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}.ds-box-h i{width:10px;height:10px;background:var(--signal,#F7D123)}.ds-box p{margin:0;font-size:19px;line-height:1.6}"
+      "css": ".ds-card{position:relative;padding:32px 48px 48px;background:var(--paper-raised,#1C1C1B);border:1px solid var(--rule,#36342C);clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%);color:var(--ink,#EDEBE4)}.ds-card-h{margin:0 0 16px;font:600 40px/1.02 var(--font-display);letter-spacing:-.03em}.ds-box{padding:16px;background:var(--paper,#111);border:1px solid var(--ink-3,#8E8A7F)}.ds-box-h{display:flex;gap:8px;align-items:center;margin:0 0 12px;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}.ds-box-h i{width:10px;height:10px;background:var(--signal,#F7D123)}.ds-box p{margin:0;font-size:19px;line-height:1.6}"
     },
     {
       "name": "Field",
@@ -111,7 +258,7 @@
   ],
   "narrative": {
     "northStar": "The Excimer Poster",
-    "overview": "The app is a near-black sheet with a quiet olive grid behind it. Each view has one subject (the overview's today pair, the day view's step card), one cadmium-yellow title, and yellow crosshairs that lock onto the subject's corners. Behind everything is Datum's own backdrop (Datum.backdrop): one figure per view, low in contrast and still, a small orbit on the overview and the plain grid in the day view, its hairlines in the poster's olive, its one drifting live node yellow, and the day's number as a ghost. The backdrop carries no information.\n\nComponents come from the owner's Datum system (vendored in site/dm/bundle.css): cut panels and frames, hairlines, uppercase mono labels, dot-matrix numerals. The Excimer colours are applied on top, dark only. The page is dense but reads in order: big title, hero frame, next-step panel, then sections under arrow-mark headers. It avoids the generic dark dashboard of equal cards and neon accents.",
+    "overview": "The app is a near-black sheet with Datum's faint grid behind it. Each view has one subject (the overview's today pair, the day view's step card) and one quiet title in ink; yellow appears only as the view's one filled action or current tile and a few small live marks. Behind everything is Datum's own backdrop (Datum.backdrop): one figure per view, low in contrast and still, a small orbit on the overview and the plain grid in the day view, its hairlines in ink-3 at less than Datum's default strength, its one drifting live node yellow, and the day's number as a ghost. The backdrop carries no information.\n\nComponents come from the owner's Datum system (vendored in site/dm/bundle.css): cut panels and frames, hairlines, uppercase mono labels, dot-matrix numerals. The Excimer colours are applied on top, dark only. The page is dense but reads in order: big title, hero frame, next-step panel, then sections under arrow-mark headers. It avoids the generic dark dashboard of equal cards and neon accents.",
     "keyCharacteristics": [
       "Dark only. Near-black paper, charcoal plates, one cadmium yellow.",
       "Structure drawn in 1px hairlines. No shadows, glows or blur.",
@@ -120,16 +267,36 @@
       "A busy backdrop: Datum's one quiet figure per view, never a collage. Text never sits on it bare."
     ],
     "rules": [
-      { "name": "The One Yellow Rule", "body": "Signal goes on the live thing, the view's one title and the marks that lock onto the subject. Never use it for decoration. Each view has one filled yellow action.", "section": "colors" },
-      { "name": "The Token-Only Rule", "body": "Every colour comes from dm/tokens.css. Never hard-code a colour.", "section": "colors" },
-      { "name": "The CSS Case Rule", "body": "Labels are uppercased by text-transform. The DOM text stays in sentence case.", "section": "typography" },
-      { "name": "The Plate Rule", "body": "Text never sits bare on the ground. Give it a --paper plate (background plus spread).", "section": "elevation" },
-      { "name": "The No-Shadow Rule", "body": "No shadows, glows, gradients or blur. Linear gradients appear only as hard-stop fills (a button's wipe, a chamfer, hatching).", "section": "elevation" }
+      {
+        "name": "The One Yellow Rule",
+        "body": "Signal goes on the live thing, the view's one title and the marks that lock onto the subject. Never use it for decoration. Each view has one filled yellow action.",
+        "section": "colors"
+      },
+      {
+        "name": "The Token-Only Rule",
+        "body": "Every colour comes from dm/tokens.css. Never hard-code a colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The CSS Case Rule",
+        "body": "Labels are uppercased by text-transform. The DOM text stays in sentence case.",
+        "section": "typography"
+      },
+      {
+        "name": "The Plate Rule",
+        "body": "Text never sits bare on the ground. Give it a --paper plate (background plus spread).",
+        "section": "elevation"
+      },
+      {
+        "name": "The No-Shadow Rule",
+        "body": "No shadows, glows, gradients or blur. Linear gradients appear only as hard-stop fills (a button's wipe, a chamfer, hatching).",
+        "section": "elevation"
+      }
     ],
     "dos": [
-      "Do give every view exactly one signal title and one filled signal action.",
+      "Do give every view one quiet ink title and at most one signal fill.",
       "Do put a --paper plate under any text that overlaps the ground.",
-      "Do draw structure in 1px --rule hairlines, and use --grid / --grid-mark for the poster's yellow-tinted lines.",
+      "Do draw structure in 1px --rule hairlines; controls rest on --ink-3 outlines and turn ink on hover or focus.",
       "Do cut corners at 45 degrees (10 / 16 / 32px) where a shape needs character.",
       "Do set labels, buttons, tags and facts in uppercase IBM Plex Mono through CSS.",
       "Do use only plain glyphs for marks (↗ → ✓ ✕ ■ □ ▶ + / > _ [ ])."

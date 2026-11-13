@@ -1,18 +1,15 @@
 /* Datum tokens for the SAA-C03 plan: the Datum token set (tokens.json, version 4) with its colours retuned to the
    "Excimer" theme, taken from the owner's reference poster: a near-black frame, charcoal plates, hairlines and marks in
    one cadmium yellow. Dark only (the owner chose no light theme), so there is no Paper block and data-theme does nothing.
-   Three tokens are the app's own, for the ground (app.js / ground.js): --plate, --grid, --grid-mark. */
+   The backdrop is Datum's own and uses its tokens (ink-3 at low opacity). */
 :root {
   --paper: #111111;
   --paper-raised: #1C1C1B;
   --paper-sunk: #0A0A0A;
-  --plate: #2A2925;
   --ink: #EDEBE4;
   --ink-2: #BCB9AF;
   --ink-3: #8E8A7F;
   --rule: #36342C;
-  --grid: #4A4329;
-  --grid-mark: #6E6232;
   --signal: #F7D123;
   --signal-edge: #F7D123;
   --on-signal: #111111;

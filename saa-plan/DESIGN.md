@@ -9,13 +9,10 @@ colors:
   paper: "#111111"
   paper-raised: "#1C1C1B"
   paper-sunk: "#0A0A0A"
-  plate: "#2A2925"
   ink: "#EDEBE4"
   ink-2: "#BCB9AF"
   ink-3: "#8E8A7F"
   rule: "#36342C"
-  grid: "#4A4329"
-  grid-mark: "#6E6232"
   inv-paper: "#E3E0D6"
   inv-ink: "#111111"
 typography:
@@ -134,7 +131,7 @@ components:
 
 **Creative North Star: "The Excimer Poster"**
 
-The app is a near-black sheet with a quiet olive grid behind it. Each view has one subject (the overview's today pair, the day view's step card), one cadmium-yellow title, and yellow crosshairs that lock onto the subject's corners. Behind everything is Datum's own backdrop (`Datum.backdrop`): one figure per view, low in contrast and still, a small orbit on the overview and the plain grid in the day view, its hairlines in the poster's olive, its one drifting live node yellow, and the day's number as a ghost. The backdrop carries no information.
+The app is a near-black sheet with Datum's faint grid behind it. Each view has one subject (the overview's today pair, the day view's step card) and one quiet title in ink; yellow appears only as the view's one filled action or current tile and a few small live marks. Behind everything is Datum's own backdrop (`Datum.backdrop`): one figure per view, low in contrast and still, a small orbit on the overview and the plain grid in the day view, its hairlines in ink-3 at less than Datum's default strength, its one drifting live node yellow, and the day's number as a ghost. The backdrop carries no information.
 
 Components come from the owner's Datum system (vendored in `site/dm/bundle.css`): cut panels and frames, hairlines, uppercase mono labels, dot-matrix numerals. The Excimer colours are applied on top, dark only. The page is dense but reads in order: big title, hero frame, next-step panel, then sections under arrow-mark headers. It avoids the generic dark dashboard of equal cards and neon accents.
 
@@ -147,10 +144,10 @@ Components come from the owner's Datum system (vendored in `site/dm/bundle.css`)
 
 ## Colors
 
-The palette is a near-black sheet with warm off-white ink, olive-yellow hairlines and one saturated cadmium yellow.
+The palette is a near-black sheet with warm off-white ink, quiet grey hairlines and one saturated cadmium yellow, used sparingly.
 
 ### Primary
-- **Cadmium Signal** (signal): marks what is live. Used for the view's one title, the primary action, the current day and step, index chips, the subject's corner crosshairs, the backdrop's live node, the scan line, the timer fill and the celebrations' filaments. Always paired with **on-signal** text.
+- **Cadmium Signal** (signal): marks what is live. Used for the view's one filled action (or the current day's tile), the current step segment, the backdrop's live node, the timer fill, small state markers and the celebrations. Never for titles or labels. Always paired with **on-signal** text.
 
 ### Secondary
 - **Hazard Vermilion** (alert / alert-text): only for what needs attention, such as the slip guard, danger buttons, wrong answers, an overrun timer and weak domains. `alert-text` is the readable tint for text on paper.
@@ -160,7 +157,6 @@ The palette is a near-black sheet with warm off-white ink, olive-yellow hairline
 - **Poster Charcoal** (plate): the ground's halftone plates (at 60% opacity).
 - **Bone Ink** (ink / ink-2 / ink-3): text in three steps (current, secondary, quiet). Ink is also used for outlines, focus rings and "done" fills.
 - **Umber Rule** (rule): panel borders and dividers.
-- **Olive Grid / Grid Mark** (grid / grid-mark): the poster's yellow-tinted hairlines. Section-header rules, the why-box frame, dialog top edges and the ground's lines and crossing dots.
 - **Inverse sheet** (inv-*): used only for the week banner (`dm-invert`) on the celebration ladder.
 
 ### Named Rules
@@ -220,9 +216,9 @@ Every radius is 0. The form language is the 45-degree cut. Cards cut the top-rig
 - **Tag / pill:** 20px mono uppercase with an ink outline on raised paper and a 6px square marker. States: `ok` filled with ink, `warn` with an alert outline, `bad` filled with alert, today filled with signal.
 
 ### Cards / Containers
-- **Step card:** raised paper with a rule border and the 16px top-right cut. Padding is 32px 48px 48px from 761px. Its parts are **boxes**: paper fill, rule border, 16px padding, under a mono label with a square marker. The why-box is framed in grid-mark with a signal marker. The trap uses an alert hazard marker.
+- **Step card:** raised paper with a rule border and the 16px top-right cut. Padding is 32px 48px 48px from 761px. Its parts are **boxes**: paper fill, rule border, 16px padding, under a mono label with a square marker. The why-box is framed in ink-3 with a signal marker. The trap uses an alert hazard marker.
 - **Hero frame:** a Datum frame with notch tab and footer, the day as a yellow dot-matrix readout, and facts as key: value rows.
-- **Dialogs:** raised paper with a rule border and a grid-mark top edge. Max 560px.
+- **Dialogs:** raised paper with a rule border. Max 560px.
 
 ### Inputs / Fields
 - **Style:** 40px, sunk paper, 1px ink border, mono 14px, square.
@@ -235,7 +231,7 @@ Every radius is 0. The form language is the 45-degree cut. Cards cut the top-rig
 Element boxes in a grid. Raised paper with a large light Saira numeral and a mono day label. Today has a signal badge. On hover a `[+]` mark slides in.
 
 ### Celebrations (signature)
-Cut-corner banners in the centre of the screen. A mono label line, a bold display title in signal and a `>` terminal fact line. They form a ladder (block, day, week in the inverse sheet, all as a full signal block), with canvas bursts and filaments in the token colours from `fx.js`. Earned things appear as badges dropped in at the top of the screen.
+Cut-corner banners in the centre of the screen. A mono label line, a display title in ink and a `>` terminal fact line. They form a ladder (block, day, week in the inverse sheet, all as a full signal block), with canvas bursts and filaments in the token colours from `fx.js`. Earned things appear as badges dropped in at the top of the screen.
 
 ### Motion
 Per view there is one arrival: the backdrop fades up and the subject's corner crosshairs lock on. Card and sidebar parts switch on in order, 60ms apart. A new step gets a signal scan line along the card's top; the arrival plays once (a re-render of the same card, such as a picked answer, never replays it). There is one live element per view. Travel uses `cubic-bezier(.16,1,.3,1)` and switches are linear. Calm stops the loops. Motion off and `prefers-reduced-motion` hold everything still.
@@ -243,9 +239,9 @@ Per view there is one arrival: the backdrop fades up and the subject's corner cr
 ## Do's and Don'ts
 
 ### Do:
-- **Do** give every view exactly one signal title and one filled signal action.
+- **Do** give every view one quiet ink title and at most one signal fill.
 - **Do** put a `--paper` plate under any text that overlaps the ground.
-- **Do** draw structure in 1px `--rule` hairlines, and use `--grid` / `--grid-mark` for the poster's yellow-tinted lines.
+- **Do** draw structure in 1px `--rule` hairlines; controls rest on `--ink-3` outlines and turn ink on hover or focus.
 - **Do** cut corners at 45 degrees (10 / 16 / 32px) where a shape needs character.
 - **Do** set labels, buttons, tags and facts in uppercase IBM Plex Mono through CSS.
 - **Do** use only plain glyphs for marks (`↗ → ✓ ✕ ■ □ ▶ + / > _ [ ]`).
