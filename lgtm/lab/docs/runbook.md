@@ -24,7 +24,7 @@ restarting, the Kafka entity operator in `CrashLoopBackOff` until the brokers ar
 Check that it is back:
 
 ```bash
-kubectl get nodes                                      # 7 nodes Ready
+kubectl get nodes                                      # 5 nodes Ready
 kubectl get pods -A | grep -vE 'Running|Completed'     # only the header line
 make platform-check                                    # PLATFORM CHECK PASSED (profile full)
 make lab-check                                         # LAB CHECK PASSED

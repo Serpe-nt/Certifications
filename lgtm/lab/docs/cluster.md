@@ -11,8 +11,8 @@ From a clean Windows 11 Pro PC, with every prerequisite and step explained: `boo
 |---|---|---|---|---|---|
 | Windows host | 10.10.0.1 | | | | Hyper-V internal switch `lgtm-lab`, NAT to the internet |
 | lb | 10.10.0.5 | 2 | 2 GB | 10 GB | HAProxy (6443 API, 80 and 443 to worker NodePorts 30080 and 30443, 8404 statistics), dnsmasq for `k8s.local` |
-| master1 to master3 | 10.10.0.11 to .13 | 2 | 4 GB | 25 GB | kubeadm control plane, etcd |
-| worker1 to worker4 | 10.10.0.30 to .33 | 4 | 6 GB | 30 GB + 40 GB at `/var/lib/longhorn` | workloads, Longhorn data |
+| master1 | 10.10.0.11 | 2 | 4 GB | 25 GB | kubeadm control plane, etcd |
+| worker1 to worker4 | 10.10.0.30 to .33 | 4 | 8 GB | 30 GB + 40 GB at `/var/lib/longhorn` | workloads, Longhorn data |
 
 Ubuntu Server 24.04, Kubernetes 1.35 with containerd and Calico 3.31.4, one network card per VM,
 SSH user `vaka` with the key `~/.ssh/ansible`, no password login. `cluster-endpoint.k8s.local`
@@ -44,7 +44,7 @@ again. The PowerShell reader accepts plain block YAML only; see the comment at t
 ```powershell
 cd <repository>\lgtm\lab\vm\hyperv
 powershell -ExecutionPolicy Bypass -File .\lab-vms.ps1 plan                    # what would happen; no rights needed
-powershell -ExecutionPolicy Bypass -File .\lab-vms.ps1 create -ConfigureDns    # switch, NAT, image, 8 VMs
+powershell -ExecutionPolicy Bypass -File .\lab-vms.ps1 create -ConfigureDns    # switch, NAT, image, 6 VMs
 powershell -ExecutionPolicy Bypass -File .\lab-vms.ps1 start
 powershell -ExecutionPolicy Bypass -File .\lab-vms.ps1 status
 ```
@@ -105,6 +105,29 @@ Other targets: `make help` lists them all.
 | `make lint` | yamllint, ansible-lint (production profile), syntax checks, inventory up to date |
 | `make lint-ps` | PSScriptAnalyzer and Pester for the Hyper-V script, through Windows PowerShell |
 | `make forget-host-keys` | forgets the VMs' SSH host keys (kept in `~/.ssh/known_hosts_lgtm-lab`) after destroy and create |
+
+## One control-plane node
+
+Since card L6 (2026-11-13) the lab has one control-plane node, to give its memory to the workers.
+What that changes:
+
+- The control plane is not highly available. While master1 restarts, the API server is away:
+  `kubectl`, Helm and every controller wait, and nothing new is scheduled. Pods that already run
+  keep running and keep serving, because the kubelets and kube-proxy on the workers carry on
+  without the API server.
+- etcd has one member. It needs no quorum of others, and a lost master1 disk loses the cluster's
+  state; the lab has no etcd backup.
+- The load balancer stays. The API is still reached as `cluster-endpoint.k8s.local:6443` through
+  HAProxy on `lb`, so control-plane nodes can be added without a new kubeconfig or new
+  certificates.
+
+To add masters back (to practise high availability, with the memory to spare): add `master2` at
+10.10.0.12 and `master3` at 10.10.0.13 with role `control_plane` to `vm/nodes.yml`, run
+`lab-vms.ps1 create` and `start`, then `make cluster`. The play "Join remaining control plane
+nodes" in `site.yml` joins every control-plane node after the first, one at a time, and
+`lb_haproxy` adds each one to the API backend. Use an odd number: etcd needs a majority of its
+members, so two masters are less available than one. `make cluster-check` then expects one etcd
+member and one API server behind HAProxy per control-plane node.
 
 ## Other hypervisors
 

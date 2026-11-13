@@ -1,10 +1,51 @@
 # Resource budget of the lab
 
-Does the whole lab fit on the real cluster? Measured on 2026-11-10 on the owner's Hyper-V
-cluster, with the platform, every LGTM release and the shop installed (profile `full`), 30
+Does the whole lab fit on the real cluster? The first section is the plan for the lab's
+version 3 (card L6): one control-plane node with 4 GB and four workers with 8 GB. Everything
+after it was measured on 2026-11-10 on version 2 of the lab (three masters with 4 GB, workers
+with 6 GB), with the platform, every LGTM release and the shop installed (profile `full`), 30
 minutes after `make lab`, with the load generator running all along (`acceptance-lab.md`).
 
-## Verdict
+## Version 3: one master, 8 GB workers
+
+Planned on 2026-11-13 from the measurements below; card L6 measures it on the rebuilt lab and
+replaces the estimates here with numbers.
+
+| Nodes | vCPU | Memory (VM) | Allocatable to pods |
+|---|---|---|---|
+| master1 | 2 | 4 GB | about 3.73 GiB, as each master of version 2 |
+| worker1 to worker4 | 4 each | 8 GB | about 7.7 GiB each, about 30.7 GiB together (estimate: a 6 GB worker gave 5.69 GiB, and the extra 2 GiB is all allocatable) |
+
+The total is 38 GB, as before: the 8 GB of master2 and master3 went to the workers.
+
+What the workers carry does not change with the shape: the lab's requests on the workers were
+about 18.9 GiB after the raises below, plus 256 MiB for RustFS since card L5b, so about 19.2 GiB.
+master1 runs what each master ran before (the control plane, calico-node, kube-proxy, Alloy's
+log collector, node exporter); the measured masters used 2.3 to 2.7 GiB of their 4 GB.
+
+| | Version 2 (6 GB workers) | Version 3 (8 GB workers) |
+|---|---:|---:|
+| Allocatable, four workers | 22.75 GiB | about 30.7 GiB |
+| Requested by the lab | about 19.2 GiB (84%) | about 19.2 GiB (63%) |
+| Requested by the lab, one worker on average | about 4.8 GiB of 5.69 | about 4.8 GiB of 7.7 |
+| The owner's ceiling, 90% of allocatable | 20.5 GiB | about 27.6 GiB |
+| Room under the ceiling | about 1.3 GiB | about 8.4 GiB |
+
+How to spend the room:
+
+- **Practice workloads of a module: up to 4 GiB of requests in all, at most 1.5 GiB on one
+  worker.** That holds a lesson that scales Mimir's ingesters from three to six (1.5 GiB more), a
+  practice Collector or a second Prometheus, and a learner's namespace with a few small pods, at
+  the same time. A module that needs more says so and removes it at the end of its step.
+- **The other 4 GiB or so stays free**, because memory that no request reserves is real: Longhorn
+  and Calico used about 3.5 GiB above their requests on version 2 (below), and the fault flags make
+  some services grow towards their limits.
+- Per worker that leaves about 2.9 GiB under the ceiling with the lab installed, where version 2
+  left between 0.1 and 1.2 GiB. One worker is still fuller than the others when the scheduler
+  places Kafka, RustFS and a Mimir ingester together: `kubectl describe node` shows it, and
+  `make lab-check` fails before a volume or a Longhorn disk fills.
+
+## Verdict on version 2 (6 GB workers)
 
 - **Workers (4 vCPU, 6 GB): it fits.** Requests are 78.7% of the workers' allocatable memory
   (17.9 of 22.75 GiB; 72 to 87% per worker), under the 90% the owner accepts for the lab. Real use

@@ -120,11 +120,12 @@ Real cluster (profile `full`), what Kubernetes reserves (requests) and the most 
 Per node: the control-plane nodes run none of this (they keep kubeadm's taint), and the first
 role, `platform_control_plane` (tag `control-plane`), moves CoreDNS, the Tigera operator and the
 Calico Deployments off them too: with the API server at about 880 MiB, a 2 GB master had no room
-for them (`acceptance-lab.md`, defect 1). The four workers (4 vCPU and 6 GB each, 22.75 GiB
-allocatable together) carry it all. The Longhorn manager and instance manager run on every
+for them (`acceptance-lab.md`, defect 1). The four workers (4 vCPU and 8 GB each since card L6, about
+30.7 GiB allocatable together) carry it all. The Longhorn manager and instance manager run on every
 worker (250m and 128Mi requested each); the rest is spread by the scheduler, with the three
 Kafka nodes and the two proxies on different workers where possible. On average one worker
-reserves about 580m CPU and 1.1 GiB for the platform, 20% of its memory, before the LGTM stack.
+reserves about 580m CPU and 1.1 GiB for the platform, 14% of its memory (20% on the 6 GB workers
+before card L6), before the LGTM stack.
 Measured numbers on the real cluster are in `budget.md`. The limits add up to more than the requests on purpose; they cap a
 runaway pod.
 
