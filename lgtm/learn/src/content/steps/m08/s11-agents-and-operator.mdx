@@ -1,0 +1,111 @@
+---
+id: m08-s11
+title: "Agents: Java, .NET, Python, Node.js, and injection by the Operator"
+kind: concept
+minutes: 18
+order: 11
+exam:
+  - cert: otca
+    domain: O2
+    competency: Agents
+tags: [otel-zero-code, otel-operator]
+outcome: You can say how the zero-code agent of each main language is attached, what it covers and what it leaves to you, and what the OpenTelemetry Operator's Instrumentation resource and annotation do to a pod.
+terms:
+  - term: Agent
+    def: A package that adds the OpenTelemetry SDK and instrumentation libraries to a program when it starts, without code changes.
+  - term: Monkey patching
+    def: Replacing a library's functions at runtime; the Python agent instruments libraries this way.
+  - term: OpenTelemetry Operator
+    def: A Kubernetes operator that, among other things, injects zero-code instrumentation into pods.
+  - term: Instrumentation resource
+    def: The Operator's custom resource that holds the exporter endpoint, propagators, sampler and environment for injected agents.
+  - term: inject annotation
+    def: A pod template annotation such as instrumentation.opentelemetry.io/inject-python that opts the pod into injection.
+sources:
+  - title: Zero-code (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/instrumentation/zero-code/
+    checked: 2026-11-13
+  - title: Java agent, getting started (OpenTelemetry)
+    url: https://opentelemetry.io/docs/zero-code/java/agent/getting-started/
+    checked: 2026-11-13
+  - title: .NET zero-code instrumentation (OpenTelemetry)
+    url: https://opentelemetry.io/docs/zero-code/dotnet/
+    checked: 2026-11-13
+  - title: JavaScript zero-code instrumentation (OpenTelemetry)
+    url: https://opentelemetry.io/docs/zero-code/js/
+    checked: 2026-11-13
+  - title: Python zero-code instrumentation (OpenTelemetry)
+    url: https://opentelemetry.io/docs/zero-code/python/
+    checked: 2026-11-13
+  - title: Injecting auto-instrumentation (OpenTelemetry Operator)
+    url: https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/
+    checked: 2026-11-13
+---
+
+<Problem>
+In module m07 you started the workshop with `opentelemetry-instrument python app.py` after installing the distro and three instrumentation packages. Now picture forty services in four languages, owned by six teams, each with its own Dockerfile. Repeating that by hand, image by image, is slow and drifts. The platform team wants it switched on per deployment.
+</Problem>
+
+<Idea>
+Each main language has a zero-code agent that loads the SDK and instrumentation libraries when the program starts and is configured with the `OTEL_` variables. On Kubernetes, the OpenTelemetry Operator injects that agent into a pod: an Instrumentation resource holds the shared settings, and an annotation on the pod template opts the workload in.
+</Idea>
+
+## What an agent does, and what it does not
+
+An agent adds the API and SDK to a program from the outside. The mechanism depends on the language: bytecode changes in Java, monkey patching in Python, eBPF in some cases. It instruments the libraries the program uses, such as its HTTP server, its HTTP client and its database driver, so you get spans and metrics at the edges of the service. Your own code is not instrumented: for a span around your own function you add API calls, as you did with the workshop's manual spans in module m07. The OpenTelemetry pages list zero-code instrumentation for .NET, Go, Java, JavaScript, PHP and Python.
+
+## Four agents, four ways to attach
+
+- Java: a single JAR, `opentelemetry-javaagent.jar`, attached with `-javaagent:` on the command line or through `JAVA_TOOL_OPTIONS`, for Java 8 and later. Settings come as system properties such as `-Dotel.service.name`, as environment variables, or from a properties file.
+- .NET: an installer script that you download, verify and run; it supports .NET Framework from 4.6.2 on and current .NET versions, for traces and metrics.
+- Node.js: the package `@opentelemetry/auto-instrumentations-node`, loaded with `node --require @opentelemetry/auto-instrumentations-node/register app.js` or through `NODE_OPTIONS`.
+- Python: `opentelemetry-distro` brings the SDK and the `opentelemetry-instrument` command, and `opentelemetry-bootstrap -a install` installs the instrumentation package for each library it finds.
+
+All of them read the same `OTEL_` variables from step 8, so the Operator can configure them in one way.
+
+## The Operator injects the agent
+
+<Flow caption="How the Operator instruments a Python pod">
+  <Stage title="Instrumentation" kicker="Custom resource">Exporter endpoint, propagators, sampler, extra env, in the namespace.</Stage>
+  <Stage title="Annotation" kicker="Pod template">instrumentation.opentelemetry.io/inject-python: "true"</Stage>
+  <Stage title="Pod starts" kicker="Operator">Init container opentelemetry-auto-instrumentation copies the agent in.</Stage>
+  <Stage title="App container" kicker="Result">Runs with the agent and the OTEL_ variables from the resource.</Stage>
+</Flow>
+
+The Instrumentation resource lives in a namespace and is shared by every pod that points to it. The annotation goes on `spec.template.metadata.annotations` of the Deployment, not on the Deployment's own metadata. Its value is `"true"` for the namespace's resource, a name such as `"my-instrumentation"`, a `namespace/name` pair, or `"false"`. The Operator then adds an init container named `opentelemetry-auto-instrumentation`, which brings the agent into the application container. For a program no agent can handle, `inject-sdk` adds only the environment variables, for an SDK the program sets up itself.
+
+A few details decide whether it works. The Instrumentation resource must exist before the pods start; pods created earlier stay uninstrumented until they are recreated. The injected agents do not all use the same protocol: for Java, .NET and Python the default is OTLP over HTTP, so the endpoint needs a port 4318 address, while Node.js uses gRPC on 4317. The Python agent does not support gRPC here at all. Without an endpoint, the default is `http://localhost:4317`, which reaches nothing in most pods. Go injection is off until its feature gate is enabled.
+
+The Operator also sets resource attributes. `service.name` comes from an annotation `resource.opentelemetry.io/service.name` if present, otherwise from the Deployment's name and then other workload names, unless `OTEL_SERVICE_NAME` is set, which wins.
+
+<InLab>
+The lab has no Operator: the shop's images carry their agents in their Dockerfiles, and the workshop runs on your PC. What you did by hand in module m07 step 7, installing the distro and the instrumentation packages and starting with `opentelemetry-instrument`, is what the Operator's init container and environment do for a Python pod.
+</InLab>
+
+<Trap>
+An annotation on the Deployment's own metadata does nothing. The Operator reads the pod's annotations, so the inject annotation must be in the pod template.
+</Trap>
+
+<Remember>
+Agents instrument libraries at the edges of a service, never your own functions. The Operator injects the agent when an Instrumentation resource exists and the pod template carries an inject annotation.
+</Remember>
+
+<Question id="q-m08-s11" answer="a">
+A team creates an Instrumentation resource with `spec.exporter.endpoint: http://otel-collector:4317` and annotates a Python Deployment with `inject-python: "true"`. Node.js pods in the same namespace send traces with the same resource; the Python pods send nothing. What should they change?
+
+- Point the Python pods at the collector's OTLP/HTTP port, 4318.
+
+  The Python agent injected by the Operator exports over http/protobuf and does not support gRPC. The Node.js agent uses gRPC by default, which is why 4317 works for it.
+
+- Add the annotation to the Deployment's metadata as well as to the pod template.
+
+  The pod template is the right place, and the Node.js pods show the setup works. The problem is the protocol and port.
+
+- Set the annotation value to the name of the resource instead of "true".
+
+  "true" uses the Instrumentation resource of the namespace, which is the one the Node.js pods already use.
+
+- Enable the Python feature gate on the Operator.
+
+  Python injection is enabled by default. Go is the language whose gate is off by default.
+</Question>
