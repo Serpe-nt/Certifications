@@ -1,0 +1,106 @@
+---
+id: m09-s04
+title: "Core, contrib, k8s and your own: Collector distributions"
+kind: concept
+minutes: 12
+order: 4
+exam:
+  - cert: otca
+    domain: O3
+    competency: Deployment
+tags: [collector-deployment]
+outcome: You can tell which distribution of the Collector a configuration needs, check what a binary contains, and say when to build your own with ocb.
+terms:
+  - term: Distribution
+    def: A Collector binary built with a chosen set of components, listed in its manifest.
+  - term: Manifest
+    def: The YAML file that lists a distribution's Go modules (components and configuration providers) and how to build it.
+  - term: ocb
+    def: The OpenTelemetry Collector Builder, a tool that generates and compiles a Collector from a manifest.
+sources:
+  - title: Distributions (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/distributions/
+    checked: 2026-11-13
+  - title: OpenTelemetry Collector distributions, list of distributions (GitHub)
+    url: https://github.com/open-telemetry/opentelemetry-collector-releases/blob/main/README.md
+    checked: 2026-11-13
+  - title: otelcol-k8s manifest at v0.165.0 (GitHub)
+    url: https://github.com/open-telemetry/opentelemetry-collector-releases/blob/v0.165.0/distributions/otelcol-k8s/manifest.yaml
+    checked: 2026-11-13
+  - title: Build a custom Collector with OpenTelemetry Collector Builder (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/extend/ocb/
+    checked: 2026-11-13
+  - title: Configuration, check the components of a distribution (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/configuration/
+    checked: 2026-11-13
+  - title: Span metrics connector, renamed type (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/connector/spanmetricsconnector/README.md
+    checked: 2026-11-13
+---
+
+<Problem>
+An engineer reads that the Collector chart's install example uses the `otel/opentelemetry-collector-k8s` image and switches the lab gateway to it, same version, same configuration. Both pods go into CrashLoopBackOff. The log says `'receivers' unknown type: "postgresql"`. The configuration did not change; the program did.
+</Problem>
+
+A configuration can only name components that were compiled into the binary that reads it. Which binary you run is a choice like any other.
+
+<Idea>
+The Collector is shipped as several distributions: binaries built from one code base with different sets of components. Each distribution lists its components in a manifest, and `otelcol components` prints them from the binary itself. When no distribution fits, the OpenTelemetry Collector Builder (ocb) builds one from a manifest you write.
+</Idea>
+
+## The distributions the project ships
+
+The releases repository lists the distributions the project builds today: `otelcol` (core), `otelcol-contrib`, `otelcol-k8s`, `otelcol-otlp`, `otelcol-prometheus` and `otelcol-ebpf-profiler`. Each one comes as binaries, packages and multi-arch container images.
+
+They differ a lot in size. Core is a small, general set: the OTLP receiver and exporters, the batch and memory limiter processors, the transform and filter processors, a few receivers such as Prometheus and filelog. Contrib carries almost every component the community maintains, including receivers for specific databases and services. `otelcol-k8s` sits between them: what a Collector on Kubernetes typically needs, such as `k8s_attributes`, `tail_sampling`, the load-balancing exporter and the span metrics connector.
+
+<Figures caption="Go modules listed in each manifest at v0.165.0 (components and configuration providers)" unit="modules">
+  <Stat label="otelcol-otlp" value="5" amount={5} max={256} />
+  <Stat label="otelcol (core)" value="36" amount={36} max={256} />
+  <Stat label="otelcol-k8s" value="75" amount={75} max={256} />
+  <Stat label="otelcol-contrib" value="256" amount={256} max={256} hot />
+</Figures>
+
+## Check what a binary contains
+
+The manifest is the plan; the binary is the fact. `otelcol-contrib components` prints the build information and every receiver, processor, exporter, connector and extension the binary has, each with its stability level per signal. When a configuration fails with `unknown type`, run this command against the image you deploy before you look anywhere else.
+
+Component type names changed in recent releases to snake case: `otlp_http` instead of `otlphttp`, `k8s_attributes` instead of `k8sattributes`, `span_metrics` instead of `spanmetrics`. In 0.165.0 the old names still work as deprecated aliases, so older examples still load, but new configuration should use the new names.
+
+## Build your own with ocb
+
+A company may want a smaller binary with only the components it uses, or it may have its own component, such as an authenticator extension. ocb takes a manifest, `builder-config.yaml`, with a `dist` section (the binary's name, description, output path and version) and lists of Go modules per class of component, such as `receivers`, `processors`, `exporters` and `extensions`, plus `providers` for the sources a configuration can come from. It generates the Go code and compiles it, so it needs a Go toolchain. The result is a distribution like any other; the docs also show how to put it into a container image.
+
+A smaller binary has less code that could carry a vulnerability and starts with less memory. The cost is a build pipeline you own, and an update for every new Collector release.
+
+<InLab>
+The gateway runs `otel/opentelemetry-collector-contrib:0.165.0`. The `otelcol-k8s` manifest at v0.165.0 has `k8s_attributes`, `transform`, `redaction` and `http_check`, but no `postgresql`, `redis`, `kafka_metrics` or `nginx` receivers, which the scraper pipeline needs. That is why the lab uses contrib.
+</InLab>
+
+<Trap>
+Contrib is convenient, not free: every component in it is in the image whether you use it or not. For a production gateway, a k8s or custom distribution with only what you need is the usual advice.
+</Trap>
+
+<Remember>
+A configuration can only use components compiled into the binary. Read the manifest or run `components`, and build your own with ocb when no distribution fits.
+</Remember>
+
+<Question id="q-m09-s04" answer="d">
+A team's Collector image starts and then exits with `'processors' unknown type: "tail_sampling"`. The same file works on a colleague's laptop. What is the most likely cause?
+
+- The processor needs a feature gate that the laptop has turned on
+
+  An unknown type means the code is not in the binary; a feature gate cannot add a component.
+
+- The configuration lists tail_sampling in a metrics pipeline
+
+  A signal the processor does not support gives a different error, after the type is found.
+
+- The ID needs a name suffix, such as tail_sampling/main
+
+  A bare type is a valid ID; the name after the slash is optional.
+
+- The image is a distribution that does not include the tail sampling processor
+
+  Different distributions carry different components; check with the components command.
+</Question>
