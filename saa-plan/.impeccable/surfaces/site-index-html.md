@@ -5,7 +5,7 @@ primary_target: "site/index.html"
 related_targets: []
 ---
 
-Scope: the whole SAA-C03 plan app (site/index.html, style.css, fx.css, ground.js, fx.js): overview, day flow, dialogs, celebrations. Mode: Operate.
+Scope: the whole SAA-C03 plan app (site/index.html, style.css, fx.css, fx.js; the backdrop is Datum.backdrop): overview, day flow, dialogs, celebrations. Mode: Operate.
 
 Audience and job: the owner, one learner, works one study step at a time and checks where the plan stands; daily, on a wide desktop first, also phone and tablet.
 

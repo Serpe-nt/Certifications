@@ -1,11 +1,11 @@
 /* SAA-C03 plan in the Datum design system, in its "Excimer" colours (the owner's reference poster): a near-black
    ground ruled by a yellow-tinted modular grid, charcoal plates, and one cadmium yellow for what is live, the view's one
    title and the marks that lock onto it. Tokens come from dm/tokens.css (dark only), the components from dm/bundle.css;
-   this file maps the app's own markup onto them, and ground.js draws the poster behind the page.
+   this file maps the app's own markup onto them; the backdrop is Datum's own (Datum.backdrop).
    The rules (Datum's README): one subject per view; structure is hairlines (rule, and grid for the poster's yellow
    lines), ink for what is current or focused; square corners or 45-degree cuts; no shadows, glows, gradients or blur;
    sans (Saira) for reading, uppercase mono (IBM Plex Mono) for labels and facts. Motion: one arrival per view (the
-   ground draws in, crosshairs lock on, the content switches on in order), one live element, eased feedback
+   backdrop fades up, crosshairs lock on, the content switches on in order), one live element, eased feedback
    (cubic-bezier(.16,1,.3,1) for what travels, linear for what switches). The quiz, the mock, the drill, results,
    badges and the celebrations are in fx.css. */
 
@@ -18,7 +18,9 @@ body{margin:0;min-height:100vh;background:var(--paper);color:var(--ink);font:400
 ::selection{background:var(--signal);color:var(--on-signal)}
 :focus-visible{outline:var(--stroke-bold) solid var(--ink);outline-offset:var(--stroke-bold)}
 a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--ink-3);text-underline-offset:3px}
-a:hover{text-decoration-color:var(--ink);background:var(--signal);color:var(--on-signal)}
+a:hover{text-decoration-color:var(--on-signal);background:var(--signal);color:var(--on-signal)}
+a:hover :is(b,strong,code,.muted){color:inherit}
+a:hover code{background:transparent;border-color:currentColor}
 b,strong{font-weight:600;color:var(--ink)}
 .muted{color:var(--ink-3);font-weight:400}
 code,kbd{font:500 .86em var(--font-mono);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule);padding:0 4px}
@@ -26,27 +28,13 @@ mark{background:var(--signal);color:var(--on-signal);padding:0 2px}
 input,select,textarea{accent-color:var(--ink);caret-color:var(--ink)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-/* the ground: the poster drawn behind the page (ground.js via app.js bdDraw), never information. Hairlines in grid,
-   dots on the crossings, crosshairs and arrow marks in signal, plates and halftones in plate, discs and the ring in
-   paper-sunk, yellow filaments meeting in a junction; the day's number as a ghost in paper-raised. */
+/* the ground: Datum's own backdrop (Datum.backdrop in app.js bdDraw), never information. One figure per view, low in
+   contrast and still: a small orbit on the overview, the plain grid while you read a step, the day's number as a ghost.
+   Datum draws it in ink-3; here its hairlines and registration marks take the poster's olive, its one live node yellow. */
 .bd-host{position:fixed;inset:0;z-index:0;pointer-events:none;isolation:isolate}
 .bd-host .dm-backdrop{position:absolute;inset:0;z-index:0}
-.ground{display:block;width:100%;height:100%}
-.g-line{fill:none;stroke:var(--grid);stroke-width:1}
-.g-node{fill:none;stroke:var(--grid-mark);stroke-width:3;stroke-linecap:round}
-.g-cross{fill:none;stroke:var(--signal);stroke-width:1.5}
-.g-tri{fill:var(--signal)}
-.g-plate{fill:var(--plate);opacity:.6}
-.g-pat{fill:var(--grid-mark)}
-.g-pat-l{fill:none;stroke:var(--grid-mark);stroke-width:1.2}
-.g-disc circle{fill:var(--paper-sunk)}
-.g-disc path{fill:none;stroke:var(--rule);stroke-width:1.5}
-.g-ring{fill:none;stroke:var(--paper-sunk)}
-.g-fil{fill:none;stroke:var(--signal);stroke-width:1.4;stroke-linecap:round;stroke-dasharray:1;opacity:.72}
-.g-blob{fill:var(--signal);opacity:.9}
-body.in-flow .g-fil{opacity:.4}
-body.in-flow .g-blob{opacity:.5}
-.g-ghost{font:800 52vh/1 var(--font-display);font-stretch:62%;letter-spacing:-.02em;fill:var(--paper-raised)}
+.bd-host :is(.dm-bd-fine,.dm-bd-line,.dm-bd-mark,.dm-bd-limb){stroke:var(--grid-mark)}
+.bd-host .dm-bd-node{fill:var(--grid-mark)}
 .wrap{position:relative;z-index:1;max-width:calc(var(--wrap) + 2 * var(--gut));margin:0 auto;padding:var(--space-8) var(--gut) 140px}
 
 /* the labels: uppercase mono, one to three words */
@@ -112,6 +100,9 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .rl-pos .dm-data{font-size:11px;letter-spacing:.08em}
 .tm-chip{display:flex;align-items:stretch}
 .tm-chip button{min-height:0;height:100%;border:0;padding:0 var(--space-4);background-color:var(--paper);font-size:11px}
+.tm-chip button:not(:disabled):hover{background-size:0 100%;color:var(--ink)}
+.tm-face:not(:disabled):hover{background-color:var(--paper-raised)}
+.timer.running .tm-chip .tm-go:not(:disabled):hover{color:var(--on-signal)}
 .tm-go{width:48px;border-right:var(--stroke-hair) solid var(--rule)!important;font-size:12px!important}
 .tm-face{gap:var(--space-3)}
 .tm-mode{color:var(--ink-3)}
@@ -154,6 +145,8 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .tb-cell dt{color:var(--signal)}
 .tb-cell dt::after{content:":"}
 .tb-cell dd{margin:0;text-align:right;font:500 13px/16px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--ink)}
+#b-fx{min-width:124px}#b-snd{min-width:108px}   /* the width of the longer word, off: the column never moves */
+#b-fx,#b-snd{justify-content:space-between}
 .tb-tools{grid-column:2;display:flex;gap:var(--space-2) var(--space-4);flex-wrap:wrap;justify-content:flex-end}
 body.in-flow .tb{display:none}
 
@@ -318,6 +311,8 @@ button.st-lv:not(:disabled):hover{background:var(--paper-raised);color:var(--ink
    a [+] locks into its corner */
 .dt.dm-cell::after{content:"[+]";position:absolute;right:var(--space-2);bottom:var(--space-2);font:500 11px/1 var(--font-mono);color:currentColor;opacity:0;transform:translate(4px,4px);transition:opacity var(--dm-step) linear,transform var(--dm-step) var(--dm-ease)}
 @media (hover:hover){.dt.dm-cell:hover::after{opacity:1;transform:none}}
+.dt.dm-cell.is-done{background-color:var(--ink);color:var(--on-ink)}   /* state is fill (Datum): done ink */
+.dt.dm-cell.is-now{background-color:var(--signal);color:var(--on-signal)}   /* today: the signal tile */
 @media (hover:hover){
   .dt.dm-cell:hover{background:var(--paper);color:var(--ink)}
   .dt.dm-cell.is-done:hover{background:var(--ink-2);color:var(--on-ink)}
@@ -358,7 +353,7 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 .td-goal .dm-dial__ring{width:88px;height:88px}
 .td-goal.hit .dm-tick-live{stroke:var(--signal-edge)}
 .ring-v{display:grid;justify-items:center;align-self:center;line-height:1.05}
-.ring-v b{font:600 22px/1 var(--font-display)}
+.ring-v b{font:600 17px/1 var(--font-display);font-variant-numeric:tabular-nums}   /* five digits (2,185) fit inside the ring */
 .ring-v small{align-self:start;font:400 11px/16px var(--font-mono);white-space:nowrap;color:var(--ink-3)}
 .td-x p{margin:0;font-size:14.5px}
 .td-x .muted{font-size:13px;margin-top:var(--space-1)}
@@ -846,39 +841,26 @@ body.focus-view #card{zoom:1.06}
 }
 
 /* ---------- motion: one arrival per view, one live element, eased feedback ---------- */
-/* Arrival. The ground draws itself like the poster being plotted: the grid's hairlines run out one after another, the
-   crossing dots switch on, plates and discs fade up, the crosshairs lock on (turned 45 degrees and twice their size,
-   they settle onto their crossing), then the filaments trace in from their junction. The overview's rows switch on in
-   order (Datum's dm-arrive on #home) and the subject's corner crosshairs lock on. A new step: a yellow scan line runs
-   along the card's top edge and the card's parts switch on in order. A resize redraws the same view still. */
+/* Arrival (Datum). A new view: the backdrop fades up, the overview's rows switch on in order (dm-arrive on #home) and
+   the subject's corner crosshairs lock on. A new step: a yellow scan line runs along the card's top edge and the card's
+   parts switch on in order, once (app.js drops .in after it, so a re-render of the card, a picked answer, never replays
+   it). A resize redraws the same view still. Live: the orbit's one node drifts (Datum), the next segment beats. */
 @media (prefers-reduced-motion:no-preference){
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-line{stroke-dasharray:1;animation:g-draw 1100ms var(--dm-ease) backwards;animation-delay:calc(var(--i,0) * 45ms)}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-node{animation:dm-on 500ms linear 600ms backwards}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) :is(.g-plate,.g-tex,.g-disc,.g-ring,.g-tri){animation:dm-on 900ms linear backwards;animation-delay:calc(250ms + var(--i,0) * 90ms)}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-cross{transform-box:fill-box;transform-origin:center;animation:g-lock 700ms var(--dm-ease) backwards;animation-delay:calc(700ms + var(--i,0) * 140ms)}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-fil{animation:g-draw 1900ms var(--dm-ease) backwards;animation-delay:calc(1000ms + var(--i,0) * 110ms)}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-blob{transform-box:fill-box;transform-origin:center;animation:g-pop 520ms var(--dm-ease) 950ms backwards}
-  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw]) .g-ghost{animation:dm-on 1400ms linear backwards}
+  :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw])>svg{animation:dm-on 900ms linear backwards}
   :root:not([data-dm-motion="off"]) :is(.nx-body,.fl-body)::before{animation:x-lock 760ms var(--dm-ease) 200ms backwards}
   :root:not([data-dm-motion="off"]) .card.in::before{animation:x-scan 820ms var(--dm-ease)}
   :root:not([data-dm-motion="off"]) :is(.card,.side).in>*{animation:x-on 420ms var(--dm-ease) backwards;animation-delay:calc(var(--n,0) * 60ms)}
   :is(.card,.side).in>:nth-child(2){--n:1}
   :is(.card,.side).in>:nth-child(3){--n:2}
   :is(.card,.side).in>:nth-child(n+4){--n:3}
-  /* Live: one element per view. The overview: the next step's segment beats. The day view: the ground's live crosshair. */
   :root:not(.fx-off):not([data-dm-motion="calm"]) .segs i.nx{animation:x-pulse var(--dm-beat) steps(1) infinite}
-  :root:not(.fx-off):not([data-dm-motion="calm"]) body.in-flow .g-cross.is-live{animation:g-lock 700ms var(--dm-ease) 700ms backwards,x-beat var(--dm-beat) steps(1) 1500ms infinite}
 }
-@keyframes g-draw{from{stroke-dashoffset:1}}
-@keyframes g-lock{from{opacity:0;transform:rotate(45deg) scale(2.4)}}
-@keyframes g-pop{from{opacity:0;transform:scale(0)}}
 @keyframes x-lock{from{opacity:0;transform:scale(1.04) rotate(.4deg)}}
 @keyframes x-scan{0%{transform:scaleX(0);opacity:1}62%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
 @keyframes x-on{from{opacity:0;transform:translateY(6px)}}
 @keyframes x-pulse{50%{background:var(--paper-raised)}}
-@keyframes x-beat{50%{opacity:.2}}
 /* the motion levels (Settings, or effects off): calm stops the loops, off holds everything still */
-:root[data-dm-motion="calm"] :is(.timer.over .tm-fill,.segs i.nx,.g-cross.is-live){animation:none!important}
+:root[data-dm-motion="calm"] :is(.timer.over .tm-fill,.segs i.nx,.dm-bd-drift){animation:none!important}
 :root[data-dm-motion="off"] *,:root[data-dm-motion="off"] *::before,:root[data-dm-motion="off"] *::after{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 

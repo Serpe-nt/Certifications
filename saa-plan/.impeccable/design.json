@@ -40,7 +40,7 @@
       { "name": "dm-step", "value": "160ms", "purpose": "Button wipe, tile hover." },
       { "name": "dm-arrive", "value": "480ms", "purpose": "Banners, badges, bars filling." },
       { "name": "dm-beat", "value": "1200ms steps(1)", "purpose": "The one live element's blink; stopped by calm." },
-      { "name": "arrival", "value": "grid draw 1100ms + 45ms stagger; crosshair lock 700ms; filaments 1900ms; parts on 420ms, 60ms apart; scan line 820ms", "purpose": "One arrival per view." }
+      { "name": "arrival", "value": "backdrop fade 900ms; corner crosshair lock 760ms; parts on 420ms, 60ms apart, once per card; scan line 820ms", "purpose": "One arrival per view." }
     ],
     "breakpoints": [
       { "name": "phone", "value": "640px" },
@@ -111,13 +111,13 @@
   ],
   "narrative": {
     "northStar": "The Excimer Poster",
-    "overview": "The app is a near-black poster sheet ruled by a yellow-tinted modular grid. Each view has one subject (the overview's today pair, the day view's step card), one cadmium-yellow title, and yellow crosshairs that lock onto the subject's corners. Behind everything, ground.js draws the poster itself: grid hairlines with dots on the crossings, crosshairs and arrow marks, charcoal plates with halftones, black discs and a ring, yellow filaments meeting in a junction, and the day's number as a ghost. The ground carries no information.\n\nComponents come from the owner's Datum system (vendored in site/dm/bundle.css): cut panels and frames, hairlines, uppercase mono labels, dot-matrix numerals. The Excimer colours are applied on top, dark only. The page is dense but reads in order: big title, hero frame, next-step panel, then sections under arrow-mark headers. It avoids the generic dark dashboard of equal cards and neon accents.",
+    "overview": "The app is a near-black sheet with a quiet olive grid behind it. Each view has one subject (the overview's today pair, the day view's step card), one cadmium-yellow title, and yellow crosshairs that lock onto the subject's corners. Behind everything is Datum's own backdrop (Datum.backdrop): one figure per view, low in contrast and still, a small orbit on the overview and the plain grid in the day view, its hairlines in the poster's olive, its one drifting live node yellow, and the day's number as a ghost. The backdrop carries no information.\n\nComponents come from the owner's Datum system (vendored in site/dm/bundle.css): cut panels and frames, hairlines, uppercase mono labels, dot-matrix numerals. The Excimer colours are applied on top, dark only. The page is dense but reads in order: big title, hero frame, next-step panel, then sections under arrow-mark headers. It avoids the generic dark dashboard of equal cards and neon accents.",
     "keyCharacteristics": [
       "Dark only. Near-black paper, charcoal plates, one cadmium yellow.",
       "Structure drawn in 1px hairlines. No shadows, glows or blur.",
       "Square corners or 45-degree cuts. No rounded boxes.",
       "Bold, tightly tracked Saira for titles. Uppercase IBM Plex Mono for labels, buttons and facts.",
-      "A poster ground behind the page. Text never sits on it bare."
+      "A busy backdrop: Datum's one quiet figure per view, never a collage. Text never sits on it bare."
     ],
     "rules": [
       { "name": "The One Yellow Rule", "body": "Signal goes on the live thing, the view's one title and the marks that lock onto the subject. Never use it for decoration. Each view has one filled yellow action.", "section": "colors" },

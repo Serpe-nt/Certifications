@@ -134,7 +134,7 @@ components:
 
 **Creative North Star: "The Excimer Poster"**
 
-The app is a near-black poster sheet ruled by a yellow-tinted modular grid. Each view has one subject (the overview's today pair, the day view's step card), one cadmium-yellow title, and yellow crosshairs that lock onto the subject's corners. Behind everything, `ground.js` draws the poster itself: grid hairlines with dots on the crossings, crosshairs and arrow marks, charcoal plates with halftones, black discs and a ring, yellow filaments meeting in a junction, and the day's number as a ghost. The ground carries no information.
+The app is a near-black sheet with a quiet olive grid behind it. Each view has one subject (the overview's today pair, the day view's step card), one cadmium-yellow title, and yellow crosshairs that lock onto the subject's corners. Behind everything is Datum's own backdrop (`Datum.backdrop`): one figure per view, low in contrast and still, a small orbit on the overview and the plain grid in the day view, its hairlines in the poster's olive, its one drifting live node yellow, and the day's number as a ghost. The backdrop carries no information.
 
 Components come from the owner's Datum system (vendored in `site/dm/bundle.css`): cut panels and frames, hairlines, uppercase mono labels, dot-matrix numerals. The Excimer colours are applied on top, dark only. The page is dense but reads in order: big title, hero frame, next-step panel, then sections under arrow-mark headers. It avoids the generic dark dashboard of equal cards and neon accents.
 
@@ -143,14 +143,14 @@ Components come from the owner's Datum system (vendored in `site/dm/bundle.css`)
 - Structure drawn in 1px hairlines. No shadows, glows or blur.
 - Square corners or 45-degree cuts. No rounded boxes.
 - Bold, tightly tracked Saira for titles. Uppercase IBM Plex Mono for labels, buttons and facts.
-- A poster ground behind the page. Text never sits on it bare.
+- A busy backdrop: Datum's one quiet figure per view, never a collage. Text never sits on it bare.
 
 ## Colors
 
 The palette is a near-black sheet with warm off-white ink, olive-yellow hairlines and one saturated cadmium yellow.
 
 ### Primary
-- **Cadmium Signal** (signal): marks what is live. Used for the view's one title, the primary action, the current day and step, index chips, crosshairs, arrow marks, filaments, the scan line and the timer fill. Always paired with **on-signal** text.
+- **Cadmium Signal** (signal): marks what is live. Used for the view's one title, the primary action, the current day and step, index chips, the subject's corner crosshairs, the backdrop's live node, the scan line, the timer fill and the celebrations' filaments. Always paired with **on-signal** text.
 
 ### Secondary
 - **Hazard Vermilion** (alert / alert-text): only for what needs attention, such as the slip guard, danger buttons, wrong answers, an overrun timer and weak domains. `alert-text` is the readable tint for text on paper.
@@ -238,7 +238,7 @@ Element boxes in a grid. Raised paper with a large light Saira numeral and a mon
 Cut-corner banners in the centre of the screen. A mono label line, a bold display title in signal and a `>` terminal fact line. They form a ladder (block, day, week in the inverse sheet, all as a full signal block), with canvas bursts and filaments in the token colours from `fx.js`. Earned things appear as badges dropped in at the top of the screen.
 
 ### Motion
-Per view there is one arrival: the ground's grid draws in, crosshairs lock on, filaments trace, and the subject's corner crosshairs lock on. Card and sidebar parts switch on in order, 60ms apart. A new step gets a signal scan line along the card's top. There is one live element per view. Travel uses `cubic-bezier(.16,1,.3,1)` and switches are linear. Calm stops the loops. Motion off and `prefers-reduced-motion` hold everything still.
+Per view there is one arrival: the backdrop fades up and the subject's corner crosshairs lock on. Card and sidebar parts switch on in order, 60ms apart. A new step gets a signal scan line along the card's top; the arrival plays once (a re-render of the same card, such as a picked answer, never replays it). There is one live element per view. Travel uses `cubic-bezier(.16,1,.3,1)` and switches are linear. Calm stops the loops. Motion off and `prefers-reduced-motion` hold everything still.
 
 ## Do's and Don'ts
 
