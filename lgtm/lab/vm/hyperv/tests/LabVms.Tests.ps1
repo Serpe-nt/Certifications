@@ -303,7 +303,7 @@ Describe 'lab-vms.ps1' {
     It 'plan exits 0 and prints the VM table' {
         $output = & $script:Shell -NoProfile -ExecutionPolicy Bypass -File $script:Script plan -NodesFile (New-TestNodesFile) 2>&1
         $LASTEXITCODE | Should -Be 0
-        ($output -join "`n") | Should -Match 'VMs \(8\), created in this order'
+        ($output -join "`n") | Should -Match 'VMs \(6\), created in this order'
     }
 
     It 'plan -PublicKeyFile checks that key instead of the one in nodes.yml' {
