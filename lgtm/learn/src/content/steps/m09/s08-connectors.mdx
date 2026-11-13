@@ -1,0 +1,158 @@
+---
+id: m09-s08
+title: "Connectors: span metrics, service graph and routing"
+kind: lab
+minutes: 25
+order: 8
+exam:
+  - cert: otca
+    domain: O3
+    competency: Pipelines
+tags: [collector-connectors]
+check:
+  kind: exact
+  prompt: Paste the name of the metric in which the span metrics connector counts spans.
+  answers: ["traces.span.metrics.calls"]
+outcome: You can join two pipelines with a connector, turn spans into request, error and duration metrics, and say which connectors need all spans of a trace in one Collector.
+terms:
+  - term: span_metrics connector
+    def: A connector that turns spans into request counts, error counts and duration histograms per service and operation.
+  - term: service_graph connector
+    def: A connector that pairs client and server spans and emits metrics for each edge between two services.
+  - term: routing connector
+    def: A connector that sends data to different pipelines by OTTL conditions.
+  - term: Single writer
+    def: The rule that each metric stream has exactly one source writing it, so that two Collectors never write the same series.
+sources:
+  - title: Connectors (opentelemetry-collector v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/connector/README.md
+    checked: 2026-11-13
+  - title: Configuration, connectors (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/configuration/
+    checked: 2026-11-13
+  - title: Span metrics connector (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/connector/spanmetricsconnector/README.md
+    checked: 2026-11-13
+  - title: Service graph connector (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/connector/servicegraphconnector/README.md
+    checked: 2026-11-13
+  - title: Routing connector (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/connector/routingconnector/README.md
+    checked: 2026-11-13
+---
+
+<Problem>
+A team has good traces but no metrics: the services were instrumented for tracing only. They want a request rate, an error rate and a latency percentile per endpoint on a dashboard, and an alert on them, this week. Re-instrumenting twenty services for metrics would take a quarter. Every request is already a span.
+</Problem>
+
+A processor works inside one pipeline and on one signal. Turning traces into metrics needs something that leaves one pipeline and enters another.
+
+<Idea>
+A connector is an exporter at the end of one pipeline and a receiver at the start of another. It can produce a different signal than it consumes, as `span_metrics` does when it turns spans into metrics, or pass data on unchanged to chosen pipelines, as `routing` does.
+</Idea>
+
+## Exporter here, receiver there
+
+You define a connector under `connectors:` and then name it twice in `service`: in the `exporters` of one pipeline and in the `receivers` of another. It must be used on both sides. Each connector supports certain pairs of pipeline types: `span_metrics` and `service_graph` go from traces to metrics, `routing` from traces to traces, metrics to metrics or logs to logs. A pair the connector does not support is a configuration error.
+
+A connector sits beside the normal exporters. The traces pipeline can send to Tempo and to `span_metrics` at the same time, so the spans are kept and the metrics are made from the same copy.
+
+<Flow caption="Spans become metrics in your practice Collector">
+  <Stage title="traces pipeline" kicker="otlp in">Spans from telemetrygen.</Stage>
+  <Stage title="span_metrics" kicker="Connector">Counts spans and measures their duration.</Stage>
+  <Stage title="metrics pipeline" kicker="Receives">The connector is its receiver.</Stage>
+  <Stage title="debug/metrics" kicker="Exporter">Prints the new metrics.</Stage>
+</Flow>
+
+## span_metrics: rate, errors, duration
+
+`span_metrics` aggregates request, error and duration (RED) metrics from spans. It emits `traces.span.metrics.calls`, a count of spans, and `traces.span.metrics.duration`, a histogram of span durations. Each has at least the dimensions `service.name`, `span.name`, `span.kind` and `status.code`; errors are the calls with an error status code. You can add dimensions from span or resource attributes, which multiplies the series, so choose them with the cardinality of module m02 in mind.
+
+The connector keeps its counts in memory, so it is stateful. If two Collectors see spans of the same service, both write a series with the same labels and the counts fight. In 0.165.0 it adds a `collector.instance.id` dimension by default to keep each Collector's series apart, and the gateway docs show a first tier that routes spans by service name to keep all of a service on one Collector.
+
+## service_graph and routing
+
+`service_graph` looks for pairs of spans that form one request: a client span and the server span it called, a producer and a consumer, or a client span to a database. For each edge it emits metrics such as `traces_service_graph_request_total{client, server}` and latency histograms from both sides. It must see both spans of a pair, so all spans of a trace have to reach the same Collector.
+
+`routing` evaluates OTTL conditions, for example `resource.attributes["env"] == "prod"`, and sends matching data to the pipelines a route names. The default action `move` takes matched data out of later routes; `copy` lets later routes see it too. Data that matches no route goes to `default_pipelines`.
+
+<InLab>
+The lab gateway runs no connector: its values file leaves out the demo's span metrics connector because Tempo's metrics-generator already writes span metrics and service graphs into Mimir, tenant `lab`.
+</InLab>
+
+<Trap>
+Span metrics from sampled traces count only the spans that were kept. If a sampler drops nine traces in ten before the connector, the request rate is a tenth of the truth unless the counts are adjusted for sampling.
+</Trap>
+
+<Do>
+1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 first. Save this as `m09-config-s08.yaml`: <Cmd>{`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: m09-collector
+  namespace: learn-m09
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: localhost:4317
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 100
+        spike_limit_mib: 20
+    connectors:
+      span_metrics:
+        metrics_flush_interval: 15s
+    exporters:
+      debug/traces:
+        verbosity: basic
+      debug/metrics:
+        verbosity: detailed
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter]
+          exporters: [debug/traces, span_metrics]
+        metrics:
+          receivers: [span_metrics]
+          exporters: [debug/metrics]`}</Cmd>
+2. Apply it and restart the Collector: <Cmd>kubectl apply -f m09-config-s08.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 rollout status deploy/m09-collector</Cmd>
+3. Wait 30 seconds for two flushes, then list the metric names the connector produced: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep -- '-> Name: traces' | sort | uniq -c</Cmd> Two names, each printed once per flush.
+4. Look at one data point with its dimensions: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep -A14 -- '-> Name: traces.span.metrics.duration' | head -30</Cmd> You see `service.name: Str(m09-shop)`, `span.name`, `span.kind`, `status.code` and `collector.instance.id`.
+5. Paste the name of the metric that counts spans in the check below.
+</Do>
+
+<Done>
+Your traces pipeline fed a connector, and a metrics pipeline printed RED metrics that no SDK ever sent.
+</Done>
+
+<Trap practice>
+In a local run with these generated spans, the `calls` data points showed the value 0 while the duration histogram counted every span. Use this exercise for names and dimensions, and judge the values on real traffic.
+</Trap>
+
+<Remember>
+A connector is the exporter of one pipeline and the receiver of the next. span_metrics and service_graph turn traces into metrics and keep state, so the spans they need must reach the same Collector; routing only chooses pipelines.
+</Remember>
+
+<Question id="q-m09-s08" answer="b">
+A configuration defines `span_metrics` under `connectors` and lists it in the traces pipeline's exporters. No pipeline lists it as a receiver. What happens?
+
+- The connector computes the metrics and drops them, with a warning
+
+  A connector is not allowed to be used on one side only.
+
+- The Collector rejects the configuration, because a connector must be used as both an exporter and a receiver
+
+  Each connector has to appear in two pipelines, once on each side.
+
+- The metrics are sent to the traces pipeline's other exporters
+
+  A connector never feeds the pipeline it exports from.
+
+- The Collector starts a metrics pipeline for the connector by itself
+
+  The Collector builds only the pipelines listed under `service.pipelines`.
+</Question>
