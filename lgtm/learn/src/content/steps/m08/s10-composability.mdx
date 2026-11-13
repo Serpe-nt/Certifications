@@ -1,0 +1,110 @@
+---
+id: m08-s10
+title: "Composability and extension: propagators, processors, exporters, resource detectors"
+kind: concept
+minutes: 18
+order: 10
+exam:
+  - cert: otca
+    domain: O2
+    competency: Composability and Extension
+tags: [otel-sdk-extension]
+outcome: You can say where a propagator, a sampler, a processor, an exporter and a resource detector plug into an SDK, which hook each offers, and which of them your own code may replace.
+terms:
+  - term: Plugin interface
+    def: An SDK interface, such as SpanExporter or SpanProcessor, that you implement to add your own part.
+  - term: Core package
+    def: A plugin the specification defines and the project maintains, such as the OTLP exporter or the W3C propagators.
+  - term: Contrib package
+    def: An optional plugin or instrumentation maintained by the OpenTelemetry project outside the SDK.
+  - term: Composite propagator
+    def: A propagator built from a list of propagators, which runs each of them in order.
+  - term: Resource detector
+    def: A package that finds resource attributes at startup, such as the host, container or cloud region.
+sources:
+  - title: Overview, API, SDK and contrib (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/overview/
+    checked: 2026-11-13
+  - title: Library guidelines (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/library-guidelines/
+    checked: 2026-11-13
+  - title: Propagators API (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/context/api-propagators/
+    checked: 2026-11-13
+  - title: Tracing SDK, span processor and exporter (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+    checked: 2026-11-13
+  - title: Logs SDK, LogRecordProcessor (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/sdk/
+    checked: 2026-11-13
+  - title: Resource SDK, resource detector (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/resource/sdk/
+    checked: 2026-11-13
+---
+
+<Problem>
+Four requests arrive in one week: accept B3 headers from an old proxy, add the cloud region to every signal, copy all spans to a second backend during a migration, and stamp a team name on every span. Nobody wants to touch the dozens of libraries that create spans. Each request lands in a different part of the SDK, and you need to know which.
+</Problem>
+
+<Idea>
+An OpenTelemetry SDK is assembled from small parts behind plugin interfaces: propagators, resource detectors, samplers, processors and exporters, plus readers and views for metrics. Instrumentation talks only to the API, so the person who runs the application can swap or add parts without touching it.
+</Idea>
+
+## Who uses which part
+
+The specification splits a client into the API, the SDK, the semantic conventions and contrib packages. Libraries and applications that create telemetry depend only on the API, and instrumentation must not reference any SDK package. The SDK has two kinds of public surface. Application owners use its constructors to build a provider with the parts they choose. Plugin authors implement its plugin interfaces to add new parts.
+
+Some plugins are defined by the specification itself, such as the OTLP exporters and the W3C Trace Context propagator; these core packages are maintained by the project. Optional plugins and instrumentation outside the SDK are contrib packages. Exporters for a vendor's own protocol are not part of the OpenTelemetry clients.
+
+## Where each part plugs in
+
+<Flow caption="The parts a span meets, from start to export">
+  <Stage title="Propagator" kicker="Process edge">Extracts the incoming context, injects it into outgoing calls.</Stage>
+  <Stage title="Sampler" kicker="Span start">Decides whether the span is recorded and sampled.</Stage>
+  <Stage title="Processor" kicker="Start and end">Hooks on span start and end; batches and hands to its exporter.</Stage>
+  <Stage title="Exporter" kicker="Out">Encodes the batch and sends it, with retries if the protocol has them.</Stage>
+</Flow>
+
+A propagator reads and writes context in a carrier, such as HTTP headers. Several of them combine into a composite propagator that runs each one in the order given, which is how a service accepts both W3C and B3 headers. The project must ship W3C Trace Context, W3C Baggage and B3; Jaeger and OT Trace are deprecated, and vendor formats such as AWS X-Ray may not be core packages.
+
+A resource detector runs once at startup and returns a resource that is merged with the others. Detectors for platforms and vendors, such as Kubernetes or a cloud, must live in packages separate from the SDK. They should finish quickly, and finding nothing is not an error.
+
+A span processor is a hook. Its `OnStart` gets the span while it can still be changed; its `OnEnd` gets a span that has ended and must not be changed. Processors run in the order they were registered, and each one starts its own pipeline that may end in its own exporter, so two processors give two destinations. The log SDK has the same design: a log record processor may change the record, and the next processor sees the change.
+
+An exporter implements `Export`, `ForceFlush` and `Shutdown`. The specification asks exporters to stay simple encoders and gives them the retry logic of their protocol; the built-in processors do not retry.
+
+## Metrics compose differently
+
+Metrics have no processor chain. Their extension points are the reader with its exporter, the views from step 2, and the exemplar filter. A MetricProducer lets a bridge to another metrics library hand already aggregated data to a reader, next to the data from OpenTelemetry instruments.
+
+<InLab>
+The shop's checkout service builds its SDK in Go from these parts (`lgtm/lab/demo/src/checkout/main.go`): resource detectors `WithOS`, `WithProcess`, `WithContainer` and `WithHost` merged with the default resource, a tracer provider `WithBatcher` around an OTLP/HTTP exporter, a composite propagator of `TraceContext` and `Baggage`, a meter provider with a periodic reader, and a logger provider with a batch processor.
+</InLab>
+
+<Trap>
+A span processor that adds an attribute in `OnEnd` is too late: the span has ended and must not be changed. Add attributes in `OnStart`, or change the data later in a Collector.
+</Trap>
+
+<Remember>
+Propagators work at the process edge, detectors at startup, samplers at span start, processors on start and end, exporters on the way out. Instrumentation sees only the API, so all of them can change without touching it.
+</Remember>
+
+<Question id="q-m08-s10" answer="c">
+A team writes a span processor that sets `team.name` on each span in its `OnEnd` method. The attribute never shows in the backend. What is the most likely reason?
+
+- Span processors are called only for spans that the sampler dropped.
+
+  Processors are called for spans that are recording, not for dropped ones.
+
+- The batch processor removes unknown attributes before export.
+
+  The built-in batching processor batches and exports; it does not filter attributes.
+
+- In OnEnd the span has already ended and may only be read, so the change is not allowed.
+
+  OnStart receives a read/write span. OnEnd receives an ended span that must not be modified.
+
+- Custom processors must be registered after the exporter, not before it.
+
+  Exporters are not registered next to processors; each processor hands its spans to its own exporter.
+</Question>
