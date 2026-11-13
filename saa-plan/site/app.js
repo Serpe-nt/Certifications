@@ -432,18 +432,19 @@ function setView(day, at, push) {
   bdDraw();
   if (moved) { shown = key; movedAt = Date.now(); scrollTo(0, 0); }
 }
-// ---------- the ground (ground.js) and the rail ----------
-// The ground is geometry only, drawn to the window and seeded with the view, so each day keeps its own drawing;
-// its one piece of text is the day's real number. The full poster on the overview, a quieter one while you read a step.
-// A new view draws itself in again (grid, crosshairs, filaments); a resize of the same view just redraws, still.
+// ---------- the backdrop (Datum.backdrop) and the rail ----------
+// The backdrop is Datum's: one figure, low in contrast, drawn to the window and seeded with the view, so each day keeps
+// its own drawing; its one piece of text is the day's real number. A small orbit on a gutter crossing on the overview,
+// the plain grid while you read a step (Datum's Operate views). A new view fades it up; a resize redraws it still.
 const bdEl = document.getElementById("bd");
-let bdKey = "", bdT = 0;
+let bdKey = "", bdT = 0, inT = 0;
 function bdDraw() {
   const d = view.day && dayOf(view.day), w = innerWidth, h = innerHeight, k = `${view.day}|${w}|${h}`;
-  if (!window.Ground || k === bdKey) return;
+  if (!window.Datum || k === bdKey) return;
   bdEl.toggleAttribute("data-dm-redraw", !!bdKey && bdKey.split("|")[0] === view.day);
   bdKey = k;
-  bdEl.innerHTML = Ground.draw({ width: w, height: h, seed: d ? d.id : "overview", quiet: !!d, ghost: d ? pad2(d.day) : "", top: 48 });
+  bdEl.innerHTML = Datum.backdrop(d ? { figure: "grid", width: w, height: h, seed: d.id, ghost: pad2(d.day) }
+    : { figure: "orbit", width: w, height: h, seed: "overview", at: [0.82, 0.3], scale: 0.62, grid: 64, glow: false });
 }
 addEventListener("resize", () => { clearTimeout(bdT); bdT = setTimeout(bdDraw, 150); });
 // where you are, in the rail: the overview, or the day and its card
@@ -739,7 +740,11 @@ function renderFlow(moved) {
     applyGlossary(cardEl);
     dgMark(cardEl);
     if (answer) flip(at, true);
-    if (moved) for (const el of [cardEl, sideL, sideR]) { el.classList.remove("in"); void el.offsetWidth; el.classList.add("in"); }
+    if (moved) {
+      for (const el of [cardEl, sideL, sideR]) { el.classList.remove("in"); void el.offsetWidth; el.classList.add("in"); }
+      // the arrival plays once: a re-render of the same card (a picked answer, a note saved) must not replay it
+      clearTimeout(inT); inT = setTimeout(() => { for (const el of [cardEl, sideL, sideR]) el.classList.remove("in"); }, 1000);
+    }
   }
 
   // Back, the card's main action, Next
