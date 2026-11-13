@@ -75,7 +75,7 @@ So the memory limiter turns a crash into back-pressure. It must be the first pro
 
 Fewer, larger requests compress better and need fewer connections. The `batch` processor sends a batch when it reaches `send_batch_size` items (8192 by default) or when `timeout` passes (200 ms by default), whichever comes first. `send_batch_max_size` sets an upper limit and splits larger batches.
 
-Exporters can now batch by themselves, in their sending queue (`sending_queue` with a `batch` block). The processor guide says to prefer the exporter's batching where it exists, and the Collector warns at startup when one pipeline has both a batch processor and an exporter with queue batching turned on. You will meet the `batch` processor in many existing configurations, including the lab gateway, so you need to read both. The practice file uses the processor for that reason; its only exporter, `debug`, prints to the log and has no queue to batch in.
+Exporters can now batch by themselves, in their sending queue (`sending_queue` with a `batch` block). The processor guide says to prefer the exporter's batching where it exists, and the Collector warns at startup when one pipeline has both a batch processor and an exporter with queue batching turned on. You will meet the `batch` processor in many existing configurations, including the lab gateway, so you need to read both. The practice file uses the processor for that reason; its only exporter, `debug`, prints to the log and has its sending queue turned off by default.
 
 ## Changing attributes: resource or attributes
 
