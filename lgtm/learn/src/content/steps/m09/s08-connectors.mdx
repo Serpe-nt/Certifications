@@ -144,7 +144,7 @@ A configuration defines `span_metrics` under `connectors` and lists it in the tr
 
   A connector is not allowed to be used on one side only.
 
-- The Collector rejects the configuration, because a connector must be used as both an exporter and a receiver
+- The Collector rejects the configuration as invalid
 
   Each connector has to appear in two pipelines, once on each side.
 

@@ -100,7 +100,7 @@ Scale on refused data and on queues near capacity, not on a feeling; a full queu
 <Question id="q-m09-s11" answer="a">
 Like the lab gateway, three replicas share one configuration that scrapes a PostgreSQL server, and each replica sets `service.instance.id` to its own pod name. What do you find in the metrics backend?
 
-- Three series for each PostgreSQL metric, one per replica, with no out-of-order errors
+- One series per replica for each metric, and no out-of-order errors at all
 
   Each copy has its own identity, so the writes never collide, but the scraped series are tripled.
 

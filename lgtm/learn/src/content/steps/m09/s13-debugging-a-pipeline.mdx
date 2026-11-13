@@ -142,7 +142,7 @@ Not starting: the log and `validate`. Starting but wrong: PipelineZ and the debu
 <Question id="q-m09-s13" answer="a">
 A Collector's metrics show `otelcol_receiver_accepted_spans` rising steadily, `otelcol_exporter_sent_spans` rising at the same rate, and no failures. The backend has no spans from one service. Where do you look first?
 
-- At the data itself, with the debug exporter or the backend's own ingestion errors, because the Collector delivers everything it receives
+- At the data itself, since the Collector delivers all it receives
 
   Matching counts mean the Collector passes every span on; the cause lies in the data or after the export.
 

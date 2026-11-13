@@ -110,19 +110,19 @@ The `otlp` receiver feeds three pipelines and `metrics/scraper` pulls the rest. 
 <Question id="q-m09-s03" answer="a">
 A colleague proposes moving `batch` to the front of the gateway's traces pipeline, before `k8s_attributes`, "so the other processors work on bigger chunks". What breaks first?
 
-- Spans that carry no pod attributes lose their pod names, because batching drops the connection details k8s_attributes falls back on
+- Spans with no pod attributes lose their pod names after batching
 
   The `connection` association rule needs the request's context, which batching clears.
 
-- The memory limiter stops working, because it must always come directly after a receiver
+- The memory limiter stops working, because it must follow a receiver
 
   The memory limiter would still run; it only works less well when it is not first.
 
-- Tempo rejects the spans, because batched spans arrive without the tenant header
+- Tempo rejects the spans, because batches lose the tenant header
 
   The tenant header is set by the exporter on every request, whatever the batch size.
 
-- The Collector refuses to start, because batch is not allowed before other processors
+- The Collector refuses to start, because batch must come last
 
   The configuration loads; the order is a best practice, and the Collector does not enforce it.
 </Question>

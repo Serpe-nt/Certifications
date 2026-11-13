@@ -208,7 +208,7 @@ A memory limiter has `limit_mib: 1000` and `spike_limit_mib: 200`. Memory use re
 
   1000 MiB is the hard limit. The processor already refuses data at the soft limit.
 
-- Refuses new data with a retryable error until memory drops below 800 MiB
+- Refuses new data until memory is below 800 MiB again
 
   The soft limit is 1000 - 200 = 800 MiB; above it the processor returns errors that senders should retry.
 

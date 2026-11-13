@@ -132,7 +132,7 @@ A trace has one span with status ERROR and takes 300 ms. The policies are `statu
 
   A policy that does not match only means "no sample" from that policy; the error policy still says sample.
 
-- No, because a drop decision always means the trace is not sampled
+- No, because any drop decision means the trace is not kept
 
   The README's decision flow puts a drop decision before every sample decision.
 </Question>

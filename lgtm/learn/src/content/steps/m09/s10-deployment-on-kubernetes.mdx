@@ -88,7 +88,7 @@ A team runs the OpenTelemetry Operator. They want a Collector container next to 
 
   That runs separate Collector pods, not a container inside each app pod.
 
-- Create an OpenTelemetryCollector with mode sidecar and annotate the app's pod template with sidecar.opentelemetry.io/inject: "true"
+- A sidecar-mode OpenTelemetryCollector plus the inject annotation on the pod template
 
   The Operator injects the sidecar into pods that carry the annotation.
 

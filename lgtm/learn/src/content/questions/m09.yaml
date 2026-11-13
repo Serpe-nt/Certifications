@@ -1,0 +1,549 @@
+# Module m09 OpenTelemetry Collector: quiz pool. Card C8, 2026-11-13.
+# Sources: the opentelemetry.io Collector pages (written for Collector 0.165.0) and the
+# component READMEs at v0.165.0, fetched on 2026-11-13; behaviour marked "local" in the log
+# was checked with otelcol-contrib 0.165.0 in Docker. The log is lgtm/docs/verification/m09.md.
+# No question repeats one of the mock pools.
+
+- id: q-m09-001
+  tags: [collector-config]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: "A Collector starts with <code>--config=config.yaml --set=exporters::debug::verbosity=detailed</code>. The file sets the debug exporter's verbosity to <code>basic</code>. Which verbosity does the exporter use?"
+  options:
+    - text: "detailed, because --set is merged after all --config sources"
+      why: "The configuration page says values from --set are merged into the final configuration after the --config sources."
+    - text: "basic, because a value in a file always beats a command-line flag"
+      why: "It is the other way round: --set is applied last."
+    - text: "Neither; the Collector refuses two values for the same key"
+      why: "Merging several sources is normal; the later one wins."
+    - text: "basic, because --set only adds keys that the file does not have"
+      why: "--set overrides existing keys as well as adding new ones."
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/configuration/
+
+- id: q-m09-002
+  tags: [collector-config, collector-pipelines]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: "A traces pipeline lists <code>processors: [batch, transform, batch]</code>, meaning to batch twice. What does <code>otelcol-contrib validate</code> report?"
+  options:
+    - text: "Nothing; the second batch gets its own instance with its own state"
+      why: "Separate instances exist only for one processor used in different pipelines, not twice in one."
+    - text: "A warning, and the Collector removes the second batch at startup"
+      why: "The Collector does not edit a pipeline; it rejects the configuration."
+    - text: "An error: the pipeline references processor \"batch\" multiple times"
+      why: "One processor ID may appear only once in a pipeline; validate says so and stops."
+    - text: "Nothing, because the batch processor is allowed anywhere in a pipeline"
+      why: "Position is free, but a repeated ID in the same list is not allowed."
+  answer: [2]
+  source: https://opentelemetry.io/docs/collector/architecture/
+
+- id: q-m09-003
+  tags: [collector-config]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: "A Collector pod's liveness and readiness probes call port 13133. The configuration defines <code>health_check: {endpoint: 0.0.0.0:13133}</code> under <code>extensions</code>, and <code>service</code> lists only pipelines. What happens?"
+  options:
+    - text: "The probes pass, because a defined extension starts by itself"
+      why: "An extension starts only when service.extensions lists it."
+    - text: "The probes fail: nothing starts the extension"
+      why: "Nothing listens on 13133, so Kubernetes never marks the pod ready and restarts it."
+    - text: "The Collector refuses to start because an extension is unused"
+      why: "An unused component is allowed and logged as nothing at all."
+    - text: "The probes pass, because pipelines answer health checks on 13133"
+      why: "Pipelines serve no health endpoint; that is the extension's job."
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/configuration/
+
+- id: q-m09-004
+  tags: [collector-opamp]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: "Which of these is part of what OpAMP lets a management server do with a fleet of agents?"
+  options:
+    - text: "Receive the agents' application spans and forward them to a backend"
+      why: "OpAMP manages agents; application telemetry still flows through their pipelines."
+    - text: "Replace OTLP between applications and Collectors"
+      why: "OpAMP is a management protocol and carries no application telemetry."
+    - text: "Send configuration and packages, and receive status and health"
+      why: "Remote configuration, packages, status reporting and heartbeats are all in the specification."
+    - text: "Schedule Collector pods onto Kubernetes nodes"
+      why: "Scheduling is the Kubernetes scheduler's work; OpAMP talks to agents, not to the cluster."
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/opamp/
+
+- id: q-m09-005
+  tags: [collector-opamp]
+  exam: {cert: otca, domain: O3, competency: Configuration}
+  q: "An <code>opamp</code> extension runs with its default capabilities. What does it report to the OpAMP server without further settings?"
+  options:
+    - text: "The effective configuration, health and the available components"
+      why: "These three capabilities default to true in the extension's README."
+    - text: "Every span the Collector exports, so the server can count them"
+      why: "The extension reports about the agent, not the data that passes through it."
+    - text: "Nothing until the server sends a restart command"
+      why: "Restarts are an opt-in capability; reporting is on by default."
+    - text: "Only a heartbeat, because reporting the configuration needs a feature gate"
+      why: "Reporting the effective configuration is on by default; the restart command needs the gate."
+  answer: [0]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/extension/opampextension/README.md
+
+- id: q-m09-006
+  tags: [collector-deployment]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: "A configuration uses <code>k8s_attributes</code>, <code>redaction</code> and <code>tail_sampling</code>, and nothing else outside the core set. Which project distribution has all three and is much smaller than contrib?"
+  options:
+    - text: "otelcol, the core distribution"
+      why: "Core has none of the three; they live in contrib and in the k8s distribution."
+    - text: "otelcol-otlp, the OTLP distribution"
+      why: "It holds only a handful of OTLP components."
+    - text: "otelcol-k8s, the Kubernetes distribution"
+      why: "Its manifest at v0.165.0 has all three, with 75 modules against contrib's 256."
+    - text: "otelcol-prometheus, the Prometheus distribution"
+      why: "It is built around Prometheus components, not these processors."
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-releases/blob/v0.165.0/distributions/otelcol-k8s/manifest.yaml
+
+- id: q-m09-007
+  tags: [collector-deployment]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: "A platform team builds its own Collector with ocb and needs the redaction processor in it. What do they add to <code>builder-config.yaml</code>?"
+  options:
+    - text: "A redaction block under processors in the Collector's runtime configuration"
+      why: "Runtime configuration cannot add code; the component must be compiled in."
+    - text: "The processor's Go module, as a gomod entry in the processors list"
+      why: "ocb compiles the modules listed per component class in its manifest."
+    - text: "A feature gate that turns the redaction processor on"
+      why: "Feature gates change components that are already in the binary."
+    - text: "The URL of the contrib container image to copy it from"
+      why: "ocb builds from Go modules, not from other images."
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/extend/ocb/
+
+- id: q-m09-008
+  tags: [collector-kubernetes]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: "An <code>OpenTelemetryCollector</code> resource for the Operator has a configuration but no <code>spec.mode</code>. What does the Operator create?"
+  options:
+    - text: "A DaemonSet, one Collector on each node"
+      why: "DaemonSet is a mode you choose; it is not the default."
+    - text: "Nothing, because mode is a required field"
+      why: "The field has a default value."
+    - text: "A sidecar in every pod of the namespace"
+      why: "Sidecars are injected only into pods that ask for them with an annotation."
+    - text: "A Deployment, the default mode"
+      why: "The Operator's deployment modes page names Deployment as the default."
+  answer: [3]
+  source: https://github.com/open-telemetry/opentelemetry-operator/blob/main/docs/collector/deployment-modes.md
+
+- id: q-m09-009
+  tags: [collector-kubernetes, collector-processors]
+  exam: {cert: otca, domain: O3, competency: Deployment}
+  q: "In the Collector Helm chart's values, a team sets <code>presets.kubernetesAttributes.enabled: true</code> and changes nothing else. What does the chart add?"
+  options:
+    - text: "The processor in every enabled pipeline, and its RBAC rules"
+      why: "The preset handles the processor and its ClusterRole together."
+    - text: "Only the ClusterRole; the processor must still be listed by hand"
+      why: "The preset also puts the processor into each pipeline."
+    - text: "A sidecar that adds Kubernetes labels to every application pod"
+      why: "The chart has no sidecar mode; the processor runs in the Collector."
+    - text: "The kubeletstats receiver, which reads pod names from each kubelet"
+      why: "That is the kubeletMetrics preset."
+  answer: [0]
+  source: https://opentelemetry.io/docs/platforms/kubernetes/helm/collector/
+
+- id: q-m09-010
+  tags: [collector-pipelines]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: "The pipelines <code>metrics</code> and <code>metrics/scraper</code> both list the exporter <code>otlp_http/mimir</code>. How many instances of that exporter does the Collector run?"
+  options:
+    - text: "Two, one per pipeline, as with processors"
+      why: "Only processors get one instance per pipeline."
+    - text: "One, which receives data from both pipelines"
+      why: "Several pipelines can send to the same exporter; it is built once."
+    - text: "None, because an exporter may appear in only one pipeline"
+      why: "Sharing an exporter between pipelines is allowed and common."
+    - text: "Two, and the backend gets every data point twice"
+      why: "Each pipeline sends its own data to the one exporter; nothing is doubled."
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/architecture/
+
+- id: q-m09-011
+  tags: [collector-pipelines, collector-processors]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: "A traces pipeline runs <code>[memory_limiter, transform, filter, batch]</code>. The filter drops the 90% of spans that are health checks. What should change, and why?"
+  options:
+    - text: "Move filter to the end, so batch sends smaller batches"
+      why: "batch should stay last; filtering after it would batch data that is then dropped."
+    - text: "Move filter before memory_limiter, so it protects memory"
+      why: "memory_limiter must stay first to refuse data before anything holds it."
+    - text: "Nothing; the order of processors does not change the result"
+      why: "The result is the same here, but transform does nine times the work it needs."
+    - text: "Put filter second, so transform skips the dropped spans"
+      why: "The guide drops unwanted data early, before processors that change it."
+  answer: [3]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/processor/README.md
+
+- id: q-m09-012
+  tags: [collector-pipelines]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: "<code>validate</code> fails with <code>failed to create \"tail_sampling\" processor, in pipeline \"metrics\": telemetry type is not supported</code>. What is wrong?"
+  options:
+    - text: "The image does not contain the tail sampling processor"
+      why: "A missing component gives an unknown type error instead."
+    - text: "tail_sampling is listed in a metrics pipeline, and it handles traces only"
+      why: "Every component in a pipeline must support the pipeline's signal."
+    - text: "tail_sampling needs a name suffix in a metrics pipeline"
+      why: "The suffix only tells instances apart; it does not change the signal."
+    - text: "The metrics pipeline has no batch processor before tail_sampling"
+      why: "No processor requires batch in front of it."
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/architecture/
+
+- id: q-m09-013
+  tags: [collector-connectors, collector-scaling]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: "Three gateway replicas behind a round-robin Service run the service_graph connector. The graph has missing edges and <code>traces_service_graph_unpaired_spans_total</code> keeps rising. What fixes it?"
+  options:
+    - text: "A load_balancing tier in front that routes by trace ID"
+      why: "The connector must see both spans of a pair, so a whole trace must reach one replica."
+    - text: "A bigger batch size, so client and server spans meet in one batch"
+      why: "Batching inside one replica cannot bring in spans another replica received."
+    - text: "Moving the connector into the metrics pipeline"
+      why: "service_graph consumes traces; it is the exporter of a traces pipeline."
+    - text: "Adding more replicas, so each one holds fewer traces"
+      why: "More replicas split traces across even more Collectors."
+  answer: [0]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/connector/servicegraphconnector/README.md
+
+- id: q-m09-014
+  tags: [collector-connectors]
+  exam: {cert: otca, domain: O3, competency: Pipelines}
+  q: "A team adds <code>dimensions: [{name: user.id}]</code> to the span_metrics connector to see latency per user. The shop has 200,000 users. What happens to the metrics?"
+  options:
+    - text: "Nothing changes, because span metrics ignore span attributes"
+      why: "Dimensions are read from span or resource attributes."
+    - text: "The connector refuses user.id, because only resource attributes are allowed"
+      why: "Span attributes are allowed as dimensions."
+    - text: "The calls and duration series multiply by the number of users"
+      why: "Each dimension value makes its own series, which drives cardinality up."
+    - text: "The connector stores user.id only on exemplars, not on series"
+      why: "A configured dimension becomes a label on the metric series."
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/connector/spanmetricsconnector/README.md
+
+- id: q-m09-015
+  tags: [collector-processors]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: "<code>resource/scraper</code> sets <code>service.name: otel-gateway</code> with <code>action: insert</code>. The Prometheus receiver already put <code>service.name=ad</code> on the ad service's metrics. What do those metrics end up with?"
+  options:
+    - text: "service.name=otel-gateway, because the processor runs later"
+      why: "That would be upsert or update; insert does not overwrite."
+    - text: "service.name=ad, because insert never overwrites a key"
+      why: "insert leaves existing keys alone; the value is set only where none exists."
+    - text: "Both values, stored together as a list on the attribute"
+      why: "An attribute key holds one value; insert does not append."
+    - text: "No service.name, because two values cancel out"
+      why: "Nothing removes the attribute here."
+  answer: [1]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/attributesprocessor/README.md
+
+- id: q-m09-016
+  tags: [collector-processors]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: "A rendered memory_limiter has <code>limit_mib: 400</code>, <code>spike_limit_mib: 100</code>, <code>limit_percentage: 80</code> and <code>spike_limit_percentage: 25</code>, in a container limited to 512 MiB. Where does it start refusing data?"
+  options:
+    - text: "At about 307 MiB, from 80% minus 25% of 512 MiB"
+      why: "The percentages are ignored when limit_mib is set."
+    - text: "At 400 MiB, the value of limit_mib"
+      why: "400 MiB is the hard limit; refusing starts at the soft limit below it."
+    - text: "At 409 MiB, from 80% of 512 MiB"
+      why: "The fixed setting takes precedence over the percentage."
+    - text: "At 300 MiB, from limit_mib minus spike_limit_mib"
+      why: "limit_mib wins over limit_percentage, and the soft limit is 400 - 100."
+  answer: [3]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/processor/memorylimiterprocessor/README.md
+
+- id: q-m09-017
+  tags: [collector-processors]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: "An agent runs <code>resource_detection</code> with <code>detectors: [eks, ec2]</code> on an EKS node. Both detectors can set <code>cloud.platform</code>. Which value wins?"
+  options:
+    - text: "The ec2 value, because the last detector overwrites the others"
+      why: "The order works the other way: the first detector to set a key wins."
+    - text: "The eks value: the first detector to set a key wins"
+      why: "The README's ordering rule; with eks first the platform reads aws_eks."
+    - text: "Neither, because conflicting detectors make the processor fail"
+      why: "A conflict is resolved by order, not by an error."
+    - text: "Both, stored as two attributes with a numeric suffix"
+      why: "One key holds one value; there is no automatic suffix."
+  answer: [1]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/resourcedetectionprocessor/README.md
+
+- id: q-m09-018
+  tags: [collector-ottl]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: "<code>trace_statements</code> run <code>delete_key(span.attributes, \"user.email\")</code> and then <code>set(span.attributes[\"user.hash\"], SHA256(span.attributes[\"user.email\"]))</code>. The spans in the backend have neither attribute. Why?"
+  options:
+    - text: "SHA256 is not available in the transform processor"
+      why: "SHA256 is a standard OTTL converter."
+    - text: "Statements run in order, so the address is deleted first"
+      why: "Swap the two statements: hash first, then delete."
+    - text: "set cannot create a new attribute, it can only change one"
+      why: "set creates the key when it does not exist."
+    - text: "Attributes with a dot in the name cannot be read in OTTL"
+      why: "Dotted keys inside brackets are normal OTTL paths."
+  answer: [1]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/transformprocessor/README.md
+
+- id: q-m09-019
+  tags: [collector-ottl]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: "In a Collector configuration file, a <code>replace_pattern</code> statement must put the first regex group into the new value. How is the group written?"
+  options:
+    - text: "$1, the group syntax of Go's regexp package"
+      why: "In a Collector file a single $ starts an environment-variable expansion."
+    - text: "\\1, the backreference syntax that sed uses"
+      why: "OTTL uses Go's regexp.Expand syntax, which does not use backslash groups."
+    - text: "$$1, because a single $ starts variable expansion"
+      why: "The OTTL functions README asks for $$ in Collector files to skip variable expansion."
+    - text: "${1}, with braces to mark the group number"
+      why: "${...} is the Collector's expansion syntax, which would be read as a variable."
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/pkg/ottl/ottlfuncs/README.md
+
+- id: q-m09-020
+  tags: [collector-ottl]
+  exam: {cert: otca, domain: O3, competency: Transforming Data}
+  q: "A redaction processor is set to <code>allow_all_keys: false</code> and <code>allowed_keys: [description, email]</code>. A span arrives with <code>description</code>, <code>email</code>, <code>credit_card</code> and <code>internal_id</code>. What leaves the processor?"
+  options:
+    - text: "All four, with credit_card masked as ****"
+      why: "Keys that are not allowed are removed, not masked."
+    - text: "description and email only; the other two keys are removed"
+      why: "With allow_all_keys false, only allowed keys stay; the README shows this example."
+    - text: "No attributes, because allowed_keys needs allow_all_keys: true"
+      why: "allow_all_keys true would ignore the list; false makes the list apply."
+    - text: "description, email and credit_card, because card numbers are masked by default"
+      why: "Nothing is masked without blocked_values; credit_card is simply not allowed."
+  answer: [1]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/redactionprocessor/README.md
+
+- id: q-m09-021
+  tags: [collector-scaling]
+  exam: {cert: otca, domain: O3, competency: Scaling}
+  q: "On every gateway replica the memory limiter keeps refusing spans for minutes at a time. The export queues are nearly empty and the backend answers fast. What does the scaling guide point to?"
+  options:
+    - text: "The backend is too slow; scale the database first"
+      why: "A slow backend fills the export queues, which are empty here."
+    - text: "Raise limit_mib above the container's memory limit"
+      why: "That lets the process run out of memory and be killed instead."
+    - text: "The Collector cluster is too small: add replicas"
+      why: "Frequent refusals by the memory limiter are the guide's sign to scale up."
+    - text: "Turn off the memory limiter so nothing is refused"
+      why: "Then the Collector risks being OOM-killed and loses everything in memory."
+  answer: [2]
+  source: https://opentelemetry.io/docs/collector/scaling/
+
+- id: q-m09-022
+  tags: [collector-scaling, collector-connectors]
+  exam: {cert: otca, domain: O3, competency: Scaling}
+  q: "Three gateway replicas each run span_metrics behind a round-robin balancer. Request counts per service look plausible in sum but jump around per series. Which setup gives each service's metrics a single writer?"
+  options:
+    - text: "A first tier with load_balancing and routing_key: service"
+      why: "All spans of one service then reach one Collector, so one replica writes its series."
+    - text: "A larger metrics_flush_interval on every replica"
+      why: "Flushing less often does not stop three replicas from writing the same service."
+    - text: "Removing collector.instance.id from the dimensions"
+      why: "That makes the three replicas' series collide outright."
+    - text: "A tail_sampling processor in front of the connector"
+      why: "Sampling reduces spans; it does not decide which replica sees which service."
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/deploy/gateway/
+
+- id: q-m09-023
+  tags: [collector-tail-sampling]
+  exam: {cert: otca, domain: O3, competency: Scaling}
+  q: "A tail sampler uses the defaults and a latency policy above 10 s. Some batch-job traces run for 45 s, and the kept ones miss their last spans. What is the likely cause?"
+  options:
+    - text: "num_traces is too high, so old traces are evicted early"
+      why: "A higher num_traces keeps more traces, not fewer."
+    - text: "The latency policy measures only the root span"
+      why: "It uses the earliest start and latest end of the trace."
+    - text: "decision_wait (30 s by default) ends before the trace does"
+      why: "Spans that arrive after the decision miss the trace; raise decision_wait, at a memory cost."
+    - text: "The load_balancing exporter splits long traces across replicas"
+      why: "It routes by trace ID, so a long trace still goes to one replica."
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/tailsamplingprocessor/README.md
+
+- id: q-m09-024
+  tags: [collector-tail-sampling]
+  exam: {cert: otca, domain: O3, competency: Scaling}
+  q: "A first-tier Collector's <code>load_balancing</code> exporter has <code>resolver: {dns: {hostname: sampler-headless, port: 4317}}</code>. In 0.165.0, <code>validate</code> fails on it. What is the fix?"
+  options:
+    - text: "Use the static resolver, because dns needs a cloud account"
+      why: "The dns resolver works with any name that resolves, such as a headless Service."
+    - text: "Add the port to the hostname, as sampler-headless:4317"
+      why: "The hostname is resolved as a name; the port has its own key."
+    - text: "Write the port as a string, \"4317\", or leave it out to get 4317"
+      why: "The dns resolver's port is a string; an unquoted number fails to decode."
+    - text: "Replace dns with k8s, because dns is not allowed on Kubernetes"
+      why: "dns with a headless Service is a documented choice on Kubernetes."
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/exporter/loadbalancingexporter/README.md
+
+- id: q-m09-025
+  tags: [collector-processors]
+  exam: {cert: otca, domain: O4, competency: Context Propagation}
+  q: "A gateway's batch processor has <code>metadata_keys: [tenant_id]</code> so that each tenant is batched apart. All data still ends up in one batch. What is missing?"
+  options:
+    - text: "include_metadata: true on the receivers"
+      why: "The batch README asks receivers to include metadata for metadata_keys to work."
+    - text: "A transform that copies tenant_id into span attributes"
+      why: "metadata_keys reads client metadata, not attributes."
+    - text: "A second batch processor for each tenant"
+      why: "One processor creates a batcher per metadata value by itself."
+    - text: "metadata_cardinality_limit set above 1000"
+      why: "The limit caps the number of combinations; it does not make metadata appear."
+  answer: [0]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/processor/batchprocessor/README.md
+
+- id: q-m09-026
+  tags: [collector-reliability]
+  exam: {cert: otca, domain: O4, competency: Context Propagation}
+  q: "An exporter uses a persistent queue with file_storage, and its pipeline relies on context set by an authentication extension on the receiver. What happens to that context for queued data?"
+  options:
+    - text: "It is stored with the data and restored after a restart"
+      why: "Client metadata and span context are kept, but the auth extension's context is not."
+    - text: "It is lost: persistent queues do not keep auth context"
+      why: "The exporter helper README states this limit of persistent queues."
+    - text: "It is re-created by asking the client to authenticate again"
+      why: "The queue has no connection to the client any more."
+    - text: "It is copied into resource attributes before queuing"
+      why: "Nothing converts request context into attributes."
+  answer: [1]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/exporter/exporterhelper/README.md
+
+- id: q-m09-027
+  tags: [collector-ottl]
+  exam: {cert: otca, domain: O4, competency: Context Propagation}
+  q: "To shorten IDs, someone adds a transform statement that rewrites <code>span.trace_id</code> on spans from one service. What will traces in the backend show?"
+  options:
+    - text: "Nothing different; the backend links spans by service name"
+      why: "Backends join spans by trace and span IDs, not service names."
+    - text: "Smaller traces, but every link between services kept"
+      why: "Spans with the new ID no longer share a trace with their parents and children."
+    - text: "An error at startup, because trace_id is read-only in OTTL"
+      why: "The transform processor allows changing trace_id; its README warns about it."
+    - text: "Broken traces, with that service's spans orphaned from the rest"
+      why: "The README's Orphaned Telemetry warning covers exactly this change."
+  answer: [3]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/transformprocessor/README.md
+
+- id: q-m09-028
+  tags: [collector-debugging]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: "A Collector defines <code>zpages: {endpoint: 0.0.0.0:55679}</code> under <code>extensions</code>, and <code>curl localhost:55679/debug/pipelinez</code> inside the pod gets connection refused. What should you check first?"
+  options:
+    - text: "Whether pipelinez needs the detailed metrics level"
+      why: "The page does not depend on the metrics level."
+    - text: "Whether a pipeline lists zpages among its exporters"
+      why: "zPages is an extension; pipelines never name it."
+    - text: "Whether the port must be 8888, where all debug pages live"
+      why: "8888 serves the internal metrics; zPages has its own endpoint."
+    - text: "Whether service.extensions lists zpages"
+      why: "Extensions are enabled only in the service section."
+  answer: [3]
+  source: https://opentelemetry.io/docs/collector/configuration/
+
+- id: q-m09-029
+  tags: [collector-debugging]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: "In Grafana, <code>rate(otelcol_exporter_sent_spans[5m])</code> on the lab's Mimir returns no data, although the gateway exports spans. Which query works?"
+  options:
+    - text: "The same query with the data source prometheus instead of mimir"
+      why: "The lab's Prometheus does not scrape the gateway; its metrics are in Mimir."
+    - text: "rate(otelcol_exporter_sent_spans_total[5m])"
+      why: "Stored in Mimir, the counter carries the _total suffix."
+    - text: "rate(otelcol_exporter_sent_spans{level=\"detailed\"}[5m])"
+      why: "The metrics level is not a label, and the name is still wrong."
+    - text: "rate(otelcol_processor_outgoing_items[5m])"
+      why: "The name lacks _total in the same way, and it counts processors."
+  answer: [1]
+  source: https://opentelemetry.io/docs/collector/internal-telemetry/
+
+- id: q-m09-030
+  tags: [collector-debugging, collector-config]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: "A new pod logs <code>Error: invalid configuration: service::pipelines::logs: references processor \"transform/logs\" which is not configured</code>. What is wrong?"
+  options:
+    - text: "The pipeline names an ID that processors does not define"
+      why: "A typo or a missing definition; the path names the pipeline to look at."
+    - text: "The transform processor is not compiled into this distribution"
+      why: "A missing component gives an unknown type error."
+    - text: "The transform processor cannot run in a logs pipeline"
+      why: "transform supports logs; a signal mismatch gives another error."
+    - text: "The processor needs an error_mode before it can start"
+      why: "error_mode has a default, ignore."
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/troubleshooting/
+
+- id: q-m09-031
+  tags: [collector-reliability]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: "An exporter sets <code>sending_queue: {block_on_overflow: true}</code>. The backend is down and the queue is full. What happens to new data?"
+  options:
+    - text: "The caller waits for room instead of being rejected"
+      why: "block_on_overflow makes the request wait; the default rejects immediately."
+    - text: "It is written to the disk until the queue has room again"
+      why: "Disk needs a storage extension; blocking keeps data with the caller."
+    - text: "It replaces the oldest data in the queue"
+      why: "The queue never drops old data to make room."
+    - text: "It is retried by the exporter for up to 300 s"
+      why: "Retries apply to queued data; this data is not in the queue yet."
+  answer: [0]
+  source: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/exporter/exporterhelper/README.md
+
+- id: q-m09-032
+  tags: [collector-ottl, collector-debugging]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: "A transform processor's statements fail on a few logs a minute, and the team wants the failures neither to drop data nor to fill the Collector's log. Which error_mode fits?"
+  options:
+    - text: "ignore, because it skips the error without any log line"
+      why: "ignore does log the error; that is its difference from silent."
+    - text: "propagate, because the sender can then retry"
+      why: "propagate drops the payload from the Collector."
+    - text: "silent: skip the statement, log nothing"
+      why: "silent goes on with the next statement without a log line."
+    - text: "none, because it turns error handling off"
+      why: "There is no none mode; the modes are ignore, silent and propagate."
+  answer: [2]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/transformprocessor/README.md
+
+- id: q-m09-033
+  tags: [otel-schemas]
+  exam: {cert: otca, domain: O4, competency: Schema Management}
+  q: "A Collector receives data with schema URLs from <code>https://opentelemetry.io/schemas/</code> and from a vendor's <code>https://example.com/schemas/</code>. How many <code>targets</code> does the schema processor need to translate both?"
+  options:
+    - text: "One, the newest OpenTelemetry version, which covers every family"
+      why: "A schema file only describes its own family."
+    - text: "Two, one target URL per schema family"
+      why: "The processor takes one target per family, matched to the incoming URLs."
+    - text: "None, because the processor reads the target from the data"
+      why: "The data says where it comes from; the target is what you configure."
+    - text: "One per service that sends data"
+      why: "Targets are per schema family, not per service."
+  answer: [1]
+  source: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/schemaprocessor/README.md
+
+- id: q-m09-034
+  tags: [otel-schemas]
+  exam: {cert: otca, domain: O4, competency: Schema Management}
+  q: "Why may a schema processor cache the file at <code>https://opentelemetry.io/schemas/1.43.0</code> forever once it has fetched it?"
+  options:
+    - text: "A published schema file never changes; new versions get new URLs"
+      why: "The specification makes schema files immutable and asks for permanent caching."
+    - text: "Because the processor downloads every schema file at startup anyway"
+      why: "It fetches on demand or by prefetch; caching is allowed because files never change."
+    - text: "Because schema files only grow, so an old copy is a subset"
+      why: "A version's file is never edited after release."
+    - text: "Because the Collector embeds all schemas in its binary"
+      why: "Schemas are fetched from their URLs."
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/schemas/

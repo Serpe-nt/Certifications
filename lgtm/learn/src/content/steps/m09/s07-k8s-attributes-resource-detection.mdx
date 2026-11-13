@@ -85,7 +85,7 @@ k8s_attributes matches data to a pod by attribute or by connection, so it runs b
 <Question id="q-m09-s07" answer="a">
 A DaemonSet of agent Collectors on a 200-node cluster runs k8s_attributes with default settings. Each agent uses far more memory than expected. What does the processor's README advise?
 
-- Set filter.node_from_env_var, with the node name from the downward API, so each agent watches only its own node's pods
+- Set filter.node_from_env_var so each agent watches only its node
 
   Without a node filter every agent caches every pod in the cluster.
 
