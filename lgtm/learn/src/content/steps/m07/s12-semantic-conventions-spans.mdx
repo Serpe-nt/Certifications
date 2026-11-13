@@ -1,0 +1,129 @@
+---
+id: m07-s12
+title: Semantic conventions for HTTP, databases and messaging
+kind: lab
+minutes: 16
+order: 12
+exam:
+  - cert: otca
+    domain: O1
+    competency: Semantic Conventions
+tags: [semantic-conventions]
+check:
+  kind: exact
+  prompt: If product-catalog's instrumentation set db.operation.name to SELECT and db.collection.name to catalog.products, and no query summary, what span name would the database conventions give its query span?
+  answers: ["SELECT catalog.products"]
+outcome: You can name an HTTP, database or messaging span by the conventions, list the attributes each kind of span must carry, and say how stable each convention is today.
+terms:
+  - term: Requirement level
+    def: How strongly a convention asks for an attribute, such as Required, Conditionally Required, Recommended or Opt-In.
+  - term: Low cardinality
+    def: Having few distinct values. Span names must be low cardinality, so IDs belong in attributes.
+  - term: original_span_name
+    def: The attribute in which the lab's gateway keeps a span's name before it renames the span by the conventions.
+sources:
+  - title: Semantic conventions for HTTP spans
+    url: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+    checked: 2026-11-13
+  - title: Semantic conventions for database client spans
+    url: https://opentelemetry.io/docs/specs/semconv/db/database-spans/
+    checked: 2026-11-13
+  - title: Semantic conventions for messaging spans
+    url: https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/
+    checked: 2026-11-13
+  - title: OpenTelemetry semantic conventions 1.45.0
+    url: https://opentelemetry.io/docs/specs/semconv/
+    checked: 2026-11-13
+  - title: Transform processor README, set_semconv_span_name, v0.165.0 (Collector contrib)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/transformprocessor/README.md
+    checked: 2026-11-13
+  - title: Instrumentation for OpenTelemetry Python, semantic convention stability
+    url: https://opentelemetry.io/docs/languages/python/instrumentation/
+    checked: 2026-11-13
+---
+
+<Problem>
+Your workshop's database spans arrived in Tempo named `sqlite`, though the instrumentation called them `SELECT` and `UPDATE`. The front proxy's server spans arrived as `GET` with an attribute saying they were once `ingress`, and checkout's Kafka span as `publish orders`, once `orders publish`. Someone renamed them on the way, and there is a rule behind each new name.
+</Problem>
+
+Module m02 introduced the semantic conventions as a shared dictionary. Now that you have made HTTP, database and messaging spans yourself, here are the rules for exactly those three kinds.
+
+<Idea>
+For HTTP, database and messaging operations, the semantic conventions fix the span's name, its kind, when its status is Error, and which attributes it carries at which requirement level. Names are built from attributes and must stay low cardinality. The conventions for HTTP and databases are Stable; those for messaging are in Development.
+</Idea>
+
+## HTTP spans
+
+An HTTP span is named `{method} {target}` when a low-cardinality target exists, and `{method}` alone when not. For a server span the target is `http.route`, the route template; for a client span it is `url.template`, when the instrumentation has one. The URI path must not be used as a target by default, because `/orders/8812` would give every order a span name of its own.
+
+A server span has kind server and must carry `http.request.method`, `url.path` and `url.scheme`, and `http.route` and `http.response.status_code` when they exist. A client span has kind client and must carry `http.request.method`, `server.address`, `server.port` and `url.full`. Status follows the rules you met in steps 8 and 9: a 5xx answer sets Error on both sides; a 4xx sets Error on a client span and leaves a server span Unset.
+
+## Database spans
+
+A database span is named after the best thing available, in this order: `db.query.summary`; then `{db.operation.name} {target}`; then the target alone; and finally `db.system.name`. The target is the collection (`db.collection.name`), a stored procedure, the namespace (`db.namespace`), or the server's address. The kind should be client.
+
+`db.system.name` is required, and `db.query.text` is recommended. `db.collection.name`, `db.namespace` and `db.operation.name` are conditionally required: required under a condition the page states for each, for `db.namespace` simply "if available".
+
+<Compare caption="Database span names in the lab, before and after the rule">
+  <Col title="Workshop (sqlite3)">SELECT, with db.system.name and no db.operation.name: renamed to sqlite, the last choice of the rule.</Col>
+  <Col title="product-catalog (otelsql)">sql.conn.query, with server.address astronomy-db: renamed to the target, astronomy-db.</Col>
+  <Col title="With operation and collection" hot>db.operation.name SELECT and db.collection.name catalog.products would give SELECT catalog.products.</Col>
+</Compare>
+
+## Messaging spans
+
+The messaging conventions name a span `{messaging.operation.name} {destination}`, such as `publish shop.orders` or `process orders`. They define five operation types and the kind for each: create (producer), send (producer, or client when it does not carry the creation context), receive (client), process (consumer) and settle (client). The creation context and the links between consumer and producer are the ones from step 9. The page's status is Development, so names can still change.
+
+## Who renamed your spans
+
+Instrumentations change slowly: many still send the older, experimental names unless you opt in, as `OTEL_SEMCONV_STABILITY_OPT_IN=http,database` did for the workshop in step 7. The Python instrumentations support it for HTTP and databases. Values with `/dup` send the old and the new names at once while dashboards and queries move over.
+
+The lab's gateway adds a second safety net. Its transform processor calls `set_semconv_span_name("1.43.0", "original_span_name")`, which rewrites the name of HTTP, RPC, messaging and database spans from their attributes by the conventions, and keeps the old name in `original_span_name` when it differs. Spans of other kinds, such as the workshop's `checkout.charge`, keep their names. The function exists to keep span names low cardinality, for span metrics above all.
+
+<InLab>
+The front proxy, Envoy, names its server spans `ingress`; with `http.method` set and no route, the gateway renames them `GET`. Checkout's Go code names its Kafka span `orders publish`; the gateway turns it into `publish orders`, operation first.
+</InLab>
+
+<Trap>
+`original_span_name` exists only in this lab, because its gateway adds it; it is not a semantic convention. In a TraceQL query on another system, search by the span name or by the attributes.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> with the data source `tempo` and the query type TraceQL, time range the last hour. Find the workshop's database spans with their old names: <Query lang="traceql">{`{ resource.service.name = "workshop" && span.db.system.name = "sqlite" } | select(span.original_span_name, span.db.query.text)`}</Query> If your workshop service is stopped and the result is empty, start it and run `python load.py --duration 30` first.
+2. Do the same for product-catalog's database spans: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && span.db.system.name = "postgresql" } | select(span.original_span_name, span.server.address)`}</Query> Read the old name and the server address the new name came from.
+3. Look at checkout's producer span: <Query lang="traceql">{`{ resource.service.name = "checkout" && kind = producer } | select(span.original_span_name, span.messaging.destination.name, span.messaging.system)`}</Query>
+4. Open one workshop trace and compare the `POST /checkout` server span with the conventions above: name, kind and the required attributes.
+5. Work out the name the database rule would give product-catalog's span if its instrumentation also set `db.operation.name` to `SELECT` and `db.collection.name` to `catalog.products`, and paste it in the check below.
+</Do>
+
+<Done>
+You traced three renamed spans back to the rule each name comes from, and named a database span by the conventions yourself.
+</Done>
+
+<Trap practice>
+The rule puts the operation first and the target second, separated by one space: no colon, no dot. The collection name keeps its schema prefix, as the instrumentation would report it.
+</Trap>
+
+<Remember>
+HTTP: `{method} {target}`, never the raw path. Database: summary, then operation and target, then target, then the system. Messaging: operation and destination, still in Development.
+</Remember>
+
+<Question id="q-m07-s12" answer="c">
+An HTTP server instrumentation handles `GET /orders/8812`. Its framework gives it no route template. What should the span be named?
+
+- GET /orders/8812, because the full path is the most precise target
+
+  Instrumentation must not use the URI path as a target by default; every order would get its own span name.
+
+- /orders/{id}, made by replacing the number in the path
+
+  The target must come from the framework's route template, which is missing here. The instrumentation does not invent one.
+
+- GET, the method alone
+
+  With no low-cardinality target available, an HTTP span is named after the method alone.
+
+- HTTP GET, with the protocol in front
+
+  HTTP is used as the method only when the method is unknown (_OTHER). Here the method is known.
+</Question>

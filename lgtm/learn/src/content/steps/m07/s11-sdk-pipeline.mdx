@@ -65,7 +65,7 @@ The SDK must offer two processors. The simple processor hands each span to its e
 
 <Compare caption="The two built-in span processors">
   <Col title="Simple">One export per ended span, at once. Every span costs one call to the exporter.</Col>
-  <Col title="Batch" hot>A queue, and an export when the delay passes or a batch is full. Fewer, larger exports; the agents in this lab use it.</Col>
+  <Col title="Batch" hot>A queue, and an export when the delay passes or a batch is full. Fewer, larger exports; the workshop's agent and the beacon use it.</Col>
 </Compare>
 
 The batch processor has four settings, each with an environment variable. `OTEL_BSP_MAX_QUEUE_SIZE` is the size of the queue, 2048 spans by default; when it is full, new spans are dropped. `OTEL_BSP_SCHEDULE_DELAY` is the longest wait between two exports, 5000 milliseconds. `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` is the largest batch, 512, and it must not be larger than the queue; a full batch is exported without waiting for the delay. `OTEL_BSP_EXPORT_TIMEOUT` is how long one export may take, 30000 milliseconds.
