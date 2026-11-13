@@ -1,0 +1,193 @@
+---
+id: m07-s08
+title: Manual spans and attributes
+kind: lab
+minutes: 35
+order: 8
+exam:
+  - cert: otca
+    domain: O2
+    competency: "Signals (Tracing, Metric, Log)"
+tags: [otel-spans]
+check:
+  kind: exact
+  prompt: Paste the value of exception.type on the exception event of a failed checkout.charge span.
+  answers: ["__main__.PaymentError", "PaymentError"]
+outcome: You can create your own spans with the API, add attributes to them and to the span a library started, record events, and read how an exception sets a span's status.
+terms:
+  - term: Current span
+    def: The span held by the current context. New spans take it as their parent.
+  - term: start_as_current_span
+    def: The Python call that starts a span, makes it current for a with block and ends it when the block ends.
+  - term: Exception event
+    def: An event named exception, with the exception's type, message and stack trace as attributes.
+sources:
+  - title: Instrumentation for OpenTelemetry Python, traces
+    url: https://opentelemetry.io/docs/languages/python/instrumentation/
+    checked: 2026-11-13
+  - title: opentelemetry.trace package (OpenTelemetry Python API)
+    url: https://opentelemetry-python.readthedocs.io/en/latest/api/trace.html
+    checked: 2026-11-13
+  - title: Tracing API (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/api/
+    checked: 2026-11-13
+  - title: Semantic conventions for exceptions on spans
+    url: https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/
+    checked: 2026-11-13
+  - title: Semantic conventions for HTTP spans, status
+    url: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+    checked: 2026-11-13
+---
+
+<Problem>
+Ten percent of the workshop's checkouts fail with a 500. The trace from step 7 shows a server span marked as an error, three database spans and a call to the shop, and nothing about the card charge, because the charge is plain Python. You cannot see whether the time went into reserving stock, charging the card or storing the order.
+</Problem>
+
+<Idea>
+With the API you create spans for your own work and enrich the spans that libraries started. In Python, `tracer.start_as_current_span()` in a `with` block starts a span, makes it current so that spans inside it become its children, and ends it when the block ends. An exception that leaves the block is recorded on the span and sets its status to Error.
+</Idea>
+
+## A tracer from the API
+
+The code needs one import and one tracer, created once at module level:
+
+```python
+from opentelemetry import trace
+
+tracer = trace.get_tracer("workshop")
+```
+
+That is all the code knows about OpenTelemetry. The agent from step 7 still builds the SDK, the exporter and the sampler behind the API, as step 2 described. The name `workshop` becomes the instrumentation scope of every span this tracer creates (step 4).
+
+## A span around your own work
+
+`start_as_current_span` used as a `with` block starts a span, makes it current, and ends it when the block ends. Spans that start inside the block, from your code or from an instrumentation library, take it as their parent. The charge becomes a span of its own:
+
+```python
+def charge(total):
+    """Pretend to charge a card: a short wait, and sometimes a decline."""
+    with tracer.start_as_current_span("checkout.charge") as span:
+        span.set_attribute("workshop.order.total_usd", round(total, 2))
+        time.sleep(random.uniform(0.01, 0.05))
+        if random.random() < FAIL_RATE:
+            raise PaymentError(f"card declined for {total:.2f} USD")
+```
+
+The checkout handler gets two more spans the same way, `checkout.reserve` around the stock update and `checkout.store` around the insert, and the computation gets a span `fibonacci`. The SQLite spans of step 7 now appear under `checkout.reserve` and `checkout.store`, because those spans were current when the queries ran.
+
+## Attributes on your spans and on the server span
+
+`span.set_attribute()` adds an attribute to a span you hold. For the span that a library started, `trace.get_current_span()` returns it: inside a Flask handler that is the server span. The checkout handler puts the request's details on it:
+
+```python
+    server_span = trace.get_current_span()
+    server_span.set_attribute("workshop.sku", str(sku))
+    server_span.set_attribute("workshop.quantity", quantity if isinstance(quantity, int) else -1)
+```
+
+and, once the order is stored, `server_span.set_attribute("workshop.order.id", order_id)`. An attribute value must be a string, a boolean, a number, or an array of these, which is why the code turns an unknown SKU into a string and an odd quantity into `-1`. The workshop's own attributes all start with `workshop.`, so they cannot be mistaken for the names of a semantic convention.
+
+## Events, exceptions and status
+
+`span.add_event()` records a moment with a time and attributes of its own. The reserve span gets an event `stock reserved` with the stock left after the update, or `out of stock` when there is not enough.
+
+A declined charge raises `PaymentError` inside the `checkout.charge` block. By default, Python's `start_as_current_span` does two things when an exception leaves the block: it records an exception event, and it sets the span's status to Error with the exception as description. You can switch either off with `record_exception=False` or `set_status_on_exception=False`. The event is named `exception` and carries `exception.type`, `exception.message` and `exception.stacktrace`.
+
+The handler catches the exception and answers 500, so the Flask server span ends with status Error as well: the HTTP conventions set Error on a server span for a 5xx response, and leave it Unset for a 4xx.
+
+<Compare caption="The same failed checkout, before and after this step">
+  <Col title="Step 7, zero-code">POST /checkout with status Error, three database spans, one GET to the shop. No sign of the charge.</Col>
+  <Col title="Step 8, manual spans" hot>checkout.reserve with its event, GET, checkout.charge with status Error and an exception event, the SKU and quantity on the server span.</Col>
+</Compare>
+
+The semantic convention page for exceptions on spans is now marked Deprecated and points to exceptions in logs instead. Instrumentations keep the span event by default for now, and the Trace API still describes recording an exception as an event.
+
+<InLab>
+`workshop.order.total_usd` is a float, and Tempo keeps its type, so TraceQL can compare it with another float: `{ span.workshop.order.total_usd > 300.0 }` finds the expensive orders. Written as `300`, an integer, the same query found nothing on the lab.
+</InLab>
+
+<Trap>
+`start_span` without `as_current` starts a span but does not make it current: spans started afterwards do not become its children. Use `start_as_current_span` unless you manage the context yourself.
+</Trap>
+
+<Do>
+1. Keep the changes of step 7. Stop the service if it runs. In `app.py`, add the import below the other imports and the tracer below `app = Flask(__name__)`:
+
+   ```python
+   from opentelemetry import trace
+   ```
+
+   ```python
+   tracer = trace.get_tracer("workshop")
+   ```
+
+2. Replace the function `charge` with the version in the Learn tab, section "A span around your own work".
+3. In `compute`, add the first line below the check of `n`, and wrap the call to `fibonacci` in a span:
+
+   ```python
+       trace.get_current_span().set_attribute("workshop.compute.n", n)
+       started = time.perf_counter()
+       with tracer.start_as_current_span("fibonacci") as span:
+           result = fibonacci(n)
+           span.set_attribute("workshop.compute.result", result)
+   ```
+
+4. In `checkout`, add the three `server_span` lines from the Learn tab right after `quantity = body.get("quantity", 1)`. Then change the reserve block, the store block and the line after it:
+
+   ```python
+       with tracer.start_as_current_span("checkout.reserve") as span, db_lock, db() as cur:
+           stock = cur.execute("SELECT stock FROM inventory WHERE sku = ?", (sku,)).fetchone()[0]
+           span.set_attribute("workshop.stock.before", stock)
+           if stock < quantity:
+               span.add_event("out of stock")
+               return jsonify(error="out of stock", sku=sku, stock=stock), 409
+           cur.execute("UPDATE inventory SET stock = stock - ? WHERE sku = ?", (quantity, sku))
+           span.add_event("stock reserved", {"workshop.stock.after": stock - quantity})
+   ```
+
+   ```python
+       with tracer.start_as_current_span("checkout.store"), db_lock, db() as cur:
+           cur.execute(
+               "INSERT INTO orders VALUES (?, ?, ?, ?, ?)", (order_id, sku, quantity, total, time.time())
+           )
+       server_span.set_attribute("workshop.order.id", order_id)
+   ```
+
+5. Compare with the solution; only the docstring at the top should differ: <Cmd>git diff --no-index app.py solutions/02-manual-spans/app.py</Cmd>
+6. Start the service with <Cmd>python run.py</Cmd> and make traffic in a second terminal: <Cmd>python load.py --duration 60</Cmd>
+7. In <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, data source `tempo`, find a declined charge: <Query lang="traceql">{`{ resource.service.name = "workshop" && name = "checkout.charge" && status = error }`}</Query> Open the trace. Read the status and its description on `checkout.charge`, open its exception event, and see the status of `POST /checkout`.
+8. In a successful checkout, find the event `stock reserved` on `checkout.reserve` and the attributes `workshop.sku` and `workshop.order.id` on the server span. Then find a `fibonacci` span: <Query lang="traceql">{`{ resource.service.name = "workshop" && name = "fibonacci" }`}</Query>
+9. Paste the `exception.type` of the exception event in the check below. Leave the service running for step 9, or stop it.
+</Do>
+
+<Done>
+Your trace now shows the stock reservation, the charge and the order insert as spans of their own, with the failed charge marked as an error and its exception recorded as an event.
+</Done>
+
+<Trap practice>
+Python is strict about indentation: the new `with` lines keep the indentation of the lines they replace, and the code inside them moves one level in. If the service does not start, `run.py` prints the line that failed. A `with` that holds three things (`tracer...`, `db_lock`, `db() as cur`) is one line.
+</Trap>
+
+<Remember>
+`tracer = trace.get_tracer(...)` once; `with tracer.start_as_current_span(...) as span:` around your own work; `trace.get_current_span()` to enrich the library's span. An exception that leaves the block becomes an event and sets Error.
+</Remember>
+
+<Question id="q-m07-s08" answer="c">
+Python code raises an exception inside `with tracer.start_as_current_span("charge"):` and does not catch it inside the block. With default arguments, what happens to the span?
+
+- It stays open, because the block did not finish normally
+
+  Leaving the with block ends the span whether or not an exception was raised.
+
+- It is ended with status Ok, because the SDK only records outcomes the code sets
+
+  Nothing sets Ok by itself. The defaults record the exception and set Error.
+
+- It records an exception event and gets status Error, then ends
+
+  record_exception and set_status_on_exception both default to True for start_as_current_span.
+
+- It is dropped, so failed operations do not reach the backend
+
+  The span is exported like any other. The exception makes it more useful, not less.
+</Question>
