@@ -191,7 +191,7 @@ Rules for every question, on a step or in a pool:
 
 1. Four options (five with two answers), one explanation per option. Options are shuffled on screen, so nothing refers to a position, and there is no "all of the above" or "none of the above".
 2. One clearly best answer. Wrong options are things a learner with a real misconception would choose, each explained by what is wrong with it.
-3. The right answer does not stand out by length or by careful wording. Measure the option lengths over the pool and even them out; in the pilot's first draft 25 of 39 right answers were the longest option.
+3. The right answer does not stand out by length or by careful wording, in either direction. Measure the option lengths over the pool: the right answer should be the longest option in about a quarter of the questions (between a sixth and a third), with its average length within 5% of the wrong ones. In the pilot's first draft 25 of 39 right answers were the longest; the first modules then overcorrected to 2 or 3 in 40 or more, which is a tell of its own.
 4. `source` is the page that states the fact the right answer depends on, not a page near the topic. A wrong option's explanation that states how a product behaves needs a page too, named in the log.
 5. An explanation never starts with "Correct." or "Right:"; the site prints that.
 6. In YAML only `<b>` and `<code>`, never backticks. Mind YAML: a plain value with a colon and a space breaks the file, a competency with commas inside `{...}` must be quoted, an option that is a bare number must be quoted.
@@ -208,13 +208,14 @@ A tag names a topic that the steps of one module teach. Tags tie a missed questi
 3. **An article, not a list.** Sections follow each other as one explanation: each starts from what the one before left open. No section that is only a list of facts; no heading such as "Details" or "More".
 4. **Plain English.** English is the reader's second language. Short sentences, common words, one idea per sentence, no idioms. Define a term the first time it appears and put it in `terms`.
 5. **Checked facts only.** Every technical statement comes from an official page fetched in this session: grafana.com/docs, prometheus.io, opentelemetry.io, kubernetes.io, helm.sh, the projects' GitHub repositories, and sre.google for SLO vocabulary and the golden signals. Put the page in `sources` with the date. A blog post may point you to a page; it is not a source. Fetch the pages at the start, keep them as text, and search them while you write. If a page contradicts the outline in `01-curriculum.md`, the page wins and the pull request says so.
-6. **Words about status match a page.** Stable, beta, alpha, experimental, deprecated, GA, in development: only as a cited page says it. For OpenTelemetry signals the status page is the source, and the sentence says which part is meant (API, SDK or protocol).
-7. **Versions.** Write for the versions pinned in the lab's `VERSION` files (`00-overview.md`, section 6). Name a version only where behaviour depends on it. Names of buttons and screens come from the version in the lab; record that version in the log, not in the text.
-8. **Lab steps are run.** Run every action on the lab and paste the decisive output into the verification log. If the lab is down, mark the rows `lab-unverified` and say so in the pull request.
-9. **Clean up.** A step that turns a fault flag on turns it off in its last action and says how to check it is off. Anything a step creates in the cluster goes into a namespace of its own and is removed at the end of the step or the module.
-10. **Through the humanizer.** Pass the finished text through the `humanizer` skill, then check every fact, number, name, command and query against the log again.
-11. **Ids.** Never rename or reuse a step id or a question id. They key the learner's saved progress.
-12. **No copied text.** Explain in your own words; link the source. Nothing from documentation, courses, books or exam-preparation sites is pasted or adapted.
+6. **Named behaviour is read at its source.** Before a step says what an alert, a recording rule, a dashboard panel or a default setting does, read its definition: the rule's expression in the chart's rule file, the panel's query, the value in the chart's `values.yaml`. A name is not a description (in module m06 a step said `KubeSchedulerDown` fires for a target that cannot be reached; its expression is `absent(up{...})`, which is something else). The file, at the pinned version, is the source.
+7. **Words about status match a page.** Stable, beta, alpha, experimental, deprecated, GA, in development: only as a cited page says it. For OpenTelemetry signals the status page is the source, and the sentence says which part is meant (API, SDK or protocol).
+8. **Versions.** Write for the versions pinned in the lab's `VERSION` files (`00-overview.md`, section 6). Name a version only where behaviour depends on it. Names of buttons and screens come from the version in the lab; record that version in the log, not in the text.
+9. **Lab steps are run.** Run every action on the lab and paste the decisive output into the verification log. If the lab is down, mark the rows `lab-unverified` and say so in the pull request.
+10. **Clean up.** A step that turns a fault flag on turns it off in its last action and says how to check it is off. Anything a step creates in the cluster goes into a namespace of its own and is removed at the end of the step or the module.
+11. **Through the humanizer.** Pass the finished text through the `humanizer` skill, then check every fact, number, name, command and query against the log again.
+12. **Ids.** Never rename or reuse a step id or a question id. They key the learner's saved progress.
+13. **No copied text.** Explain in your own words; link the source. Nothing from documentation, courses, books or exam-preparation sites is pasted or adapted.
 
 ## Verification log
 

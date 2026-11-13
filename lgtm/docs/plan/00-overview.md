@@ -7,6 +7,8 @@ Status on 2026-11-11: wave 3 is merged (pull requests 34 to 38). The lab is acce
 Status on 2026-11-11, evening: wave 4 is nearly done. Both mock exam pools are merged (pull requests 42 and 43; 113 OTCA and 109 PCA questions). The design session DZ has built the new page and the article form of a step, and the owner approved that form on two specimen steps; its pull request 44 is open while DZ does its last checks. The content contract is at version 2 and the tag list exists (`04-tags.md`). At the owner's request wave 5 (cards C0b, C1 and C2) starts now, on a base branch that holds main plus DZ's branch; its pull requests are merged after pull request 44.
 
 Status on 2026-11-12: pull request 44 is merged (the redesigned site and the article form). Wave 5 is merged after QA: module m02 in the article form (pull request 46), m00 and m01 Helm (49), m03 Prometheus fundamentals (48); 54 steps and 126 module questions are on main. During that QA the planner found the lab's Kafka down since 2026-11-11 17:57 UTC: its three 5 Gi volumes had filled, because retention was set by time only. Mimir and Tempo have stored nothing since. Card L5 repairs it and gives Kafka a ceiling by size; it is the first card of wave 6. One end-to-end test of the site (`tests/e2e/quiz.spec.ts`, the long quiz test) is flaky in CI; the design session was asked to make it robust.
+
+Status on 2026-11-12, night: the lab is repaired. Card L5 gave Kafka 10 Gi volumes and a ceiling of 640 MiB per partition (pull request 54; ingest back at 12:02 UTC, so Mimir and Tempo have a gap from 2026-11-11 17:57 UTC). Its follow-up (pull request 55) raised the object store's memory limit to 1536Mi after four restarts, one of them set off by a heavy log query, and spread the Kafka replicas over the workers with Longhorn data locality; `make lab-check` now also fails on a volume above 85% and on a Longhorn disk under 25% free. The flaky quiz test is fixed (pull request 52). Of wave 6, modules m04 PromQL (53) and m06 Kubernetes monitoring (56) are merged, so main has 80 steps in six modules; m05 Grafana core is written and in QA (pull request 57). Things to remember: worker2 is at 90% of its memory requested; a worker session cannot change the shared cluster unless the owner allows it in that session; Loki's query limits are still the defaults, a subject for module m12.
 The research behind the plan is in `../research/`; decisions taken by workers are in `../adr/`.
 
 ## 1. What we are building
@@ -177,8 +179,9 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | 6 | C3 PromQL | module m04 | 14 steps, most of them with queries run on the lab |
 | 6 | C4 Grafana core | module m05 | 12 steps that build one dashboard a team would keep |
 | 6 | C5 Kubernetes monitoring | module m06 | 12 steps on where cluster metrics and logs come from |
-| 7 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
-| 7 to 10 | C6 to C16 content | one module each | Modules m07 to m17, three sessions at a time, in order |
+| 7 | C6, C7, C8 | modules m07, m08, m09 | OpenTelemetry: the model and tracing; metrics, logs and configuration; the Collector |
+| 8 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
+| 8 to 10 | C9 to C16 content | one module each | Modules m10 to m17, three sessions at a time, in order |
 | 11 | C17 capstone | module m18 | Game days, interview bank, the exam steps (the mock pools exist since wave 4) |
 | 11 | QA sweep | none (planner) | Full walk-through on the live lab, link check, release |
 

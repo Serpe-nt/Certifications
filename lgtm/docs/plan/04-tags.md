@@ -2,7 +2,7 @@
 
 A tag names one topic. Steps teach tags, questions carry them, and the site uses them to send a learner from a missed question back to the steps that teach it and to build weak-spot practice. `npm run check:content` fails a module pool question whose tag no step teaches.
 
-Owned by the planner. Version 2 (2026-11-12): tags for m04 to m06 added for wave 6. Version 1 (2026-11-11) was built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
+Owned by the planner. Version 3 (2026-11-13): four tags added for m07 to m09 (wave 7). Version 2 (2026-11-12): tags for m04 to m06 added for wave 6. Version 1 (2026-11-11) was built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
 
 ## Rules
 
@@ -130,6 +130,7 @@ No quiz, so no question carries these; steps still need a tag.
 
 | Tag | Steps | Mock (OTCA) |
 |---|---|---|
+| `otel-overview` | 1 | 0 |
 | `otel-api-sdk` | 2 | 4 |
 | `otel-resources` | 3 | 4 |
 | `otel-instrumentation-scope` | 4 | 2 |
@@ -150,6 +151,8 @@ No quiz, so no question carries these; steps still need a tag.
 | `otel-declarative-config` | 9 | | 2 |
 | `otel-zero-code` | 11 | m07 step 7 | 5 |
 | `otel-operator` | 11 | | 2 |
+| `otel-sdk-extension` | 10 | | 0 |
+| `otel-sdk-debugging` | 13 | | 0 |
 | `otel-error-handling` | 14 | | 3 |
 
 ## m09 OpenTelemetry Collector
@@ -168,6 +171,7 @@ No quiz, so no question carries these; steps still need a tag.
 | `collector-reliability` | 12 | 6 |
 | `collector-debugging` | 13 | 6 |
 | `otel-schemas` | 14 | 3 |
+| `collector-opamp` | 15 | 0 |
 
 ## m15 Alerting, SLOs and on-call
 

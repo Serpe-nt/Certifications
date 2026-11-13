@@ -68,6 +68,16 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - Host ports, all on 127.0.0.1: C3 uses 8097, C4 8098, C5 8100 for the site (8099 is held by something else on this PC). Port-forwards: C3 18100 to 18109, C4 18110 to 18119, C5 18120 to 18129, L5 18130 to 18139.
 - No kind clusters.
 
+## Wave 7
+
+- Worktrees are cut from `main`. The lab is repaired (cards L5 and L5b): Kafka has a ceiling by size, the object store has more memory, and `make lab-check` also fails on a volume above 85% and on a Longhorn disk under 25% free. Mimir and Tempo have a gap from 2026-11-11 17:57 UTC to 2026-11-12 12:02 UTC.
+- The workers are close to their memory limit (worker1 at 87% in use, worker2 at 90% requested). C6 and C7 create nothing in the cluster. C8 runs one small practice Collector in `learn-m09`.
+- The owner is away for the night of 2026-11-13 and said in the planner's session: "I give you my approval for all tasks they may need (if the claude app prompts me, I approve before hand)". That covers what your card asks you to do: your practice namespace, your fault flag, your test servers. It does not widen your card, and it is not a password: nobody can sign in to Grafana for you tonight. Do everything that does not need the owner, log the Grafana clicks you could not do as `lab-unverified`, and do not wait for an answer.
+- Grafana: no session types a password or reads the admin password from the cluster. Evidence comes from the APIs of Tempo, Loki, Mimir and Prometheus through the lab gateway, and from logs.
+- The workshop service listens on port 8000 by default. While testing, C6 runs it on 8001 and C7 on 8002; the lessons are written for the default.
+- Host ports, all on 127.0.0.1: C6 uses 8097, C7 8098, C8 8100 for the site. Port-forwards: C6 18100 to 18109, C7 18110 to 18119, C8 18120 to 18129.
+- No kind clusters.
+
 ## Pull request text
 
 - Title: `[lgtm <card id>] <what it delivers>`
@@ -100,5 +110,8 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 6 | `w6-c3-promql.md` | C3 module m04 PromQL |
 | 6 | `w6-c4-grafana-core.md` | C4 module m05 Grafana core |
 | 6 | `w6-c5-kubernetes-monitoring.md` | C5 module m06 Kubernetes monitoring |
+| 7 | `w7-c6-otel-tracing.md` | C6 module m07 OpenTelemetry: the model and tracing |
+| 7 | `w7-c7-otel-metrics-logs-config.md` | C7 module m08 OpenTelemetry: metrics, logs and configuration |
+| 7 | `w7-c8-otel-collector.md` | C8 module m09 OpenTelemetry Collector |
 
-Cards for wave 7 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
+Cards for wave 8 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
