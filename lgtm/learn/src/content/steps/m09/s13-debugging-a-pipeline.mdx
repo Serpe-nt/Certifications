@@ -76,7 +76,7 @@ The troubleshooting page adds a checklist for each hop: errors in the log, how d
 </Layers>
 
 <InLab>
-When this module was written, the gateway logged `Error scraping metrics` from `kafka_metrics` about four times a minute, with `lookup kafka on 10.96.0.10:53: no such host`. The shop's Kafka broker announces itself as `kafka:9092`, a short name that resolves only inside the namespace `shop`. The scraper's errored-points counter stayed at 0, so only the log showed it. Check with: <Cmd>{`kubectl -n otel logs deploy/otel-gateway --since=5m | grep -c 'Error scraping metrics'`}</Cmd>
+When this module was written, the gateway logged `Error scraping metrics` from `kafka_metrics` about four times a minute, with `lookup kafka on 10.96.0.10:53: no such host`. The shop's Kafka broker announced itself as `kafka:9092`, a short name that resolves only inside the namespace `shop`. The scraper's errored-points counter stayed at 0, so only the log showed it. The lab was fixed when it was rebuilt: the broker now announces `kafka.shop.svc:9092`, and the gateway sends `kafka_brokers` and `kafka_topic_partitions` to Mimir. This check counts the errors of the last five minutes in one gateway pod, and prints 0 on a healthy lab: <Cmd>{`kubectl -n otel logs deploy/otel-gateway --since=5m | grep -c 'Error scraping metrics'`}</Cmd>
 </InLab>
 
 <Trap>
