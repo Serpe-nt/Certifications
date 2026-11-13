@@ -1,0 +1,142 @@
+---
+id: m05-s05
+title: Units, thresholds, legends, and the right panel
+kind: lab
+minutes: 20
+order: 5
+exam:
+  - cert: pca
+    domain: P5
+    competency: Dashboarding basics
+tags: [dashboard-panels]
+check:
+  kind: token
+  slot: metric-m05-1
+  prompt: Paste the beacon's token for the slot metric-m05-1, as your Stat panel shows it with every digit.
+outcome: You can give a panel the right unit, decimals and thresholds, tidy its legend, and pick between a time series, a stat, a gauge and a table.
+terms:
+  - term: Standard options
+    def: Display settings every visualization shares, such as unit, min, max and decimals.
+  - term: Unit
+    def: How Grafana formats a number for display, such as seconds, percent or requests per second.
+  - term: Threshold
+    def: A value from which Grafana draws a panel in another colour.
+  - term: Base threshold
+    def: The first threshold, which stands for every value below the next one.
+  - term: Override
+    def: A rule that changes options for some fields of a panel only.
+  - term: Calculation
+    def: The function a stat or gauge uses to turn a series into one value, such as Last or Mean.
+sources:
+  - title: Configure standard options (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/configure-standard-options/
+    checked: 2026-11-12
+  - title: Configure thresholds (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/configure-thresholds/
+    checked: 2026-11-12
+  - title: Configure a legend (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/configure-legend/
+    checked: 2026-11-12
+  - title: Configure field overrides (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/configure-overrides/
+    checked: 2026-11-12
+  - title: Stat (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/visualizations/stat/
+    checked: 2026-11-12
+  - title: Visualizations (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/visualizations/
+    checked: 2026-11-12
+---
+
+<Problem>
+At 2 a.m. the on-call engineer opens the checkout dashboard. A panel says 0.0312. Is that seconds or milliseconds, an error share or a count, and is it good or bad? They lose ten minutes finding out, then learn it was 3.12% of requests failing.
+</Problem>
+
+A panel that shows the right number in the wrong form still fails its reader. Most of the fix sits in a few options.
+
+<Idea>
+Display options change how Grafana shows a value, never the value itself. A unit tells the reader what the number means, thresholds colour it by how good or bad it is, and a clean legend names each line. Choosing the visualization that fits the question does the rest.
+</Idea>
+
+## Standard options: unit, range and decimals
+
+Most visualizations share a section called **Standard options**. What you set there applies to every field in the panel. **Unit** is the most important: Grafana then formats the value for you, so 0.0312 with the unit for a share between 0 and 1 reads as 3.12%, and 0.250 in seconds reads as 250 ms. **Min** and **Max** fix the range that percentage thresholds and gauges measure against. **Decimals** sets how many decimal places to show; left empty, Grafana picks a number for you. **No value** sets the text for an empty result, a hyphen by default.
+
+When one field of a panel needs different options, an override changes them for that field only. For example, a panel with requests and bytes can give only the bytes field the unit for bytes.
+
+## Thresholds colour a value
+
+A threshold is a value from which the panel turns another colour. A new panel has two: the base in green, and 80 in red. The base stands for every value below the next threshold, down to minus infinity. Thresholds can be absolute numbers or percentages of the range between Min and Max. Grafana sorts them from high to low by itself.
+
+<Figures caption="An error share with three thresholds" unit="Share of failed requests">
+  <Stat label="Base, green" value="below 1%" amount={1} max={10} />
+  <Stat label="Orange" value="from 1%" amount={1} max={10} />
+  <Stat label="Red" value="from 5%" amount={5} max={10} hot />
+</Figures>
+
+A stat colours its value or its background. A time series can draw thresholds as lines or filled regions behind the graph, so the reader sees how close a line came to the red zone.
+
+## Legends name the lines
+
+A time series names each series in its legend. In the query, the **Legend** option decides the name: **Auto** shows only the labels that differ between lines, and **Custom** prints a template you write, such as `{{span_name}}`. In the panel options, the legend can sit at the bottom or on the right, as a list or as a table, and it can add values such as the last or the maximum.
+
+## Pick the visualization by the question
+
+A stat or a gauge shows one value, so it needs a calculation that reduces a whole series to one number. **Last** takes the newest point, **Mean** the average over the time range. The choice changes the answer: the mean error share over a day hides a bad five minutes that **Max** would show.
+
+<Compare caption="Which visualization answers which question">
+  <Col title="Time series" hot>How did it change? Rates, latency and anything you compare over time.</Col>
+  <Col title="Stat or gauge">What is it now? One number, coloured by thresholds.</Col>
+  <Col title="Table">How do many things compare? One row per series, sortable.</Col>
+</Compare>
+
+<InLab>
+The beacon publishes each check token of the course as the value of `lab_beacon_value`, a number of up to six digits. It is a good test of how a unit and the default thresholds change what a reader sees.
+</InLab>
+
+<Trap>
+A unit changes the label, not the data. If a metric counts milliseconds and you choose seconds, Grafana shows 250 ms as 250 s. Pick the unit the data is in, and let Grafana scale it for display.
+</Trap>
+
+<Remember>
+Every panel gets a unit, and every number that can be good or bad gets thresholds. Choose the visualization by the question the panel answers.
+</Remember>
+
+<Do>
+1. Open your dashboard `Shop service (m05)` and click **Edit**. Open the menu of the panel Requests per second and choose **Edit**.
+2. Click the search icon at the top of the options on the right and type `Unit`. Open the unit list and choose **Throughput** > **requests/sec (rps)**; the axis now reads `req/s`. Search for `Legend` and set **Mode** to **Table**, **Placement** to **Right**, and **Values** to **Last \***. In the query's **Options**, set **Legend** to **Custom** and type `{{span_name}}`. Click **Back**.
+3. Click **Add panel**, then **Configure visualization**, and enter this query on **Mimir**, the error share of checkout. Click **Run queries**: <Query lang="promql">{`(sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[$__rate_interval])) or vector(0)) / sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))`}</Query>
+4. Pick the suggestion **Stat**, title it `Error share`, and set the unit to **Misc** > **Percent (0.0-1.0)**. Search for `Thresholds`: you see the defaults, **80** in red over **Base** in green. Change 80 to `0.05`, click **Add threshold** and set the new one to `0.01`. Grafana sorts them and gives the new one its own colour. With no fault flag on, the panel shows `0%`. Click **Back**.
+5. Add one more panel on **Mimir** with this query and pick **Stat**: <Query lang="promql">{`lab_beacon_value{slot="metric-m05-1"}`}</Query> The token shows in red: the default threshold colours every value from 80 up, although a token is neither good nor bad. Search for `Color mode` and set it to **None**.
+6. Set the unit to **Misc** > **short** and watch the number shrink to something like `350 K`. Set it to **Misc** > **Number**, and every digit shows again. Title the panel `Beacon token`.
+7. Click **Save**, then **Save** in the drawer, then **Back** and **Exit edit**.
+8. Paste the number from the panel Beacon token in the lab check below.
+</Do>
+
+<Done>
+The dashboard shows Requests per second in req/s with a table legend, Error share as a percentage with three thresholds, and the beacon's token with every digit and no colour.
+</Done>
+
+<Trap practice>
+A stat shows the result of its calculation. If the token looks wrong, check that the query returns exactly one series: a typo in the slot name gives no data, and a missing filter gives one stat per slot. If it shows a K, the unit is still short.
+</Trap>
+
+<Question id="q-m05-s05" answer="c">
+A latency metric is recorded in milliseconds. A panel shows a typical request as 250 s, which is far too slow to be true. What went wrong?
+
+- The query needs rate() around the metric
+
+  rate() turns a counter into a per-second rate. It does not change the unit a value was recorded in.
+
+- The panel needs more decimals to show the real value
+
+  Decimals change how many digits appear after the point, not whether the value is read as seconds.
+
+- The panel's unit is seconds while the data is in milliseconds
+
+  A unit only labels and scales the number. Set it to the unit the data is in, here milliseconds.
+
+- The stat calculation should be Mean instead of Last
+
+  The calculation picks which value to show. A wrong unit stays wrong with any calculation.
+</Question>

@@ -1,0 +1,135 @@
+---
+id: m05-s11
+title: Folders, teams, roles and service accounts
+kind: lab
+minutes: 22
+order: 11
+exam:
+  - cert: none
+tags: [grafana-access]
+check:
+  kind: exact
+  prompt: Paste the HTTP status code Grafana returned when the Viewer service account tried to create a folder.
+  answers: ["403"]
+outcome: You can give a team access to one folder, and give a script its own service account with the smallest role and a short-lived token.
+terms:
+  - term: Organization role
+    def: Viewer, Editor or Admin; sets what a user may do across one organization.
+  - term: Folder permission
+    def: View, Edit or Admin on one folder, passed to everything inside it.
+  - term: Team
+    def: A group of users that receives permissions together.
+  - term: Service account
+    def: An identity for a program, not a person, with its own role and tokens.
+  - term: Service account token
+    def: A random string a program sends instead of a password to call Grafana's API.
+  - term: Server administrator
+    def: A Grafana-wide role for organizations, users and server settings, separate from an organization's Admin.
+sources:
+  - title: Roles and permissions (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/roles-and-permissions/
+    checked: 2026-11-12
+  - title: Folder access control (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/roles-and-permissions/folder-access-control/
+    checked: 2026-11-12
+  - title: Configure Grafana teams (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/team-management/configure-grafana-teams/
+    checked: 2026-11-12
+  - title: Service accounts (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/service-accounts/
+    checked: 2026-11-12
+  - title: Data source management, permissions (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/data-source-management/
+    checked: 2026-11-12
+---
+
+<Problem>
+A script that backs up dashboards every night signs in as a colleague who left the company last month. When their account was removed, the backups stopped, and nobody noticed for three weeks. The same script could also have deleted every dashboard: it had the colleague's Admin role.
+</Problem>
+
+People and programs both need access to Grafana. Each should get exactly the access its work needs, tied to something that does not leave with a person.
+
+<Idea>
+Grafana grants access in layers. An organization role sets the baseline for a user, folder permissions widen or narrow it for the dashboards inside, and teams let you grant to a group at once. Programs get a service account: an identity of their own, with its own role and tokens that do not depend on any user.
+</Idea>
+
+## Roles set the baseline
+
+Every user belongs to at least one organization and has a role in it. A Viewer can view dashboards and query data sources. An Editor can also create, edit and delete dashboards and folders, and use Explore. An Admin manages everything in the organization, including users, teams and data sources. A fourth basic role, with no permissions at all, is for setups that grant everything through finer rules.
+
+The server administrator is something else: a Grafana-wide role that manages organizations and users and can view the server-wide settings. It is not the organization's Admin, though one person can hold both.
+
+<Layers caption="Grafana's access layers, from wide to narrow">
+  <Layer title="Server administrator">The whole Grafana: organizations, users, a view of server settings.</Layer>
+  <Layer title="Organization role">Viewer, Editor or Admin, across one organization.</Layer>
+  <Layer title="Folder permission">View, Edit or Admin on one folder and everything in it.</Layer>
+  <Layer title="Dashboard permission" hot>One dashboard, when a folder is too wide.</Layer>
+</Layers>
+
+## Folders are the boundary
+
+Folders are the main way to control who sees and changes what. A permission on a folder passes to its subfolders and to everything inside them: dashboards, alert rules, library panels. The levels are View, Edit and Admin, and only Admin may change the permissions themselves. A folder made on the screen starts with View for Viewers, Edit for Editors and Admin for Admins. Permissions set on a folder or dashboard override what the organization role alone would allow.
+
+A team is a group of users. Instead of adding five people to a folder one by one, you add the team once. People join and leave the team, and the folder's permissions stay right.
+
+## Service accounts for programs
+
+A service account is not a user. It has its own role (Viewer, Editor, Admin or none), it can be switched off, and it holds one or more tokens. A token is a random string that a program sends instead of a password to Grafana's HTTP API. Because the account belongs to no person, it keeps working when people leave. Separate tokens per program let you see which program did what and replace one token without touching the others.
+
+By default a token never expires. Grafana's advice, when you are unsure, is to let it expire after a short time.
+
+<Compare caption="Who is it for?">
+  <Col title="User">A person who signs in. Role in the organization, membership in teams.</Col>
+  <Col title="Service account" hot>A program. Its own role, its own tokens, independent of any person.</Col>
+</Compare>
+
+<InLab>
+The lab has one user, `admin`, which is both the server administrator and the organization's Admin. Its data sources are open to every role for queries, as Grafana allows by default.
+</InLab>
+
+<Trap>
+Folder permissions do not limit what a user can query. By default a Viewer can send any query to any data source, even for data no dashboard of theirs shows. Data source permissions are a feature of Grafana Enterprise and Grafana Cloud.
+</Trap>
+
+<Remember>
+Grant to teams on folders, not to people on dashboards. Give each program its own service account with the smallest role and a token that expires.
+</Remember>
+
+<Do>
+1. Open **Administration** > **Users and access** > **Teams** and click **New team**. Name it `learn-m05`, leave **Auto-create a team folder** off, and click **Create**. Grafana reports **Team created successfully**; you, as its creator, are its first member.
+2. Open <LabLink to="grafana" path="/dashboards">Dashboards</LabLink>, open the folder `Learn m05`, and choose **Folder actions** > **Manage permissions**. Read the defaults: Admin, Editor and Viewer roles with Admin, Edit and View, and your own user with Admin. Click **Add a permission**, choose **Team**, select `learn-m05`, keep **View** and click **Save**.
+3. Open **Administration** > **Users and access** > **Service accounts** and click **Add service account**. Set the **Display name** to `learn-m05-reader`, keep the **Role** **Viewer** and click **Create**.
+4. Click **Add service account token**, set the display name to `m05`, choose **Set expiration date** (it proposes tomorrow) and click **Generate token**. Grafana says to copy the token now, because you will not see it again. Copy it, keep it in your terminal only, and click **Close**.
+5. In WSL, read with the token, putting your token in place of TOKEN: <Cmd>{`curl -s -o /dev/null -w '%{http_code}\\n' -H 'Host: grafana.lab.k8s.local' -H 'Authorization: Bearer TOKEN' http://10.10.0.5/apis/folder.grafana.app/v1/namespaces/default/folders`}</Cmd> Grafana answers 200: a Viewer may list folders. The address is one of the `/apis` endpoints that Grafana 13 moves to; the older `/api` paths are deprecated.
+6. Now try to create a folder with the same token: <Cmd>{`curl -s -o /dev/null -w '%{http_code}\\n' -X POST -H 'Host: grafana.lab.k8s.local' -H 'Authorization: Bearer TOKEN' -H 'Content-Type: application/json' -d '{"metadata":{"generateName":"m05"},"spec":{"title":"m05 should fail"}}' http://10.10.0.5/apis/folder.grafana.app/v1/namespaces/default/folders`}</Cmd> Note the status code.
+7. Clean up: on the service account's page click **Delete service account** and confirm (its token goes with it). In the folder's **Manage permissions**, remove the team's entry with its trash icon. On the **Teams** page, delete `learn-m05`.
+8. Paste the status code from action 6 in the lab check below.
+</Do>
+
+<Done>
+The Viewer service account could read but not create, and the team, its folder permission and the service account are gone again.
+</Done>
+
+<Trap practice>
+If the first request returns 401, the token is wrong or was not copied whole: Grafana shows it only once, so generate a new one. Never paste a real token into a chat, a ticket or a file you commit.
+</Trap>
+
+<Question id="q-m05-s11" answer="a">
+A nightly script exports dashboards through Grafana's API. Which setup fits best?
+
+- A service account with the Viewer role and its own token
+
+  The account belongs to no person, and Viewer is enough to read dashboards.
+
+- The admin user's password, stored in the script's settings
+
+  The admin can change everything, and the script breaks when the password changes.
+
+- A personal account of the engineer who wrote the script
+
+  The script stops working when that person leaves, as in the scene above.
+
+- A service account with the Admin role, to be safe
+
+  Admin can delete everything. Reading dashboards needs only Viewer.
+</Question>

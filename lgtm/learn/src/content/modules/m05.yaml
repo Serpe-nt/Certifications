@@ -1,0 +1,6 @@
+id: m05
+title: Grafana core
+goal: Build a dashboard a team would keep, with variables, units, thresholds and links, and share it safely.
+order: 5
+quiz: true
+exams: [pca]
