@@ -1,0 +1,163 @@
+---
+id: m09-s12
+title: "Reliability: queues, retries and back-pressure"
+kind: lab
+minutes: 25
+order: 12
+exam:
+  - cert: otca
+    domain: O4
+    competency: Error Handling
+tags: [collector-reliability]
+check:
+  kind: exact
+  prompt: Paste the error text the exporter logs when it rejects data because its queue has no room.
+  answers: ["sending queue is full"]
+outcome: You can size an exporter's queue and retries, say in which situations a Collector loses data, and watch a queue fill up and push back on the sender.
+terms:
+  - term: Sending queue
+    def: The buffer in front of an exporter that holds batches while they wait to be sent or retried; 1000 requests by default.
+  - term: retry_on_failure
+    def: The exporter setting for retries with exponential backoff, by default for up to 300 seconds per batch.
+  - term: Persistent queue
+    def: A sending queue stored on disk through a storage extension such as file_storage, so it survives a restart.
+  - term: Permanent error
+    def: An error that retrying cannot fix, such as a rejected payload; the data is dropped at once.
+sources:
+  - title: Resiliency (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/resiliency/
+    checked: 2026-11-13
+  - title: Exporter helper, queue and retry settings (opentelemetry-collector v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/exporter/exporterhelper/README.md
+    checked: 2026-11-13
+  - title: Internal telemetry, queue length and receive failures (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/internal-telemetry/
+    checked: 2026-11-13
+  - title: Memory limiter processor (opentelemetry-collector v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/processor/memorylimiterprocessor/README.md
+    checked: 2026-11-13
+  - title: File storage extension (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/extension/storage/filestorage/README.md
+    checked: 2026-11-13
+---
+
+<Problem>
+On 12 November 2026 the lab's Kafka filled its disks, and Tempo and Mimir stopped accepting writes. From 04:16 to 12:16 UTC the gateway's queues for Tempo and Mimir stood at 1000 of 1000, and in one day more than three million spans could not even enter a queue. The gateway itself stayed healthy the whole time; it simply had nowhere to put the data.
+</Problem>
+
+Every Collector will meet a backend that is down. What happens to the data then is decided by a few exporter settings.
+
+<Idea>
+Each exporter puts outgoing batches into a sending queue and retries failed sends with growing pauses. While the backend is down, the queue fills; when it is full, new data is rejected and the error travels back toward the sender. Data is lost when a retry runs out of time, when the queue overflows, or when the process dies with an in-memory queue.
+</Idea>
+
+## Queue and retry
+
+Exporters built on the Collector's exporter helper share the same settings. `sending_queue` is on by default, with `queue_size: 1000` measured in requests (batches), and `num_consumers: 10` workers sending from it. `retry_on_failure` is on by default: it waits 5 seconds after the first failure, grows the wait by a factor of 1.5 up to 30 seconds, and gives up on a batch after 300 seconds in total. `timeout` limits each single attempt, 5 seconds by default.
+
+When the queue is full, new data is rejected right away, unless `block_on_overflow` makes the caller wait for room. That rejection never reaches the retry logic. It is counted in `otelcol_exporter_enqueue_failed_spans` (and its twins for metric points and log records) and logged with the error `sending queue is full`.
+
+## Back-pressure travels backwards
+
+A rejection is an error returned to the component in front: to the processors, then to the receiver. The OTLP receiver then answers the client with an error, counts the data in `otelcol_receiver_refused_spans`, and a client that retries slows down. The memory limiter uses the same path when memory runs short. This is back-pressure: the system slows the sender instead of dropping data in the middle or running out of memory.
+
+One detail surprises people. The last processor hands data to all exporters of the pipeline, and if one exporter rejects it, the receiver reports a failure, even if another exporter in the same pipeline sent its copy. You will see it in your practice Collector: the debug exporter prints every span while the receiver counts refused spans.
+
+## Where data is still lost, and the stronger fixes
+
+The resiliency guide lists the cases: the backend is down longer than the retry time; the queue overflows; the Collector crashes while its queue is only in memory; the disk of a persistent queue fails or fills; a message queue in between fails; a configuration error; or queues and retries turned off.
+
+Two settings go further than a bigger queue. `sending_queue.storage: file_storage` writes the queue to disk through the `file_storage` extension, so a restarted Collector picks up where it stopped; on Kubernetes that needs a volume. Between Collector tiers, a message queue such as Kafka decouples the producer from the consumer, at the cost of running Kafka.
+
+<Timeline caption="The lab gateway on 12 November 2026, from its own metrics in Mimir">
+  <Event at="04:16 UTC" title="Queues full">otlp_grpc/tempo at 1000 of 1000, otlp_http/mimir at 999.</Event>
+  <Event at="04:16 to 12:16" title="Data rejected">Up to about 125 spans a second fail to enter the queue.</Event>
+  <Event at="12:02 UTC" title="Kafka repaired">Tempo and Mimir accept writes again.</Event>
+  <Event at="12:16 UTC" title="Last rejections">The last 15-minute sample that still shows rejected spans.</Event>
+</Timeline>
+
+<InLab>
+The gateway's three exporters run with the defaults: an in-memory queue of 1000 requests, retries for up to 300 seconds, no persistent storage. A gateway restart during an outage would lose whatever its queues held.
+</InLab>
+
+<Trap>
+A bigger queue buys time, not capacity. If the backend stays slower than the input, a queue of 10,000 fills as surely as one of 1000, only later, and it holds ten times as much memory while it does.
+</Trap>
+
+<Do>
+1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 first. Save this as `m09-config-s12.yaml`. It adds an exporter to an address that does not exist, with a queue of only 10 requests: <Cmd>{`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: m09-collector
+  namespace: learn-m09
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: localhost:4317
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 20
+    exporters:
+      debug:
+        verbosity: basic
+      otlp_grpc/nowhere:
+        endpoint: m09-nowhere.learn-m09.svc.cluster.local:4317
+        tls:
+          insecure: true
+        timeout: 2s
+        sending_queue:
+          queue_size: 10
+        retry_on_failure:
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 120s
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter]
+          exporters: [debug, otlp_grpc/nowhere]`}</Cmd>
+2. Apply it and restart the Collector: <Cmd>kubectl apply -f m09-config-s12.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 rollout status deploy/m09-collector</Cmd> Then wait one minute.
+3. In a second terminal, forward the Collector's own metrics port: <Cmd>kubectl -n learn-m09 port-forward deploy/m09-collector 18120:8888</Cmd>
+4. In the first terminal, read the queue and the counters: <Cmd>curl -s http://localhost:18120/metrics | grep -E '^otelcol_(exporter_(queue_size|queue_capacity|enqueue_failed_spans|sent_spans)|receiver_(accepted|refused)_spans)'</Cmd> `otelcol_exporter_queue_size` for `otlp_grpc/nowhere` equals its capacity, 10; `otelcol_exporter_enqueue_failed_spans` grows; the debug exporter's `sent_spans` grows too; the receiver counts refused spans.
+5. Find the errors the Collector logs: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep -o '"error": "[^"]*"' | sort | uniq -c</Cmd> Next to the failed connection attempts, one error names the full queue. Paste its text in the check below.
+6. See the back-pressure arrive at the sender: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c generator --tail=3</Cmd> telemetrygen reports `code = Unavailable` with the same text: the refusal travelled from the exporter back to the client.
+7. Stop the port-forward in the second terminal with Ctrl+C.
+</Do>
+
+<Done>
+You watched a queue reach its capacity, the exporter reject new data with a counted, logged error, and the receiver pass the refusal back to the sender.
+</Done>
+
+<Trap practice>
+If no line for `otlp_grpc/nowhere` appears in action 4, the Collector still runs the configuration of an earlier step: the `rollout restart` in action 2 is what makes it read the new file.
+</Trap>
+
+<Remember>
+Queue in front, retries with backoff, rejection when full, back-pressure to the sender. Persistent queues survive restarts and Kafka survives a whole tier; none of them make a slow backend faster.
+</Remember>
+
+<Question id="q-m09-s12" answer="c">
+An exporter has the default retry settings. The backend has been down for six minutes and the queue never filled up. What happened to the batch that failed first, six minutes ago?
+
+- It is still in the queue and will be sent when the backend returns
+
+  Retries stop after max_elapsed_time, 300 seconds by default.
+
+- It was written to disk when the retries ran out
+
+  Nothing goes to disk unless the queue is configured with a storage extension.
+
+- It was dropped after five minutes of retries
+
+  The default max_elapsed_time of 300 s ends the retries for that batch, and it is dropped.
+
+- It went back to the receiver, which asked the client to send it again
+
+  Once a batch is in the queue the client already got its answer; the retries happen inside the exporter.
+</Question>

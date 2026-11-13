@@ -1,0 +1,6 @@
+id: m09
+title: OpenTelemetry Collector
+goal: Read, change and debug a Collector pipeline in production shape.
+order: 9
+quiz: true
+exams: [otca]

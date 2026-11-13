@@ -1,0 +1,160 @@
+---
+id: m09-s13
+title: "Debugging a pipeline: debug exporter, zPages and internal telemetry"
+kind: lab
+minutes: 30
+order: 13
+exam:
+  - cert: otca
+    domain: O4
+    competency: Debugging Pipelines
+tags: [collector-debugging]
+check:
+  kind: exact
+  prompt: Paste the configuration path that the broken Collector's error names, the text between "invalid configuration:" and "references".
+  answers: ["service::pipelines::traces:", "service::pipelines::traces"]
+outcome: You can find why a Collector does not start, why data passes without being changed, and where data stops, using its log, the debug exporter, zPages and its own metrics.
+terms:
+  - term: zPages
+    def: An extension that serves live HTML pages about the running Collector, its pipelines, extensions and feature gates.
+  - term: PipelineZ
+    def: The zPages page that lists every running pipeline with its receivers, processors and exporters.
+  - term: Internal telemetry
+    def: The Collector's own logs (to stderr) and metrics (on port 8888 by default) about itself.
+  - term: Metrics level
+    def: How many internal metrics the Collector emits, none, basic, normal (the default) or detailed.
+sources:
+  - title: Troubleshooting (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/troubleshooting/
+    checked: 2026-11-13
+  - title: Internal telemetry (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/internal-telemetry/
+    checked: 2026-11-13
+  - title: Debug exporter (opentelemetry-collector v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/exporter/debugexporter/README.md
+    checked: 2026-11-13
+  - title: zPages extension (opentelemetry-collector v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/extension/zpagesextension/README.md
+    checked: 2026-11-13
+  - title: Configuration, validate (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/configuration/
+    checked: 2026-11-13
+---
+
+<Problem>
+A change to the redaction rules went out at 16:00. At 16:05 one replica is in CrashLoopBackOff, and at 17:00 security finds e-mail addresses in the traces backend anyway: the replica that did start does not redact. Two faults, one change, and the dashboards show nothing wrong, because data still flows.
+</Problem>
+
+A Collector fails in a few typical ways, and for each one there is a place where it shows.
+
+<Idea>
+A Collector that does not start says why in its log. A Collector that starts but does the wrong thing shows its real pipelines on the zPages page `/debug/pipelinez` and its data in the debug exporter. A Collector that drops data shows it in its own metrics: accepted, refused, sent and failed counts for every receiver and exporter.
+</Idea>
+
+## It does not start: read the log
+
+The Collector writes its own log to stderr. A configuration error stops it at startup with a line that starts with `Error: invalid configuration:` and names the path to the problem, such as `service::pipelines::traces: references exporter "debugg" which is not configured`. `otelcol-contrib validate --config=FILE` prints the same check without starting anything, so a pipeline in CI can run it before every rollout.
+
+On Kubernetes, a rolling update helps you here: the new pod fails, the old one keeps running. You see one pod in CrashLoopBackOff next to a healthy one, and the healthy one still runs the old configuration.
+
+## It runs but does the wrong thing: look inside
+
+When the Collector starts but the data is wrong, compare what you meant with what runs. The zPages extension serves pages on port 55679: `/debug/servicez` for an overview, `/debug/pipelinez` for each pipeline with its receivers, processors and exporters in order, `/debug/extensionz` and `/debug/featurez`. A processor that is defined but missing from the pipeline shows at once. The column MutatesData also tells you whether any processor in the pipeline changes data.
+
+The debug exporter shows the data itself. `verbosity: basic` prints one line per batch with counts, `normal` about one line per item, `detailed` every field. For OTTL in particular, the transform processor's README suggests the Collector's log level `debug` (`service::telemetry::logs::level`), which prints the data before and after each statement.
+
+## It loses data: count it
+
+Every receiver, processor and exporter built on the Collector's helpers counts what passes. Accepted and refused at the receivers, incoming and outgoing at the processors, sent, failed to send and failed to enqueue at the exporters. The metrics are on port 8888 by default, at the level `normal`; `basic` keeps only the essential ones and `detailed` adds more. Follow a signal along the counters and the first place where the numbers stop matching is where the data stops.
+
+The troubleshooting page adds a checklist for each hop: errors in the log, how data comes in, how it is changed, how it goes out, in which format, how the next hop is configured, and whether a network policy is in the way.
+
+<Layers caption="Where each kind of failure shows">
+  <Layer title="Does not start">The log: Error: invalid configuration, and validate before rollout.</Layer>
+  <Layer title="Starts, wrong result">zPages PipelineZ for what runs, the debug exporter for the data.</Layer>
+  <Layer title="Loses data">Internal metrics: accepted, refused, sent, send_failed, enqueue_failed.</Layer>
+</Layers>
+
+<InLab>
+When this module was written, the gateway logged `Error scraping metrics` from `kafka_metrics` about four times a minute, with `lookup kafka on 10.96.0.10:53: no such host`. The shop's Kafka broker announces itself as `kafka:9092`, a short name that resolves only inside the namespace `shop`. The scraper's errored-points counter stayed at 0, so only the log showed it. Check with: <Cmd>{`kubectl -n otel logs deploy/otel-gateway --since=5m | grep -c 'Error scraping metrics'`}</Cmd>
+</InLab>
+
+<Trap>
+"No errors in the log" does not mean "working". A processor left out of a pipeline, a filter that matches everything, or a scraper whose errors are not counted all run quietly.
+</Trap>
+
+<Do>
+1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 first. Save this as `m09-config-s13.yaml`. It has two faults on purpose: <Cmd>{`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: m09-collector
+  namespace: learn-m09
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: localhost:4317
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 20
+      transform/redact:
+        error_mode: ignore
+        trace_statements:
+          - set(span.attributes["user.hash"], SHA256(span.attributes["user.email"])) where span.attributes["user.email"] != nil
+          - delete_key(span.attributes, "user.email")
+    exporters:
+      debug:
+        verbosity: detailed
+    extensions:
+      zpages:
+        endpoint: localhost:55679
+    service:
+      extensions: [zpages]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter]
+          exporters: [debugg]`}</Cmd>
+2. Apply it, restart, and list the pods: <Cmd>kubectl apply -f m09-config-s13.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 get pods</Cmd> After half a minute the new pod shows Error or CrashLoopBackOff; the old pod still runs.
+3. Read the new pod's log: <Cmd>{`kubectl -n learn-m09 logs $(kubectl -n learn-m09 get pods -o name --sort-by=.metadata.creationTimestamp | tail -1) -c collector | tail -3`}</Cmd> Paste the path at the start of the error in the check below.
+4. Fix the first fault and roll out again: <Cmd>sed -i 's/debugg/debug/' m09-config-s13.yaml</Cmd> <Cmd>kubectl apply -f m09-config-s13.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 rollout status deploy/m09-collector</Cmd>
+5. The Collector runs, but look at the spans: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector --tail=20 | grep user</Cmd> `user.email` is still there. In a second terminal, forward the zPages port: <Cmd>kubectl -n learn-m09 port-forward deploy/m09-collector 18121:55679</Cmd> and open http://localhost:18121/debug/pipelinez. The traces pipeline runs `otlp`, `memory_limiter`, `debug`, and MutatesData is `false`: `transform/redact` is defined but not in the pipeline.
+6. Fix the second fault: <Cmd>sed -i 's#memory_limiter]#memory_limiter, transform/redact]#' m09-config-s13.yaml</Cmd> Apply and restart as in action 4, start the port-forward again and reload the page: the pipeline now lists `transform/redact`, MutatesData is `true`, and the spans carry `user.hash` instead of `user.email`.
+7. Stop the port-forward, then delete the practice namespace. This ends the module's practice Collector: <Cmd>kubectl delete namespace learn-m09</Cmd>
+</Do>
+
+<Done>
+You found a startup error in the log, a missing processor on PipelineZ, and removed everything you created in the lab.
+</Done>
+
+<Trap practice>
+If action 3 prints nothing, the container is between two restarts. Add `--previous` to read the log of the run that just failed.
+</Trap>
+
+<Remember>
+Not starting: the log and `validate`. Starting but wrong: PipelineZ and the debug exporter. Losing data: follow the accepted, sent and failed counters until they stop matching.
+</Remember>
+
+<Question id="q-m09-s13" answer="a">
+A Collector's metrics show `otelcol_receiver_accepted_spans` rising steadily, `otelcol_exporter_sent_spans` rising at the same rate, and no failures. The backend has no spans from one service. Where do you look first?
+
+- At the data itself, since the Collector delivers all it receives
+
+  Matching counts mean the Collector passes every span on; the cause lies in the data or after the export.
+
+- At the exporter's queue, because sent spans can still be waiting in it
+
+  A span counts as sent only after the backend accepted it.
+
+- At the memory limiter, because it may refuse spans without counting them
+
+  Refused data shows up in the receiver's refused counter, which stays at zero here.
+
+- At the receiver's network policy, because the spans may never arrive
+
+  The receiver accepts spans at the same rate as they are sent, so they arrive.
+</Question>

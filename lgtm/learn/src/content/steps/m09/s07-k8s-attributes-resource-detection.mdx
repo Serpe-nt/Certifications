@@ -1,0 +1,103 @@
+---
+id: m09-s07
+title: "Kubernetes attributes and resource detection"
+kind: concept
+minutes: 15
+order: 7
+exam:
+  - cert: otca
+    domain: O3
+    competency: Transforming Data
+tags: [collector-processors]
+outcome: You can explain how the Collector finds the pod that sent a span, configure the association rules for an agent or a gateway, and choose detectors for the host it runs on.
+terms:
+  - term: Pod association
+    def: The rules k8s_attributes uses to match incoming data to a pod, by a resource attribute or by the connection's IP address.
+  - term: Passthrough mode
+    def: A k8s_attributes setting for agents that only adds the sender's pod IP and asks the Kubernetes API nothing.
+  - term: Detector
+    def: A source the resource detection processor reads, such as environment variables, the host, Docker or a cloud's metadata service.
+  - term: Downward API
+    def: The Kubernetes way to pass a pod's own fields, such as its node name or UID, into its environment variables.
+sources:
+  - title: Important Components for Kubernetes (OpenTelemetry)
+    url: https://opentelemetry.io/docs/platforms/kubernetes/collector/components/
+    checked: 2026-11-13
+  - title: Kubernetes attributes processor (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/k8sattributesprocessor/README.md
+    checked: 2026-11-13
+  - title: Resource detection processor (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/resourcedetectionprocessor/README.md
+    checked: 2026-11-13
+  - title: Agent-to-gateway deployment pattern (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/deploy/other/agent-to-gateway/
+    checked: 2026-11-13
+---
+
+<Problem>
+A trace shows that a request to `cart` took four seconds. The service runs six replicas on four nodes, and the span says only `service.name=cart`. Was it one sick pod, one busy node, or all of them? Without the pod and node on the span, the trace cannot tell you, and the pod's CPU graph in another dashboard cannot be joined to it.
+</Problem>
+
+The SDK in the container knows little about Kubernetes. The Collector can ask the API server for the rest.
+
+<Idea>
+The `k8s_attributes` processor keeps a list of all pods from the Kubernetes API, finds the pod that sent each piece of data, and adds that pod's metadata, such as namespace, pod name, node and deployment, as resource attributes. The `resource_detection` processor does the same for the place where the Collector itself runs: it reads environment variables, the host or a cloud's metadata.
+</Idea>
+
+## How k8s_attributes finds the pod
+
+The processor watches pods through the Kubernetes API and keeps their IP addresses, UIDs and metadata in a cache. So it needs RBAC: get, watch and list on pods and namespaces, and on ReplicaSets to find the Deployment's name. By default it matches data to a pod by the IP address of the incoming connection. You can set `pod_association` rules instead, tried in order: first a resource attribute such as `k8s.pod.ip` or `k8s.pod.uid`, then the connection. Inside one rule, all of its sources must match.
+
+By default it adds `k8s.namespace.name`, `k8s.pod.name`, `k8s.pod.uid`, `k8s.pod.start_time`, `k8s.deployment.name` and `k8s.node.name`. It can also copy pod or namespace labels and annotations into attributes you name.
+
+The connection only exists until data is batched. That is why the processor must come before `batch` and before `tail_sampling`: both build new batches and lose the connection's address.
+
+## Agent, gateway, sidecar
+
+On an agent (a DaemonSet), every sender is a pod on the same node. The README advises a node filter, `filter.node_from_env_var`, fed with the node name through the downward API, so that each agent watches only its own node's pods instead of the whole cluster.
+
+On a gateway that receives from agents, the connection's address is the agent's, not the application's. The fix is passthrough mode on the agents: `passthrough: true` makes the agent only add the sender's IP to the data, with no API calls, and the gateway then matches that IP to a pod. In a sidecar, the processor cannot tell containers of the same pod apart; the docs suggest passing pod fields as environment variables with the downward API instead.
+
+<Compare caption="Where k8s_attributes runs and what it needs">
+  <Col title="Agent (DaemonSet)">Matches by connection IP. Add a node filter so each agent watches only its node.</Col>
+  <Col title="Gateway behind agents">Agents in passthrough mode add the pod IP; the gateway looks it up.</Col>
+  <Col title="Sidecar">Not supported. Set the pod's fields with the downward API instead.</Col>
+</Compare>
+
+## Resource detection: where am I running?
+
+`resource_detection` runs a list of detectors at startup, for example `env` (reads `OTEL_RESOURCE_ATTRIBUTES`), `system` (host name and OS), `docker`, or a cloud's detector such as `eks` or `gcp`. If two detectors set the same attribute, the first in the list wins. With `override` at its default `true`, detected values replace those already on the data; set it to `false` to keep what the application sent. If a configured detector fails, the Collector does not start.
+
+It belongs on agents above all, where the Collector shares a host with the applications. The agent-to-gateway page's example agent runs `[env, system, docker]`.
+
+<InLab>
+The gateway's `k8s_attributes` tries `k8s.pod.ip`, then `k8s.pod.uid`, then the connection. The shop's SDKs set `k8s.pod.uid` from the downward API, so most data matches on the UID; the gateway's own metric `otelcol_k8s_pod_association_total` shows both `resource_attribute/k8s.pod.uid` and `connection` as `pod_identifier`. The gateway runs no `resource_detection`; `resource/cluster` writes the cluster name instead.
+</InLab>
+
+<Trap>
+A gateway that receives from agents and keeps the default association by connection tags every span with the agent's pod. The data looks enriched, and it is wrong.
+</Trap>
+
+<Remember>
+k8s_attributes matches data to a pod by attribute or by connection, so it runs before batching. Agents filter by node; gateways behind agents need passthrough agents. resource_detection describes where the Collector runs.
+</Remember>
+
+<Question id="q-m09-s07" answer="a">
+A DaemonSet of agent Collectors on a 200-node cluster runs k8s_attributes with default settings. Each agent uses far more memory than expected. What does the processor's README advise?
+
+- Set filter.node_from_env_var so each agent watches only its node
+
+  Without a node filter every agent caches every pod in the cluster.
+
+- Turn on passthrough mode on the agents so they enrich data without a cache
+
+  Passthrough adds only the pod IP and no metadata; it is for agents that forward to a gateway that enriches.
+
+- Move k8s_attributes after the batch processor to reduce the number of lookups
+
+  After batching the connection address is gone, so association by connection fails.
+
+- Replace k8s_attributes with resource_detection using the env detector
+
+  That reads the Collector's own environment and cannot tell which pod sent the data.
+</Question>

@@ -1,0 +1,92 @@
+---
+id: m09-s15
+title: "OpAMP: managing a fleet of Collectors"
+kind: concept
+minutes: 8
+order: 15
+exam:
+  - cert: otca
+    domain: O3
+    competency: Configuration
+tags: [collector-opamp]
+outcome: You can say what OpAMP lets a control plane do with a fleet of Collectors, and choose between the OpAMP extension and the OpAMP Supervisor.
+terms:
+  - term: OpAMP
+    def: The Open Agent Management Protocol, a client and server protocol for managing large fleets of telemetry agents remotely.
+  - term: OpAMP server
+    def: The control plane side of OpAMP, which watches and manages the agents.
+  - term: OpAMP Supervisor
+    def: A separate process that talks OpAMP with the server and starts, configures and restarts a Collector.
+  - term: Effective configuration
+    def: The configuration a Collector actually runs, which it can report to an OpAMP server.
+sources:
+  - title: Management (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/management/
+    checked: 2026-11-13
+  - title: Open Agent Management Protocol (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/opamp/
+    checked: 2026-11-13
+  - title: OpAMP agent extension (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/extension/opampextension/README.md
+    checked: 2026-11-13
+  - title: OpAMP Supervisor (opentelemetry-collector-contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/cmd/opampsupervisor/README.md
+    checked: 2026-11-13
+---
+
+<Problem>
+A company runs 4,000 Collectors on virtual machines in three clouds. Nobody can say which versions run where, which configuration each one loaded, or which ones are unhealthy. A change to a sampling rule means a ticket per team and a week of rollouts.
+</Problem>
+
+Kubernetes and Helm solve this for the lab's two replicas. A fleet of thousands across machines needs a protocol.
+
+<Idea>
+OpAMP, the Open Agent Management Protocol, lets a server in a control plane manage a fleet of agents such as Collectors. Agents report what they are, how they are doing and which configuration they run; the server can send them new configuration and new packages. In the Collector, OpAMP comes as an extension inside the process, or as a Supervisor process that controls the Collector from outside.
+</Idea>
+
+## What OpAMP covers
+
+The specification lists remote configuration, status reporting (type, version, operating system), the agent's own telemetry sent to an OTLP backend, heartbeats, downloadable packages with secure updates, and the management of connection credentials such as client certificates. It is a client and server protocol over plain HTTP or WebSocket, and it is vendor-neutral, so one server can manage agents of different kinds. The specification page states its status as Beta.
+
+## Extension or Supervisor
+
+The `opamp` extension runs inside the Collector. It reports the effective configuration, health and the components the binary contains. With a feature gate and the `accepts_restart_command` capability, it can restart the Collector on the server's command, which reloads the configuration sources from the `--config` flags. If the new configuration is invalid, the Collector stops and the extension stops with it, so nothing is left to bring it back.
+
+The OpAMP Supervisor is a separate binary that holds the OpAMP connection and runs the Collector as a child process with configuration it receives from the server. Because it lives outside the Collector, it keeps reporting when a configuration breaks the Collector: it restarts a Collector that crashes, and with `automatic_config_rollback: true` it goes back to the last configuration that worked. The communication between the Supervisor and its Collector is not part of OpAMP itself. Both READMEs mark the extension and the Supervisor as alpha.
+
+<Compare caption="Two ways to put OpAMP into a Collector">
+  <Col title="opamp extension">Inside the process. Reports config, health and components; can restart on command. A broken config takes it down too.</Col>
+  <Col title="OpAMP Supervisor" hot>A separate process that starts the Collector with server-sent configuration and survives a broken one.</Col>
+</Compare>
+
+<InLab>
+The lab uses no OpAMP. Its gateway's configuration lives in the Git repository as Helm values, and a change is a `make lab` run: fine for two replicas you can see, not for a fleet.
+</InLab>
+
+<Trap>
+OpAMP manages agents; it does not carry telemetry. The agent's own metrics go to an OTLP endpoint that the server can name, and application data still flows through the pipelines.
+</Trap>
+
+<Remember>
+OpAMP is the protocol between a control plane and a fleet of agents: status, configuration, packages, credentials. The extension reports from inside a Collector; the Supervisor runs the Collector and survives its failures.
+</Remember>
+
+<Question id="q-m09-s15" answer="c">
+A team wants an OpAMP server to push new configuration to Collectors on virtual machines, and a Collector that fails on a bad configuration must still be visible and recoverable from the server. What should they run?
+
+- The opamp extension with accepts_restart_command, so the server can restart each Collector after a change
+
+  After an invalid configuration the Collector stays down, and the extension inside it with it.
+
+- A cron job that pulls configuration over HTTP and restarts the Collector
+
+  That is not OpAMP; nothing reports status or effective configuration to a server.
+
+- The OpAMP Supervisor, which runs the Collector with server-sent configuration from a separate process
+
+  The Supervisor holds the OpAMP connection outside the Collector, so it outlives a failed start.
+
+- The health_check extension, which the OpAMP server polls for status
+
+  health_check answers HTTP probes; it does not speak OpAMP or apply configuration.
+</Question>

@@ -1,0 +1,121 @@
+---
+id: m09-s11
+title: "Scaling stateless and stateful Collectors"
+kind: lab
+minutes: 25
+order: 11
+exam:
+  - cert: otca
+    domain: O3
+    competency: Scaling
+tags: [collector-scaling]
+check:
+  kind: exact
+  prompt: Paste the number of distinct instance values on the series up with job="ad".
+  answers: ["2"]
+outcome: You can tell from a Collector's own metrics when to add replicas and when adding them would not help, and scale stateless, scraping and stateful Collectors each in the right way.
+terms:
+  - term: Stateless component
+    def: A component whose result does not depend on which replica handles the data, such as the OTLP receiver or the batch processor.
+  - term: Scraper
+    def: A receiver that pulls data on a schedule, such as the Prometheus receiver; two replicas with the same targets scrape everything twice.
+  - term: Sharding
+    def: Splitting targets among replicas so that each target is scraped by exactly one of them.
+  - term: L7 load balancer
+    def: A load balancer that understands the protocol, here gRPC, and spreads single requests rather than whole connections.
+sources:
+  - title: Scaling the Collector (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/scaling/
+    checked: 2026-11-13
+  - title: Gateway deployment pattern, single-writer principle (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/deploy/gateway/
+    checked: 2026-11-13
+  - title: Internal telemetry (OpenTelemetry Collector)
+    url: https://opentelemetry.io/docs/collector/internal-telemetry/
+    checked: 2026-11-13
+  - title: Using Prometheus as your OpenTelemetry backend, name translation (Prometheus)
+    url: https://prometheus.io/docs/guides/opentelemetry/
+    checked: 2026-11-13
+  - title: Target Allocator (OpenTelemetry)
+    url: https://opentelemetry.io/docs/platforms/kubernetes/operator/target-allocator/
+    checked: 2026-11-13
+---
+
+<Problem>
+The gateway's export queues fill up every evening, so the team doubles the replicas. The queues still fill up, and now the database behind the backend falls over too: twice as many Collectors push into a backend that was already the slowest part. Adding Collectors was the answer to a question nobody had checked.
+</Problem>
+
+The Collector reports on itself. Its own metrics say whether it is the bottleneck, and which kind of scaling it needs.
+
+<Idea>
+Scale on evidence from the Collector's own metrics: refused data and export queues that stay near their capacity. Stateless pipelines scale by adding replicas behind a load balancer; scrapers must split their targets; stateful components such as tail sampling or span metrics need a routing tier in front. When the backend is the slow part, more Collectors only push harder.
+</Idea>
+
+## When to scale, and when not to
+
+Two signals say "this Collector needs help". Data refused by the memory limiter means the Collector is out of memory headroom. An export queue that keeps rising toward its capacity means data comes in faster than it goes out. The scaling guide suggests scaling up when `otelcol_exporter_queue_size` reaches 60 to 70% of `otelcol_exporter_queue_capacity`, scaling down when it stays low, and keeping a minimum, for example three replicas, for resilience. For scrapers, the sign is a scrape round that takes nearly as long as the scrape interval.
+
+The same metrics also say when not to scale. If the queue stays near capacity even after you made it bigger, and `otelcol_exporter_send_failed_spans` keeps rising, the backend is the problem. More Collectors, or more export workers, put more pressure on a system that is already overloaded.
+
+## Stateless pipelines: replicas and a load balancer
+
+Most components are stateless, so most Collectors scale by adding replicas and spreading traffic among them. For OTLP over gRPC, the docs recommend a load balancer that understands gRPC. A plain layer 4 balancer, such as a Kubernetes ClusterIP Service, balances connections, and a gRPC client keeps one connection open for a long time, so one replica can end up with most of the traffic.
+
+## Scrapers and stateful components
+
+A scraping receiver cannot simply be copied: each copy scrapes the same targets, which doubles the data and can produce out-of-order samples in the backend. The targets must be sharded, either with a separate configuration per replica (for example one namespace each) or with the Operator's Target Allocator, which hands each Collector its share of the targets. All metric streams must keep a single writer.
+
+Stateful components hold data across many requests: the tail sampling processor holds whole traces, the span metrics connector holds counters per service. A second replica would see only part of the data and compute different answers. Put a tier with the `load_balancing` exporter in front, routing by trace ID or service, as in step 9.
+
+<Figures caption="Spans accepted per second by each gateway replica on the lab, 2026-11-13 02:12 UTC" unit="spans/s">
+  <Stat label="Replica on worker2" value="42" amount={42} max={81} />
+  <Stat label="Replica on worker1" value="81" amount={81} max={81} hot />
+</Figures>
+
+<InLab>
+The lab gateway's two replicas get uneven traffic through their ClusterIP Service, and both scrape the same targets in `metrics/scraper`. The lab does not shard: `resource/scraper` gives each replica's copy its own `service.instance.id`, so the copies become two series and never collide. That keeps a single writer per series and doubles the scraped series.
+</InLab>
+
+<Trap>
+Doubling replicas because the export queue is full is the classic wrong fix. Check `otelcol_exporter_send_failed_*` and the backend first.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> and pick the data source `mimir`. The gateway's own metrics are there, in tenant `lab`, under the job `otelcol-contrib`; in Mimir their counters end in `_total`.
+2. Spans accepted per replica: <Query lang="promql">{`sum by (instance) (rate(otelcol_receiver_accepted_spans_total[5m]))`}</Query> Two series, one per gateway pod, usually far from equal.
+3. The same by protocol: <Query lang="promql">{`sum by (transport) (rate(otelcol_receiver_accepted_spans_total[5m]))`}</Query>
+4. How full the export queues are, as a share of their capacity: <Query lang="promql">{`max by (exporter) (otelcol_exporter_queue_size / otelcol_exporter_queue_capacity)`}</Query> On a healthy lab all three are at or near 0, far below the 60% mark.
+5. Who scrapes the ad service: <Query lang="promql">{`count by (instance) (up{job="ad"})`}</Query> Each `instance` is a gateway pod. Then count them: <Query lang="promql">{`count(count by (instance) (up{job="ad"}))`}</Query> Paste the number in the check below.
+</Do>
+
+<Done>
+You read the gateway's load per replica, saw its export queues far from full, and found that both replicas scrape the same target.
+</Done>
+
+<Trap practice>
+The guide writes metric names without `_total`, as the Collector exposes them on its own endpoint. The same counters in Mimir carry `_total`, because OTLP metric names are translated the Prometheus way, which appends `_total` to a counter; a query without it returns nothing.
+</Trap>
+
+<Remember>
+Scale on refused data and on queues near capacity, not on a feeling; a full queue with rising send failures points at the backend. Stateless scales with replicas, scrapers with sharding, stateful components with a routing tier.
+</Remember>
+
+<Question id="q-m09-s11" answer="a">
+Like the lab gateway, three replicas share one configuration that scrapes a PostgreSQL server, and each replica sets `service.instance.id` to its own pod name. What do you find in the metrics backend?
+
+- One series per replica for each metric, and no out-of-order errors at all
+
+  Each copy has its own identity, so the writes never collide, but the scraped series are tripled.
+
+- One series per metric, because the backend merges identical samples
+
+  The series differ in their instance label, so nothing is merged.
+
+- Out-of-order sample errors, because three Collectors write the same series
+
+  That is what happens without a distinct identity per replica; here each replica writes its own series.
+
+- One series per metric, because only the leader replica scrapes
+
+  The Collector has no leader election for scrapers; every replica scrapes every target in its configuration.
+</Question>
