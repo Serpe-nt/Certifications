@@ -1,0 +1,135 @@
+---
+id: m05-s07
+title: Transformations and expressions
+kind: lab
+minutes: 20
+order: 7
+exam:
+  - cert: none
+tags: [dashboard-transformations]
+check:
+  kind: token
+  slot: metric-m05-2
+  prompt: Paste the value in the row metric-m05-2 of your transformed table.
+outcome: You can reshape a query's result inside Grafana with a chain of transformations, and say when a server-side expression or the query itself is the better place.
+terms:
+  - term: Transformation
+    def: A step in the panel that reshapes query results after they arrive and before the visualization draws them.
+  - term: Reduce
+    def: A transformation that turns each series into one value, such as its last value or its mean.
+  - term: Expression
+    def: A server-side query step, such as Math or Reduce, that takes other queries as input by their RefID.
+  - term: RefID
+    def: The letter that names a query in a panel, such as A or B.
+sources:
+  - title: Transform data (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/query-transform-data/transform-data/
+    checked: 2026-11-12
+  - title: Write expression queries (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/panels-visualizations/query-transform-data/expression-queries/
+    checked: 2026-11-12
+  - title: Grafana dashboards overview (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/fundamentals/dashboards-overview/
+    checked: 2026-11-12
+  - title: What's new in Grafana v13.3 (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/whatsnew/whats-new-in-v13/whats-new-in-v13-3/
+    checked: 2026-11-12
+---
+
+<Problem>
+A team lead wants a small table: one row per beacon slot, its current value, sorted by name. The query returns nine time series, and the table panel shows a drop-down to pick one series at a time. The data is all there; it just has the wrong shape.
+</Problem>
+
+Some answers need no new query, only a new shape. Grafana can reshape data after it arrives.
+
+<Idea>
+A transformation reshapes the result of a panel's queries before the visualization draws it: it can reduce, filter, join, rename and sort. Transformations run one after another, each on the result of the one before. When the change is maths across queries, a server-side expression or the query language itself is often the better place.
+</Idea>
+
+## A chain, in order
+
+Transformations sit on their own tab next to the queries in the panel editor. You add as many as you need, and Grafana applies them in the order they are listed, so the order changes the result. A **Reduce** that turns every series into one number leaves later steps only that number to work with.
+
+A few cover most needs:
+
+- **Reduce** turns each series into one value, such as the last one, the mean or the maximum. In the mode **Series to rows** it makes one row per series, which is what a summary table needs.
+- **Labels to fields** turns the labels of time series into table columns.
+- **Filter data by values** keeps or drops rows by a condition.
+- **Organize fields by name** renames, reorders and hides columns.
+- **Sort by** orders the rows by one or more fields.
+
+All text fields in transformations accept dashboard variables, so a filter can follow the variable the viewer picked.
+
+<Flow caption="A table built by transformations">
+  <Stage title="Query" kicker="Nine series">One time series per slot, many points each.</Stage>
+  <Stage title="Reduce" kicker="Series to rows">One row per series, with its last value.</Stage>
+  <Stage title="Organize" kicker="Rename">The columns get names a reader understands.</Stage>
+  <Stage title="Sort by" kicker="Order">The rows in the order you want to read them.</Stage>
+</Flow>
+
+## Transformations or expressions
+
+Transformations work on the result after the data source has returned it, for one panel. Server-side expressions run on the Grafana server and become part of the query. An expression takes other queries as input by their RefID, the letter that names each query. A Math expression such as `$A / $B` divides one result by another, even when A and B come from different data sources. There are also Reduce, Resample and SQL expressions. Because they run on the server, they work without a browser session, so Grafana Alerting can use them, and alerting is where they are used most.
+
+Grafana's own advice is to do the processing in the data source when you can. Copying data from storage to Grafana to compute it there is slow. A ratio of two Prometheus metrics belongs in PromQL; an expression earns its place when the inputs come from two different data sources.
+
+<Compare caption="Where to change the data">
+  <Col title="In the query" hot>PromQL, LogQL or TraceQL, in the data source. The default, and the fastest.</Col>
+  <Col title="Expression">On the Grafana server, by RefID. For maths across data sources, and for alerts.</Col>
+  <Col title="Transformation">After the data arrives, for this panel. For shape: rows, columns, names and order.</Col>
+</Compare>
+
+## Keep the chain stable
+
+Some transformations name their output after the RefIDs of their inputs: Merge series/tables, Join by field, Join by labels, Series to rows and Reduce. When a query is added, removed or renamed, that name changes, and a later step that filters on it stops matching. In Grafana 13.3 you can give such a transformation a static refId, which the editor calls the transformation name: click the name in the step's header and type your own. The **Table view** switch above the preview shows the final result of the chain as a table. To see what one step did, click **Debug** on that transformation: it shows the step's input data next to its output data.
+
+<InLab>
+The beacon publishes all its metric tokens as one metric, `lab_beacon_value`, with the slot in the label `slot`. Asking for the slots of one module returns nine series: the right input for a summary table.
+</InLab>
+
+<Trap>
+A transformation does not reduce the work of the data source: the data source still returns the full result first. If a panel is slow because the query returns too much, fix the query, not the transformations.
+</Trap>
+
+<Remember>
+Shape in transformations, maths in the query, and an expression when the inputs come from different data sources or an alert needs it.
+</Remember>
+
+<Do>
+1. Open your dashboard `Shop service (m05)`, click **Edit**, click **Add panel** and then **Configure visualization**. Keep the data source **Mimir**.
+2. Enter this query, and in the query's **Options** set **Legend** to **Custom** with `{{slot}}`. Click **Run queries**: <Query lang="promql">{`lab_beacon_value{slot=~"metric-m05-.*"}`}</Query>
+3. Under **All visualizations**, pick **Table** and title the panel `Beacon slots of m05`. The table shows one series at a time, with a selector at its foot to switch between the nine slots.
+4. Open the **Transformations** tab, click **Add transformation**, search for `Reduce` and pick it. Its **Mode** is already **Series to rows**; replace the calculation **Max** with **Last \***. The table now has one row per slot, with the columns Field and Last \*. Note the name in the step's header, `reduce-A-A-...` in italics: Grafana built it from the input RefIDs, and you could replace it with a static name.
+5. Click **Add another transformation** and pick **Organize fields by name**. Rename **Field** to `Slot` and **Last \*** to `Token`.
+6. Add **Sort by** and set **Field** to `Slot`. The rows run from metric-m05-1 to metric-m05-9.
+7. Turn **Table view** on above the preview to read the final result of the chain as a table. Click **Debug** in the header of the Reduce step: the drawer shows its input data, nine series, next to its output data, one table. Close it and save the dashboard.
+8. Paste the value of the row metric-m05-2 in the lab check below.
+</Do>
+
+<Done>
+The panel Beacon slots of m05 is a table with nine rows, one per slot, with readable column names and sorted by slot.
+</Done>
+
+<Trap practice>
+If the table shows a long name such as `lab_beacon_value{...}` instead of the slot, the legend was not set before the Reduce: set **Legend** to `{{slot}}` in the query. Typing into a search box that already holds text adds to it: clear the transformation search before you type a new name.
+</Trap>
+
+<Question id="q-m05-s07" answer="b">
+A panel has a Reduce transformation (Series to rows, Last) followed by a Filter data by values that keeps rows above 100. You swap the order of the two. What happens?
+
+- Nothing changes, because Grafana sorts transformations by type
+
+  Grafana applies transformations in the order they are listed. It does not reorder them.
+
+- The filter now works on the raw points before they are reduced
+
+  Each transformation works on the output of the one before, so the filter now sees every point, not one value per series.
+
+- The panel fails, because Filter must always come last
+
+  Any transformation can come first. Only the result changes with the order.
+
+- The data source runs the filter, so the query gets faster
+
+  Transformations work on data the data source has already returned. The query is unchanged.
+</Question>

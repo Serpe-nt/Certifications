@@ -1,0 +1,123 @@
+---
+id: m08-s01
+title: "Metric instruments: counter, up-down counter, histogram, gauge, observable"
+kind: concept
+minutes: 18
+order: 1
+exam:
+  - cert: otca
+    domain: O2
+    competency: "Signals (Tracing, Metric, Log)"
+  - cert: otca
+    domain: O2
+    competency: Data Model
+tags: [otel-metric-instruments]
+outcome: You can pick the OpenTelemetry instrument for a value by asking three questions, and say how each one differs from the Prometheus type you know.
+terms:
+  - term: Meter
+    def: The object, created from a MeterProvider, that creates instruments for one instrumentation scope.
+  - term: Instrument
+    def: A named object that records measurements, defined by a name, a kind, an optional unit and an optional description.
+  - term: Measurement
+    def: One value recorded by an instrument, with its attributes.
+  - term: Synchronous instrument
+    def: An instrument your code calls inline, at the moment something happens.
+  - term: Asynchronous instrument
+    def: An instrument the SDK reads by calling a callback you registered, once per collection.
+  - term: UpDownCounter
+    def: An instrument for changes that can be positive or negative, whose total can be added up across sources.
+sources:
+  - title: Metrics (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/signals/metrics/
+    checked: 2026-11-13
+  - title: Metrics API (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/api/
+    checked: 2026-11-13
+  - title: Metrics supplementary guidelines (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/supplementary-guidelines/
+    checked: 2026-11-13
+  - title: Metrics SDK, default aggregation (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+    checked: 2026-11-13
+---
+
+<Problem>
+The workshop service sends traces since module m07. Now the team wants numbers over time: checkouts by outcome, checkouts in progress right now, how long the CPU work takes, and the stock of each product. In Prometheus you would reach for a counter or a gauge. OpenTelemetry offers seven instruments, and the one you pick decides what a backend may do with the values.
+</Problem>
+
+You do not need all seven by heart. Three questions about the value lead to the right one.
+
+<Idea>
+An instrument is created from a meter and records measurements. You choose it by asking whether your code records each change as it happens or reports a current value when asked, whether the value can go down, and whether adding values from several sources makes sense. The answers also fix the default aggregation the SDK applies later.
+</Idea>
+
+## An instrument has a name, a kind and a unit
+
+You get a meter from the meter provider, the same way you got a tracer in module m07, and the meter creates instruments. An instrument is defined by its name, its kind, an optional unit and an optional description. The name must start with a letter and can hold letters, digits, `_`, `.`, `-` and `/`, up to 255 characters, and it is not case-sensitive. The unit is case-sensitive, so `kb` and `kB` are different units.
+
+Prometheus puts the unit and the type into the metric name, as in `http_request_duration_seconds` and `_total`. OpenTelemetry keeps them as separate fields: the instrument is called `workshop.compute.duration`, its unit is `s` and its kind is histogram. Step 4 shows how Mimir builds a Prometheus name from those fields.
+
+## Synchronous instruments: record it when it happens
+
+A synchronous instrument is called inline, in the code that does the work. There are four:
+
+- Counter: increments that are never negative, such as requests served or bytes received. You call `add(1)`.
+- UpDownCounter: increments that can be negative, such as items in a queue or requests in progress. You call `add(1)` when one starts and `add(-1)` when it ends.
+- Histogram: values whose statistics matter, such as request durations or response sizes. You call `record(value)`.
+- Gauge: the current value when it changes, such as a fan speed you learn from a change event. You call `record(value)`.
+
+Because the call happens inside a request, a synchronous measurement can be tied to the current context, and so to the span that is active. That is how a metric can later carry an exemplar with a trace ID.
+
+## Asynchronous instruments: the SDK asks you
+
+Some values are cheap to read but have no event you could hook: the size of a cache, the temperature of a sensor, the stock in a database. For these you register a callback, and the SDK calls it once per collection, then records what it returns. The three asynchronous instruments are the observable counter, the observable up-down counter and the observable gauge.
+
+A callback runs outside any request, so its measurements cannot be tied to a context. It should finish quickly and should not report the same attributes twice. The SDK may call it once for each reader that collects, so the specification asks for callbacks that are safe to call again while they run.
+
+<Compare caption="Two ways to record a measurement">
+  <Col title="Synchronous">Your code calls add() or record() when something happens. Counter, UpDownCounter, Histogram, Gauge. Can be tied to the active span.</Col>
+  <Col title="Asynchronous">The SDK calls your callback once per collection. Observable counter, observable up-down counter, observable gauge. No request context.</Col>
+</Compare>
+
+## Up-down counter or gauge: can the values be added?
+
+Prometheus has one gauge for every value that goes up and down. OpenTelemetry splits that case in two. An up-down counter says that values from several sources may be added: the heap size of every process gives a total heap size. A gauge says they may not: the noise level of three rooms added together means nothing. The OpenTelemetry guidelines turn this into a short path:
+
+- You count changes and they are never negative: counter.
+- You count changes that can be negative: up-down counter.
+- You want statistics of many values: histogram.
+- You report a current value: observable gauge if adding makes no sense, otherwise an observable counter if it only grows, or an observable up-down counter if it can fall.
+
+The kind also decides what the SDK does by default. Counters and up-down counters of both kinds are summed, gauges keep their last value, and a histogram is aggregated into explicit buckets. OpenTelemetry has no summary instrument: quantiles are computed by the backend from histograms.
+
+<InLab>
+The finished workshop service in `solutions/04-metrics` uses four of the seven: the counter `workshop.checkouts`, the up-down counter `workshop.checkouts.active`, the histogram `workshop.compute.duration` and the observable gauge `workshop.inventory.stock`, whose callback reads the stock from SQLite.
+</InLab>
+
+<Trap>
+An up-down counter is not a gauge with a different name. Pick it only when a sum across sources is meaningful; for a value such as a temperature, a gauge tells the backend not to add the values.
+</Trap>
+
+<Remember>
+Ask three questions: is the change recorded as it happens or read when asked, can it go down, and does adding values make sense. Counters and up-down counters are summed, gauges keep the last value, histograms get buckets.
+</Remember>
+
+<Question id="q-m08-s01" answer="b">
+The workshop service reports its stock with an observable gauge whose callback runs a SQL query. A developer asks why the stock measurements never carry a trace ID, although every request has a span. What is the reason?
+
+- The SQL query runs in its own span, which hides the request's span from the meter.
+
+  The callback is not called inside a request at all. A database span would not stop a measurement from seeing a context either.
+
+- The SDK runs the callback during collection, outside any request.
+
+  Measurements from asynchronous instruments cannot be associated with a context. Only synchronous instruments record inside the work that has a span.
+
+- Gauges are not allowed to carry attributes, so the trace ID is removed.
+
+  Gauges carry attributes; the stock gauge has one per SKU. A trace ID would come from the context, not from the attributes.
+
+- The OTLP exporter strips trace IDs from metrics before it sends them.
+
+  Exemplars with trace IDs travel in OTLP. The missing link comes from where the measurement is made.
+</Question>

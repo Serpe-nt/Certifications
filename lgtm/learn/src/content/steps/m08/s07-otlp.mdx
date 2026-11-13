@@ -1,0 +1,109 @@
+---
+id: m08-s07
+title: "OTLP: gRPC and HTTP"
+kind: concept
+minutes: 16
+order: 7
+exam:
+  - cert: otca
+    domain: O2
+    competency: Data Model
+  - cert: otca
+    domain: O2
+    competency: Configuration
+tags: [otel-otlp]
+outcome: You can say how OTLP travels over gRPC and over HTTP, which ports, paths and encodings each uses, and how an exporter builds the URL for each signal.
+terms:
+  - term: OTLP
+    def: The OpenTelemetry Protocol, one protobuf schema for traces, metrics and logs, carried over gRPC or HTTP.
+  - term: OTLP/gRPC
+    def: OTLP as unary gRPC Export calls, on port 4317 by default.
+  - term: OTLP/HTTP
+    def: OTLP as HTTP POST requests with a binary protobuf or JSON body, on port 4318 by default.
+  - term: http/protobuf
+    def: The protocol value for OTLP/HTTP with binary protobuf bodies, Content-Type application/x-protobuf.
+  - term: http/json
+    def: The protocol value for OTLP/HTTP with JSON bodies, Content-Type application/json.
+sources:
+  - title: OTLP specification 1.11.1 (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/otlp/
+    checked: 2026-11-13
+  - title: OpenTelemetry Protocol exporter (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/protocol/exporter/
+    checked: 2026-11-13
+  - title: OTLP exporter configuration (OpenTelemetry SDK configuration)
+    url: https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
+    checked: 2026-11-13
+  - title: Agent configuration (OpenTelemetry Python)
+    url: https://opentelemetry.io/docs/zero-code/python/configuration/
+    checked: 2026-11-13
+---
+
+<Problem>
+A colleague tidies the workshop's settings and empties `OTEL_EXPORTER_OTLP_PROTOCOL`, because "OTLP is OTLP". The Python agent falls back to its gRPC exporter, which the workshop never installed, prints `Failed to auto initialize OpenTelemetry`, and the service runs on without sending anything. Had the exporter been installed, it would have made gRPC calls to an address that routes only HTTP.
+</Problem>
+
+<Idea>
+OTLP is one set of protobuf messages with two transports. Over gRPC, the client makes unary Export calls, on port 4317 by default. Over HTTP, it posts to `/v1/traces`, `/v1/metrics` or `/v1/logs` on port 4318, with a binary protobuf or a JSON body. Client and server must agree on the transport; the data is the same.
+</Idea>
+
+## One schema, two transports, three settings
+
+Every OTLP request is an export request for one signal, and the server answers each one. The protobuf messages are the same whatever carries them. An exporter's protocol setting, `OTEL_EXPORTER_OTLP_PROTOCOL` or its per-signal form, takes one of three values:
+
+- `grpc`: protobuf over gRPC, which runs on HTTP/2;
+- `http/protobuf`: an HTTP POST with a binary protobuf body and `Content-Type: application/x-protobuf`;
+- `http/json`: an HTTP POST with a JSON body and `Content-Type: application/json`.
+
+The specification asks SDKs to support `grpc` and `http/protobuf`, and to default to `http/protobuf` unless an older stable release already made `grpc` the default. JSON support is optional. Every server must accept uncompressed and gzip bodies.
+
+<Compare caption="The two transports">
+  <Col title="OTLP/gRPC">Port 4317. Unary Export calls per signal. Errors as gRPC status codes.</Col>
+  <Col title="OTLP/HTTP" hot>Port 4318. POST to /v1/traces, /v1/metrics, /v1/logs. Binary protobuf or JSON. Errors as HTTP status codes.</Col>
+</Compare>
+
+## JSON is protobuf in disguise
+
+OTLP JSON follows the protobuf JSON mapping with a few changes that trip up hand-written payloads. Trace IDs and span IDs are hexadecimal strings, not base64. Enum fields are integers, so a server span has `"kind": 2`, never `"SPAN_KIND_SERVER"`. Keys are in lowerCamelCase, such as `droppedAttributesCount`, and 64-bit numbers, timestamps included, are written as decimal strings. A receiver ignores fields it does not know, so a newer client does not break an older server.
+
+## How the exporter builds its URLs
+
+`OTEL_EXPORTER_OTLP_ENDPOINT` is a base URL. For OTLP/HTTP the exporter adds `v1/traces`, `v1/metrics` and `v1/logs` to it, so `http://collector:4318` sends traces to `http://collector:4318/v1/traces`. A per-signal variable such as `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is used exactly as written; if it has no path, the root path `/` is used. Without any setting, the default is `http://localhost:4318` for HTTP and `http://localhost:4317` for gRPC. A URL without a port uses the scheme's port, 80 for `http` and 443 for `https`.
+
+For OTLP/gRPC, an `https` scheme means a secure connection and `http` an insecure one, whatever the separate insecure setting says.
+
+## One hop at a time
+
+An OTLP acknowledgement covers one client and one server, not the whole path. When the gateway answers the workshop, the data has reached the gateway, not Mimir. The specification also limits sizes: servers should accept requests up to 64 MiB by default, and clients should not send larger ones. What a client does when a request fails is the subject of step 14.
+
+<InLab>
+From your PC, the lab offers only OTLP/HTTP, on port 80 of `otlp.lab.k8s.local`, which the lab's gateway routes to port 4318 of the collector gateway. Inside the cluster the collector gateway listens on both 4317 and 4318. It sends to Mimir and Loki over HTTP (`otlp_http`) and to Tempo over gRPC (`otlp_grpc`).
+</InLab>
+
+<Trap>
+The port number does not choose the protocol. Sending `grpc` to a port that serves OTLP/HTTP, or `http/protobuf` to a gRPC port, fails even though both "speak OTLP"; set the protocol and the endpoint as a pair.
+</Trap>
+
+<Remember>
+gRPC on 4317, HTTP on 4318 with `/v1/traces`, `/v1/metrics` and `/v1/logs`. The base endpoint gets the signal path added; a per-signal endpoint is used as written.
+</Remember>
+
+<Question id="q-m08-s07" answer="c">
+A developer writes an OTLP/HTTP JSON request by hand to test a collector. Which body follows the OTLP specification for a span?
+
+- `{"trace_id": "W47/95gDgQPSabYzgT/GDA==", "kind": "SPAN_KIND_SERVER"}`
+
+  Field names use lowerCamelCase, IDs are hex rather than base64, and enum names are not allowed.
+
+- `{"traceId": "W47/95gDgQPSabYzgT/GDA==", "kind": 2}`
+
+  OTLP JSON departs from the standard protobuf mapping for IDs: they are hex strings, not base64.
+
+- `{"traceId": "5B8EFFF798038103D269B633813FC60C", "kind": 2}`
+
+  IDs are hex strings, enum values are integers, and keys are in lowerCamelCase.
+
+- `{"traceId": "5B8EFFF798038103D269B633813FC60C", "kind": "SPAN_KIND_SERVER"}`
+
+  The hex ID is right, but OTLP JSON allows only integer values for enum fields.
+</Question>

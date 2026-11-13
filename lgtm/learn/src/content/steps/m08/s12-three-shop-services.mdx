@@ -1,0 +1,117 @@
+---
+id: m08-s12
+title: "How three shop services are instrumented: read the code"
+kind: drill
+minutes: 20
+order: 12
+exam:
+  - cert: otca
+    domain: O2
+    competency: Agents
+  - cert: otca
+    domain: O1
+    competency: Instrumentation
+tags: [instrumentation, otel-zero-code]
+check:
+  kind: choice
+  prompt: Which of the three services would still send its spans if the OpenTelemetry Java agent were removed from every image?
+  options: [fraud-detection, ad, checkout]
+  answer: checkout
+outcome: You can tell from a service's Dockerfile and source whether it is instrumented with zero code, with an agent plus manual API calls, or with an SDK set up in code, and say what each way costs.
+terms:
+  - term: GlobalOpenTelemetry
+    def: The Java API's global access point; with the agent attached it returns the agent's SDK, without it a no-op.
+  - term: "@WithSpan"
+    def: A Java annotation, read by the agent, that wraps a method in a span.
+  - term: otelslog
+    def: The Go bridge that sends records of the standard slog logger to the OpenTelemetry logs SDK.
+sources:
+  - title: Zero-code (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/instrumentation/zero-code/
+    checked: 2026-11-13
+  - title: Code-based instrumentation (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/instrumentation/code-based/
+    checked: 2026-11-13
+  - title: Java agent (OpenTelemetry)
+    url: https://opentelemetry.io/docs/zero-code/java/agent/
+    checked: 2026-11-13
+  - title: Library guidelines, API and minimal implementation (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/library-guidelines/
+    checked: 2026-11-13
+---
+
+<Problem>
+Your first week on a team that runs the shop. A span is missing from checkout, and someone asks you to "just turn up the sampling in the agent". Before you change anything you need to know whether checkout even has an agent. In this shop it does not, while two of its neighbours do, in two different ways.
+</Problem>
+
+<Idea>
+The shop uses all three ways to instrument a service. fraud-detection is pure zero-code: a Java agent and no OpenTelemetry in its source. ad also runs the Java agent but adds its own spans and a counter through the API. checkout has no agent and builds its whole SDK in Go code. The Dockerfile and the imports tell you which is which.
+</Idea>
+
+## fraud-detection: the agent does everything
+
+The Dockerfile downloads `opentelemetry-javaagent.jar` and attaches it with `ENV JAVA_TOOL_OPTIONS="-javaagent:/usr/src/app/opentelemetry-javaagent.jar -Xmx180m"`. The Kotlin source in `src/main/kotlin/frauddetection/main.kt` imports Kafka, Log4j and the feature flag client, and nothing from OpenTelemetry. All its telemetry comes from the agent: spans such as `receive orders` for each Kafka message, and its Log4j lines, which reach Loki as OpenTelemetry records with a trace ID and the resource attribute `telemetry.distro.name=opentelemetry-java-instrumentation`.
+
+That is the cheapest way in, and it covers the edges of the service. What happens inside, such as how long the order count update takes, is invisible.
+
+## ad: the agent plus a few API calls
+
+ad attaches the same agent through `JAVA_TOOL_OPTIONS`, and its code in `src/main/java/oteldemo/AdService.java` uses the API on top of it. It gets a tracer and a meter from `GlobalOpenTelemetry`, which hands out the agent's SDK. It creates a counter `demo.ad.requests` with the meter. It starts a span by hand, `tracer.spanBuilder("getRandomAds").startSpan()`, makes it current with `makeCurrent()` and ends it in a `finally` block. And it marks a method with `@WithSpan("getAdsByCategory")`, so the agent wraps that method in a span with `@SpanAttribute` for its argument.
+
+This is the mix most teams reach for: the agent for the edges, a few spans and metrics where the business logic lives. The code depends only on the API, so without the agent it still runs; the API's minimal implementation turns every call into a no-op.
+
+## checkout: the SDK built in code
+
+checkout's Dockerfile copies a Go binary and runs it, with no agent. `src/checkout/main.go` builds everything at startup, as step 10 showed: resource detectors, a tracer provider with a batch processor and an OTLP/HTTP exporter, a composite propagator, a meter provider with a periodic reader, a logger provider with a batch processor. It then makes the `slog` logger write through the `otelslog` bridge, and wraps its gRPC server and clients with the `otelgrpc` instrumentation library.
+
+Setting up the SDK in code gives full control over every part. The cost is that every choice an agent would make for you is now code the team maintains.
+
+<Compare caption="Three services, three ways">
+  <Col title="fraud-detection">Java agent only. No OpenTelemetry import. Edges only.</Col>
+  <Col title="ad">Java agent plus API: GlobalOpenTelemetry, spanBuilder, @WithSpan, a counter.</Col>
+  <Col title="checkout" hot>No agent. Go SDK set up in main.go, otelgrpc and otelslog in code.</Col>
+</Compare>
+
+<InLab>
+All three send OTLP to the collector gateway in namespace `otel`. The shop's chart sets their `OTEL_SERVICE_NAME`, endpoint and resource attributes the same way, so in Grafana they look alike although they are built so differently.
+</InLab>
+
+<Trap>
+"Turn up the sampling in the agent" means nothing for a service built like checkout. Look at the Dockerfile and the imports first; a setting that an agent reads does not exist in a service that has none.
+</Trap>
+
+<Do>
+1. Open `lgtm/lab/demo/src/fraud-detection/Dockerfile` in your copy of the repository and find the line with `JAVA_TOOL_OPTIONS`. Then search the Kotlin source for OpenTelemetry: <Cmd>git grep -n opentelemetry -- lgtm/lab/demo/src/fraud-detection/src</Cmd> It finds nothing.
+2. In <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki`, over the last 15 minutes, open one line of fraud-detection and find `trace_id` and `telemetry_distro_name`: <Query lang="logql">{`{service_name="fraud-detection"} |= "Consumed record"`}</Query>
+3. Open `lgtm/lab/demo/src/ad/Dockerfile` and find the same `JAVA_TOOL_OPTIONS` line. Then list ad's use of the API: <Cmd>git grep -n -e GlobalOpenTelemetry -e spanBuilder -e WithSpan -e counterBuilder -- lgtm/lab/demo/src/ad/src</Cmd>
+4. Open `lgtm/lab/demo/src/checkout/Dockerfile`: the last line is `ENTRYPOINT [ "./checkout" ]`, with no agent. Then find where the SDK is built: <Cmd>git grep -n -e "func init" -e NewTracerProvider -e NewMeterProvider -e NewLoggerProvider -- lgtm/lab/demo/src/checkout/main.go</Cmd>
+5. Answer the check below: which service keeps its spans without any Java agent?
+</Do>
+
+<Done>
+You found the agent in the Dockerfiles of fraud-detection and ad, no OpenTelemetry import in fraud-detection, API calls on top of the agent in ad, and an SDK built in `main.go` in checkout.
+</Done>
+
+<Remember>
+Zero-code, agent plus API, or SDK in code: the Dockerfile shows whether there is an agent, the imports show whether the code talks to the API or builds the SDK.
+</Remember>
+
+<Question id="q-m08-s12" answer="b">
+A developer removes the Java agent from ad's image to save memory, and leaves the code unchanged. What happens to the span `getRandomAds` that the code starts by hand?
+
+- ad fails at startup, because GlobalOpenTelemetry cannot find an SDK.
+
+  The API ships a minimal implementation, so code that uses only the API still runs without an SDK.
+
+- The code still runs, but the API calls do nothing, so the span is never exported.
+
+  Without the agent, GlobalOpenTelemetry returns the API's no-op implementation. The calls succeed and produce no telemetry.
+
+- The span is still exported, because spanBuilder creates its own exporter.
+
+  The API does not export. Exporting is the job of the SDK, which the agent provided.
+
+- The span is exported, but without its parent, because only @WithSpan needs the agent.
+
+  Every API call needs an SDK behind it to record anything. Without the agent there is none.
+</Question>

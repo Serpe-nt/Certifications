@@ -1,0 +1,639 @@
+- id: q-m08-001
+  tags: [otel-metric-instruments]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: A service wants to report the CPU time its process has used. The operating system offers only a function that returns the total so far. Which instrument fits?
+  options:
+    - text: An asynchronous counter with a callback that returns the total
+      why: The value is an absolute total that only grows and is read on demand, which is what an asynchronous counter is for.
+    - text: A synchronous counter that adds the total at every request
+      why: A synchronous counter takes increments. Adding the whole total each time would count the same seconds again and again.
+    - text: An asynchronous gauge, because the value is read in a callback
+      why: Reading in a callback is right, but CPU time only grows and can be added across processes, so a counter states its meaning better.
+    - text: A histogram of the total, recorded once a minute
+      why: A histogram describes many separate values. One growing total is not a distribution.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/supplementary-guidelines/
+
+- id: q-m08-002
+  tags: [otel-metric-instruments, otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: No view is configured. How does the SDK aggregate a histogram instrument whose author passed suggested bucket boundaries?
+  options:
+    - text: As a base-2 exponential histogram with 160 buckets
+      why: The exponential histogram is an aggregation you choose with a view or a setting; it is not the default.
+    - text: As a sum of all recorded values, like a counter
+      why: Sum is the default for counters and up-down counters, not for histograms.
+    - text: As explicit buckets, with the suggested boundaries
+      why: The default aggregation of a histogram is the explicit bucket histogram, and it honours the ExplicitBucketBoundaries advisory parameter.
+    - text: As the last recorded value, like a gauge
+      why: Last value is the default for gauges.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+
+- id: q-m08-003
+  tags: [otel-metric-instruments]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: A developer records each request's duration with a synchronous gauge. The dashboard shows smooth numbers, but the slowest requests never appear. Why?
+  options:
+    - text: Only the last value per collection is kept, so peaks are lost
+      why: The gauge's default aggregation is the last value. A histogram keeps every observation in buckets.
+    - text: Gauges drop values that are larger than the previous export
+      why: A gauge has no threshold. It keeps one value, whichever was recorded last.
+    - text: The backend averages every gauge over a five-minute window
+      why: The values were already lost in the SDK, before any backend saw them.
+    - text: Synchronous gauges are sampled by the trace sampler, like spans
+      why: Metrics are not sampled by the trace sampler. The loss comes from the aggregation.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+
+- id: q-m08-004
+  tags: [otel-metric-instruments]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: Which instrument name follows the OpenTelemetry name syntax?
+  options:
+    - text: <code>2xx.responses</code>
+      why: A name must start with a letter, not a digit.
+    - text: <code>http.server.request.duration</code>
+      why: It starts with a letter and uses only letters and dots, well under the 255-character limit.
+    - text: <code>requests served</code>
+      why: Spaces are not allowed. Only letters, digits, underscore, dot, hyphen and slash are.
+    - text: <code>_internal.queue.size</code>
+      why: The first character must be a letter, so a leading underscore is not allowed.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/api/
+
+- id: q-m08-005
+  tags: [otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: A database library emits 40 metrics. The team wants only 3 of them in the backend and cannot change the library. What do they configure?
+  options:
+    - text: A view per unwanted metric with an empty name
+      why: Renaming does not stop a stream from being exported. The drop aggregation does.
+    - text: A match-all view with drop, plus a view per wanted metric
+      why: The match-all view with drop switches every instrument off by default, and the three views keep the ones they select.
+    - text: A cardinality limit of 3 on the meter provider
+      why: The cardinality limit caps attribute sets per stream. It does not choose which metrics are exported.
+    - text: <code>OTEL_METRICS_EXPORTER=none</code> for the library
+      why: That switches off all metric export of the process, the three wanted metrics included.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+
+- id: q-m08-006
+  tags: [otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: An OTLP metric exporter is set to the temporality preference <code>lowmemory</code>. Which instrument is exported with delta temporality?
+  options:
+    - text: The asynchronous counter
+      why: With lowmemory, asynchronous counters stay cumulative. Only the delta preference switches them.
+    - text: The synchronous up-down counter
+      why: Up-down counters stay cumulative under every preference.
+    - text: The synchronous counter
+      why: Lowmemory uses delta for the synchronous counter and the histogram, and cumulative for the rest.
+    - text: The asynchronous up-down counter
+      why: Up-down counters, asynchronous ones included, stay cumulative.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk_exporters/otlp/
+
+- id: q-m08-007
+  tags: [otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: A service sends OTLP metrics with delta temporality to Mimir 3.2, whose OTLP settings are the defaults. What happens to its counters?
+  options:
+    - text: Mimir stores them as Prometheus counters with <code>_total</code>
+      why: Only cumulative monotonic sums become counters directly. Mimir does not convert delta sums by default.
+    - text: Mimir converts them to cumulative before storing them
+      why: Mimir's native delta ingestion is an experimental setting, false by default, and it does not convert.
+    - text: Mimir stores them as gauges of the change per interval
+      why: Storing raw delta values is what the experimental setting would do. Without it nothing is stored.
+    - text: Mimir rejects them; native delta ingestion is off by default
+      why: Its reference says that with otel_native_delta_ingestion disabled, delta metrics are rejected.
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+
+- id: q-m08-008
+  tags: [otel-metrics-sdk, cardinality]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: A bad release adds a user ID attribute to a counter at 10:00, and the stream overflows. At 10:30 the fix ships to the same running process through a feature flag. The exporter uses cumulative temporality. When do new attribute sets stop going to the overflow point?
+  options:
+    - text: At the next collection, when the SDK clears the old attribute sets
+      why: Clearing state each cycle is the delta behaviour. Cumulative streams keep their sets.
+    - text: 'Only after a restart: cumulative streams keep every set seen'
+      why: With cumulative temporality the SDK retains state across cycles, so once the limit is reached new sets keep overflowing until a restart.
+    - text: After 2000 more measurements, when the limit resets
+      why: The limit counts attribute sets, not measurements, and it does not reset on its own.
+    - text: Never, because the overflow point replaces the stream
+      why: The sets seen before the overflow keep reporting, and a restart starts the stream afresh.
+  answer: [1]
+  source: https://opentelemetry.io/docs/concepts/signals/metrics/
+
+- id: q-m08-009
+  tags: [otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: What happens when an exponential histogram is scaled down by one step, from scale 3 to scale 2?
+  options:
+    - text: Pairs of neighbouring buckets merge, without adding error
+      why: Buckets of a higher scale map exactly into buckets of a lower one, so downscaling merges them without error.
+    - text: The number of buckets per power of two doubles
+      why: That is scaling up. Each step down halves the buckets per power of two.
+    - text: The bucket counts are re-estimated from the sum and the count
+      why: No estimate is needed. The counts of merged buckets are simply added.
+    - text: The zero bucket is removed and its count is lost
+      why: The zero bucket stays. Scale changes the regular buckets only.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/data-model/
+
+- id: q-m08-010
+  tags: [otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: A histogram with the unit <code>s</code> records durations of about 20 milliseconds. Every observation lands in the bucket from 0 to 5. Which change fixes it?
+  options:
+    - text: Change the unit to <code>ms</code> and keep recording seconds
+      why: The unit is a label. Values in seconds stay in the first bucket whatever the unit says.
+    - text: Raise the cardinality limit of the histogram's stream
+      why: The limit is about attribute sets. The problem is the bucket bounds.
+    - text: Set bucket bounds in seconds, as advice or in a view
+      why: The default bounds start at 0, 5 and 10 and suit milliseconds. Bounds such as 0.005 to 1 fit seconds.
+    - text: Switch the exporter to delta temporality
+      why: Temporality changes what each point covers in time, not where values fall in buckets.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+
+- id: q-m08-011
+  tags: [otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: A metric arrives in Mimir over OTLP from a resource with <code>service.name=cart</code> and <code>service.namespace=shop</code>. Which <code>job</code> label does it get?
+  options:
+    - text: <code>job="cart"</code>
+      why: That would be the job if service.namespace were empty.
+    - text: <code>job="shop.cart"</code>
+      why: The two values are joined with a slash, not a dot.
+    - text: <code>job="shop/cart"</code>
+      why: The namespace and the name are combined as namespace/name to form the job label.
+    - text: <code>job="otlp"</code>
+      why: The job comes from the resource, not from the protocol.
+  answer: [2]
+  source: https://grafana.com/docs/mimir/latest/configure/configure-otel-collector/
+
+- id: q-m08-012
+  tags: [otel-metrics-sdk]
+  exam: {cert: otca, domain: O2, competency: SDK Pipelines}
+  q: A team wants to push metrics over OTLP every minute and, at the same time, offer a Prometheus endpoint for a local scraper. How is the meter provider built?
+  options:
+    - text: One periodic reader with two exporters attached to it
+      why: A reader hands its data to one exporter. Two destinations need two readers.
+    - text: Two meter providers, one per exporter, used by the same instruments
+      why: An instrument belongs to one meter provider. The SDK supports several readers on one provider instead.
+    - text: One OTLP exporter and a Collector for the scrape
+      why: That can work, but it is a Collector set-up. Inside the SDK the answer is two readers.
+    - text: 'Two readers on one provider: periodic for OTLP, pull for Prometheus'
+      why: The SDK must support several readers on one provider, each with its own exporter and schedule.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+
+- id: q-m08-013
+  tags: [otel-logs-api]
+  exam: {cert: otca, domain: O2, competency: "Signals (Tracing, Metric, Log)"}
+  q: A service logs through an OpenTelemetry appender. Its request log lines carry trace IDs, but the line "listening on port 8000" has none. Why?
+  options:
+    - text: The appender adds trace IDs only to lines at WARN level or above
+      why: The level does not matter. The trace ID comes from the context.
+    - text: It was written at startup, when no span was active
+      why: The record takes TraceId and SpanId from the current context. At startup no span is active.
+    - text: The batching processor removes trace IDs from the first batch
+      why: Processors do not strip trace IDs; the record never had one.
+    - text: Startup lines are sent through the Collector, which drops trace IDs
+      why: All lines take the same path. The difference is the context when they were written.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/logs/api/
+
+- id: q-m08-014
+  tags: [otel-logs-api]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: A logging library writes the level WARNING. In which SeverityNumber range should an appender place it?
+  options:
+    - text: 9 to 12
+      why: That is the INFO range.
+    - text: 17 to 20
+      why: That is the ERROR range.
+    - text: 1 to 4
+      why: That is TRACE, the finest level.
+    - text: 13 to 16
+      why: The log data model gives WARN the numbers 13 to 16.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/logs/data-model/
+
+- id: q-m08-015
+  tags: [otel-logs-api]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: An old application writes a log file that a Collector reads ten minutes later. Which LogRecord field records when the Collector saw each line?
+  options:
+    - text: Timestamp
+      why: Timestamp is when the event happened, as the source wrote it.
+    - text: ObservedTimestamp
+      why: It is the time the collection system observed the event, which can be later than the event itself.
+    - text: TraceFlags
+      why: TraceFlags carries W3C trace flags such as sampled, not a time.
+    - text: EventName
+      why: EventName names the type of event, not when it was seen.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/logs/data-model/
+
+- id: q-m08-016
+  tags: [otel-otlp]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: An exporter uses <code>http/protobuf</code> and <code>OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.example.com</code>, with no port. Where does it send metrics?
+  options:
+    - text: <code>https://otel.example.com:4318/v1/metrics</code>
+      why: The exporter must not add a port. Without one, the scheme's default port is used.
+    - text: <code>https://otel.example.com/</code>, the root path
+      why: The root path applies to a per-signal endpoint without a path. The base endpoint gets v1/metrics added.
+    - text: <code>https://otel.example.com/v1/metrics</code>, port 443
+      why: The base endpoint gets v1/metrics added, and a URL without a port uses 443 for https.
+    - text: <code>otel.example.com:4317</code> over gRPC, as the default
+      why: The protocol is http/protobuf, so the exporter makes HTTP requests; gRPC is not implied by the endpoint.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/protocol/exporter/
+
+- id: q-m08-017
+  tags: [otel-otlp]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: An application exports to a Collector, which exports to a backend. The Collector answers the application with success. What does that success confirm?
+  options:
+    - text: Only that the Collector accepted it; the backend is another hop
+      why: OTLP acknowledgements are between one client and one server. End-to-end delivery is outside the protocol.
+    - text: That the backend stored it, as OTLP forwards acknowledgements
+      why: OTLP does not pass acknowledgements across intermediate nodes.
+    - text: Nothing, because OTLP has no responses
+      why: 'OTLP is request and response: every export request gets an answer.'
+    - text: That the data was written to the Collector's disk
+      why: The response says the data was accepted, not how the Collector keeps it.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otlp/
+
+- id: q-m08-018
+  tags: [otel-otlp]
+  exam: {cert: otca, domain: O2, competency: Data Model}
+  q: Which compression must every OTLP server support?
+  options:
+    - text: Only gzip
+      why: Uncompressed requests must be accepted too.
+    - text: zstd and gzip
+      why: The specification names none and gzip, not zstd.
+    - text: Any compression the client announces
+      why: The server's duty is limited to the two named options.
+    - text: None and gzip
+      why: All server components must support requests with no compression and with gzip.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otlp/
+
+- id: q-m08-019
+  tags: [otel-otlp]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: A proxy in front of a Collector routes OTLP/HTTP requests by their <code>Content-Type</code>. Which value does a client set when it uses <code>http/protobuf</code>?
+  options:
+    - text: <code>application/grpc</code>
+      why: That is gRPC. http/protobuf is a plain HTTP POST.
+    - text: <code>application/x-protobuf</code>
+      why: Binary protobuf payloads over HTTP use application/x-protobuf in the request and the response.
+    - text: <code>application/json</code>
+      why: That is the type for http/json.
+    - text: <code>text/plain</code>
+      why: OTLP bodies are protobuf or JSON, never plain text.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otlp/
+
+- id: q-m08-020
+  tags: [otel-env-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: Which value of <code>OTEL_SDK_DISABLED</code> disables the SDK?
+  options:
+    - text: <code>yes</code>
+      why: Only the word true counts as true. Any other value means false.
+    - text: <code>1</code>
+      why: A number is not a true value for these booleans.
+    - text: <code>TRUE</code>
+      why: The word true is read without regard to case, so TRUE disables the SDK.
+    - text: <code>on</code>
+      why: Implementations must not accept other words as true.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+
+- id: q-m08-021
+  tags: [otel-env-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: A chart sets <code>OTEL_BSP_SCHEDULE_DELAY=5s</code>. The SDK expects milliseconds and cannot parse the value. What should it do?
+  options:
+    - text: Refuse to start, because the configuration is invalid
+      why: For a value it cannot parse, the SDK should warn and ignore it, not stop the application.
+    - text: Read it as 5 milliseconds
+      why: The SDK does not guess a meaning for a value it cannot parse.
+    - text: Disable the batch span processor
+      why: A bad value of one setting does not switch off the component.
+    - text: Log a warning and use the default, 5000 milliseconds
+      why: An unparsable numeric value should be treated as not set, with a warning, so the default applies.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+
+- id: q-m08-022
+  tags: [otel-env-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: During an incident the log backend is overloaded. The team wants to keep traces and metrics from a service and stop only its logs, without changing code. Which setting does that?
+  options:
+    - text: <code>OTEL_LOGS_EXPORTER=none</code>
+      why: none means no exporter is configured for logs; the other signals keep theirs.
+    - text: <code>OTEL_SDK_DISABLED=true</code>
+      why: That turns off every signal, traces and metrics included.
+    - text: <code>OTEL_BLRP_MAX_QUEUE_SIZE=0</code>
+      why: Valid values are positive. A queue setting is not the way to switch off a signal.
+    - text: <code>OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=""</code>
+      why: An empty value is the same as unset, so the default endpoint is used.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+
+- id: q-m08-023
+  tags: [otel-env-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: A resource attribute value must contain a comma, as in <code>team=payments,billing</code>. How is it written in <code>OTEL_RESOURCE_ATTRIBUTES</code>?
+  options:
+    - text: In double quotes, <code>team="payments,billing"</code>
+      why: Quotes are not part of the format. The comma would still split the pair.
+    - text: Percent-encoded, <code>team=payments%2Cbilling</code>
+      why: The comma and equals signs in keys and values must be percent-encoded.
+    - text: With a backslash, <code>team=payments\,billing</code>
+      why: The format does not use backslash escapes.
+    - text: It cannot be written; values with commas are not allowed
+      why: It can, by percent-encoding the comma.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/resource/sdk/
+
+- id: q-m08-024
+  tags: [otel-declarative-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: 'A declarative configuration file contains <code>headers_list: ${API_HEADERS}</code>. The variable is not set and there is no default. What does the SDK see?'
+  options:
+    - text: The text <code>${API_HEADERS}</code>, unchanged
+      why: A valid reference is replaced. Only an escaped one with $$ stays as text.
+    - text: A parse error, so no SDK is created
+      why: A missing variable is not an error. Only a malformed reference is.
+    - text: An empty value
+      why: A referenced variable that is undefined and has no default is replaced with an empty value.
+    - text: The value of <code>OTEL_EXPORTER_OTLP_HEADERS</code> instead
+      why: The file reads only the variables it names. There is no fallback to the standard variables.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/data-model/
+
+- id: q-m08-025
+  tags: [otel-declarative-config]
+  exam: {cert: otca, domain: O2, competency: Configuration}
+  q: A configuration value must contain the literal text <code>${HOME}</code>, not the path of the home folder. How is it written in the file?
+  options:
+    - text: <code>'${HOME}'</code> in single quotes
+      why: Quotes decide the type after substitution; they do not stop the substitution.
+    - text: <code>\${HOME}</code> with a backslash
+      why: The escape in these files is a second dollar sign, not a backslash.
+    - text: <code>${env:HOME}</code>
+      why: The env prefix is another way to reference the variable, so it is still replaced.
+    - text: <code>$${HOME}</code>
+      why: $$ is the escape for a single $, so the reference is kept as text and not replaced.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/configuration/data-model/
+
+- id: q-m08-026
+  tags: [otel-sdk-extension]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: A cloud provider wants to add its region and account to the resource of every OpenTelemetry Java service. According to the specification, where must that resource detector live?
+  options:
+    - text: In its own package, separate from the SDK
+      why: Detectors for generic platforms and vendor environments must be implemented as packages separate from the SDK.
+    - text: In the core SDK, so that every application gets it
+      why: The specification keeps platform and vendor detectors out of the SDK.
+    - text: In the OTLP exporter, which adds attributes before sending
+      why: Exporters encode and send. The resource is built at startup by detectors.
+    - text: In the API, so that instrumentation libraries can call it
+      why: Resources are an SDK concern. Instrumentation uses only the API and does not build resources.
+  answer: [0]
+  source: https://opentelemetry.io/docs/specs/otel/resource/sdk/
+
+- id: q-m08-027
+  tags: [otel-sdk-extension, otel-error-handling]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: A team writes its own span exporter for an internal protocol. Which component should retry a failed send?
+  options:
+    - text: The batch span processor, which keeps the spans
+      why: The default span processors should not implement retry logic.
+    - text: The exporter, since retries depend on its protocol
+      why: The specification gives retries and concurrent requests to the exporter, as OTLP's exporter does.
+    - text: The tracer provider, after the export returns a failure
+      why: The provider does not resend batches. A failure result means the batch is dropped.
+    - text: The instrumentation library that created the spans
+      why: Instrumentation uses only the API. It never sees exports.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+
+- id: q-m08-028
+  tags: [otel-sdk-extension]
+  exam: {cert: otca, domain: O2, competency: Composability and Extension}
+  q: An application already has metrics in an older library that aggregates them itself. The team wants a MetricReader to export them next to the OpenTelemetry metrics. Which interface is meant for that?
+  options:
+    - text: A new MetricExporter that reads the older library
+      why: An exporter sends what a reader collects. It does not collect from other sources.
+    - text: A view that selects the older library's metrics
+      why: Views select OpenTelemetry instruments. The older library has none.
+    - text: A MetricProducer that bridges it to the reader
+      why: MetricProducer is the interface for bridges to third-party metric sources that hand aggregated data to a reader.
+    - text: An asynchronous gauge per metric, read in one callback
+      why: That rebuilds each metric by hand and loses its type. The bridge interface exists for this case.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+
+- id: q-m08-029
+  tags: [otel-zero-code]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: How do you start a Node.js application with OpenTelemetry's zero-code instrumentation, without changing its code?
+  options:
+    - text: <code>node --require @opentelemetry/auto-instrumentations-node/register app.js</code>
+      why: The register module loads the instrumentation before the application; NODE_OPTIONS can carry the same flag.
+    - text: <code>node -javaagent:opentelemetry.js app.js</code>
+      why: -javaagent is the Java way to attach an agent.
+    - text: <code>opentelemetry-instrument node app.js</code>
+      why: opentelemetry-instrument is the Python agent's command.
+    - text: <code>npm install @opentelemetry/api</code> alone, then <code>node app.js</code>
+      why: The API alone is a no-op. The auto-instrumentations package and the register module are needed.
+  answer: [0]
+  source: https://opentelemetry.io/docs/zero-code/js/
+
+- id: q-m08-030
+  tags: [otel-zero-code]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: How does the Python agent produce spans for a Flask application whose code never imports OpenTelemetry?
+  options:
+    - text: It rewrites the application's bytecode when the module is loaded
+      why: Bytecode changes are the Java agent's mechanism.
+    - text: It reads the application's source and inserts span calls into the files
+      why: The agent does not edit files; nothing on disk changes.
+    - text: It captures network packets with eBPF and turns them into spans
+      why: eBPF is used by some zero-code tools, but the Python agent works inside the process.
+    - text: It patches Flask's functions at runtime
+      why: The Python agent primarily uses monkey patching to change library functions at runtime.
+  answer: [3]
+  source: https://opentelemetry.io/docs/zero-code/python/
+
+- id: q-m08-031
+  tags: [otel-operator]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: A Rust service on Kubernetes sets up its SDK in code, and no agent exists for it. The team wants it to take the endpoint, sampler and resource attributes from the namespace's Instrumentation resource. Which annotation do they use?
+  options:
+    - text: '<code>instrumentation.opentelemetry.io/inject-sdk: "true"</code>'
+      why: inject-sdk adds the OTEL_ environment variables from the Instrumentation resource without injecting an agent.
+    - text: '<code>instrumentation.opentelemetry.io/inject-go: "true"</code>'
+      why: That injects the Go instrumentation, which does not apply to a Rust program.
+    - text: '<code>instrumentation.opentelemetry.io/inject-rust: "true"</code>'
+      why: The Operator has no Rust injection. inject-sdk is the way for such programs.
+    - text: '<code>resource.opentelemetry.io/service.name: "rust"</code>'
+      why: That sets one resource attribute. It does not bring the endpoint or the sampler.
+  answer: [0]
+  source: https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/
+
+- id: q-m08-032
+  tags: [otel-operator]
+  exam: {cert: otca, domain: O2, competency: Agents}
+  q: 'A team adds <code>instrumentation.opentelemetry.io/inject-java: "true"</code> under <code>metadata.annotations</code> of a Deployment and restarts it. The pods start without the agent. What is wrong?'
+  options:
+    - text: The value must be the name of the Instrumentation resource
+      why: The value "true" is valid and uses the namespace's resource.
+    - text: Java injection is off until its feature gate is set
+      why: Java injection is enabled by default. Go is the one behind a gate.
+    - text: It belongs in the pod template's annotations
+      why: The Operator acts on pods, so the annotation only works on the pod template.
+    - text: The Operator injects only into StatefulSets
+      why: Deployments are the usual case in the Operator's examples.
+  answer: [2]
+  source: https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/
+
+- id: q-m08-033
+  tags: [otel-sdk-debugging]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: A team wants to feed the console exporter's output into a script that checks every deployment. Why is that a bad idea?
+  options:
+    - text: The console exporter prints only the first 100 spans
+      why: It prints what its processor hands it; there is no such limit.
+    - text: The console exporter cannot run next to the OTLP exporter
+      why: Exporters can be combined; the variables even accept a list such as console,otlp.
+    - text: The console exporter drops attributes that are not strings
+      why: It prints attributes of every type. The problem is the format.
+    - text: Its format is not standardized and may change
+      why: The specification asks that the exporter be documented as unstable in format and not recommended for production.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otel/metrics/sdk_exporters/stdout/
+
+- id: q-m08-034
+  tags: [otel-sdk-debugging]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: A span named <code>charge.card</code> never reaches the backend. With <code>OTEL_TRACES_EXPORTER=console,otlp</code>, the console shows the request's server span but no <code>charge.card</code> span either. Where should the team look first?
+  options:
+    - text: At the Collector's pipeline, which may filter the span
+      why: The console shows what the SDK produced, before any Collector. The span was not produced.
+    - text: At the code that should create the span
+      why: If the span is missing from the SDK's own output, the cause is in the instrumentation, not in export.
+    - text: At the OTLP exporter's retry settings
+      why: Retries matter for data that was produced and failed to send.
+    - text: At the backend's retention, which may have deleted the span
+      why: The span is missing before it ever left the process.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/trace/sdk_exporters/stdout/
+
+- id: q-m08-035
+  tags: [otel-sdk-debugging, otel-error-handling]
+  exam: {cert: otca, domain: O4, competency: Debugging Pipelines}
+  q: A service emits the SDK self-observability metrics. <code>otel.sdk.processor.span.queue.size</code> stays at the value of <code>otel.sdk.processor.span.queue.capacity</code>. What does that suggest?
+  options:
+    - text: The sampler keeps too few spans to fill a batch
+      why: A sampler that kept too few would leave the queue empty, not full.
+    - text: The SDK has stopped creating spans because the queue is closed
+      why: Nothing closes the queue. A queue at capacity means spans keep arriving faster than they leave.
+    - text: Exports are too slow or failing, so new spans are dropped
+      why: When the queue is full the batching processor drops spans; a queue stuck at capacity points to slow or failing exports.
+    - text: The queue is configured too large and wastes memory
+      why: A large queue would rarely be full. This one is full all the time.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/semconv/otel/sdk-metrics/
+
+- id: q-m08-036
+  tags: [otel-error-handling]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: 'An OTLP/HTTP exporter receives <code>429 Too Many Requests</code> with the header <code>Retry-After: 30</code>. What should it do?'
+  options:
+    - text: Drop the batch, because 4xx codes mean bad data
+      why: 429 is one of the codes listed as retryable; it signals throttling, not bad data.
+    - text: Wait 30 seconds, as the header asks, then retry
+      why: The client should honour Retry-After when it is present, as long as the export timeout allows.
+    - text: Retry at once, because the server only needs a moment
+      why: Throttling asks the client to slow down. Retrying at once makes it worse.
+    - text: Split the batch in half and send both halves
+      why: Splitting is not part of OTLP's error rules; the client only chooses between retrying and dropping.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otlp/
+
+- id: q-m08-037
+  tags: [otel-error-handling]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: A Collector pushes new sampling settings to an SDK at runtime, and the settings are invalid. What may the SDK do?
+  options:
+    - text: Stop the application, because the configuration is unsafe
+      why: Failing the application is allowed only at initialization, not later because of settings received at runtime.
+    - text: Throw an exception into the next request so the developer notices
+      why: OpenTelemetry must not throw unhandled exceptions at runtime.
+    - text: Keep the application running, handle the error and log it
+      why: The SDK must not fail the application at runtime; it should log errors it suppresses.
+    - text: Restart the process with the default configuration
+      why: Restarting the application would change its behaviour, which the rules exist to prevent.
+  answer: [2]
+  source: https://opentelemetry.io/docs/specs/otel/error-handling/
+
+- id: q-m08-038
+  tags: [otel-error-handling, otel-otlp]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: A batch is larger than the server's limit, and the OTLP/HTTP server answers <code>413 Content Too Large</code>. What does the client do with that batch?
+  options:
+    - text: Retry it with exponential back-off
+      why: Only 429, 502, 503 and 504 are retryable among HTTP status codes; 413 is not.
+    - text: Wait for a Retry-After header and then retry
+      why: Retry-After belongs to throttling responses. 413 is not retried at all.
+    - text: Resend it over gRPC instead
+      why: The exporter does not switch protocols on an error.
+    - text: Drop it; 413 is not a retryable status
+      why: Status codes outside the retryable list must not be retried, so the client drops the request.
+  answer: [3]
+  source: https://opentelemetry.io/docs/specs/otlp/
+
+- id: q-m08-039
+  tags: [otel-error-handling, otel-metric-instruments]
+  exam: {cert: otca, domain: O4, competency: Error Handling}
+  q: The callback of an observable gauge raises an exception because a database is down. What should happen to the application?
+  options:
+    - text: It crashes, because the callback is application code
+      why: The callback is called by the SDK, and API methods that take external callbacks must handle all their errors.
+    - text: Nothing breaks; that gauge just lacks a value this time
+      why: The SDK must catch errors from callbacks and must not let them reach the application.
+    - text: The SDK stops all metric collection until a restart
+      why: Long-running background tasks should not fail permanently because of an internal error.
+    - text: The exception is passed to the next request handled by the service
+      why: Internal errors should only affect the operation that caused them, not unrelated requests.
+  answer: [1]
+  source: https://opentelemetry.io/docs/specs/otel/error-handling/
+
+- id: q-m08-040
+  tags: [instrumentation, otel-zero-code]
+  exam: {cert: otca, domain: O1, competency: Instrumentation}
+  q: A Flask service runs with the Python agent. The team wants a span around its own pricing function, which no library instruments. What do they add?
+  options:
+    - text: Nothing; the agent instruments every method of the application
+      why: Zero-code instrumentation covers libraries at the edges, not the application's own code.
+    - text: Another instrumentation package from opentelemetry-bootstrap
+      why: Bootstrap installs packages for the libraries it finds. Your own function is not a library.
+    - text: A span from a tracer of the OpenTelemetry API
+      why: The agent sets up the SDK; a tracer from the API in the application's code records to it.
+    - text: A Collector processor that builds spans from the function's log lines
+      why: That would invent spans downstream. The span belongs in the code that does the work.
+  answer: [2]
+  source: https://opentelemetry.io/docs/concepts/instrumentation/zero-code/

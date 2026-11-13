@@ -1,0 +1,127 @@
+---
+id: m05-s12
+title: Sharing and exporting
+kind: lab
+minutes: 20
+order: 12
+exam:
+  - cert: none
+tags: [dashboard-sharing]
+check:
+  kind: exact
+  prompt: Paste the name of the input that the export for another instance created for the Mimir data source.
+  answers: ["DS_MIMIR"]
+outcome: You can share a dashboard with the right audience, export it so another Grafana can import it, and clean up what you built.
+terms:
+  - term: Internal link
+    def: A link to a dashboard for people who can already sign in to the same Grafana.
+  - term: Snapshot
+    def: A copy of a dashboard's current data, without its queries, that anyone with the link can open.
+  - term: Externally shared dashboard
+    def: A read-only dashboard that anyone with its URL can open without signing in; once called a public dashboard.
+  - term: Export as code
+    def: Saving a dashboard as a JSON or YAML file that another Grafana can import.
+  - term: Data source input
+    def: A placeholder in an exported dashboard that asks for a data source on import.
+sources:
+  - title: Share dashboards and panels (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/share-dashboards-panels/
+    checked: 2026-11-12
+  - title: Externally shared dashboards (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/share-dashboards-panels/shared-dashboards/
+    checked: 2026-11-12
+  - title: Import dashboards (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/build-dashboards/import-dashboards/
+    checked: 2026-11-12
+  - title: Manage dashboards, folders (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/dashboards/manage-dashboards/
+    checked: 2026-11-12
+---
+
+<Problem>
+Three requests arrive on the same day. A colleague wants the link to your dashboard. A supplier, who has no account, needs to see last night's outage. And the platform team wants your dashboard for their own Grafana, which has different data source names. One "share" button cannot be the right answer to all three.
+</Problem>
+
+Sharing a dashboard means deciding who will see it, whether they sign in, and whether they need the dashboard itself or a copy of one moment.
+
+<Idea>
+Grafana offers one way of sharing for each audience. An internal link is for people who can sign in. A snapshot or an externally shared dashboard is for people who cannot. An export as code is for another Grafana, which imports the file and asks for its own data sources.
+</Idea>
+
+## Inside your organization: a link
+
+**Share internally** copies a link to the dashboard. By default it locks the time range, turning "last hour" into the exact hour you are looking at, and it shortens the link. The person who opens it must be allowed to view the dashboard. Save the dashboard first: unsaved changes are not in the link.
+
+## Outside your organization: a snapshot or an external share
+
+A snapshot is a copy of what the dashboard shows now. Grafana keeps the data and the series names and removes the queries and panel links. Anyone with the link can open it, and you choose when it expires: an hour, a day, a week or never.
+
+An externally shared dashboard, formerly called a public dashboard, is the dashboard itself, not a copy: anyone with its URL can open it, read only, without signing in. Grafana warns that sharing a dashboard this way can cause a large number of queries to your data sources. Grafana lists all externally shared dashboards in one place, where you can pause or revoke them.
+
+<Compare caption="Who is it for, and what do they get?">
+  <Col title="Internal link">People who sign in to your Grafana. The dashboard itself, with their own permissions.</Col>
+  <Col title="Snapshot" hot>Anyone with the link. The data at one moment, no queries, an expiry date.</Col>
+  <Col title="External share">Anyone with the URL. The dashboard itself, read only, and possibly many queries.</Col>
+</Compare>
+
+## To another Grafana: export as code
+
+**Export as code** writes the whole dashboard to a file: layout, variables, queries, styles and the data sources it uses. Under **Advanced options** you choose the model, Classic or V2 Resource, as in step 9. A switch removes what only your Grafana knows; the lab's Grafana calls it **Share dashboard with another instance** for the V2 Resource and **Export for sharing externally** for the Classic model. Each data source becomes an input, a placeholder with a name such as `DS_PROMETHEUS`, and on import Grafana asks which of its own data sources to use for it. When a dynamic dashboard is exported in the Classic model, Grafana warns that features such as tabs and conditional rendering may be lost.
+
+Import is under **New** > **Import dashboard**: upload the file or paste the JSON, and optionally change the name, the folder and the UID. To publish a dashboard to the community catalog on grafana.com, export it in the Classic model.
+
+<Flow caption="From one Grafana to another">
+  <Stage title="Export as code" kicker="Source">Share with another instance turns data sources into inputs.</Stage>
+  <Stage title="File" kicker="Transport">JSON or YAML, in Git or in a message.</Stage>
+  <Stage title="Import dashboard" kicker="Target">Grafana asks which of its data sources fills each input.</Stage>
+</Flow>
+
+<InLab>
+The lab's Grafana runs with Grafana's open source image, so a few ways of sharing in the documentation are missing: PDF export and scheduled reports are Grafana Enterprise features. The **Export** menu does offer **Export as image**, but that needs the separate image renderer service, which the lab does not run.
+</InLab>
+
+<Trap>
+A snapshot hides the queries but not the data. Everything the panels show at that moment, including service names and values, goes to whoever has the link. Check what is on screen before you publish one, and set an expiry.
+</Trap>
+
+<Remember>
+Internal link for people who sign in, snapshot for a moment in time, export as code for another Grafana. Turn on the switch that removes your instance's details before you export for someone else.
+</Remember>
+
+<Do>
+1. Open your dashboard `Shop service (m05)`. Open the **Share** drop-down and look at its three entries: **Share internally**, **Share externally** and **Share snapshot**. Choose **Share internally**: **Lock time range** and **Shorten link** are on. Click **Copy link** and close the drawer.
+2. Open the **Export** drop-down and choose **Export as code**. Open **Advanced options**: in the lab the model is preset to **V2 Resource**, with the format JSON or YAML. Choose **Classic** and read the warning about features that may be lost.
+3. Turn on **Export for sharing externally**. The JSON now starts with `__inputs`: one entry for the data source Mimir, with its `name` and `label`. In the panels, the data source refers to that input.
+4. Click **Copy to clipboard** and close the drawer.
+5. Open **Dashboards**, click **New** and choose **Import dashboard**. Paste the JSON under **Import via dashboard JSON model** and click **Load**. Grafana warns that a dashboard with the same UID exists and offers **Import (Overwrite)**: do not take it. Change the name to `Shop service (m05) import`, choose the folder `Learn m05`, click **Change uid** and give it a new UID, and pick **Mimir** for the input `DS_MIMIR`. Click **Import** and look at the copy.
+6. Clean up the module: open the folder `Learn m05`, choose **Folder actions** > **Delete this folder**, type `Delete` and confirm. The dashboards inside go with it and wait under **Recently deleted**.
+7. Paste the name of the input from action 3 in the lab check below.
+</Do>
+
+<Done>
+You shared the dashboard by link, exported it for another instance and imported it again with a data source picked on import. The folder Learn m05 is gone.
+</Done>
+
+<Trap practice>
+If the import shows **Import (Overwrite)**, the UID is still the one of your own dashboard: change it, or the import replaces the original. Read the input name before you delete the folder.
+</Trap>
+
+<Question id="q-m05-s12" answer="c">
+A supplier without a Grafana account must see how last night's outage looked, and must not see your queries. What do you share?
+
+- An internal link with the time range locked
+
+  An internal link only works for people who can sign in to your Grafana.
+
+- An export as code, sent by email
+
+  The file holds every query, and the supplier would need their own Grafana and data to use it.
+
+- A snapshot of the dashboard at the outage, with an expiry
+
+  A snapshot holds the data of that moment without the queries, and anyone with the link can open it.
+
+- An externally shared dashboard with the default time range
+
+  It opens the dashboard itself to anyone with the URL, and can cause many queries. A copy of one moment is all the supplier needs.
+</Question>

@@ -1,0 +1,122 @@
+---
+id: m08-s03
+title: Exponential histograms and cardinality limits
+kind: concept
+minutes: 18
+order: 3
+exam:
+  - cert: otca
+    domain: O2
+    competency: Data Model
+  - cert: otca
+    domain: O2
+    competency: SDK Pipelines
+tags: [otel-metrics-sdk]
+outcome: You can explain why the default histogram bounds fail for seconds, when to use an exponential histogram instead, and how the SDK's cardinality limit protects memory and what it costs your queries.
+terms:
+  - term: Explicit bucket histogram
+    def: A histogram whose bucket bounds are a fixed list given in advance.
+  - term: Exponential histogram
+    def: A histogram whose bucket bounds are powers of a base set by a scale, which the SDK adjusts to the data.
+  - term: Scale
+    def: The number that sets the resolution of an exponential histogram; one step up doubles the number of buckets per power of two.
+  - term: Cardinality limit
+    def: The most attribute sets one metric stream may hold in a collection; 2000 by default.
+  - term: Overflow data point
+    def: The single point, marked otel.metric.overflow=true, that collects measurements of attribute sets beyond the limit.
+sources:
+  - title: Metrics SDK, histogram aggregations and cardinality limits (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/sdk/
+    checked: 2026-11-13
+  - title: Metrics data model, exponential histogram (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/data-model/
+    checked: 2026-11-13
+  - title: Metrics exporter, OTLP (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/sdk_exporters/otlp/
+    checked: 2026-11-13
+  - title: Metrics, cardinality limits (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/signals/metrics/
+    checked: 2026-11-13
+  - title: Prometheus and OpenMetrics compatibility (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/
+    checked: 2026-11-13
+  - title: Configuration parameters, native_histograms_ingestion_enabled (Grafana Mimir 3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+    checked: 2026-11-13
+  - title: Configure the OpenTelemetry Collector to write metrics into Mimir (Grafana Mimir)
+    url: https://grafana.com/docs/mimir/latest/configure/configure-otel-collector/
+    checked: 2026-11-13
+---
+
+<Problem>
+The CPU work of the workshop service takes about five milliseconds, and its histogram has the unit `s`. With the SDK's default bounds, which start at 0, 5 and 10, every one of those observations lands in the bucket from 0 to 5 seconds. The histogram is correct and useless: the 95th percentile can only be "somewhere under five seconds".
+</Problem>
+
+Module m04 showed the same problem in Prometheus and its answer, the native histogram. OpenTelemetry has the matching tool, and a second protection that Prometheus client libraries do not have.
+
+<Idea>
+An explicit bucket histogram is only as good as its bounds, and the default bounds suit milliseconds. An exponential histogram needs no bounds: the SDK picks a scale that fits the data within a fixed number of buckets. Separately, the SDK caps how many attribute sets one metric may hold, and folds the rest into one overflow point.
+</Idea>
+
+## The default bounds were made for milliseconds
+
+The explicit bucket histogram is the default aggregation of a histogram. Its default bounds are 0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500 and 10000; the specification says they were influenced by the default buckets of the Prometheus clients for Java and Go. A bucket includes its upper bound and excludes its lower bound, so a value of 5 falls into (0, 5]. The SDK also records the minimum and the maximum by default.
+
+For a duration in seconds, those bounds are far too wide. There are two fixes. The author of the instrument can pass suggested bounds as an advisory parameter, which is what the workshop does. The person running the application can set bounds in a view, which wins over the advice.
+
+## Exponential histograms choose their own bounds
+
+The base-2 exponential histogram is an aggregation you switch on, with a view or, for the OTLP exporter, with `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION=base2_exponential_bucket_histogram`. Its bounds are powers of a base, and the base comes from the scale: base = 2 to the power of 2 to the power of minus scale. At scale 0 the base is 2, so each bucket is twice as wide as the one before. At scale 3 there are 8 buckets between 1 and 2.
+
+The SDK keeps at most 160 buckets for positive values and 160 for negative ones, plus a zero bucket. With a single value it uses the highest scale, 20. As the values spread out, it lowers the scale until they fit into 160 buckets. The specification's example: 160 buckets cover latencies from 1 millisecond to 100 seconds at scale 3, with a relative error below 5%.
+
+Lowering the scale merges neighbouring buckets without error, because the buckets of a higher scale fit exactly inside the buckets of a lower one. That is why histograms of different resolutions can be added up without error.
+
+<Figures caption="Relative error at the scale that fits 160 buckets" unit="%">
+  <Stat label="Scale 5" value="1.083%" amount={1.083} max={8.643} note="1 ms to 20 ms" />
+  <Stat label="Scale 4" value="2.166%" amount={2.166} max={8.643} note="1 ms to 1 s" />
+  <Stat label="Scale 3" value="4.329%" amount={4.329} max={8.643} note="1 ms to 100 s" hot />
+  <Stat label="Scale 2" value="8.643%" amount={8.643} max={8.643} note="1 µs to 10 s" />
+</Figures>
+
+## From exponential histogram to native histogram
+
+The two models were built to meet. The compatibility specification maps an exponential histogram to a Prometheus native histogram with a standard schema: the scale becomes the schema, which Prometheus allows from -4 to 8, so a finer histogram is scaled down first. That mapping is marked as in development in the specification. Mimir stores exponential histograms as native histograms when its native histogram ingestion is on. The Mimir 3.2 reference gives `native_histograms_ingestion_enabled` the default true.
+
+## The cardinality limit
+
+Every attribute set of a metric is a data point the SDK keeps in memory. To stop one bad attribute from eating the process, the SDK has a hard limit per metric stream and collection cycle: 2000 by default. A view can set another limit for one stream, and a reader can set a default per instrument kind. The limit is applied after the view has filtered attributes, so the best fix for a high-cardinality attribute is a view that removes it before the limit is reached.
+
+When the limit is hit, new attribute sets are not dropped. Their measurements are added to one overflow point whose only attribute is `otel.metric.overflow=true`. The total stays right, but a query that filters or groups by any attribute misses those measurements. With cumulative temporality, the sets seen before the overflow keep reporting and new ones keep overflowing until the process restarts. With delta temporality the state is reset every cycle, so the limit applies to the sets active in one cycle. The limit does not count resource attributes such as `service.name`.
+
+<InLab>
+The workshop's histogram passes the bounds 0.001 to 5 seconds as advice, so it arrives in Mimir as `workshop_compute_duration_seconds_bucket` with eleven `le` values, `+Inf` included. The lab's Mimir sets `native_histograms_ingestion_enabled: true` in its values, and its runtime overrides do not change it, so it would also accept exponential histograms.
+</InLab>
+
+<Trap>
+Raising the cardinality limit is the last fix, not the first. The limit is applied after views, so drop the attribute that explodes, such as a raw URL path, with a view, and the stream stays under 2000 without spending more memory.
+</Trap>
+
+<Remember>
+Default histogram bounds suit milliseconds; give bounds for seconds or use an exponential histogram, which picks its scale within 160 buckets. Past 2000 attribute sets, measurements go to one point marked `otel.metric.overflow=true`.
+</Remember>
+
+<Question id="q-m08-s03" answer="a">
+A histogram records request durations with the attribute `url.path`, which holds raw paths with user IDs in them. The stream overflows every day. What should the team do first?
+
+- Add a view that keeps only the low-cardinality attributes of that histogram.
+
+  The limit counts attribute sets after the view has filtered them. Without the raw path, the stream needs few sets and stops overflowing.
+
+- Raise the stream's cardinality limit to 20000 in a view.
+
+  That only moves the point where it overflows, and every new set costs memory in the process.
+
+- Switch the exporter's temporality preference to delta.
+
+  Delta resets the state each cycle, but raw paths can still exceed the limit within one cycle, and many Prometheus-style backends reject delta.
+
+- Move `url.path` into the resource attributes so the limit no longer counts it.
+
+  Resource attributes describe the process, not one request. The OpenTelemetry documentation warns against moving measurement attributes there to get around the limit.
+</Question>
