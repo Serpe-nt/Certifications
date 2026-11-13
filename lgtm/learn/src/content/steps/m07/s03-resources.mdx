@@ -87,9 +87,9 @@ A resource attribute is not a span attribute. Grafana shows the two in separate 
 
 <Do>
 1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, pick the data source `tempo` and the query type TraceQL. Set the time range to the last 15 minutes.
-2. Run this query. It finds spans of the shop's front proxy and adds three of their resource attributes as columns: <Query lang="traceql">{`{ resource.service.name = "frontend-proxy" } | select(resource.telemetry.sdk.name, resource.telemetry.sdk.language, resource.service.instance.id)`}</Query>
-3. Open one trace from the result. Click a span of `frontend-proxy` and expand its resource attributes. Find `telemetry.sdk.name` and `telemetry.sdk.language`.
-4. In the same trace, click a span of `checkout` and read the same two attributes. Compare them with what you found on `frontend-proxy`.
+2. Run this query. It finds spans of the shop's front proxy and adds three of their resource attributes as columns: <Query lang="traceql">{`{ resource.service.name = "frontend-proxy" } | select(resource.telemetry.sdk.name, resource.telemetry.sdk.language, resource.service.instance.id)`}</Query> Grafana lists whole traces by default and puts the selected attributes in a column named `nested`; under Search Options set Table Format to Spans, run the query again, and each span gets a row with the selected attributes as columns (scroll right if the table is wider than the window).
+3. Click the span ID of one row to open its trace beside the table. Click the span of `frontend-proxy` and expand Resource attributes in its details. Find `telemetry.sdk.name` and `telemetry.sdk.language`.
+4. Most of these traces never reach `checkout`. Run a second query, <Query lang="traceql">{`{ resource.service.name = "checkout" }`}</Query> open one of its spans the same way, and read the same two attributes on the `checkout` span. Compare them with what you found on `frontend-proxy`.
 5. On the `checkout` span, find the attributes the SDK did not set: `cluster`, `k8s.cluster.name` and the `k8s.pod.name` the gateway added.
 6. Paste the value of `telemetry.sdk.name` from the `frontend-proxy` resource in the check below.
 </Do>
