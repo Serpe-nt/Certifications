@@ -1,0 +1,134 @@
+---
+id: m08-s14
+title: "When telemetry fails: error handling in the API and SDK, and OTLP retries"
+kind: lab
+minutes: 22
+order: 14
+exam:
+  - cert: otca
+    domain: O4
+    competency: Error Handling
+  - cert: otca
+    domain: O2
+    competency: SDK Pipelines
+tags: [otel-error-handling, otel-otlp]
+check:
+  kind: exact
+  prompt: Paste the value of error.type on otel.sdk.exporter.span.exported while the exporter points at the closed port.
+  answers: ["ConnectionError"]
+outcome: You can say what an OpenTelemetry API and SDK must do when something fails, which OTLP responses an exporter retries and which it drops, and prove on a running service that a dead collector does not break it.
+terms:
+  - term: Fail fast
+    def: Stopping at startup because of a bad configuration; allowed for an SDK at initialization, never later at runtime.
+  - term: Transient error
+    def: A failure that may pass, such as a refused connection or a 503, which the OTLP exporter retries.
+  - term: Exponential back-off with jitter
+    def: Waiting longer after each failed attempt, with a random part added so that many clients do not retry at once.
+  - term: Retry-After
+    def: An HTTP header with which a server tells the client how long to wait before it retries.
+sources:
+  - title: Error handling in OpenTelemetry (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/error-handling/
+    checked: 2026-11-13
+  - title: OpenTelemetry Protocol exporter, retry (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/protocol/exporter/
+    checked: 2026-11-13
+  - title: OTLP specification 1.11.1, failures and throttling (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/otlp/
+    checked: 2026-11-13
+  - title: Tracing SDK, batching processor (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/trace/sdk/
+    checked: 2026-11-13
+  - title: Semantic conventions for OpenTelemetry SDK metrics
+    url: https://opentelemetry.io/docs/specs/semconv/otel/sdk-metrics/
+    checked: 2026-11-13
+---
+
+<Problem>
+The collector gateway is upgraded and is away for two minutes. Every service in the shop keeps creating spans and tries to send them. If the SDK threw an exception, or waited for the collector inside each request, a telemetry outage would become a customer outage. You need to know what the SDK does instead, and what you lose.
+</Problem>
+
+<Idea>
+The specification's rule is that users would rather lose telemetry than have it change how the application behaves. The API and SDK must not throw into the application at runtime. Exporters retry errors that may pass, with growing waits, inside a time limit; then they drop the batch, log the failure and count it.
+</Idea>
+
+## The application comes first
+
+OpenTelemetry often runs inside a program whose authors did not choose it: an agent attached by the platform, a library that ships with instrumentation. So the error handling rules are strict:
+
+- No OpenTelemetry implementation may throw an unhandled exception at runtime, also not when the API is used wrongly. A missing span name gets a safe default, such as an empty name.
+- Where the API must return an object, the SDK returns a no-op or default object on error, so the calling code never meets a null.
+- Callbacks you hand to the API, such as a gauge's callback, run inside error handling, and background work such as export threads runs under a global error handler.
+- The SDK may fail fast at initialization, for a bad configuration, but never later, for example because of settings received at runtime.
+
+You saw one side of this in step 7: with the wrong exporter selected, the Python agent failed to initialize, printed `Failed to auto initialize OpenTelemetry`, and the service ran on without telemetry.
+
+## What happens to data that cannot be sent
+
+The OTLP exporter must handle transient errors with retries, using exponential back-off with jitter. Every attempt and every wait counts against one export timeout, 10 seconds by default. When it runs out, or when the processor or reader that called the exporter has an earlier deadline, the exporter stops and reports the batch as failed. That batch is gone. The built-in processors do not retry on their own.
+
+While exports fail, new data waits in the processor's queue. The batching span processor holds at most 2048 spans by default and drops spans once the queue is full; the batching log processor does the same. Metrics lose less with cumulative temporality: the next export carries the totals again.
+
+## Which answers are retried
+
+The OTLP specification sorts every failure into retryable and not retryable. A client must not retry a request that cannot succeed, such as one with bad data, and must drop it.
+
+<Compare caption="OTLP failures the client retries, and those it drops">
+  <Col title="Retry, with back-off">HTTP 429, 502, 503, 504; no connection, or the server hung up. gRPC UNAVAILABLE, CANCELLED, DEADLINE_EXCEEDED, ABORTED, OUT_OF_RANGE, DATA_LOSS.</Col>
+  <Col title="Drop, do not retry" hot>Any other HTTP 4xx or 5xx, 400 included; a partial success. gRPC INVALID_ARGUMENT, UNAUTHENTICATED, PERMISSION_DENIED, UNIMPLEMENTED, INTERNAL and the other codes.</Col>
+</Compare>
+
+A server that is overloaded should say so: over HTTP with 429 or 503 and, if it wants, a `Retry-After` header that the client should honour instead of its own back-off; over gRPC with UNAVAILABLE and a `RetryInfo` detail. RESOURCE_EXHAUSTED is retryable only when the server adds `RetryInfo` to say it can recover; without it, the client treats it as final.
+
+## Seeing it happen
+
+The SDK logs each problem instead of throwing it, and the self-observability metric `otel.sdk.exporter.span.exported` counts the spans of failed exports with an `error.type`, once per export, after the last attempt.
+
+<InLab>
+The workshop's Python exporter logs `Transient error ... encountered while exporting spans batch, retrying in 0.85s.` when the collector cannot be reached, and later `Failed to export spans batch due to timeout, max retries or shutdown.` Meanwhile the service answers in a few milliseconds.
+</InLab>
+
+<Trap>
+Retries are not a promise of delivery. When an outage lasts longer than the export timeout and the queue, the SDK drops data on purpose. If that loss matters, put a Collector with its own queue close to the application; module m09 covers its queues and retries.
+</Trap>
+
+<Do>
+1. In `lgtm/lab/workshop`, point the exporter at a port where nothing listens, print the metrics on the console instead of sending them, switch logs off and the SDK's own metrics on. In PowerShell: <Cmd>{`$env:OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:4999"; $env:OTEL_METRICS_EXPORTER = "console"; $env:OTEL_LOGS_EXPORTER = "none"; $env:OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED = "true"`}</Cmd> In bash: <Cmd>export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4999 OTEL_METRICS_EXPORTER=console OTEL_LOGS_EXPORTER=none OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED=true</Cmd>
+2. Start the logs solution in that terminal: <Cmd>python run.py solutions/05-logs</Cmd>
+3. In a second terminal, call the service three times and look at the status and the time. Each call answers 200 in a few milliseconds. <Cmd>{`curl -s -w " %{http_code} %{time_total}\\n" http://127.0.0.1:8000/compute?n=20`}</Cmd> In PowerShell type `curl.exe` instead of `curl`.
+4. Within about ten seconds, the first terminal shows a WARNING from `opentelemetry.exporter.otlp.proto.http.trace_exporter`: `Transient error ... retrying in ...`, and a few seconds later an ERROR: `Failed to export spans batch due to timeout, max retries or shutdown.` The batch is dropped.
+5. Wait for the next metrics export, up to 15 seconds, and find `"name": "otel.sdk.exporter.span.exported"` in the output. Its data point now has an `error.type` attribute. Paste its value in the check below.
+6. Stop the service with Ctrl+C and remove the four variables: `Remove-Item Env:OTEL_EXPORTER_OTLP_ENDPOINT, Env:OTEL_METRICS_EXPORTER, Env:OTEL_LOGS_EXPORTER, Env:OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED` in PowerShell, `unset OTEL_EXPORTER_OTLP_ENDPOINT OTEL_METRICS_EXPORTER OTEL_LOGS_EXPORTER OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED` in bash.
+</Do>
+
+<Done>
+The service kept answering in milliseconds while every export failed; the SDK logged a retry and then the dropped batch, and counted the failed spans with an `error.type`.
+</Done>
+
+<Trap practice>
+Remove the variables at the end. With `OTEL_EXPORTER_OTLP_ENDPOINT` still pointing at port 4999, the next solution you start in that terminal sends nothing to the lab, and only its log tells you so.
+</Trap>
+
+<Remember>
+OpenTelemetry must never break the application: no exceptions at runtime, failing fast only at startup. Exporters retry 429, 502, 503, 504, lost connections and their gRPC equivalents with back-off inside the timeout, drop everything else, and log and count what they lose.
+</Remember>
+
+<Question id="q-m08-s14" answer="b">
+An OTLP/gRPC exporter gets the status RESOURCE_EXHAUSTED from a backend. The response has no RetryInfo detail. What should the client do with that batch?
+
+- Retry it with exponential back-off, as for UNAVAILABLE.
+
+  RESOURCE_EXHAUSTED is retryable only when the server signals with RetryInfo that it can recover.
+
+- Treat the error as not retryable and drop the batch.
+
+  Without RetryInfo, the specification says to treat RESOURCE_EXHAUSTED as non-retryable, so the client must not send the same data again.
+
+- Retry it at once without waiting, because the server only hit a short limit.
+
+  Retrying without a wait is what back-off exists to prevent, and here no retry is due at all.
+
+- Split the batch in two and send both halves.
+
+  Splitting is not part of the OTLP error rules. The client decides only between retrying and dropping.
+</Question>
