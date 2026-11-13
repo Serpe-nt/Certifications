@@ -1,0 +1,127 @@
+---
+id: m07-s03
+title: Resources and resource attributes
+kind: lab
+minutes: 15
+order: 3
+exam:
+  - cert: otca
+    domain: O2
+    competency: Data Model
+tags: [otel-resources]
+check:
+  kind: exact
+  prompt: Paste the value of telemetry.sdk.name on the resource of the frontend-proxy service.
+  answers: ["envoy"]
+outcome: You can read a span's resource, say which attributes the SDK fills in by itself, set your own with OTEL_RESOURCE_ATTRIBUTES, and tell which value wins.
+terms:
+  - term: Resource
+    def: The set of attributes that describes the entity producing telemetry, such as a service in a pod on a node.
+  - term: Resource attribute
+    def: One key-value pair of a resource, such as service.name or k8s.pod.name.
+  - term: Resource detector
+    def: A component that finds resource attributes in the environment, such as the host, the container or the cloud.
+  - term: TracerProvider
+    def: The SDK object that creates tracers and holds the trace configuration, the resource included.
+sources:
+  - title: Resources (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/resources/
+    checked: 2026-11-13
+  - title: Resource SDK (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/resource/sdk/
+    checked: 2026-11-13
+  - title: Resource semantic conventions
+    url: https://opentelemetry.io/docs/specs/semconv/resource/
+    checked: 2026-11-13
+  - title: Environment variable specification, general SDK configuration
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-13
+  - title: Kubernetes attributes processor README, v0.165.0 (Collector contrib)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/k8sattributesprocessor/README.md
+    checked: 2026-11-13
+---
+
+<Problem>
+Checkout is slow, but only sometimes. It runs as three pods on two nodes. A span tells you which operation was slow, yet not which pod or node did the work, and copying the pod name into every span by hand would be tedious and easy to forget. You need the "who sent this" written once and attached to everything the service sends.
+</Problem>
+
+<Idea>
+A resource is a set of attributes that describes the entity producing telemetry: the service, its instance, the pod, the node, the host. The SDK attaches it to the provider when the provider is created, and from then on every span, metric and log from that provider carries it. It cannot be changed afterwards.
+</Idea>
+
+## One description for everything a process sends
+
+A process that runs in a container on Kubernetes has a process name, a pod name, a namespace and maybe a Deployment name. All of them can go into its resource. In a backend you then narrow a latency problem down to one container, pod or Deployment.
+
+The resource lives on the provider. When the SDK creates its TracerProvider (or MeterProvider, or LoggerProvider), it gets a resource, and every span produced by any tracer of that provider must carry it. The specification calls a resource immutable, and the link between provider and resource cannot be changed later. To change a resource attribute you start the process again.
+
+## What the SDK fills in by itself
+
+Some attributes are always there. `service.name` is the logical name of the service; if nobody sets it, SDKs use `unknown_service`, so set it yourself, for example with `OTEL_SERVICE_NAME`. The SDK also describes itself with `telemetry.sdk.name`, `telemetry.sdk.language` and `telemetry.sdk.version`. The OpenTelemetry SDK must set `telemetry.sdk.name` to `opentelemetry`; any other SDK must use a name of its own, because that value is reserved.
+
+Resource detectors add more. Most SDKs have detectors for the operating system, the host, the process and its runtime, the container, Kubernetes and cloud providers, among others. The specification asks for detectors of generic platforms such as Docker and Kubernetes to ship as packages separate from the SDK. A detector that finds nothing is not an error.
+
+## Your own attributes, and which value wins
+
+You add your own attributes in code or with the environment variable `OTEL_RESOURCE_ATTRIBUTES`, a list such as `service.namespace=shop,deployment.environment.name=production`. Every value in it is a string, and a comma or an equals sign inside a key or value must be percent-encoded. If the variable cannot be decoded, the SDK should drop all of it and report an error.
+
+When two sources give the same key, the SDK merges them and the updating resource wins. Two rules from the specification decide the usual cases. The SDK merges `OTEL_RESOURCE_ATTRIBUTES` as the secondary resource, so a resource you set in code wins over it. And `OTEL_SERVICE_NAME` wins over a `service.name` written in `OTEL_RESOURCE_ATTRIBUTES`.
+
+<Flow caption="Where a span's resource comes from">
+  <Stage title="SDK defaults" kicker="Always">service.name (unknown_service until set) and telemetry.sdk.*</Stage>
+  <Stage title="Detectors and environment" kicker="At start-up">host, process, container; OTEL_RESOURCE_ATTRIBUTES, OTEL_SERVICE_NAME</Stage>
+  <Stage title="Resource on the provider" kicker="Fixed">Attached to every span, metric and log the provider produces.</Stage>
+</Flow>
+
+## A collector can add attributes on the way
+
+A Collector between the service and the backend can also add or overwrite resource attributes. The lab's gateway adds `cluster="lgtm-lab"` and `k8s.cluster.name` to everything, and its Kubernetes attributes processor adds the pod, the namespace, the node and the Deployment. That processor finds the pod by the IP address of the incoming connection unless it is told otherwise. Keep this in mind for step 7: your workshop service does not run in a pod, so the address the gateway sees belongs to something else.
+
+<InLab>
+The shop's resources show all three sources. `telemetry.sdk.language` is `go` on checkout and `dotnet` on cart, set by their SDKs. `service.namespace` is `opentelemetry-demo`, which the shop's chart passes in `OTEL_RESOURCE_ATTRIBUTES`. `k8s.pod.name` and `cluster` were added by the gateway.
+</InLab>
+
+<Trap>
+A resource attribute is not a span attribute. Grafana shows the two in separate lists, and a query for `span.service.name` finds nothing, because `service.name` lives on the resource (`resource.service.name` in TraceQL).
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, pick the data source `tempo` and the query type TraceQL. Set the time range to the last 15 minutes.
+2. Run this query. It finds spans of the shop's front proxy and adds three of their resource attributes as columns: <Query lang="traceql">{`{ resource.service.name = "frontend-proxy" } | select(resource.telemetry.sdk.name, resource.telemetry.sdk.language, resource.service.instance.id)`}</Query>
+3. Open one trace from the result. Click a span of `frontend-proxy` and expand its resource attributes. Find `telemetry.sdk.name` and `telemetry.sdk.language`.
+4. In the same trace, click a span of `checkout` and read the same two attributes. Compare them with what you found on `frontend-proxy`.
+5. On the `checkout` span, find the attributes the SDK did not set: `cluster`, `k8s.cluster.name` and the `k8s.pod.name` the gateway added.
+6. Paste the value of `telemetry.sdk.name` from the `frontend-proxy` resource in the check below.
+</Do>
+
+<Done>
+You read two resources in one trace and saw that the front proxy is not instrumented with the OpenTelemetry SDK, while checkout is.
+</Done>
+
+<Trap practice>
+If the query returns nothing, widen the time range: the front proxy only sends spans when somebody uses the shop, and the load generator does that all the time. Read the resource attributes, not the span attributes: both lists are in the span details.
+</Trap>
+
+<Remember>
+The resource says who sent the data, it is fixed when the provider is created, and every span of that provider carries it. `OTEL_SERVICE_NAME` beats `service.name` in `OTEL_RESOURCE_ATTRIBUTES`, and code beats the environment.
+</Remember>
+
+<Question id="q-m07-s03" answer="b">
+A service sets `OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=staging` in its Deployment, but its code also builds a resource with `deployment.environment.name` set to `production`. Which value do its spans carry?
+
+- staging, because the environment always overrides code
+
+  The specification merges the environment variable as the secondary resource. The value from code wins.
+
+- production, because code has priority over the variable
+
+  The SDK merges OTEL_RESOURCE_ATTRIBUTES as the secondary resource, so the user-provided resource wins.
+
+- Both values, as two separate resource attributes
+
+  A resource holds one value per key. Merging keeps one.
+
+- Neither, because a conflict makes the SDK discard the variable
+
+  The variable is discarded only when it cannot be decoded, not when a key also comes from code.
+</Question>

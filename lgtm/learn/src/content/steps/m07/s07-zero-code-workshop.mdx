@@ -1,0 +1,177 @@
+---
+id: m07-s07
+title: Zero-code instrumentation of the workshop service
+kind: lab
+minutes: 30
+order: 7
+exam:
+  - cert: otca
+    domain: O2
+    competency: Agents
+  - cert: otca
+    domain: O2
+    competency: Configuration
+tags: [otel-zero-code]
+check:
+  kind: exact
+  prompt: Paste the name of the attribute that holds the database system (its value is sqlite) on your workshop's database spans.
+  answers: ["db.system.name"]
+outcome: You can add the Python agent to a service without changing its code, configure it with environment variables, and say which spans it creates and which it cannot.
+terms:
+  - term: Agent
+    def: A program that loads the API, the SDK and instrumentation libraries into an application at start-up, with no change to its code.
+  - term: Monkey patching
+    def: Replacing a library's functions at run time with wrapped versions that create telemetry.
+  - term: Distro
+    def: A package that bundles and configures OpenTelemetry for one purpose. opentelemetry-distro is Python's default.
+  - term: opentelemetry-instrument
+    def: The Python command that starts a program with the agent and configures the SDK from the environment.
+sources:
+  - title: Python zero-code instrumentation
+    url: https://opentelemetry.io/docs/zero-code/python/
+    checked: 2026-11-13
+  - title: Python agent configuration
+    url: https://opentelemetry.io/docs/zero-code/python/configuration/
+    checked: 2026-11-13
+  - title: Zero-code instrumentation (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/instrumentation/zero-code/
+    checked: 2026-11-13
+  - title: Instrumentation for OpenTelemetry Python, semantic convention stability
+    url: https://opentelemetry.io/docs/languages/python/instrumentation/
+    checked: 2026-11-13
+  - title: Environment variable specification (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-13
+  - title: OTLP exporter configuration (OpenTelemetry)
+    url: https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
+    checked: 2026-11-13
+---
+
+<Problem>
+The workshop service is a small Flask back office with no telemetry at all. It answers requests, reads stock from SQLite and calls the shop for prices. Before you write a single line of tracing code, you want to know how much you can get by changing nothing in `app.py`.
+</Problem>
+
+<Idea>
+Python's agent instruments a program at start-up. You install the distro, an exporter and one instrumentation library for each library the service uses, and you start the service through `opentelemetry-instrument`. The agent patches Flask, requests and sqlite3 at run time, and environment variables tell it where to send the spans.
+</Idea>
+
+## What the agent does
+
+The Python agent works by monkey patching: when the program starts, it replaces functions of known libraries with versions that create spans around the original call. The package `opentelemetry-distro` brings the API, the SDK and two commands. `opentelemetry-bootstrap -a install` looks at the packages you have installed and installs the matching instrumentation libraries, for example `opentelemetry-instrumentation-flask` when Flask is there. `opentelemetry-instrument` starts your program with all of it loaded.
+
+The workshop pins every package in its `requirements.txt` instead of running `opentelemetry-bootstrap`, so that every learner gets the same versions. The result is the same: one instrumentation library per library the service uses.
+
+## Five packages and a new start command
+
+Five lines go into `requirements.txt`: the distro, the OTLP exporter over HTTP, and the instrumentations for Flask, requests and sqlite3.
+
+```text
+opentelemetry-distro==0.66b2
+opentelemetry-exporter-otlp-proto-http==1.45.2
+opentelemetry-instrumentation-flask==0.66b2
+opentelemetry-instrumentation-requests==0.66b2
+opentelemetry-instrumentation-sqlite3==0.66b2
+```
+
+And `workshop.env`, which `run.py` reads, gets a new start command and four settings:
+
+```text
+WORKSHOP_COMMAND=opentelemetry-instrument python app.py
+OTEL_SEMCONV_STABILITY_OPT_IN=http,database
+OTEL_TRACES_EXPORTER=otlp
+OTEL_METRICS_EXPORTER=none
+OTEL_LOGS_EXPORTER=none
+```
+
+`app.py` does not change.
+
+## Everything else comes from the environment
+
+The agent reads its configuration from command-line options or from environment variables. Each option has a variable: write the option in upper case and put `OTEL_` in front, so `exporter_otlp_endpoint` becomes `OTEL_EXPORTER_OTLP_ENDPOINT`. The lab's settings are already in `lab.env`, which `run.py` loads first:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.lab.k8s.local` and `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`: OTLP over HTTP to the lab's collector gateway. The exporter adds `/v1/traces` to the address.
+- `OTEL_SERVICE_NAME=workshop` and `OTEL_RESOURCE_ATTRIBUTES=service.namespace=workshop,deployment.environment.name=learner-pc`: the resource of step 3.
+
+The four lines in `workshop.env` choose what is sent. `OTEL_TRACES_EXPORTER=otlp` sends traces; metrics and logs are `none` until module m08. `OTEL_SEMCONV_STABILITY_OPT_IN=http,database` asks the Flask, requests and sqlite3 instrumentations for the stable attribute names of HTTP and databases. Without it they keep sending the older, experimental names, and `http/dup` or `database/dup` would send both while you migrate.
+
+## What you get, and what stays dark
+
+Every request now makes a trace. Flask creates a server span named after the method and the route, such as `POST /checkout`. requests creates a client span for each call to the shop, and it also injects the `traceparent` header, so the trace goes on into the shop's front proxy, its frontend and product-catalog. sqlite3 creates a client span for each query, with the query text in `db.query.text`.
+
+What the agent cannot see is the work in your own functions. The pretend card charge and the Fibonacci computation make no spans: they are plain Python, not calls into an instrumented library. Step 8 adds them by hand.
+
+<Flow caption="One POST /checkout after this step">
+  <Stage title="flask" kicker="Server span">POST /checkout, with http.route and the status code.</Stage>
+  <Stage title="sqlite3" kicker="Client spans">SELECT, UPDATE and INSERT on the local database.</Stage>
+  <Stage title="requests" kicker="Client span">GET to the shop, with traceparent injected; the trace continues in the shop.</Stage>
+</Flow>
+
+<InLab>
+The gateway changes two things you will see. It renames the database spans to `sqlite`, by the naming rule of the semantic conventions, and keeps the original name (`SELECT`, `UPDATE`) in the attribute `original_span_name`; step 12 explains why. And it adds `k8s.pod.name` and `k8s.namespace.name` to the workshop's resource, taken from the Envoy gateway pod that forwarded the OTLP, because that is the address the gateway saw (step 3).
+</InLab>
+
+<Trap>
+Zero-code is not "everything". It sees the libraries at the edges of your service and nothing of the logic between them.
+</Trap>
+
+<Do>
+1. In a terminal, go to `lgtm/lab/workshop` in your copy of the repository. Add these five lines at the end of `requirements.txt`:
+
+   ```text
+   opentelemetry-distro==0.66b2
+   opentelemetry-exporter-otlp-proto-http==1.45.2
+   opentelemetry-instrumentation-flask==0.66b2
+   opentelemetry-instrumentation-requests==0.66b2
+   opentelemetry-instrumentation-sqlite3==0.66b2
+   ```
+
+2. Replace the line in `workshop.env` with these five:
+
+   ```text
+   WORKSHOP_COMMAND=opentelemetry-instrument python app.py
+   OTEL_SEMCONV_STABILITY_OPT_IN=http,database
+   OTEL_TRACES_EXPORTER=otlp
+   OTEL_METRICS_EXPORTER=none
+   OTEL_LOGS_EXPORTER=none
+   ```
+
+3. Start the service. The first run creates `.venv` and installs the packages, which takes a minute: <Cmd>python run.py</Cmd> It prints the command it starts, `opentelemetry-instrument python app.py`, and every `OTEL_` setting. Wait for `Running on http://127.0.0.1:8000`.
+4. In a second terminal, in the same folder, make traffic for one minute: <Cmd>python load.py --duration 60</Cmd>
+5. Open <LabLink to="grafana" path="/explore">Grafana Explore</LabLink> with the data source `tempo` and the query type TraceQL, time range the last 15 minutes, and find your checkouts: <Query lang="traceql">{`{ resource.service.name = "workshop" && name = "POST /checkout" && span.http.response.status_code = 201 }`}</Query>
+6. Open one trace. Find the server span `POST /checkout`, the client span `GET` to the shop, three database spans, and below the `GET` the spans of `frontend-proxy`, `frontend` and `product-catalog`. The trace crossed into the shop although you wrote no propagation code.
+7. Click one of the database spans. Its kind is client, `db.query.text` holds the SQL, and another attribute holds the database system, `sqlite`. Note that attribute's name.
+8. Compare your two files with the solution; only comments differ: <Cmd>git diff --no-index requirements.txt solutions/01-zero-code/requirements.txt</Cmd> <Cmd>git diff --no-index workshop.env solutions/01-zero-code/workshop.env</Cmd>
+9. Paste the attribute name from action 7 in the check below. Leave the service running for step 8, or stop it (see the practice trap).
+</Do>
+
+<Done>
+Your own service sent traces to Tempo with no change to its code: server, client and database spans from three instrumentation libraries, and a trace that continues into the shop.
+</Done>
+
+<Trap practice>
+On Windows, `opentelemetry-instrument` starts the service as a new process: the prompt comes back at once while the service keeps running, and Ctrl+C does not stop it. Stop it with <Cmd>{`Get-Process python | Where-Object Path -like '*\\workshop\\.venv\\*' | Stop-Process`}</Cmd> If the check refuses `db.system.name`, look for an attribute named `db.system` instead: then `OTEL_SEMCONV_STABILITY_OPT_IN` did not reach the service, and the instrumentation sent the older names.
+</Trap>
+
+<Remember>
+Distro, exporter and one instrumentation per library, then `opentelemetry-instrument` in front of the start command. The environment does the rest. You get the edges of the service, not its logic.
+</Remember>
+
+<Question id="q-m07-s07" answer="a">
+A Flask service runs under `opentelemetry-instrument` with the Flask and requests instrumentations. A function in it computes a discount in plain Python, with no library call. What does the trace show for that function?
+
+- No span of its own; its time is part of the server span
+
+  The agent patches instrumented libraries. Plain Python code gets no span unless you add one with the API.
+
+- A span named after the function, made by the Flask instrumentation
+
+  The Flask instrumentation creates the server span for the request. It does not wrap your own functions.
+
+- An event on the server span for each call to the function
+
+  Nothing records events for code the agent does not patch.
+
+- A span made by opentelemetry-bootstrap, which instruments every function
+
+  opentelemetry-bootstrap installs instrumentation libraries. It does not instrument your functions.
+</Question>
