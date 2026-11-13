@@ -75,11 +75,11 @@ Seed once in Settings, query the slot the step names, paste the token.
 1. In WSL (bash), in `lgtm/lab`, print the lab's status. Its last lines show the lab seed:
    <Cmd>{`make status`}</Cmd>
 2. In this site, open Settings, paste the 16 characters into Lab seed, and select Save.
-3. In <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, choose the data source `loki` in the picker at the top.
+3. In <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, Explore opens on Mimir, the default data source. Choose Loki in the data source picker at the top.
 4. Select the Code tab of the query editor, so you can paste a query as text.
-5. Paste this query and select Run query. Set the time range to the last 15 minutes if it shows nothing:
+5. Paste this query and select Run query, the blue button at the top right. Set the time range to the last 15 minutes if it shows nothing:
    <Query lang="logql">{`{service_name="beacon"} | slot="log-m01-1" | json | line_format "{{.payload_token}}"`}</Query>
-6. Each line of the result is the same 8 characters, one line per minute. Copy one and paste it below.
+6. Each log line starts with the same 8 characters, one line per minute; the fields after them belong to the line. Copy one and paste it below.
 </Do>
 
 <Done>
