@@ -65,7 +65,7 @@ A value that every failed span carries is only the answer if the successful span
 </Compare>
 
 <InLab>
-product-catalog sets `demo.product.id` on its `GetProduct` server spans. The frontend calls `GetProduct` for product pages and for the products a recommendation lists.
+product-catalog sets `demo.product.id` on its `GetProduct` server spans. The frontend calls `GetProduct` for product pages and for the products a recommendation lists; checkout calls it for each item of an order.
 </InLab>
 
 <Trap>
@@ -87,7 +87,7 @@ Only one product ID has failed GetProduct spans, and since the flag it has no su
 </Done>
 
 <Trap practice>
-Failed spans also appear in frontend and in recommendation traces, because they call GetProduct too. Count on product-catalog's own server span, where the product ID is set. If action 3 returns nothing, the time range may not reach the first failure yet.
+Failed spans also appear on the callers' side: the frontend calls GetProduct for product pages and for the products a recommendation lists, and checkout calls it when it prepares an order. Count on product-catalog's own server span, where the product ID is set. If action 3 returns nothing, the time range may not reach the first failure yet.
 </Trap>
 
 <Remember>

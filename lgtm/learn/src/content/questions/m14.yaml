@@ -74,7 +74,7 @@
     - text: Grafana switches exemplars off for tenant <code>prom</code>
       why: Grafana does not switch exemplars per tenant. It shows what the tenant returns.
     - text: Tenant <code>prom</code> holds no exemplars at all
-      why: The lab's Prometheus runs without exemplar storage, so it has none to send to Mimir.
+      why: None of the lab's Prometheus scrape targets exposes an exemplar, so it has none to send to Mimir.
   answer: [3]
   source: https://grafana.com/docs/mimir/v3.2.x/manage/use-exemplars/before-you-begin/
 
@@ -145,18 +145,18 @@
 - id: q-m14-010
   tags: [correlation-trace-metrics]
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
-  q: A span of product-catalog has no Request rate button in its details, although other services' spans have one. The data source maps the tag <code>service.name</code>. What should you look at first?
+  q: You click <b>Request rate</b> on a span, and the graph shows the rate of every service, not only the span's. The Tempo data source maps one tag, <code>app.team</code> as <code>team</code>. What is the most likely reason?
   options:
-    - text: Whether that span carries <code>service.name</code>
-      why: The tags must be on the span for a trace to metrics link to appear. A span without them gets no link.
-    - text: Whether Mimir is reachable from Grafana right now
-      why: Then other services' buttons would fail too. Here only one service's spans lack the button.
-    - text: Whether the Loki data source is linked in Tempo
-      why: Loki is used by trace to logs. The Request rate button is trace to metrics.
-    - text: Whether exemplars are switched on in the panel
-      why: Exemplars link metrics to traces. This button goes the other way.
+    - text: The span has no <code>app.team</code>, so the tag filter stayed empty
+      why: Grafana 13.3 fills <code>$__tags</code> only with mapped tags the span has. With none, the query has no label filter and covers every service.
+    - text: Mimir ignores label filters in queries sent by Grafana
+      why: Mimir applies every label filter it gets. The query reached it without one.
+    - text: The span metrics have no label called <code>team</code>
+      why: A filter on a label the metrics lack would match nothing, so the graph would be empty, not full.
+    - text: Exemplars are switched off on the Mimir data source
+      why: Exemplars link metrics to traces. They play no part in the query this button builds.
   answer: [0]
-  source: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-metrics/
+  source: https://github.com/grafana/grafana/blob/v13.3.0/public/app/features/explore/TraceView/createSpanLink.tsx
 
 - id: q-m14-011
   tags: [correlation-trace-metrics]
@@ -262,7 +262,7 @@
     - text: '"The payment service was probably overloaded at that time."'
       why: This is a guess. Evidence names data that another person can open and check.
     - text: '"Trace 3d3855ad... shows payment''s span charge failing with Invalid token."'
-      why: It names a trace, a span, a message and a count. Anyone can open them and check.
+      why: It names a trace, a span and a message. Anyone can open them and check.
     - text: '"Alice restarted payment at 18:31 and it worked again."'
       why: That is an action for the timeline, and a blameless note names the action, not the person.
     - text: '"We will add more alerts on the payment service."'

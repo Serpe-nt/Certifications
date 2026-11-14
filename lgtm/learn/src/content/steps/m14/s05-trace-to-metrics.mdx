@@ -31,6 +31,9 @@ sources:
   - title: Service graphs (Tempo)
     url: https://grafana.com/docs/tempo/latest/metrics-from-traces/service_graphs/
     checked: 2026-11-14
+  - title: Trace view span links, createSpanLink.tsx (Grafana v13.3.0 source)
+    url: https://github.com/grafana/grafana/blob/v13.3.0/public/app/features/explore/TraceView/createSpanLink.tsx
+    checked: 2026-11-14
   - title: Span metrics (Tempo)
     url: https://grafana.com/docs/tempo/latest/metrics-from-traces/span-metrics/
     checked: 2026-11-14
@@ -54,7 +57,7 @@ The service graph is drawn from other metrics of the same generator: `traces_ser
 
 ## What breaks both
 
-Grafana's documentation says it plainly: without span metrics or service graph metrics, there is no data to show. Trace to metrics also needs its tags on the span: a span without `service.name` gets no metric links. And the metrics must be in the tenant the data source reads. In this lab that is tenant `lab` through `mimir`; tenant `prom` has no span metrics.
+Grafana's documentation says it plainly: without span metrics or service graph metrics, there is no data to show. Grafana's page on trace to metrics says the tags must be on the span for a link to appear. Grafana 13.3 shows the buttons anyway: when no mapped tag is on the span, `$__tags` stays empty and the query covers every service, which is easy to miss on a busy graph. And the metrics must be in the tenant the data source reads. In this lab that is tenant `lab` through `mimir`; tenant `prom` has no span metrics.
 
 <Layers caption="Where the service graph comes from">
   <Layer title="Spans">Client and server spans of each call, sent to Tempo.</Layer>

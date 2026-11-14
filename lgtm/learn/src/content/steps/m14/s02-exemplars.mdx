@@ -52,7 +52,7 @@ The link is not stored in Mimir. It is a setting of the Grafana data source that
 
 ## What breaks it
 
-Three things break the jump. If the data source had no entry for `trace_id`, Grafana would have no rule that turns that label of the OTLP histogram into a link. If you query a tenant that keeps no exemplars, there is nothing to click: tenant `prom` (data source `mimir-prom`) has none, because the lab's Prometheus does not store them. And if the entry pointed to a tracing data source that reads another tenant, Tempo would not find the trace.
+Three things break the jump. If the data source had no entry for `trace_id`, Grafana would have no rule that turns that label of the OTLP histogram into a link. If you query a tenant that keeps no exemplars, there is nothing to click: tenant `prom` (data source `mimir-prom`) has none, because none of the lab's Prometheus scrape targets exposes an exemplar, so there is nothing to store or send; its exemplar storage is off as well. And if the entry pointed to a tracing data source that reads another tenant, Tempo would not find the trace.
 
 <Compare caption="Exemplar labels in tenant lab">
   <Col title="Span metrics">traceID, written by Tempo's metrics generator.</Col>

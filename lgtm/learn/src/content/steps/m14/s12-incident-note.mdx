@@ -14,7 +14,7 @@ terms:
   - term: Incident note
     def: A short written record of one incident, its impact, the cause, the evidence and the actions taken.
   - term: Postmortem
-    def: Google SRE's name for the written record of an incident, its impact, its root causes and the follow-up actions.
+    def: Google SRE's name for the written account of an incident and of what the team learned from it.
   - term: Blameless
     def: Written about systems and decisions, not about which person made a mistake.
   - term: Time to detect
@@ -41,7 +41,7 @@ An incident note is the written record of one incident: what users felt and for 
 
 ## What goes into the note
 
-Google's SRE book defines a postmortem as a written record of an incident, its impact, the actions taken to mitigate or resolve it, its root causes, and the follow-up actions that stop it from happening again. A note for a small incident has the same parts, only shorter. Start with one sentence of summary. Then the impact: who was affected, how many, and for how long. Then the timeline, the cause, the evidence and the actions.
+Google's SRE book calls the written account of an incident a postmortem. It says what users lost, how the team stopped the damage, what caused it, and what will be done so that it does not happen again. A note for a small incident has the same parts, only shorter. Start with one sentence of summary. Then the impact: who was affected, how many, and for how long. Then the timeline, the cause, the evidence and the actions.
 
 ## The timeline is built from your evidence
 
@@ -50,7 +50,7 @@ Each line of a timeline has a time and one fact: when the fault started, when th
 <Timeline caption="Step 7 as it ran on this lab on 2026-11-14 (UTC)">
   <Event at="18:25:24" title="Fault starts">paymentFailure set to 50% on the flag screen.</Event>
   <Event at="18:26:06" title="First failed order">payment logs "Payment request failed. Invalid token."</Event>
-  <Event at="18:27" title="Symptom on the dashboard">Errors panel of checkout rises; with span kind server, most orders fail.</Event>
+  <Event at="18:27" title="Symptom on the dashboard">Errors panel of checkout rises; with span kind server, about half the orders fail.</Event>
   <Event at="18:28" title="Cause found">Failed span charge in payment, same message in its log line.</Event>
   <Event at="18:29:17" title="Fault removed">Flag set to off; no failed charge after 18:29:15.</Event>
 </Timeline>

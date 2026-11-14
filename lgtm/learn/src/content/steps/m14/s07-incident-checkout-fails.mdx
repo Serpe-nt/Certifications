@@ -60,9 +60,9 @@ A dashboard answers the question it was built for. To split further, open the sa
 
 The trace view puts a failed span of the trace into its header, with a **Go to span** button. A failed request leaves an error on every span it passes through on the way back: the service that failed, the client span that called it, and the server span of the caller. The useful one is the deepest, where the error began. Its status message and its log lines, through **Related logs**, hold the text the service wrote.
 
-## Why the frontend looks healthy
+## Why the frontend's server span looks healthy
 
-The browser called the frontend, and the frontend answered with HTTP status 422. The OpenTelemetry conventions say a server span must leave its status unset for a 4xx answer, because the client sent something the server refused. So the frontend's server span is not an error, and a dashboard of the frontend shows no errors at all. The failure shows on checkout's gRPC spans, and on the client span of the load generator, which did get a 4xx.
+The browser called the frontend, and the frontend answered with HTTP status 422. The OpenTelemetry conventions say a server span must leave its status unset for a 4xx answer, because the client sent something the server refused. So the frontend's server span `POST /api/checkout` is not an error, and a view filtered to server spans shows no failure in the frontend. Its other spans of the same request do carry the error: the client span of its gRPC call to checkout, with code 13, and its internal span for the API route. With span kind All, the frontend's Errors panel rises too. The failure also shows on checkout's spans, and on the client span of the load generator, which did get a 4xx.
 
 <InLab>
 The load generator places about three orders a minute, so a fault in checkout needs two or three minutes to show clearly on a graph. Span metrics come from Tempo's metrics generator; the dashboard's Errors panel uses `traces_spanmetrics_calls_total` with `status_code="STATUS_CODE_ERROR"`.
