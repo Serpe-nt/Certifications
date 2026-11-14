@@ -151,6 +151,7 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 9 | `w9-c13-incident-debugging.md` | C13 module m14 Correlation and incident debugging |
 | 9 | `w9-c14-alerting-slo.md` | C14 module m15 Alerting, SLOs and on-call |
 | beside 8 | `w8-w3-files-keep-indentation.md` | W3 what a learner copies is what the lesson tested: 54 blocks in m01, m03 and m06 to m09 (lost indentation, typographic quotes and dashes), a test that compares every block on the built page with its source, a Copy button on fenced blocks |
+| after 9 | `w9-l9-flags-reach-every-service.md` | L9 a fault flag reaches every service of the shop; a wrong name in `lgtm.md`; the memory kills of Tempo's querier |
 | after 8 | `w8-l8-query-limits-and-switches.md` | L8 Loki's query limits, Mimir's cardinality API for tenant `lab`, exemplar storage in Prometheus if a target exposes exemplars; m12 step 15 and m11 steps 9 and 12 follow |
 | beside 8 | `w8-l7-pods-start-after-sleep.md` | L7 new pods start after the PC has slept: Calico's CNI token, a command, a check, the runbook and m00 step 7 |
 
