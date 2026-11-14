@@ -1,0 +1,112 @@
+---
+id: m12-s05
+title: "Parsers: json, logfmt, pattern and regexp"
+kind: drill
+minutes: 22
+order: 5
+exam:
+  - cert: none
+tags: [logql-parsers]
+check:
+  kind: token
+  prompt: Paste the value of the field payload_token that the json parser extracts for the slot log-m12-3.
+  slot: log-m12-3
+outcome: You can choose the parser that fits a log format, extract only the fields you need, and read what a parser adds to a line.
+terms:
+  - term: Parser
+    def: A pipeline stage that reads fields out of the log line and adds them to the line's labels for later stages.
+  - term: logfmt
+    def: A log format of key=value pairs separated by spaces, such as level=info msg=done.
+  - term: Pattern expression
+    def: A template of the line with named captures in angle brackets and fixed text between them.
+  - term: __error__
+    def: A label a stage adds to a line it could not process, such as a line that is not valid JSON.
+sources:
+  - title: Log queries, parser expression
+    url: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+    checked: 2026-11-14
+  - title: Query best practices
+    url: https://grafana.com/docs/loki/v3.7.x/query/bp-query/
+    checked: 2026-11-14
+---
+
+<Problem>
+Step 4's filter `|= "level=error"` kept a line from Loki's ruler that only quoted those words inside a query. You wanted lines whose level is error, not lines that mention it. A text filter cannot tell a field from a quote of it.
+</Problem>
+
+To test a field, Loki first has to know where the field is in the line.
+
+<Idea>
+A parser reads fields out of each line and adds them as labels for the rest of the pipeline. LogQL has one for each common format: `json`, `logfmt`, `pattern` for a fixed layout, and `regexp` for anything else. After the parser, you filter on a field instead of on text.
+</Idea>
+
+## json and logfmt read structured lines
+
+When lines are JSON, `| json` extracts every property. Nested keys are joined with an underscore: `payload.token` becomes `payload_token`. Arrays are skipped. When lines are logfmt, `| logfmt` extracts every `key=value` pair. Both parsers take parameters to extract only some fields, and to rename them: `| json code="response_code", method` or `| logfmt duration, kind="query_type"`. Extracting only what you need is less work for Loki and leaves fewer labels in the result.
+
+Names are cleaned to fit label rules, so characters other than letters, digits, underscores and colons become underscores. Envoy's JSON key `:authority` becomes `_authority`.
+
+## pattern and regexp read everything else
+
+Many lines have a fixed shape without keys, such as an access log. The pattern parser takes a template of the line. Named captures are written in angle brackets, like `<status>`, and `<_>` skips a part. The text between them must match the line exactly. A pattern is anchored at the start of the line, so begin it with `<_>` if the line may start with something else.
+
+The regexp parser takes a Go regular expression with named groups, written `(?P<name>...)`, and extracts each group. It can match anything, but it is harder to write and slower. Loki's docs advise `json` and `logfmt` first, then `pattern`, and `regexp` as the last resort.
+
+<Compare caption="Which parser for which line">
+  <Col title="json, logfmt" hot>Lines that carry their own keys. Shortest to write, and they find every field.</Col>
+  <Col title="pattern">Lines with a fixed layout and no keys, such as access logs. Faster than regexp.</Col>
+  <Col title="regexp">Anything else. Most flexible, slowest, hardest to read.</Col>
+</Compare>
+
+## What a parser adds, and what it costs
+
+A parser does not drop lines. A line it cannot parse is kept and gets the label `__error__`, for example `JSONParserErr` for a line that is not JSON. A field whose name is already a label is added with the suffix `_extracted`. And a parser runs on every line that reaches it, so it belongs after the line filters. `{...} |= "metrics.go" | logfmt` parses only the lines that passed the filter; `{...} | logfmt |= "metrics.go"` parses them all first.
+
+<InLab>
+Three formats are on the lab: Envoy, the lab's gateway, writes JSON access logs (`container="envoy"` in `gateway`), Loki writes logfmt, and Loki's nginx gateway writes an access log with a fixed layout.
+</InLab>
+
+<Trap>
+A parser does not remove lines it cannot read. If a stream mixes JSON lines and plain lines, `| json` keeps both, and the plain ones carry `__error__`. Add `| __error__=""` after the parser to keep only the lines it could read.
+</Trap>
+
+<Remember>
+Filter on text first, then parse, then filter on fields. Prefer json and logfmt, use pattern for a fixed layout, and regexp only when nothing else fits.
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki`, the time range **Last 15 minutes**, and the Code editor.
+2. Parse Loki's logfmt and test a field: <Query lang="logql">{`{namespace="loki", container="query-frontend"} |= "metrics.go" | logfmt | query_type="filter"`}</Query> Open a line's details: the parsed fields now include `duration`, `total_bytes` and `query`.
+3. Parse Envoy's JSON, extracting only three fields and renaming one: <Query lang="logql">{`{namespace="gateway", container="envoy"} | json code="response_code", method, duration`}</Query> A line's details show `code`, `method` and `duration`, and none of Envoy's other keys. Run it once more with a bare `| json` to see them all, `_authority` among them.
+4. Parse the nginx access log with a pattern. Copy this query; it has a pattern string in backticks: <Query lang="logql">{`{namespace="loki", container="nginx"} | pattern \`\u003cip> - - [\u003c_>]  \u003cstatus> "\u003cmethod> \u003cpath> \u003c_>" \u003csize> \u003c_> "\u003cagent>" \u003c_>\``}</Query> Each line now has `status`, `method`, `path` and `agent`. Note the two spaces before `<status>`: this nginx writes two there.
+5. Get the method and path from the same lines with a regular expression: <Query lang="logql">{`{namespace="loki", container="nginx"} | regexp \`"(?P\u003cmethod>[A-Z]+) (?P\u003cpath>[^ ?]+)\``}</Query>
+6. Parse the beacon's JSON: <Query lang="logql">{`{service_name="beacon"} | slot="log-m12-3" | json`}</Query> Open a line's details. The parser added `msg`, `payload_token` and `slot_extracted`: the body's `slot` collides with the structured metadata `slot`, so it got the suffix. Paste `payload_token` in the check below.
+</Do>
+
+<Done>
+You extracted fields from JSON, logfmt and an access log, filtered on a field instead of on text, and saw the `_extracted` suffix appear on a name that was already taken.
+</Done>
+
+<Trap practice>
+If the pattern of action 4 returns lines without the fields, the line's layout differs from the template, for example one space instead of two. A pattern does not stop with an error: the fields are simply missing. Compare the template with one raw line, character by character.
+</Trap>
+
+<Question id="q-m12-s05" answer="c">
+A service writes lines such as `level=warn msg="slow call" took=1.2s user=42`. You want only the warnings, and you know the word `warn` also appears in some messages. Which query is right and cheap?
+
+- `{app="api"} |= "warn"`
+
+  This also keeps every line whose message contains the word, which is the problem you want to avoid.
+
+- `{app="api"} | regexp "level=(?P<level>\\w+)" | level="warn"`
+
+  It gives the right answer, but regexp is the slowest parser, and the line is logfmt, which `logfmt` reads directly.
+
+- `{app="api"} |= "level=warn" | logfmt | level="warn"`
+
+  The text filter cheaply drops most lines first, and the parser and the field test then remove the lines that only mention the words.
+
+- `{app="api"} | json | level="warn"`
+
+  The lines are not JSON. Every line gets `__error__`, and none of them gets a `level` field to match.
+</Question>

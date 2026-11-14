@@ -1,0 +1,97 @@
+---
+id: m12-s09
+title: "Deployment modes: monolithic and microservices"
+kind: concept
+minutes: 12
+order: 9
+exam:
+  - cert: none
+tags: [loki-architecture]
+outcome: You can choose between monolithic and microservices mode for a given log volume, and explain why a new install should not use simple scalable mode.
+terms:
+  - term: Target
+    def: The command-line flag -target that tells the Loki binary which components to run.
+  - term: Monolithic mode
+    def: All of Loki's components in one process, started with -target=all.
+  - term: Microservices mode
+    def: Each component in its own processes; the Helm chart calls it Distributed.
+  - term: Simple scalable mode
+    def: Three groups of components, read, write and backend; deprecated, and removed in Loki 4.0.
+sources:
+  - title: Loki deployment modes
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/deployment-modes/
+    checked: 2026-11-14
+  - title: Loki overview
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/overview/
+    checked: 2026-11-14
+  - title: Loki architecture
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/architecture/
+    checked: 2026-11-14
+  - title: Loki chart values 21.1.0 (grafana-community)
+    url: https://raw.githubusercontent.com/grafana-community/helm-charts/loki-21.1.0/charts/loki/values.yaml
+    checked: 2026-11-14
+---
+
+<Problem>
+A blog post from 2024 tells you to install Loki with the read, write and backend groups, because that is the easy way to scale. You follow it, and the Loki 4.0 release notes then say that this mode is gone. The install you just finished has to be migrated before its first upgrade.
+</Problem>
+
+The components of step 8 can be run in different groupings. Which grouping you choose depends on your log volume, and one of them has no future.
+
+<Idea>
+Loki is one binary, and the flag `-target` chooses which components a process runs. Monolithic mode runs them all in one process and suits small volumes. Microservices mode runs each component on its own and suits large ones. Simple scalable mode, the middle ground, is deprecated and is removed in Loki 4.0.
+</Idea>
+
+## One binary, many targets
+
+Every Loki component is compiled into the same program. Started with `-target=all`, a process runs every component. Started with `-target=ingester`, it runs only an ingester. Since the data lives in the object store and not in the processes, Loki's docs say you can move an install to another mode with few or no changes to its configuration.
+
+## Monolithic: all in one process
+
+Monolithic mode runs everything in one process. Loki's docs place it at small volumes, up to about 20 GB of logs a day. It can run as several copies that share an object store and a ring, with a replication factor of 3, for high availability. Loki's overview calls this HA monolithic mode and names it the recommended replacement for most simple scalable installs. Its query parallelism is limited by the number of copies.
+
+## Microservices: one component per process
+
+Microservices mode runs each component as its own processes, so each can be scaled alone: more queriers for heavy queries, more ingesters for more streams. It is the most flexible mode and also the most complex to run, and it is built for Kubernetes. Loki's docs recommend it for very large clusters, or when you need precise control over scaling. The Helm chart calls it `Distributed`, and puts it at volumes typically over 1 TB a day.
+
+## What happened to simple scalable
+
+Simple scalable mode grouped the components into three targets: `write` (distributor and ingester), `read` (query frontend and querier) and `backend` (compactor, index gateway, scheduler, ruler). It needed a proxy in front to route each request. Its section in Loki 3.7's docs says it is being deprecated and will be removed with Loki 4.0, and that you cannot run 4.0 in this mode. Installs that use it should move to microservices or to HA monolithic. The chart's values file marks it as deprecated and removed in Loki 4, and its default is now `Monolithic`.
+
+<Compare caption="Three modes in Loki 3.7">
+  <Col title="Monolithic">-target=all. Small volumes, about 20 GB a day; several copies for high availability.</Col>
+  <Col title="Simple scalable">read, write and backend. Deprecated; removed in Loki 4.0.</Col>
+  <Col title="Microservices" hot>One component per process. Large volumes, most control, most to run.</Col>
+</Compare>
+
+<InLab>
+The lab sets `deploymentMode: Distributed` in `lgtm/lab/helm/loki/values.yaml`, so that every component of step 8 is a pod you can see, and sets the replicas of the other modes to 0. Its volume, about 360 MB in an hour, would fit a monolithic Loki.
+</InLab>
+
+<Trap>
+Some tutorials and older pages still call simple scalable the default of the Helm chart. Loki 3.7's own deployment modes page says so too. The chart that the lab pins, 21.1.0 from grafana-community, defaults to `Monolithic`.
+</Trap>
+
+<Remember>
+One binary, chosen by -target. Small: monolithic, with copies for high availability. Large: microservices. Simple scalable is on its way out; do not start a new install with it.
+</Remember>
+
+<Question id="q-m12-s09" answer="a">
+A team ingests about 5 GB of logs a day and wants Loki to survive the loss of one node. They plan a new install today and want it to keep working after Loki 4.0. Which mode fits best?
+
+- Several monolithic copies sharing an object store, replication factor 3.
+
+  At this volume one process can do all the work, and several copies with a replication factor of 3 survive the loss of a node.
+
+- Simple scalable mode with read, write and backend groups.
+
+  It would work today, but it is deprecated and Loki 4.0 removes it, so the install would have to be migrated.
+
+- Microservices mode with every component scaled on its own.
+
+  It would work, but it is the most complex mode to run, and the docs keep it for very large clusters.
+
+- A single monolithic process with a large local disk.
+
+  One process cannot survive the loss of its node, which is what the team asked for.
+</Question>

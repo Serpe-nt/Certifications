@@ -1,0 +1,115 @@
+---
+id: m12-s06
+title: Label filters and formatting
+kind: drill
+minutes: 20
+order: 6
+exam:
+  - cert: none
+tags: [logql-formatting]
+check:
+  kind: token
+  prompt: Paste the line that line_format makes of the beacon's line for the slot log-m12-4 (the token, 8 hexadecimal characters).
+  slot: log-m12-4
+outcome: You can filter lines on typed fields such as durations and sizes, and rewrite lines and labels so the result shows only what you need.
+terms:
+  - term: Label filter expression
+    def: A stage such as | duration > 10ms that compares a label or parsed field with a value of a given type.
+  - term: line_format
+    def: A stage that replaces each line's text with a Go template filled from its labels.
+  - term: label_format
+    def: A stage that renames a label or sets one from a Go template.
+  - term: keep and drop
+    def: Stages that keep only the listed labels, or remove them, for the rest of the query.
+sources:
+  - title: Log queries, label filter and format expressions
+    url: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+    checked: 2026-11-14
+  - title: Template functions
+    url: https://grafana.com/docs/loki/v3.7.x/query/template_functions/
+    checked: 2026-11-14
+---
+
+<Problem>
+You parsed Envoy's JSON access log and now want the requests that took 5 milliseconds or more, shown as one short line each: status, method, host and time. Each line has 20 keys, and in Explore the long JSON hides the four values you care about.
+</Problem>
+
+Parsing gives you fields. Two more kinds of stage let you choose lines by those fields and show them the way you want.
+
+<Idea>
+A label filter compares a label or a parsed field with a typed value: a string, a number, a duration or a size. Format stages then rewrite the result. `line_format` builds a new line from a template, and `label_format`, `keep` and `drop` shape the labels. None of them change what Loki stores.
+</Idea>
+
+## Label filters compare typed values
+
+A label filter can sit anywhere in the pipeline, usually right after a parser. Loki infers the type from the value you write:
+
+- a string in quotes, compared with `=`, `!=`, `=~` and `!~`, like a selector;
+- a number, such as `response_code >= 500`;
+- a duration, such as `duration > 250ms` (units ns, us, ms, s, m, h);
+- a size in bytes, such as `total_bytes > 1MB` (units B, kB, KB, KiB, MB, MiB and up).
+
+Numbers, durations and sizes support `==`, `!=`, `>`, `>=`, `<` and `<=`. Predicates chain with `and` and `or`, and a comma, a space or another pipe also means `and`. They are read from left to right; brackets change the order. A filter on structured metadata, such as `| slot="log-m12-4"`, is the same kind of stage.
+
+## When the type does not fit
+
+Loki converts the field's value to the type you wrote before it compares. If the conversion fails, the line is not dropped. It is kept, and it gets the label `__error__`. Envoy writes `"duration":5`, a plain number of milliseconds. `| duration > 5s` cannot read `5` as a duration, so every line passes with an error label. The right filter for this field is a number: `| duration >= 5`. Loki's query-frontend writes `duration=4.7ms`, which is a duration, so there `| duration > 5ms` works.
+
+<Compare caption="One field name, two meanings">
+  <Col title="Envoy: duration=5">A number of milliseconds. Filter with duration >= 5.</Col>
+  <Col title="Loki: duration=4.7ms" hot>A duration with its unit. Filter with duration > 5ms.</Col>
+</Compare>
+
+## Formatting changes the result, not the data
+
+`line_format` replaces the text of each line with a Go template. Every label is available by name: `| line_format "{{.response_code}} {{.method}}"`. Templates can use functions such as `printf`, `upper`, `div` and `default`, and `{{ __line__ }}` gives the original line. `label_format` renames a label with `new=old`, or sets one from a template with `new="{{...}}"`. `keep` leaves only the labels you list, and `drop` removes some. Both matter for metric queries in step 7, where each distinct label set becomes its own series.
+
+Line filters after a `line_format` search the new text, not the old one, so put them before it.
+
+<InLab>
+Envoy, the lab's gateway, logs every request to a lab address in JSON. That includes the queries you send to Loki from Grafana, with `_authority` `loki.lab.k8s.local` once parsed.
+</InLab>
+
+<Trap>
+A typed filter that never matches the field's format does not fail loudly: it keeps every line and tags it with `__error__`. If a filter seems to do nothing, add `| __error__=""` and see whether the lines disappear.
+</Trap>
+
+<Remember>
+Filter on parsed fields with the type they really have. Format with line_format and label_format at the end, after every filter.
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki`, the time range **Last 15 minutes**, and the Code editor.
+2. Filter Loki's own query lines on a duration and a size together: <Query lang="logql">{`{namespace="loki", container="query-frontend"} |= "metrics.go" | logfmt | duration > 5ms and total_bytes > 100kB`}</Query>
+3. Try a duration filter on Envoy's number: <Query lang="logql">{`{namespace="gateway", container="envoy"} | json | duration > 5s`}</Query> Lines of a few milliseconds still appear. Open one: it carries `__error__` `LabelFilterErr`, and `__error_details__` says the duration is missing its unit. Add `| __error__=""` at the end and run it again: nothing is left.
+4. Write the filter with the right type, and format each line: <Query lang="logql">{`{namespace="gateway", container="envoy"} | json | duration >= 5 | label_format host=_authority | line_format "{{.response_code}} {{.method}} {{.host}} {{.duration}}ms"`}</Query> Each line now reads like `200 GET loki.lab.k8s.local 6ms`.
+5. Use `line_format` to show only the beacon's token: <Query lang="logql">{`{service_name="beacon"} | slot="log-m12-4" | json | line_format "{{.payload_token}}"`}</Query> Paste the line in the check below.
+</Do>
+
+<Done>
+You filtered on a duration, a size and a number, saw a filter of the wrong type keep every line with `__error__`, and rewrote lines down to the values you needed.
+</Done>
+
+<Trap practice>
+Envoy's JSON key `:authority` becomes the label `_authority` after `| json`. In `label_format` and in templates, write it as `_authority`, with the underscore.
+</Trap>
+
+<Question id="q-m12-s06" answer="b">
+After `| logfmt`, a line has `took=850`, a number of milliseconds. A teammate's query ends with `| logfmt | took > 1s` and still returns this line. Why?
+
+- Loki compares 850 with 1, sees that 850 is larger, and keeps the line.
+
+  Loki does not drop the unit. It tries to read the value as a duration, and that is what fails.
+
+- `850` has no unit, so it cannot be read as a duration; the line is kept with an `__error__` label.
+
+  A failed conversion does not drop a line. Writing `took > 1000`, a number, compares the value correctly.
+
+- Label filters only work on stream labels, and `took` is a parsed field, so the filter is skipped.
+
+  Label filters work on parsed fields and structured metadata as well as on stream labels.
+
+- `1s` is read as the string "1s", and every number is greater than a string in LogQL.
+
+  A value such as `1s` is read as a duration, not a string. Strings are written in quotes.
+</Question>

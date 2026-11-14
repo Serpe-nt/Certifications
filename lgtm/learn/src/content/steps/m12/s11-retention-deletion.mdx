@@ -1,0 +1,147 @@
+---
+id: m12-s11
+title: Retention and deletion
+kind: lab
+minutes: 25
+order: 11
+exam:
+  - cert: none
+tags: [loki-retention]
+check:
+  kind: exact
+  prompt: Paste the value of status that Loki lists for your delete request in action 6.
+  answers: ["received"]
+outcome: You can say how the compactor applies a retention period, set one per stream, and request, list and cancel the deletion of log lines.
+terms:
+  - term: Retention period
+    def: How long Loki keeps logs before the compactor removes them; 48 hours on the lab.
+  - term: Compactor
+    def: The single Loki component that compacts index files, applies retention and carries out delete requests.
+  - term: Delete request
+    def: A request to the compactor to remove the lines of some streams in a time window, optionally only those that match a line filter.
+  - term: Cancellation period
+    def: The time after a delete request is made during which it can still be cancelled; 24 hours by default.
+sources:
+  - title: Log retention
+    url: https://grafana.com/docs/loki/v3.7.x/operations/storage/retention/
+    checked: 2026-11-14
+  - title: Log entry deletion
+    url: https://grafana.com/docs/loki/v3.7.x/operations/storage/logs-deletion/
+    checked: 2026-11-14
+  - title: Loki HTTP API, compactor
+    url: https://grafana.com/docs/loki/v3.7.x/reference/loki-http-api/
+    checked: 2026-11-14
+  - title: Push log lines (Loki HTTP API)
+    url: https://grafana.com/docs/loki/v3.7.x/reference/loki-http-api/#ingest-logs
+    checked: 2026-11-14
+---
+
+<Problem>
+A service logged customers' card numbers for an hour before someone noticed. The logs are kept for 30 days, and you are asked to remove those lines today, not in a month. The rest of the service's logs must stay.
+</Problem>
+
+Loki removes old data on a schedule, and it can remove chosen lines on request. The compactor does both.
+
+<Idea>
+Retention removes data older than a period, per tenant or per stream. Deletion removes the lines that match a query in a time window, on request. Both are carried out by the compactor: it first removes chunks from the index, and deletes them from the object store later.
+</Idea>
+
+## How retention runs
+
+Retention is off until `retention_enabled` is set on the compactor; without it, logs are kept forever. Once on, the compactor works through each day's index table on a schedule, every 10 minutes by default. It finds the chunks older than their retention, removes them from the index, and writes them to a list of marked chunks. A sweeper deletes the marked chunks after `retention_delete_delay`, 2 hours by default. The delay gives the index gateways time to load the new index, so no query asks for a chunk that is gone. It also leaves a short window to stop a deletion caused by a wrong setting. Retention needs the 24-hour index period that TSDB uses, and a store for delete requests.
+
+## How long, and for which streams
+
+The period is a limit in `limits_config`. `retention_period` applies to every stream of a tenant. `retention_stream` sets a period for the streams that match a selector, with a priority to settle overlaps. Both can be set per tenant in the runtime overrides. Loki takes the first that applies: a matching per-tenant stream rule, then a matching global stream rule, then the tenant's period, then the global period. A change of the period is not applied to logs already stored. A stream rule's period must be at least 24 hours.
+
+<Layers caption="Which retention a stream gets, first match wins">
+  <Layer title="Per-tenant retention_stream">The matching rule with the highest priority.</Layer>
+  <Layer title="Global retention_stream">Only if the tenant has no stream rules of its own.</Layer>
+  <Layer title="Per-tenant retention_period">The tenant's own period.</Layer>
+  <Layer title="Global retention_period" hot>The default for all tenants; 0 means keep forever.</Layer>
+</Layers>
+
+## Deleting chosen lines
+
+A delete request is a POST to the compactor's `/loki/api/v1/delete`, with a stream selector, an optional line filter, and a start and end time. It runs through the same machinery as retention, so `retention_enabled` must be on. The tenant's `deletion_mode` decides what is allowed: `filter-and-delete`, the default, removes the lines from storage; `filter-only` only hides them from queries; `disabled` refuses requests.
+
+A request can be cancelled during `delete_request_cancel_period`, 24 hours by default; only after that does the compactor process it. On this lab, the lines stayed visible to queries while the request waited. A request with a line filter is split into pieces of at most a day each. Deleting with a line filter is one of the compactor's heaviest jobs.
+
+<InLab>
+The lab sets `retention_period: 48h`, `retention_enabled: true` and `delete_request_store: s3` in `lgtm/lab/helm/loki/values.yaml`. Its compactor is the StatefulSet `loki-compactor` with one replica, and its deletion mode is the default, `filter-and-delete`.
+</InLab>
+
+<Trap>
+Deleting data is not instant, even though the API answers 204 at once. Nothing is removed during the cancellation period. Plan for a day before the lines are gone from storage.
+</Trap>
+
+<Remember>
+The compactor applies retention every few minutes and deletes chunks two hours after marking them. A delete request waits 24 hours, in case you cancel it, before it is carried out.
+</Remember>
+
+<Do>
+1. In WSL, read the compactor's settings from Loki's running configuration: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/config | grep -E '^ +(retention_enabled|retention_delete_delay|delete_request_cancel_period|compaction_interval|retention_period|deletion_mode):'`}</Cmd> The first `retention_period` is `2d`, the lab's 48 hours. The second, `0s`, belongs to the deprecated table manager.
+2. Save this as `m12-writer.yaml`. It creates the namespace `learn-m12` and a pod that pushes one logfmt line every 5 seconds to Loki's push API as tenant `learn-m12`, never as `lab`. Every fifth line has `level=error`. <Cmd>{`apiVersion: v1
+kind: Namespace
+metadata:
+  name: learn-m12
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: writer
+  namespace: learn-m12
+spec:
+  containers:
+    - name: writer
+      image: curlimages/curl:8.23.0
+      command: [/bin/sh, -c]
+      args:
+        - |
+          i=0
+          while true; do
+            i=$((i+1))
+            level=info
+            if [ $((i % 5)) -eq 0 ]; then level=error; fi
+            line="level=$level msg=order_paid order=$i duration=$((i * 37 % 900))ms"
+            body=$(printf '{"streams":[{"stream":{"app":"m12-writer","env":"practice"},"values":[["%s000000000","%s"]]}]}' "$(date +%s)" "$line")
+            curl -s -o /dev/null -H 'Content-Type: application/json' -H 'X-Scope-OrgID: learn-m12' --data-raw "$body" http://loki-gateway.loki.svc/loki/api/v1/push
+            sleep 5
+          done
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+        limits: { cpu: 100m, memory: 64Mi }`}</Cmd>
+3. Apply it, wait until the pod runs, and give it a minute: <Cmd>kubectl apply -f m12-writer.yaml</Cmd> <Cmd>kubectl -n learn-m12 wait --for=condition=Ready pod/writer --timeout=120s</Cmd>
+4. Grafana's `loki` data source reads tenant `lab` only, so read the practice tenant with curl: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/query_range --data-urlencode 'query={app="m12-writer"} |= "level=error"' --data-urlencode 'since=10m' | grep -o 'level=error[^"]*'`}</Cmd> A few error lines come back.
+5. Ask Loki to delete the error lines of the last 10 minutes: <Cmd>{`curl -s -o /dev/null -w '%{http_code}\\n' -X POST -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' -G http://10.10.0.5/loki/api/v1/delete --data-urlencode 'query={app="m12-writer"} |= "level=error"' --data-urlencode "start=$(( $(date +%s) - 600 ))" --data-urlencode "end=$(date +%s)"`}</Cmd> Loki answers `204`.
+6. List the tenant's delete requests: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/delete`}</Cmd> Your request is there with its `request_id`, its query, and a `status`. Paste the status in the check below.
+7. Run the query of action 4 again: the error lines are still returned, because the request waits out its cancellation period. Then cancel it, putting its `request_id` in place of ID: <Cmd>{`curl -s -o /dev/null -w '%{http_code}\\n' -X DELETE -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' 'http://10.10.0.5/loki/api/v1/delete?request_id=ID'`}</Cmd> The list of action 6 is now `[]`. Leave the writer running: steps 12 and 13 use it.
+</Do>
+
+<Done>
+You read the lab's retention settings, wrote logs to a practice tenant, made a delete request, saw it listed and waiting, and cancelled it.
+</Done>
+
+<Trap practice>
+In action 5, `-G` makes curl put the encoded parameters in the address even though the method is POST, which is where the delete API's documentation places them. The times are Unix seconds here, not nanoseconds as in queries.
+</Trap>
+
+<Question id="q-m12-s11" answer="c">
+Loki's global limits set `retention_stream` to 24h for `{namespace="dev"}`. Tenant `shop` has its own overrides: `retention_period: 720h` and a `retention_stream` of 72h for `{container="nginx"}`. How long does tenant `shop` keep the stream `{namespace="dev", container="api"}`?
+
+- 24 hours, because the global rule for `namespace="dev"` matches the stream.
+
+  A global stream rule is only considered when the tenant has no stream rules of its own, and this tenant has one.
+
+- 72 hours, because the tenant's own stream rule takes priority over everything else.
+
+  The tenant's stream rule only applies to streams it matches, and this stream's container is `api`, not `nginx`.
+
+- 720 hours, the tenant's own retention period.
+
+  No tenant stream rule matches, the global stream rules are skipped because the tenant has its own, so the tenant's period applies.
+
+- Forever, because the stream matches none of the rules.
+
+  When no stream rule applies, the tenant's `retention_period` does. Only with no period set at all would logs be kept forever.
+</Question>

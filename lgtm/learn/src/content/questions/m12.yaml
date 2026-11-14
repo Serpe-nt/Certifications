@@ -1,0 +1,655 @@
+# Quiz pool for module m12, Loki. The module serves no exam (cert none). Every fact is checked
+# against the source given on the question; the log is lgtm/docs/verification/m12.md.
+
+# loki-idea
+- id: q-m12-001
+  tags: [ loki-idea ]
+  exam: { cert: none }
+  q: A team moves its logs from a tool that indexes every word to Loki, and the index shrinks to a small fraction of its old size. What does Loki's index hold instead?
+  options:
+    - text: The label sets of the streams and references to their chunks
+      why: Loki indexes only the labels of each stream and where its chunks are. The text of the lines is not indexed.
+    - text: A compressed list of every distinct word, built once a day by the compactor
+      why: Loki builds no word index at any time. The compactor merges index files of labels and chunk references.
+    - text: The first line of every chunk, so a search can skip chunks that do not match
+      why: The index knows streams and chunks, not their content. Line filters read the lines at query time.
+    - text: Only the timestamps of the lines, because Loki searches by time first
+      why: Time ranges matter, but the index is organized by label sets and the chunks that belong to them.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/overview/
+
+- id: q-m12-002
+  tags: [ loki-idea, logql-selectors ]
+  exam: { cert: none }
+  q: You run <code>{namespace="shop"} |= "card declined"</code> over the last 24 hours. What does Loki read to answer it?
+  options:
+    - text: Only the lines that contain the words, found through its index of words
+      why: Loki has no index of words. The text filter runs on the lines after they are read.
+    - text: Every chunk of every stream of the tenant for the last 24 hours
+      why: The selector limits the read to the streams with namespace="shop"; other streams are not touched.
+    - text: The chunks of the shop streams for those 24 hours, filtered line by line
+      why: The index picks the streams and their chunks for the time range, and the line filter runs on every line read.
+    - text: The newest chunk of each matching stream, because a line filter stops at the first match
+      why: A log query reads the whole time range of the matching streams, up to its line limit.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/
+
+# loki-labels
+- id: q-m12-003
+  tags: [ loki-labels ]
+  exam: { cert: none }
+  q: Which of these fields suits a Loki stream label best?
+  options:
+    - text: The ID of the user who made the request
+      why: User IDs are unbounded. As a label, each one would make new streams; keep it in the line or in structured metadata.
+    - text: The cluster the logs came from
+      why: A cluster has few values that last a long time and describes where the logs came from, which is what labels are for.
+    - text: The trace ID of the request
+      why: A trace ID changes on every request. Loki's docs name it as high cardinality, so it belongs in structured metadata.
+    - text: The timestamp of the line, rounded to the second
+      why: A timestamp has a new value every second, which would open a stream per second.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/labels/cardinality/
+
+- id: q-m12-004
+  tags: [ loki-labels ]
+  exam: { cert: none }
+  q: Alloy sends a pod's logs with the labels namespace and container, and stores the pod's name as structured metadata called pod. <code>{pod="api-7d9f"}</code> returns nothing. Which query finds that pod's lines?
+  options:
+    - text: <code>{namespace="web", container="api"} | pod="api-7d9f"</code>
+      why: The selector picks the streams by their labels, and the label filter then matches the structured metadata of each line.
+    - text: <code>{namespace="web", container="api", pod="api-7d9f"}</code>
+      why: pod is still not a stream label, so no stream matches this selector.
+    - text: <code>{namespace="web", container="api"} |= "pod=api-7d9f"</code>
+      why: This searches the text of the line. Structured metadata is stored beside the line, not inside it.
+    - text: <code>{pod=~"api-7d9f"}</code>
+      why: A regular expression does not change what a selector can see. pod is not a stream label.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/labels/structured-metadata/
+
+- id: q-m12-005
+  tags: [ loki-labels ]
+  exam: { cert: none }
+  q: A sender pushes streams with 16 labels each to a Loki with default limits. What happens?
+  options:
+    - text: Loki keeps the first 15 labels in sorted order and drops the 16th
+      why: Loki does not trim labels. The push breaks a validation rule and is rejected.
+    - text: The lines are stored, and Loki logs a warning about the extra label
+      why: The limit is enforced, not only reported. Lines over it are not stored.
+    - text: The distributor rejects them with HTTP 400, reason max_label_names_per_series
+      why: The default limit is 15 label names per stream; the distributor refuses a stream with more, and the error is not retryable.
+    - text: The ingester accepts them but stores the 16th label as structured metadata
+      why: Loki does not move labels to structured metadata on its own. The distributor rejects the stream.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/operations/request-validation-rate-limits/
+
+- id: q-m12-006
+  tags: [ loki-labels, cardinality ]
+  exam: { cert: none }
+  q: A stream has the labels status (3 values) and method (5 values). A developer adds endpoint, with 3 values. How many streams can this source create now?
+  options:
+    - text: "11"
+      why: Label values do not add up; every combination of values is its own stream.
+    - text: "15"
+      why: That is the count before the new label. The endpoint label multiplies it by 3.
+    - text: "45"
+      why: Each combination of label values is a stream, so 3 times 5 times 3 gives 45.
+    - text: "18"
+      why: Adding the new values to the old count misses that each status and method pair now splits three ways.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/labels/cardinality/
+
+- id: q-m12-007
+  tags: [ loki-labels, cardinality ]
+  exam: { cert: none }
+  q: A service's pushes fail with HTTP 429 and "maximum active stream limit exceeded". Its labels include request_id. What is the right fix?
+  options:
+    - text: Raise ingestion_rate_mb, because the tenant is sending too many bytes per second
+      why: That limit concerns bytes per second and answers with rate_limited. This error is about the number of active streams.
+    - text: Retry the failed pushes with a longer back-off until Loki accepts them
+      why: Retrying sends the same new streams again. They stay refused until old streams go idle, and the next requests make more.
+    - text: Add more ingesters, so that each one holds fewer of the tenant's streams
+      why: The limit is per tenant across the cluster. More ingesters share it out, but the tenant's total stays the same.
+    - text: Move request_id out of the labels, into the line or into structured metadata
+      why: A label with a value per request makes a stream per request. Without it, the service writes to a few long-lived streams.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/loki/v3.7.x/operations/request-validation-rate-limits/
+
+# loki-ingest
+- id: q-m12-008
+  tags: [ loki-ingest ]
+  exam: { cert: none }
+  q: A service sends logs over OTLP to Loki 3.7 with the default settings. Its resource has deployment.environment.name and host.name. Where does each end up?
+  options:
+    - text: Both become stream labels, because every resource attribute is a label
+      why: Only the attributes on Loki's default list become labels. host.name is not on it.
+    - text: deployment_environment_name is a stream label; host_name is structured metadata
+      why: deployment.environment.name is on the default list of 17 attributes; the other resource attributes go into structured metadata.
+    - text: Both become structured metadata, because labels only come from the sender
+      why: Over OTLP, Loki itself promotes the attributes on its default list to labels.
+    - text: host_name becomes a stream label; deployment_environment_name becomes structured metadata
+      why: It is the other way round. The default list includes the environment, not the host name.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/send-data/otel/
+
+- id: q-m12-009
+  tags: [ loki-ingest ]
+  exam: { cert: none }
+  q: A script pushes lines to Loki's push API with the labels app="m12-writer" and env="practice", and no service_name. Which labels does the stream end up with?
+  options:
+    - text: app and env only, because Loki stores labels exactly as they arrive
+      why: Loki adds service_name to a stream that has none, taking it from the first matching label in its list.
+    - text: app, env and service_name="unknown_service"
+      why: unknown_service is used only when none of the labels in Loki's list is present. app is in the list.
+    - text: env and service_name="m12-writer", because app is renamed
+      why: Loki copies the value into service_name; it does not remove the label it took it from.
+    - text: app, env and service_name="m12-writer"
+      why: Loki looks for service, then app and the other labels in its list, and copies the first value it finds into service_name.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/labels/
+
+# logql-selectors
+- id: q-m12-010
+  tags: [ logql-selectors ]
+  exam: { cert: none }
+  q: The streams have container values api, api-gateway and payments-api. Which containers does <code>{container=~"api"}</code> select?
+  options:
+    - text: All three, because each value contains api
+      why: Regular expressions in a selector are anchored, so the pattern must match the whole value.
+    - text: api and api-gateway, the values that start with api
+      why: An anchored pattern does not match a longer value. It would need api.* to match api-gateway.
+    - text: Only api, since the pattern must match the whole value
+      why: Label matchers in a selector are fully anchored, unlike regular expressions in line filters.
+    - text: None, because =~ needs a wildcard to match anything
+      why: A pattern without wildcards still matches a value that equals it exactly.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+- id: q-m12-011
+  tags: [ logql-selectors ]
+  exam: { cert: none }
+  q: Which lines does <code>{app="api"} |~ "(?i)timeout" != "retry"</code> return?
+  options:
+    - text: Lines containing timeout in any letter case, unless they contain retry in lower case
+      why: (?i) makes the regular expression case-insensitive; the second filter is plain and case-sensitive.
+    - text: Lines containing timeout in lower case only, unless they contain retry in any case
+      why: (?i) applies to the regular expression it starts, the timeout filter, not to the plain retry filter.
+    - text: Lines containing either timeout or retry, in any letter case
+      why: Chained filters must all be satisfied; != drops the lines that contain retry.
+    - text: Lines that are exactly the word timeout, because line filter regexes are anchored
+      why: Line filter regular expressions are not anchored; they match anywhere in the line.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+- id: q-m12-012
+  tags: [ logql-selectors, loki-query-performance ]
+  exam: { cert: none }
+  q: Both queries return the same lines. Which one is cheaper, and why? A is <code>{job="mysql"} | json | line_format "{{.err}}" |= "error"</code>, B is <code>{job="mysql"} |= "error" | json | line_format "{{.err}}"</code>.
+  options:
+    - text: A, because the parser shortens each line before the text filter reads it
+      why: Shortening helps the filter little, while the parser had to run on every line first.
+    - text: B, because the line filter drops most lines before the parser runs
+      why: Stages run from left to right, and a line filter first means the parser only sees the lines that matched.
+    - text: Neither, because Loki reorders the stages of a query for speed
+      why: Loki runs the pipeline in the order written; the docs advise putting line filters first for that reason.
+    - text: A, because json must run first for the error field to exist
+      why: The line filter searches the raw text, which already contains the word; it needs no parsed field.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+- id: q-m12-013
+  tags: [ logql-selectors, loki-query-performance ]
+  exam: { cert: none }
+  q: You know the OutOfMemory errors come from Kafka. Which query finds them most cheaply over the last hour?
+  options:
+    - text: <code>{namespace=~".+"} |= "OutOfMemory"</code>
+      why: This reads every namespace's lines and throws almost all of them away.
+    - text: <code>{namespace="kafka"} |~ ".*OutOfMemory.*"</code>
+      why: The selector is right, but a regular expression costs more than a plain filter, and the .* adds nothing.
+    - text: <code>{namespace="kafka"} | logfmt |= "OutOfMemory"</code>
+      why: The parser runs on every line before the filter, which is the most expensive order.
+    - text: <code>{namespace="kafka"} |= "OutOfMemory"</code>
+      why: The most specific selector reads only Kafka's streams, and a plain filter is the cheapest stage.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/bp-query/
+
+# logql-parsers
+- id: q-m12-014
+  tags: [ logql-parsers ]
+  exam: { cert: none }
+  q: 'A line is <code>{"request":{"method":"GET","path":"/cart"},"tags":["a","b"]}</code>. Which fields does a bare <code>| json</code> extract?'
+  options:
+    - text: request, holding the object, and tags, holding the array
+      why: Without parameters, json flattens nested objects into separate fields. It does not keep objects whole.
+    - text: request_method and request_path; the array tags is skipped
+      why: Nested keys are joined with underscores, and arrays are skipped by json without parameters.
+    - text: method, path and tags, the leaf keys without their parents
+      why: The parent key is kept in the name, joined with an underscore.
+    - text: request.method, request.path, tags[0] and tags[1]
+      why: Dots and brackets are not allowed in label names; json uses underscores and skips arrays.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+- id: q-m12-015
+  tags: [ logql-parsers ]
+  exam: { cert: none }
+  q: 'Lines look like <code>ts=2026-11-14T10:00:00Z msg="GET /cart (200) 12ms"</code>. The pattern <code>msg="<method> <path> (<status>) <latency>"</code> extracts nothing. Why?'
+  options:
+    - text: The pattern parser cannot read quotes, so it stops at the first one
+      why: Literals in a pattern can be any characters, quotes included.
+    - text: A pattern needs at least one unnamed capture to work
+      why: A pattern needs at least one named capture; unnamed ones are optional.
+    - text: The pattern is anchored at the line's start, and the line starts with ts=
+      why: Literals at the start must match the start of the line. Starting the pattern with an unnamed capture skips the ts= part.
+    - text: The captures need types, such as a number for status and a duration for latency
+      why: Pattern captures take text. Types come later, in label filters or unwrap.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+- id: q-m12-016
+  tags: [ logql-parsers ]
+  exam: { cert: none }
+  q: A stream has the label level="info". Its lines are logfmt with their own level key, such as level=error. What does <code>| logfmt</code> do with the line's level?
+  options:
+    - text: It replaces the stream label, so level becomes error
+      why: An extracted key never overwrites a label silently. label_format can do that on purpose.
+    - text: It drops the line's level, because the label already exists
+      why: Nothing is dropped. The extracted value is kept under another name.
+    - text: It adds it as level_extracted, next to the label level
+      why: When an extracted key already exists as a label, the parser adds the suffix _extracted to the new one.
+    - text: It fails the line with __error__, because of the duplicate name
+      why: A name clash is not an error. Errors come from lines the parser cannot read.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+- id: q-m12-017
+  tags: [ logql-parsers ]
+  exam: { cert: none }
+  q: A container writes JSON lines and, at startup, a few plain text lines. What does <code>{container="api"} | json</code> return for the plain lines?
+  options:
+    - text: Nothing, because json drops the lines it cannot parse
+      why: Parsers do not drop lines. A line they cannot read is kept with an error label.
+    - text: The lines, each with the label __error__, unless you add <code>| __error__=""</code>
+      why: A parser that fails adds __error__ and keeps the line. Filtering on an empty __error__ removes such lines.
+    - text: An error for the whole query, because the stream is not valid JSON
+      why: A parse failure only marks the line; the query goes on.
+    - text: The lines, parsed as if each word were a key
+      why: json does not guess keys from plain text. That would be closer to what logfmt does with key=value pairs.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+# logql-formatting
+- id: q-m12-018
+  tags: [ logql-formatting ]
+  exam: { cert: none }
+  q: Lines carry took=1.2s, or took=n/a when a call never ended. <code>{app="api"} | logfmt | took > 1s</code> also returns the n/a lines. What makes the query keep only the slow calls?
+  options:
+    - text: Write the threshold as a string, <code>took > "1s"</code>
+      why: A string can only be compared with = and regex matchers, not with greater than.
+    - text: Put the label filter before logfmt, so it reads the raw text
+      why: Before the parser, took does not exist as a label, so the filter has nothing to compare.
+    - text: Add <code>| __error__=""</code> after the filter to drop the unreadable values
+      why: A failed conversion keeps the line with __error__; filtering on an empty error label removes the n/a lines.
+    - text: Use <code>| unwrap took</code> instead of the filter
+      why: unwrap belongs to metric queries and takes values for aggregation. It does not filter a log query.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+- id: q-m12-019
+  tags: [ logql-formatting ]
+  exam: { cert: none }
+  q: How does Loki read <code>| status="500" or method="GET" and size > 20KB</code>?
+  options:
+    - text: As <code>(status="500" or method="GET") and size > 20KB</code>
+      why: Predicates are read from left to right. Brackets are needed for any other order.
+    - text: As <code>status="500" or (method="GET" and size > 20KB)</code>
+      why: That is the usual precedence in many languages, but LogQL label filters go from left to right.
+    - text: As a syntax error, because or and and cannot be mixed
+      why: They can be mixed; the order of evaluation is left to right unless brackets say otherwise.
+    - text: As three separate filters, each of which must match
+      why: Commas, spaces and pipes mean and; or joins the first two predicates.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+- id: q-m12-020
+  tags: [ logql-formatting ]
+  exam: { cert: none }
+  q: <code>{app="web"} | json | line_format "{{.status}} {{.path}}" |= "GET"</code> returns nothing, though the app logs GET requests. Why?
+  options:
+    - text: line_format only works in metric queries
+      why: line_format rewrites the lines of log queries; that is its purpose.
+    - text: json removes the method key from the line before the filter
+      why: Parsers only add labels; they do not change the line text.
+    - text: Line filters cannot follow a parser in the pipeline
+      why: Stages can follow each other in any order; a filter after a parser is valid.
+    - text: After line_format the line holds only status and path, so GET is gone
+      why: Stages run in order, and a line filter after line_format searches the new text. Put the filter first.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+- id: q-m12-021
+  tags: [ logql-formatting ]
+  exam: { cert: none }
+  q: After <code>| label_format host=_authority</code>, which labels does a line have?
+  options:
+    - text: host and _authority, both with the same value
+      why: That is what the template form host="{{._authority}}" does. The renaming form removes the source.
+    - text: host, with the value of _authority; _authority is gone
+      why: The form dst=src renames the label, so the source label is dropped.
+    - text: _authority only, because label_format cannot create a label
+      why: label_format creates the destination label when it does not exist.
+    - text: host only, with the text _authority as its value
+      why: Without quotes, the right side is a label name, and its value is copied.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+
+# logql-metrics
+- id: q-m12-022
+  tags: [ logql-metrics ]
+  exam: { cert: none }
+  q: <code>count_over_time({app="api"}[5m])</code> returns 600 for one stream. What does <code>rate({app="api"}[5m])</code> return for it?
+  options:
+    - text: "120"
+      why: That would be per minute. rate gives entries per second.
+    - text: "600"
+      why: That is the count. rate divides the count by the window's seconds.
+    - text: "2"
+      why: rate gives entries per second, so 600 lines in 300 seconds is 2.
+    - text: "0.5"
+      why: That is the window's seconds divided by the count, the wrong way round.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/metric_queries/
+
+- id: q-m12-023
+  tags: [ logql-metrics ]
+  exam: { cert: none }
+  q: Which of these metric queries is not valid LogQL?
+  options:
+    - text: <code>sum_over_time({app="api"} | logfmt | unwrap bytes(size) [5m]) by (host)</code>
+      why: sum_over_time over an unwrapped range does not accept by. Wrap it in sum by (host) instead.
+    - text: <code>max_over_time({app="api"} | logfmt | unwrap latency [5m]) by (host)</code>
+      why: max_over_time over an unwrapped range accepts by.
+    - text: <code>sum by (host) (rate({app="api"} |= "error" [5m]))</code>
+      why: A vector aggregation with by around a log range aggregation is valid.
+    - text: <code>quantile_over_time(0.9, {app="api"} | logfmt | unwrap latency [5m]) by (host)</code>
+      why: quantile_over_time accepts by directly.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/metric_queries/
+
+- id: q-m12-024
+  tags: [ logql-metrics ]
+  exam: { cert: none }
+  q: 'Lines carry took=1.5s or took=250ms. What does <code>quantile_over_time(0.99, {app="api"} | logfmt | unwrap duration_seconds(took) [5m]) by (route)</code> return?'
+  options:
+    - text: The 99th percentile of took per route, in milliseconds
+      why: duration_seconds converts the values to seconds, not milliseconds.
+    - text: The 99th percentile of the number of lines per route
+      why: unwrap makes the field's value the sample, so the quantile is of took, not of a count.
+    - text: An error, because took has two different units
+      why: duration_seconds reads Go durations with any unit and converts each to seconds.
+    - text: The 99th percentile of took per route, in seconds
+      why: unwrap with duration_seconds turns each took into seconds, and the quantile is computed per route for the window.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/metric_queries/
+
+- id: q-m12-025
+  tags: [ logql-metrics ]
+  exam: { cert: none }
+  q: You want the line count of the 5 minutes that ended one hour ago. Which query is valid?
+  options:
+    - text: <code>count_over_time({job="x"}[5m]) offset 1h</code>
+      why: The offset must follow the range selector right away, inside the function.
+    - text: <code>count_over_time({job="x"}[5m] offset 1h)</code>
+      why: The offset modifier goes right after the brackets of the range.
+    - text: <code>count_over_time({job="x"} offset 1h [5m])</code>
+      why: The offset goes after the range, not between the selector and the range.
+    - text: <code>offset 1h count_over_time({job="x"}[5m])</code>
+      why: offset is not a prefix; it modifies the range it follows.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/metric_queries/
+
+- id: q-m12-026
+  tags: [ logql-metrics, loki-rules ]
+  exam: { cert: none }
+  q: You want an alert when the payment service has written no line for 10 minutes. Which expression fits?
+  options:
+    - text: <code>count_over_time({service_name="payment"}[10m]) == 0</code>
+      why: With no lines there are no series, so nothing returns 0 and the comparison has nothing to fire on.
+    - text: <code>rate({service_name="payment"}[10m]) < 0</code>
+      why: A rate is never negative. This never fires.
+    - text: <code>absent_over_time({service_name="payment"}[10m])</code>
+      why: It returns 1 when the window holds no lines and nothing otherwise, which is what an alert on a silent source needs.
+    - text: <code>sum(count_over_time({service_name="payment"}[10m])) or vector(1)</code>
+      why: This returns the count while there are lines and 1 when there are none, so the result never tells silence apart.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/query/metric_queries/
+
+- id: q-m12-027
+  tags: [ logql-metrics, loki-labels ]
+  exam: { cert: none }
+  q: An OTLP stream's lines each carry a unique observed_timestamp in structured metadata. What does <code>count_over_time({service_name="beacon"}[10m])</code> return?
+  options:
+    - text: One series with the number of lines, because the selector matches one stream
+      why: A metric query keeps structured metadata as labels, so lines with different metadata are different series.
+    - text: An error, because count_over_time cannot read OTLP lines
+      why: OTLP lines are ordinary lines in Loki; any metric function can count them.
+    - text: One series per line, because each line has its own metadata labels
+      why: Structured metadata is added to the result's labels, so a unique value per line makes a series per line.
+    - text: The number of streams that the selector matches
+      why: count_over_time counts lines in a window, per series. It does not count streams.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/labels/structured-metadata/
+
+# loki-architecture
+- id: q-m12-028
+  tags: [ loki-architecture ]
+  exam: { cert: none }
+  q: Which Loki component splits a query by time and shard, sends the pieces to be run, merges the answers and caches the results of metric queries?
+  options:
+    - text: The querier
+      why: Queriers run the pieces. Splitting, merging and the results cache belong to the component in front of them.
+    - text: The index gateway
+      why: It answers questions about the index, such as which chunks a query needs.
+    - text: The query frontend
+      why: It receives the query, splits it, queues the pieces, merges the answers and caches metric results.
+    - text: The query scheduler
+      why: The scheduler holds the queue of pieces per tenant. It does not split or merge.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/components/
+
+- id: q-m12-029
+  tags: [ loki-architecture ]
+  exam: { cert: none }
+  q: With a replication factor of 3, each line reaches three ingesters. Why does a query not return each line three times?
+  options:
+    - text: The distributor sends each query to only one of the three ingesters
+      why: Queriers ask all ingesters for recent data; it is the querier that removes the copies.
+    - text: Only one ingester writes the line; the other two only keep it in memory
+      why: All replicas hold the line; their flushed chunks may even differ if a write failed.
+    - text: The compactor removes the copies before any query runs
+      why: The compactor works on index files in the background. Fresh lines in the ingesters are never compacted.
+    - text: The querier removes lines with the same timestamp, labels and text
+      why: Queriers deduplicate the data they receive from the ingesters and the store by nanosecond timestamp, labels and message.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/components/
+
+- id: q-m12-030
+  tags: [ loki-architecture ]
+  exam: { cert: none }
+  q: A team runs Loki in simple scalable mode and plans to upgrade to Loki 4.0. What must they do?
+  options:
+    - text: Nothing, because 4.0 keeps simple scalable as its default mode
+      why: Loki's docs say simple scalable is removed with 4.0 and that 4.0 cannot run in that mode.
+    - text: Move to microservices or HA monolithic before the upgrade
+      why: Simple scalable is removed in 4.0, and the docs advise migrating to one of these two modes.
+    - text: Switch the index from TSDB to BoltDB, which 4.0 requires
+      why: It is the other way round. BoltDB is deprecated and removed in 4.0; TSDB stays.
+    - text: Add a fourth target, query, next to read, write and backend
+      why: There is no such target. The mode itself goes away in 4.0.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/deployment-modes/
+
+# loki-storage
+- id: q-m12-031
+  tags: [ loki-storage ]
+  exam: { cert: none }
+  q: An old Loki 3.7 uses the boltdb-shipper store with schema v12, and structured metadata is on, as by default. It refuses to start. Why?
+  options:
+    - text: Structured metadata needs the tsdb store and schema v13 or newer
+      why: Loki checks the active schema period at startup and stops with a config error when it lacks tsdb and v13.
+    - text: Loki 3.7 cannot read any data written with schema v12
+      why: Older periods stay readable; the error concerns the active period's ability to store structured metadata.
+    - text: The boltdb-shipper store needs a separate index gateway that is missing
+      why: The error is about the schema and index type, not about a missing component.
+    - text: The schema's index period must be 12h for boltdb-shipper
+      why: The index period for the shipper stores is 24h; it is not the cause here.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/loki/v3.7.x/operations/storage/schema/
+
+- id: q-m12-032
+  tags: [ loki-storage, loki-retention ]
+  exam: { cert: none }
+  q: Logs are kept for 30 days by the compactor. A colleague adds a bucket rule that deletes every object in the Loki bucket older than 31 days. What is the risk?
+  options:
+    - text: None, because the rule only removes chunks the compactor has already deleted
+      why: A bucket rule deletes by age and prefix only. It cannot tell a chunk from an index file.
+    - text: Queries get slower, because the bucket rule runs at the same time as the compactor
+      why: The problem is not speed. The rule removes objects Loki still needs.
+    - text: It deletes objects Loki must keep, such as index files, and breaks queries
+      why: Loki's docs warn never to apply a rule to the whole bucket; scope it to the tenants' chunk prefixes and make it longer than retention plus the delete delay.
+    - text: The compactor stops applying retention while a bucket rule exists
+      why: The two mechanisms are independent; the compactor goes on, which is why they must not conflict.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/operations/storage/retention/
+
+# loki-retention
+- id: q-m12-033
+  tags: [ loki-retention ]
+  exam: { cert: none }
+  q: 'A Loki has <code>retention_period: 168h</code> in limits_config, but its compactor has no retention_enabled setting. What happens to logs older than a week?'
+  options:
+    - text: The compactor deletes them on its next run, because the period is set
+      why: Without retention_enabled, the compactor only compacts index tables and applies no retention.
+    - text: They are kept forever, since retention is off until retention_enabled
+      why: retention_enabled is not set by default, so logs live forever whatever period is configured.
+    - text: The ingesters delete them when they flush chunks
+      why: Ingesters write chunks; only the compactor applies retention.
+    - text: Queries hide them, but they stay in the bucket
+      why: Hiding without deleting is a deletion mode for delete requests, not a retention behavior.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/operations/storage/retention/
+
+- id: q-m12-034
+  tags: [ loki-retention ]
+  exam: { cert: none }
+  q: A tenant's deletion_mode is filter-only. You request the deletion of a stream's lines and wait two days. What has happened to them?
+  options:
+    - text: They are gone from the bucket and from query results
+      why: That is filter-and-delete, the default. filter-only does not touch storage.
+    - text: Nothing, because filter-only refuses delete requests with 403
+      why: That is the mode disabled. filter-only accepts requests.
+    - text: They are moved to a separate prefix in the bucket for audit
+      why: Loki has no such archive step for deleted lines.
+    - text: Queries no longer return them, but they stay in storage
+      why: filter-only filters matching lines out of query results and leaves the data in storage.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/loki/v3.7.x/operations/storage/logs-deletion/
+
+# loki-rules
+- id: q-m12-035
+  tags: [ loki-rules ]
+  exam: { cert: none }
+  q: 'A Loki rule has <code>expr: sum(rate({app="lb"} |= "health check failed" [5m])) > 0.1</code> and <code>for: 10m</code>. The failures have run at a steady 0.2 per second since 08:30, and the rule is loaded at 09:00. When does the alert fire, with evaluation every minute?'
+  options:
+    - text: At about 09:01, at the first evaluation that returns a result
+      why: The first result moves the alert to pending. With for, the condition must hold for 10 minutes before it fires.
+    - text: At about 09:05, when the rule's 5-minute window has filled
+      why: The window looks back at lines already stored, so it is full at the first evaluation. The for clause sets the wait.
+    - text: At about 09:11, once the condition has held for 10 minutes
+      why: The alert goes pending at the first evaluation and fires once the condition has held for the for duration.
+    - text: Never, because a rate cannot be compared with a number in a rule
+      why: A comparison on a metric query is the normal form of an alerting rule.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/alert/
+
+- id: q-m12-036
+  tags: [ loki-rules ]
+  exam: { cert: none }
+  q: You load a recording rule into a Loki whose ruler has no remote_write configured. Where does its result go?
+  options:
+    - text: Into Loki's own index, as a new stream that holds the numbers
+      why: Loki stores logs, not series. Recording rules send their series to a metrics store.
+    - text: Nowhere, since recording rules send series by remote write, and none is set
+      why: The ruler computes the query, but without a remote write client the series have no store to go to.
+    - text: To the Alertmanager at alertmanager_url
+      why: Alertmanager receives alerts from alerting rules, not series from recording rules.
+    - text: To Grafana, which stores it as a dashboard variable
+      why: Grafana does not receive or store the series of Loki's recording rules.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/alert/
+
+# loki-drilldown
+- id: q-m12-037
+  tags: [ loki-drilldown ]
+  exam: { cert: none }
+  q: In Logs Drilldown, the log levels filter offers nothing for a service whose lines all contain level=error or level=info. Which Loki setting is most likely off?
+  options:
+    - text: pattern_ingester.enabled
+      why: The pattern ingester feeds the Patterns tab, not the level filter.
+    - text: volume_enabled
+      why: That setting feeds the volume panels. Levels come from a different setting.
+    - text: discover_log_levels
+      why: With it on, Loki stores the level it finds in each line as detected_level, which the level filter uses.
+    - text: allow_structured_metadata
+      why: It must be on for detected_level to be stored, but it is on by default, and OTLP ingestion needs it too.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/latest/visualizations/simplified-exploration/logs/access/
+
+# loki-query-performance
+- id: q-m12-038
+  tags: [ loki-query-performance ]
+  exam: { cert: none }
+  q: A tenant has <code>max_query_bytes_read</code> set to 500MB. Which query over many gigabytes of logs does the limit not stop?
+  options:
+    - text: <code>{namespace="kafka"}</code>
+      why: Loki's reference says this limit is not enforced on log queries without filters, so a bare selector passes.
+    - text: <code>{namespace="kafka"} |~ "(?i)error"</code>
+      why: A log query with a filter is covered by the limit, so this one is refused before it runs.
+    - text: <code>sum(count_over_time({namespace="kafka"}[1h]))</code>
+      why: Metric queries are covered by the limit when TSDB is used.
+    - text: <code>{namespace="kafka"} |= "error" | logfmt</code>
+      why: A filter puts the query under the limit, whatever stages follow it.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/loki/v3.7.x/configure/
+
+- id: q-m12-039
+  tags: [ loki-query-performance ]
+  exam: { cert: none }
+  q: A Loki runs 3 queriers with the default max_concurrent. At most how many query pieces read from storage at the same time?
+  options:
+    - text: "3"
+      why: Each querier runs several pieces at once, not one.
+    - text: "12"
+      why: max_concurrent is 4 per querier by default, so three queriers run up to 12 pieces at once.
+    - text: "32"
+      why: 32 is max_query_parallelism, the frontend's limit per query, not the queriers' capacity.
+    - text: "128"
+      why: 128 is tsdb_max_query_parallelism, also a frontend limit per query.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/loki/v3.7.x/configure/
+
+- id: q-m12-040
+  tags: [ loki-query-performance ]
+  exam: { cert: none }
+  q: A query returns 3 lines and takes 40 seconds. Which number from its statistics best explains the time?
+  options:
+    - text: totalEntriesReturned, which shows how much data was sent back
+      why: Three lines are tiny. The cost is in what Loki read to find them.
+    - text: queueTime, which shows how long the result waited to be sent
+      why: Queue time is the wait before the pieces ran; it rarely explains a query that reads a lot.
+    - text: totalBytesProcessed, how much Loki read and filtered to find them
+      why: A small result can need a large read. The bytes processed show what the selector and time range let through.
+    - text: splits, which shows how many results were merged
+      why: Splits show how the query was divided by time; more of them do not by themselves mean a costly read.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/reference/loki-http-api/

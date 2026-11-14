@@ -1,0 +1,106 @@
+---
+id: m12-s10
+title: "Storage: the TSDB index, schema v13 and chunks"
+kind: concept
+minutes: 14
+order: 10
+exam:
+  - cert: none
+tags: [loki-storage]
+outcome: You can read a schema_config, say what the TSDB index and the chunks hold, and change the schema without making old data unreadable.
+terms:
+  - term: Schema config
+    def: The list of periods, each with a start date, that tells Loki which index and chunk format to use for data from that day on.
+  - term: TSDB index
+    def: Loki's current index format, built on Prometheus's TSDB; one file per tenant and day after compaction.
+  - term: Index shipper
+    def: The part of Loki that uploads index files to the object store next to the chunks.
+  - term: Chunk target size
+    def: The compressed size at which an ingester aims to close a chunk; 1,572,864 bytes (1.5 MiB) by default.
+sources:
+  - title: Loki architecture, storage and data format
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/architecture/
+    checked: 2026-11-14
+  - title: Single Store TSDB (tsdb)
+    url: https://grafana.com/docs/loki/v3.7.x/operations/storage/tsdb/
+    checked: 2026-11-14
+  - title: Storage schema
+    url: https://grafana.com/docs/loki/v3.7.x/operations/storage/schema/
+    checked: 2026-11-14
+  - title: Log retention, bucket object layout
+    url: https://grafana.com/docs/loki/v3.7.x/operations/storage/retention/
+    checked: 2026-11-14
+  - title: Configuration, ingester
+    url: https://grafana.com/docs/loki/v3.7.x/configure/
+    checked: 2026-11-14
+---
+
+<Problem>
+An old Loki stores its index in BoltDB and refuses to start after you turn on structured metadata. You change the schema to v13 with today's date and restart. Now the logs written earlier today cannot be read at all, because Loki reads them with the format that should only apply from tomorrow.
+</Problem>
+
+Loki keeps two kinds of files, and a dated list in its configuration says how to read each day of them.
+
+<Idea>
+Loki stores everything in one object store: chunks with the log lines, and index files that say which chunks belong to which streams. The `schema_config` is a list of periods with start dates, and each period names the index type and the format. New installs use the TSDB index with schema v13; a change always gets a start date in the future.
+</Idea>
+
+## Index files and chunks in one bucket
+
+A chunk holds the lines of one stream for a stretch of time, compressed in blocks, with their timestamps and structured metadata. An ingester closes a chunk when it reaches the target size (1.5 MiB compressed by default), when it has been idle for 30 minutes, or when it is two hours old, and then writes it to the object store.
+
+The index is a table of contents: for each stream, which chunks hold it and for which times. Ingesters write index files as they go, and the index shipper uploads them to the same object store. The compactor later merges them into one file per tenant and day. In the bucket, chunks sit under a prefix per tenant, such as `lab/`, and the index under `index/`.
+
+<Layers caption="What lies in the bucket loki-chunks">
+  <Layer title="index/">TSDB index files: one table per day, compacted to one file per tenant.</Layer>
+  <Layer title="lab/, learn-m12/, ...">Chunks of each tenant: compressed lines and their structured metadata.</Layer>
+  <Layer title="Other objects" hot>Delete requests, the cluster seed. Never expire them with a bucket rule.</Layer>
+</Layers>
+
+## Why TSDB
+
+TSDB is an index format first built for Prometheus. Loki has recommended it since version 2.8, and the schema page calls it the only recommended store. It records the size and the number of lines of each chunk, so the query frontend can plan how many shards a query needs before running it: with the default target of 600 MB per shard, a query that would read more is split again. New storage features, such as structured metadata, only work with TSDB. The older BoltDB index is deprecated, and Loki 4.0 removes it.
+
+## A schema is a list of dated periods
+
+Each entry of `schema_config.configs` has a `from` date, the `store` (`tsdb`), the `object_store`, the `schema` version and the index `prefix` and `period`. The period must be 24h. Schema v13 is the newest version. With structured metadata on, which is the default since Loki 3.0 and needed for OTLP, Loki refuses to start unless the active period uses `tsdb` and v13.
+
+Data written under a period can only be read with that period's settings. So a new install takes a `from` date in the past, and a change to an existing install adds a new entry with a `from` date in the future. Loki reads that date as 00:00 UTC, so check that midnight UTC has not already passed. The old entry stays in the list for as long as its data is kept. A schema change cannot be undone; to go back, you add yet another entry.
+
+<Timeline caption="Changing the schema of a running Loki">
+  <Event at="Today" title="Add an entry">New entry with tsdb and v13, from tomorrow's date. The old entry stays.</Event>
+  <Event at="00:00 UTC" title="Switch">Loki writes new data with the new format.</Event>
+  <Event at="After retention" title="Clean up">When no data of the old period is left, its entry can go.</Event>
+</Timeline>
+
+<InLab>
+The lab's schema has one entry: from `2026-11-01`, `store: tsdb`, `object_store: s3`, `schema: v13`, prefix `index_`, period `24h`. Its chunks are compressed with snappy, set by `chunk_encoding` in `lgtm/lab/helm/loki/values.yaml`.
+</InLab>
+
+<Trap>
+An object store rule that deletes every object older than N days looks like a cheap way to apply retention. It also deletes index files and other objects Loki must keep, which breaks queries. Let the compactor delete chunks, as the next step shows.
+</Trap>
+
+<Remember>
+Chunks hold the lines, the TSDB index points to them, and both live in the object store. Use tsdb and v13, and give every schema change a start date in the future.
+</Remember>
+
+<Question id="q-m12-s10" answer="c">
+It is 14:00 UTC on 3 March. A running Loki uses `tsdb` with schema v12 and you want v13. Which change to `schema_config` is safe?
+
+- Change `schema: v12` to `schema: v13` in the existing entry and restart Loki.
+
+  Old data would then be read with v13, which it was not written with, so it may become unreadable.
+
+- Add an entry with `schema: v13` and `from: 3 March`, today's date.
+
+  Loki reads the date as 00:00 UTC on 3 March, which has passed. Data written since midnight would be read with the wrong schema.
+
+- Add an entry with `schema: v13` and `from: 4 March`, and keep the v12 entry.
+
+  The new format starts at the next midnight UTC, and data written before it is still read with v12.
+
+- Remove the v12 entry and add one with `schema: v13` from 1 January.
+
+  Without the v12 entry, nothing tells Loki how to read the data written with it.
+</Question>

@@ -1,0 +1,130 @@
+---
+id: m12-s04
+title: "LogQL: stream selectors and line filters"
+kind: drill
+minutes: 20
+order: 4
+exam:
+  - cert: none
+tags: [logql-selectors]
+check:
+  kind: token
+  prompt: Paste the token that a line filter finds for the slot log-m12-2 (8 hexadecimal characters).
+  slot: log-m12-2
+outcome: You can pick streams with the four label matchers and narrow their lines with chained line filters, plain or regular expression.
+terms:
+  - term: Stream selector
+    def: The label matchers in braces at the start of every LogQL query; they choose the streams to read.
+  - term: Line filter
+    def: A stage such as |= "error" that keeps or drops a line by searching its text.
+  - term: Log pipeline
+    def: The stages after the selector, run from left to right on every line.
+  - term: RE2
+    def: The regular expression syntax of Go, which LogQL uses for =~, !~, |~ and !~.
+sources:
+  - title: Query Loki (LogQL)
+    url: https://grafana.com/docs/loki/v3.7.x/query/
+    checked: 2026-11-14
+  - title: Log queries
+    url: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+    checked: 2026-11-14
+  - title: Query best practices
+    url: https://grafana.com/docs/loki/v3.7.x/query/bp-query/
+    checked: 2026-11-14
+---
+
+<Problem>
+Loki's query-frontend writes a line for every query it serves, and you want the ones that searched text in the last quarter of an hour. Typing `query-frontend` into a search box finds nothing, because Loki does not search the text until you have told it which streams to read.
+</Problem>
+
+Every LogQL query is built in the same order: first the streams, then what to keep from their lines.
+
+<Idea>
+A query starts with a stream selector in braces, which picks streams by their labels. Line filters come next. Each one searches the text of every line from those streams and keeps or drops it. Filters chain from left to right, and the cheap ones go first.
+</Idea>
+
+## The selector picks streams
+
+A selector is one or more label matchers in braces, separated by commas. A stream must match all of them. There are four operators, the same as in PromQL:
+
+- `=` equal, `!=` not equal;
+- `=~` matches a regular expression, `!~` does not match it.
+
+The regular expressions in a selector are anchored: they must match the whole label value. `{container=~"query"}` does not match `query-frontend`; `{container=~"query.*"}` does. Loki also refuses a selector that could match every stream, such as `{namespace=~".*"}`. At least one matcher must need a value that cannot be empty, so `{namespace=~".+"}` is accepted.
+
+The more specific the selector, the less Loki reads. Loki's query guide advises starting from the most specific label you have.
+
+## Line filters search the text
+
+After the selector come line filters. They work like grep on each line:
+
+| Filter | Keeps lines that |
+|---|---|
+| `\|= "text"` | contain the text |
+| `!= "text"` | do not contain it |
+| `\|~ "regex"` | contain a match of the regular expression |
+| `!~ "regex"` | contain no match of it |
+
+Matching is case-sensitive. A regular expression in a line filter is not anchored, and `(?i)` at its start makes it case-insensitive. Filters chain: `|= "error" != "timeout"` keeps lines that contain the first word and not the second.
+
+Inside double quotes, a backslash must be doubled. A string in backticks takes it as written, which makes regular expressions easier to read: `` |~ `status=\d+` ``.
+
+## Order for speed
+
+Loki runs the pipeline on every line the selector lets through, from left to right, and stops on a line as soon as a stage drops it. So the order matters. Line filters are the fastest way to drop a line. Plain contains-filters are faster than regular expressions. Put them before any parser, so that the parser only sees the lines that are left.
+
+<Flow caption="The order of a fast query">
+  <Stage title="Selector" kicker="Fewest streams">The most specific labels you know.</Stage>
+  <Stage title="|= and !=" kicker="Cheapest">Plain text filters first.</Stage>
+  <Stage title="|~ and !~" kicker="Costlier">Regular expressions only when needed.</Stage>
+  <Stage title="Parser" kicker="Most work">Runs on the lines that are left.</Stage>
+</Flow>
+
+<InLab>
+Loki's own components log in the lab through Alloy, with `namespace="loki"` and one `container` each. The query-frontend writes a line with `caller=metrics.go` for each query, including the ones you run in this step.
+</InLab>
+
+<Trap>
+A line filter searches the whole line, not one field. `|= "level=error"` also keeps a line that merely quotes that text, such as the ruler's line about a rule that searches for it. Step 5 shows how a parser tests a field instead.
+</Trap>
+
+<Remember>
+Braces pick streams by labels, anchored. Line filters search text, unanchored, from left to right. Most specific labels first, plain filters before regular expressions and parsers.
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki`, the time range **Last 15 minutes**, and the Code editor.
+2. Pick two of Loki's components with an anchored regular expression: <Query lang="logql">{`{namespace="loki", container=~"querier|query-frontend"}`}</Query> Then try <Query lang="logql">{`{namespace="loki", container=~"query"}`}</Query> It returns nothing, because `query` does not match a whole value.
+3. Try a selector that could match every stream: <Query lang="logql">{`{namespace=~".*"}`}</Query> Loki answers with a parse error that names the rule: at least one matcher must need a non-empty value.
+4. Keep only the query-frontend's lines about queries, without the ones about label lookups: <Query lang="logql">{`{namespace="loki", container="query-frontend"} |= "metrics.go" != "query_type=labels"`}</Query> Among them you find the queries you just ran.
+5. Keep only the queries that filtered lines or computed a metric, with a regular expression: <Query lang="logql">{`{namespace="loki", container="query-frontend"} |= "metrics.go" |~ "query_type=(filter|metric)"`}</Query> The query of action 4 is among them, with `query_type=filter`.
+6. Now use a line filter on the beacon's text. Its lines contain their slot id: <Query lang="logql">{`{service_name="beacon"} |= "log-m12-2"`}</Query> Paste the token from `payload.token` in the check below.
+</Do>
+
+<Done>
+You saw an anchored selector miss, a match-everything selector refused, and chained line filters narrow a stream down to the lines you wanted.
+</Done>
+
+<Trap practice>
+In action 6 the filter `|= "log-m12-2"` also matches the slots `log-m12-20` and up, if they existed. The module's slots end at 9, so the result is clean here. In your own queries, include a delimiter, such as the closing quote: `` |= `"log-m12-2"` ``.
+</Trap>
+
+<Question id="q-m12-s04" answer="a">
+You want the lines of the `checkout` container that contain `timeout` but not `retrying`. Which query is right and cheapest?
+
+- `{container="checkout"} |= "timeout" != "retrying"`
+
+  The selector picks the stream by label, and two plain filters, the cheapest stage, keep and drop lines by text.
+
+- `{container="checkout"} |~ ".*timeout.*" !~ ".*retrying.*"`
+
+  The result is the same, but regular expressions cost more than plain filters, and line filter regexes need no `.*` because they are not anchored.
+
+- `{container=~"checkout"} != "retrying" |= "Timeout"`
+
+  Line filters are case-sensitive. `Timeout` misses lines that say `timeout`.
+
+- `{container="checkout", line=~".*timeout.*"}`
+
+  `line` is not a label. Text is searched with line filters after the braces, not with a label matcher.
+</Question>
