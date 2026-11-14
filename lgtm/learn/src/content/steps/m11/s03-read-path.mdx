@@ -1,0 +1,112 @@
+---
+id: m11-s03
+title: "The read path: query-frontend, scheduler, querier, store-gateway"
+kind: concept
+minutes: 15
+order: 3
+exam:
+  - cert: none
+tags: [mimir-read-path]
+outcome: You can follow a PromQL query from Grafana through the query-frontend, the scheduler and a querier to the ingesters and store-gateways, and say which time range each of them answers.
+terms:
+  - term: Query-frontend
+    def: The stateless entry point for queries; it splits, shards and caches queries before they are run.
+  - term: Query-scheduler
+    def: A stateless component that holds the queue of queries and hands them to free queriers.
+  - term: Querier
+    def: The stateless component that fetches series and runs the PromQL engine.
+  - term: Store-gateway
+    def: The stateful component that reads blocks from object storage for queriers and the ruler.
+  - term: Bucket index
+    def: A file per tenant in the object store that lists its blocks and the blocks marked for deletion.
+sources:
+  - title: About ingest storage architecture, the lifecycle of a query (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-14
+  - title: Grafana Mimir query-frontend
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/query-frontend/
+    checked: 2026-11-14
+  - title: Grafana Mimir query-scheduler
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/query-scheduler/
+    checked: 2026-11-14
+  - title: Grafana Mimir querier
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/querier/
+    checked: 2026-11-14
+  - title: Grafana Mimir store-gateway
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/store-gateway/
+    checked: 2026-11-14
+  - title: Grafana Mimir configuration parameters
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+    checked: 2026-11-14
+---
+
+<Problem>
+A dashboard shows the last 30 days of request rates. The newest hours live in the ingesters; everything older sits as blocks in an object store. One query has to read both, and it must not stall the queries of every other team while it runs.
+</Problem>
+
+<Idea>
+Queries enter at the query-frontend, which cuts a long query into smaller ones and puts them in the queue of the query-scheduler. Queriers take queries from that queue and fetch recent samples from the ingesters and older ones from the store-gateways. Each component scales on its own, and the queue serves every tenant in turn.
+</Idea>
+
+## The front door splits and queues
+
+Grafana sends PromQL to the query-frontend, the entry point of the read path. The frontend can split a query over a long range into one query per day, which is the default interval, and run the parts in parallel. It can also shard a query into smaller pieces, and it can answer from a results cache when one is set up.
+
+The frontend fetches no samples itself. It hands the parts to a query-scheduler, which keeps them in an in-memory queue. The scheduler serves the tenants with waiting queries round-robin, so one tenant with a heavy dashboard does not starve the others.
+
+## Queriers do the work
+
+A querier pulls a query from the scheduler's queue. It fetches every series the query needs, runs the PromQL engine on them and sends the result back to the frontend, which joins the parts and answers Grafana. In Mimir 3 the default engine is the Mimir Query Engine, which is compatible with PromQL.
+
+Where the querier fetches from depends on time. Two settings decide it. Data younger than `query_ingesters_within`, 13 hours by default, is asked from the ingesters; data older than `query_store_after`, 12 hours by default, is asked from the store-gateways. The hour between the two is asked from both, so no block that is still being uploaded falls through the gap.
+
+<Timeline caption="Who answers which part of a 30-day query, with the defaults">
+  <Event at="Now to 12 h" title="Ingesters only">Samples still in the ingesters' memory, WAL and local blocks.</Event>
+  <Event at="12 h to 13 h" title="Both">Ingesters and store-gateways, while new blocks are found.</Event>
+  <Event at="13 h to 30 days" title="Store-gateways only">Blocks in the object store.</Event>
+</Timeline>
+
+## Two sources of samples
+
+For recent data, the querier asks one healthy ingester of every partition in the ring, because the labels of a query do not tell which partitions hold its series. With ingest storage, one answer per partition is enough, because every ingester of a partition has read the same records.
+
+For older data, the querier reads the tenant's bucket index, finds the blocks that cover the time range, and asks the store-gateways that hold them. A store-gateway keeps a small part of each block's index on local disk, the index-header, and downloads only the pieces of index and chunks a query needs. It never downloads a whole block.
+
+<Flow caption="One query on the read path">
+  <Stage title="Query-frontend" kicker="Split and shard">Cuts the query into parts and queues them.</Stage>
+  <Stage title="Query-scheduler" kicker="Queue">Hands parts to free queriers, tenant by tenant.</Stage>
+  <Stage title="Querier" kicker="Run PromQL">Fetches series, runs the engine, returns the result.</Stage>
+  <Stage title="Ingesters and store-gateways" kicker="Data">Recent samples and blocks from the object store.</Stage>
+</Flow>
+
+<InLab>
+The lab's gateway sends every path under `/prometheus` to the query-frontend, except the rule and alert APIs, which go to the ruler. The lab runs one query-frontend, one scheduler, two queriers and one store-gateway, and no results cache.
+</InLab>
+
+<Trap>
+A query for the last hour never reaches the store-gateway. If such a query fails while the store-gateway is healthy, look at the ingesters and the queriers first.
+</Trap>
+
+<Remember>
+Frontend, scheduler, querier: split, queue, run. Recent samples come from the ingesters, older blocks from the store-gateways, and the hour between them from both.
+</Remember>
+
+<Question id="q-m11-s03" answer="d">
+With the default settings, a query asks for the samples of three days ago, between 10:00 and 11:00. Which component returns those samples to the querier?
+
+- The ingesters, from their memory and WAL
+
+  Ingesters are asked only for the last 13 hours by default. Three days ago is far older.
+
+- The query-scheduler, from its queue
+
+  The scheduler holds queries waiting to run. It holds no samples.
+
+- The query-frontend, from its split queries
+
+  The frontend splits and joins queries. It fetches no samples, and a results cache would only hold earlier answers.
+
+- The store-gateways, from blocks in object storage
+
+  Data older than `query_store_after` is read from blocks, and the store-gateways serve blocks to the queriers.
+</Question>

@@ -1,0 +1,116 @@
+---
+id: m11-s05
+title: Tour the Mimir pods
+kind: lab
+minutes: 20
+order: 5
+exam:
+  - cert: none
+tags: [mimir-components]
+check:
+  kind: exact
+  prompt: Which Kafka partition does mimir-ingester-2 read? Paste the value of the partition label from action 5.
+  answers: ["2"]
+outcome: You can name the component behind every pod of the namespace mimir, read each component's own metrics, and tell which Kafka partition an ingester reads.
+terms:
+  - term: -target
+    def: The flag that tells the one Mimir binary which component to run.
+  - term: Stateful component
+    def: A component that keeps data on its own disk between restarts, such as the ingester or the store-gateway.
+  - term: API server proxy
+    def: A path of the Kubernetes API that forwards a request to a pod's port, used here to read /metrics.
+sources:
+  - title: Grafana Mimir components
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/
+    checked: 2026-11-14
+  - title: Grafana Mimir deployment modes
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/deployment-modes/
+    checked: 2026-11-14
+  - title: About ingest storage architecture, partition assignment (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-14
+  - title: Grafana Mimir HTTP API, metrics endpoint
+    url: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
+    checked: 2026-11-14
+  - title: Access services running on clusters, manually constructing apiserver proxy URLs (Kubernetes)
+    url: https://v1-35.docs.kubernetes.io/docs/tasks/access-application-cluster/access-cluster-services/
+    checked: 2026-11-14
+---
+
+<Problem>
+Steps 2 to 4 drew Mimir as boxes and arrows. On the cluster you see fourteen pods with names such as `mimir-query-scheduler-86b8988957-lpmc9`. Before you can debug Mimir, you must know which box each pod is and where it tells you what it is doing.
+</Problem>
+
+<Idea>
+Every Mimir pod except the gateway runs the same image, and its `-target` flag says which component it is. Each component serves its own metrics on `/metrics`, and most of their names start with `cortex_`. One metric per component is enough to see it working.
+</Idea>
+
+## One image, many roles
+
+The pods of the namespace `mimir` come from the chart's Deployments and StatefulSets. The stateless components, the distributors, queriers, query-frontend, query-scheduler and ruler, are Deployments, so their pods carry a random suffix. The stateful ones keep data on a volume and are StatefulSets with numbered pods: the ingesters keep their WAL and local blocks, the store-gateway its index-headers, the Alertmanager its alert state. The compactor is stateless, but it needs scratch disk while it merges blocks, so the chart also gives it a StatefulSet with a volume.
+
+The gateway is the odd one out. It is an nginx server that the chart puts in front of everything: it routes `/api/v1/push` and `/otlp/v1/metrics` to the distributors, `/prometheus` to the query-frontend, and the rule and alert paths to the ruler and the Alertmanager.
+
+## Why the ingester's name matters
+
+With ingest storage, an ingester finds its Kafka partition in its own name. Mimir takes the number after the last hyphen of the instance ID, which is the pod's hostname: `mimir-ingester-0` reads partition 0. A StatefulSet keeps the name across restarts, so an ingester always comes back to the same partition and the same consumer group.
+
+## Each component reports on itself
+
+Every component serves `/metrics` on its HTTP port, 8080 in this chart. Mimir's own metrics start with `cortex_`, not with `mimir_`, so search for that prefix. The ones below answer the first question you would ask each component.
+
+<Compare caption="One metric per component, and what it answers">
+  <Col title="Write side">distributor: `cortex_distributor_received_samples_total`, samples per tenant. ingester: `cortex_ingester_active_series` per tenant, and `cortex_ingest_storage_reader_last_consumed_offset` per partition.</Col>
+  <Col title="Read side">query-frontend: `cortex_query_frontend_queries_total`. query-scheduler: `cortex_query_scheduler_connected_querier_clients`. store-gateway: `cortex_bucket_store_blocks_loaded`.</Col>
+  <Col title="Background" hot>compactor: `cortex_compactor_runs_completed_total`. ruler: `cortex_ruler_managers_total`, tenants with rules. Alertmanager: `cortex_alertmanager_tenants_owned`.</Col>
+</Compare>
+
+<InLab>
+The lab's Mimir values turn self-monitoring off, so neither tenant holds these metrics and Grafana has no Mimir dashboard. You read them straight from each pod through the Kubernetes API server, as below.
+</InLab>
+
+<Trap>
+A pod name is not a component name. `mimir-store-gateway-0` is part of the read path, and `mimir-gateway` is nginx, not Mimir. Read the `-target` argument or the label `app.kubernetes.io/component` when in doubt.
+</Trap>
+
+<Do>
+1. In WSL, list the pods with their component label: <Cmd>{`kubectl -n mimir get pods -L app.kubernetes.io/component`}</Cmd> You see 14 pods: two distributors, three ingesters, two queriers, and one each of gateway, query-frontend, query-scheduler, store-gateway, compactor, ruler and Alertmanager.
+2. Show the role each pod was started with: <Cmd>{`kubectl -n mimir get pods -o custom-columns="NAME:.metadata.name,TARGET:.spec.containers[0].args[0],IMAGE:.spec.containers[0].image"`}</Cmd> Every pod but the gateway runs `grafana/mimir:3.2.4` with its own `-target`. The gateway runs an nginx image and has no target.
+3. Define a small helper that reads one component's metrics through the API server: <Cmd>{`m() { kubectl get --raw "/api/v1/namespaces/mimir/pods/$(kubectl -n mimir get pods -l app.kubernetes.io/component=$1 -o jsonpath='{.items[0].metadata.name}'):8080/proxy/metrics" | grep "^$2"; }`}</Cmd>
+4. Read the write side: <Cmd>{`m distributor cortex_distributor_received_samples_total`}</Cmd> <Cmd>{`m ingester cortex_ingester_active_series`}</Cmd> Tenant `prom` has by far the most samples and series; tenant `lab` is much smaller.
+5. Read the partition of the third ingester: <Cmd>{`kubectl get --raw /api/v1/namespaces/mimir/pods/mimir-ingester-2:8080/proxy/metrics | grep '^cortex_ingest_storage_reader_last_consumed_offset'`}</Cmd> The `partition` label names the partition it reads, and the value is the offset it has reached.
+6. Read the read side and the background components: <Cmd>{`m query-frontend cortex_query_frontend_queries_total`}</Cmd> <Cmd>{`m query-scheduler cortex_query_scheduler_connected_querier_clients`}</Cmd> <Cmd>{`m store-gateway cortex_bucket_store_blocks_loaded`}</Cmd> <Cmd>{`m compactor cortex_compactor_runs_completed_total`}</Cmd> <Cmd>{`m ruler cortex_ruler_managers_total`}</Cmd> The scheduler counts 16 querier connections: two queriers with 8 workers each. The ruler shows 0, because no tenant has rules yet.
+7. Paste the partition number from action 5 in the check below.
+</Do>
+
+<Done>
+You matched every pod to its component and read one metric from each. The ingester's partition number matched the number at the end of its name.
+</Done>
+
+<Trap practice>
+If `kubectl get --raw` answers "You must be logged in to the server", Mimir itself returned 401, and kubectl reads that as a sign-in problem. Paths that serve tenant data, such as `/prometheus/...`, need the header `X-Scope-OrgID`; `/metrics` does not, so check the path for a typing error.
+</Trap>
+
+<Remember>
+One binary, one `-target` per pod. Stateful components are StatefulSets, and an ingester's partition is the number at the end of its name.
+</Remember>
+
+<Question id="q-m11-s05" answer="b">
+A cluster runs ingest storage. The ingester StatefulSet is scaled from 3 to 4 replicas. Which partition does the new pod `mimir-ingester-3` read?
+
+- None, because partitions are shared out by the distributors
+
+  Distributors choose a partition for each series. Ingesters find their own partition from their name.
+
+- Partition 3, taken from the number at the end of its instance ID
+
+  Mimir reads the partition number from the instance ID with the pattern of a hyphen and digits at the end.
+
+- Partition 0, because new ingesters start from the first partition
+
+  Each ingester reads the partition that its own number names. Partition 0 belongs to `mimir-ingester-0`.
+
+- All partitions, until the ring is balanced
+
+  An ingester owns exactly one partition. It never reads all of them.
+</Question>

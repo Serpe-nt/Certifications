@@ -1,0 +1,105 @@
+---
+id: m11-s04
+title: Blocks, the compactor and the object store
+kind: concept
+minutes: 14
+order: 4
+exam:
+  - cert: none
+tags: [mimir-storage]
+outcome: You can say how samples become blocks in object storage, what the compactor merges and deletes, and how long data stays in the ingesters and in the bucket.
+terms:
+  - term: Block
+    def: A directory of two hours or more of one tenant's samples, with chunks, an index and a meta.json file.
+  - term: Compactor
+    def: The component that merges a tenant's blocks, keeps its bucket index current and deletes blocks past retention.
+  - term: Vertical compaction
+    def: Merging the blocks of the same time range from several ingesters into one block.
+  - term: Horizontal compaction
+    def: Merging blocks of adjacent time ranges into one larger block.
+  - term: Deletion mark
+    def: A small deletion-mark.json file that marks a block to be removed after a delay.
+sources:
+  - title: Grafana Mimir architecture, long-term storage
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/
+    checked: 2026-11-14
+  - title: Grafana Mimir ingester
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ingester/
+    checked: 2026-11-14
+  - title: Grafana Mimir compactor
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/compactor/
+    checked: 2026-11-14
+  - title: Configure Grafana Mimir metrics storage retention
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configure-metrics-storage-retention/
+    checked: 2026-11-14
+  - title: Grafana Mimir bucket index
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/bucket-index/
+    checked: 2026-11-14
+  - title: Grafana Mimir configuration parameters
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+    checked: 2026-11-14
+---
+
+<Problem>
+Three ingesters each upload a block every two hours for every tenant. After a week, one tenant has hundreds of small blocks in the bucket, and a 7-day query has to open every one of them. Nobody has told Mimir yet when old data may go.
+</Problem>
+
+<Idea>
+Ingesters cut their in-memory data into two-hour blocks and upload them to the object store. The compactor then merges the blocks of each tenant into fewer, larger ones, keeps a list of them in the bucket index, and deletes blocks that are older than the retention period.
+</Idea>
+
+## From memory to a block
+
+A block holds the samples of one tenant for a time range: a `chunks` folder with the samples, usually about 120 per chunk, an `index` of metric names and labels, and a `meta.json` file. It is the same format as a Prometheus block from module m03.
+
+An ingester keeps the newest samples in memory and in its WAL. Every two hours by default it cuts them into a block on its disk and uploads that block to the object store. It keeps its local copy for `-blocks-storage.tsdb.retention-period`, 13 hours by default, so that queriers can still ask it while the store-gateways discover the new block. Then the local copy is removed and the block exists only in the bucket.
+
+## The compactor merges
+
+Each ingester uploads its own block, so one two-hour window of one tenant arrives as one block per ingester. The compactor merges them per tenant in two ways. Vertical compaction joins the blocks of the same time range into one. Where several ingesters hold the same series, as with two ingesters per partition in two zones or with the classic architecture's replication, it also removes the duplicate samples. Horizontal compaction then joins adjacent ranges into larger blocks, by default of 12 hours and then 24 hours. Fewer blocks mean fewer index lookups per query, and a smaller index for the store-gateways to keep.
+
+The compactor also keeps each tenant's bucket index up to date: the list of blocks and deletion marks that queriers and store-gateways read instead of listing the bucket.
+
+<Layers caption="One tenant's data, from newest to oldest">
+  <Layer title="Ingester memory and WAL">The newest samples, under two hours old.</Layer>
+  <Layer title="Ingester local blocks">Two-hour blocks, uploaded and still kept locally for 13 hours by default.</Layer>
+  <Layer title="Compacted blocks in the bucket" hot>Merged by the compactor into 12-hour and 24-hour blocks.</Layer>
+</Layers>
+
+## Retention and deletion
+
+Mimir never deletes data by default: `compactor_blocks_retention_period` is 0. When you set it, the compactor removes the blocks that are older than the period, and the setting can differ per tenant. There is no deletion of single series and no Prometheus delete-series API.
+
+Deleting a block takes two steps. The compactor first writes a `deletion-mark.json` into the block, which is a soft delete. After `-compactor.deletion-delay`, 12 hours by default, it removes the block for good. The delay gives queriers and store-gateways time to stop using the block.
+
+<InLab>
+The lab keeps metrics for 7 days (`compactor_blocks_retention_period: 7d`) in the bucket `mimir-blocks` of the RustFS store, and shortens the deletion delay to 2 hours. On 2026-11-14 tenant `lab` had one compacted block of level 3, made from 15 ingester blocks: five two-hour windows from each of the three ingesters.
+</InLab>
+
+<Trap>
+Retention is enforced by the compactor alone. If the compactor is down for days, old blocks stay in the bucket and the bill grows, although every other component is healthy.
+</Trap>
+
+<Remember>
+Ingesters upload two-hour blocks and keep them locally for a while. The compactor merges them, keeps the bucket index, and deletes what is older than retention, after a deletion mark and a delay.
+</Remember>
+
+<Question id="q-m11-s04" answer="a">
+A team sets `compactor_blocks_retention_period: 30d` for its tenant. Six weeks later the bucket still holds the tenant's blocks from two months ago. Which component should you check first?
+
+- The compactor, which applies retention
+
+  Only the compactor marks and deletes blocks past retention. If it is not running for this tenant, nothing else removes them.
+
+- The ingesters, which upload the blocks
+
+  Ingesters upload blocks and drop their local copies. They never delete blocks from the bucket.
+
+- The store-gateway, which reads the blocks
+
+  The store-gateway reads blocks for queries. It does not decide when a block is deleted.
+
+- The query-frontend, which caches results
+
+  The frontend serves queries. Retention in the bucket is not its job.
+</Question>

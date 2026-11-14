@@ -1,0 +1,96 @@
+---
+id: m11-s14
+title: "Classic or ingest storage: reading older docs safely"
+kind: concept
+minutes: 12
+order: 14
+exam:
+  - cert: none
+tags: [mimir-classic-architecture]
+outcome: You can tell whether a Mimir guide, blog post or answer assumes the classic architecture, and say which of its advice still holds with ingest storage.
+terms:
+  - term: Classic architecture
+    def: Mimir's older architecture, in which distributors write straight to a quorum of ingesters.
+  - term: Write quorum
+    def: In the classic architecture, the number of ingesters that must accept a series before a write succeeds.
+  - term: Read-write mode
+    def: A Mimir 2 deployment mode that grouped the components into a few larger services; removed in Mimir 3.0.
+sources:
+  - title: About classic architecture (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-classic-architecture/
+    checked: 2026-11-14
+  - title: About ingest storage architecture (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-14
+  - title: Grafana Mimir ingester, series ingestion in both architectures
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ingester/
+    checked: 2026-11-14
+  - title: Grafana Mimir version 3.0 release notes
+    url: https://grafana.com/docs/mimir/v3.2.x/release-notes/v3.0/
+    checked: 2026-11-14
+  - title: Migrate from classic to ingest storage architecture (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/set-up/migrate/migrate-ingest-storage/
+    checked: 2026-11-14
+  - title: mimir-distributed chart changelog, 6.0.0
+    url: https://github.com/grafana/mimir/blob/mimir-distributed-6.2.2/operations/helm/charts/mimir-distributed/CHANGELOG.md
+    checked: 2026-11-14
+---
+
+<Problem>
+A popular blog post about Mimir tells you to set the ingester replication factor to 3, to keep a quorum, and to scale the "write" and "read" groups. You search the lab's values for any of it and find none. Is the post wrong, or is the lab?
+</Problem>
+
+<Idea>
+Neither: the post describes the classic architecture, which ran every Mimir until version 3.0. In it, distributors write each series to three ingesters and wait for two. Mimir 3 prefers ingest storage, where Kafka takes that role, so advice about write quorums and ingester replication factors no longer applies, while most of the read path, the storage and the tenant advice still does.
+</Idea>
+
+## How the classic write path works
+
+In the classic architecture, a distributor sends each series to as many ingesters as the replication factor, three by default, and the write succeeds when a quorum of them, two of three, has accepted it. Ingesters take part in writes and reads. Each one writes its own block, so the compactor removes three copies of every sample. If two ingesters of a series are down, writes and reads of that series fail. A restarted ingester cannot get back what it missed, so its data has a gap.
+
+<Compare caption="The two write paths side by side">
+  <Col title="Classic">Distributor writes each series to 3 ingesters and needs 2 to succeed. Ingesters serve writes and reads; a heavy query can slow writes.</Col>
+  <Col title="Ingest storage" hot>Distributor writes each series to 1 Kafka partition. Ingesters only read their partition; writes and queries no longer compete.</Col>
+</Compare>
+
+## What changed in Mimir 3
+
+Mimir 3.0 made ingest storage stable and the preferred architecture. The classic one is still supported, and the documentation says it is set to be deprecated in a future release. The same version made the Mimir Query Engine the default and removed the read-write deployment mode. Version 6.0 of the `mimir-distributed` chart deploys ingest storage by default, with a single-node Kafka for demos. A move from classic to ingest storage is a migration with a second cluster: for a while, every write goes to both.
+
+## Reading an older text
+
+Look for words that only exist in the classic world: an ingester replication factor of 3, a write quorum, ingesters that receive samples from distributors, and the read-write deployment mode. With ingest storage, the flag `-ingester.ring.replication-factor` is not used for ingesters; you add replicas by running more ingesters per partition.
+
+Most of the rest carries over unchanged: the query-frontend, the scheduler, the queriers and the store-gateways, blocks and the compactor, tenants, limits and the runtime configuration, the ruler and the Alertmanager. When a post is about one of those, its advice usually still fits; check the flag names against the configuration reference of your version.
+
+<InLab>
+The lab's values set `ingest_storage.enabled: true` with the topic `mimir-ingest`, and switch the chart's own Kafka off in favour of the platform's Kafka. No replication factor for ingesters appears, because none is used.
+</InLab>
+
+<Trap>
+A guide that says "ingesters must be up for writes to succeed" is right for classic Mimir and wrong for this lab. In the lab, writes depend on Kafka and reads depend on the ingesters, which is why a full Kafka stopped every write in step 2.
+</Trap>
+
+<Remember>
+Classic: distributors write to a quorum of ingesters. Ingest storage: distributors write to Kafka and ingesters read it. Advice on quorums and ingester replication factors belongs to the first; the read path, storage and tenants work the same in both.
+</Remember>
+
+<Question id="q-m11-s14" answer="c">
+A guide for Mimir 2 says: "If two of your three ingesters fail, writes stop, because the quorum is lost." Your Mimir 3 runs ingest storage with one ingester per partition. Two ingesters fail. What happens to writes?
+
+- Writes stop, as the guide says
+
+  The quorum rule belongs to the classic architecture. With ingest storage, ingesters are not on the write path.
+
+- Writes go only to the remaining ingester
+
+  Distributors write to Kafka partitions, not to ingesters, in either case.
+
+- Writes go on, because they end at Kafka
+
+  The distributors still write every series to its Kafka partition; the two ingesters catch up from their offsets when they return.
+
+- Writes go on, but the samples of the two partitions are dropped
+
+  Kafka keeps the records, and the ingesters read them when they come back.
+</Question>

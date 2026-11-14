@@ -1,0 +1,134 @@
+---
+id: m11-s13
+title: "Replication and zones: lose an ingester"
+kind: lab
+minutes: 30
+order: 13
+exam:
+  - cert: none
+tags: [mimir-replication]
+check:
+  kind: regex
+  prompt: Paste one error line your query loop printed while the ingester was down.
+  pattern: ".*too many unhealthy instances.*"
+outcome: You can predict what writes and reads do when an ingester is lost under ingest storage, watch an ingester catch up from Kafka, and say what zones would change.
+terms:
+  - term: Replication factor
+    def: How many copies of the data exist; with ingest storage, how many ingesters read each partition.
+  - term: Zone
+    def: A failure domain, such as an availability zone or a rack, that Mimir spreads replicas across.
+  - term: Read quorum of one
+    def: With ingest storage, a query needs one healthy ingester per partition, because all of them read the same records.
+  - term: Consumer lag
+    def: How far an ingester is behind the newest record of its partition.
+sources:
+  - title: Grafana Mimir ingester, ingest storage and read path availability
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ingester/
+    checked: 2026-11-14
+  - title: Configure Grafana Mimir zone-aware replication
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configure-zone-aware-replication/
+    checked: 2026-11-14
+  - title: Grafana Mimir hashing rings, partitions ring lifecycle
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/hash-ring/
+    checked: 2026-11-14
+  - title: Grafana Mimir deployment modes, microservices mode
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/deployment-modes/
+    checked: 2026-11-14
+  - title: About ingest storage architecture (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-14
+  - title: Grafana Mimir configuration parameters, ingest storage
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+    checked: 2026-11-14
+---
+
+<Problem>
+A node is drained for a kernel update and takes an ingester with it. Kafka is fine, the distributors are fine, the other two ingesters are fine. Do senders get errors? Do dashboards go blank, or show a hole afterwards? You will delete one ingester of the lab and watch.
+</Problem>
+
+<Idea>
+With ingest storage, losing an ingester never stops writes: they end at Kafka. Reads of recent data need one healthy ingester per partition, so a partition with only one ingester fails its queries until that ingester is back. It then replays its WAL and catches up from its Kafka offset, and no sample is lost. Two ingesters per partition, in different zones, keep reads running too.
+</Idea>
+
+## Writes go on
+
+The distributors write to Kafka, and Kafka replicates each partition across its brokers. No ingester takes part in a write, so a missing ingester changes nothing for the senders. The records of its partition simply wait in Kafka.
+
+## Reads need one ingester per partition
+
+A querier asks one ingester of each partition. All ingesters of a partition read the same records in the same order, so one answer is enough: a read quorum of one. The documentation calls the read path healthy as long as every partition has at least one healthy ingester, and recommends two ingesters per partition, a replication factor of two.
+
+With one ingester per partition, losing it leaves its partition with no reader. A query that needs recent data then fails with an error that names the partition, until an ingester is back. A query that reaches only the store-gateways, for data older than 13 hours, does not ask the ingesters at all.
+
+<Timeline caption="mimir-ingester-1 deleted in the lab, 2026-11-14 (UTC)">
+  <Event at="12:31:24" title="Pod deleted">The ingester leaves; queries fail for partition 1.</Event>
+  <Event at="12:31:33" title="New pod starts">WAL replay takes under a second.</Event>
+  <Event at="12:31:35" title="Caught up">22 Kafka records read in 0.33 s; queries succeed again.</Event>
+  <Event at="12:32:54" title="Pod Ready">The readiness probe passes; writes never failed.</Event>
+</Timeline>
+
+## Catching up without a gap
+
+The new ingester replays its WAL, then reads its partition from the offset stored in its consumer group. It tries to bring its lag under 2 seconds, and it must be under 15 seconds before it turns `ACTIVE` in the ring and serves queries again; both are the defaults. Because Kafka kept every record, the series have no hole afterwards.
+
+## Zones
+
+Zone-aware replication puts the ingesters of one partition in different zones, such as availability zones or racks. With ingest storage there is no replication factor to set: you run two ingesters per partition, mark each with its zone, and switch zone awareness on for distributors, ingesters and queriers. Then a whole zone can go down and every partition still has a reader. The documentation also warns that rollouts must update one zone at a time, a job for Grafana's rollout-operator.
+
+<Compare caption="Losing one ingester">
+  <Col title="Classic, replication factor 3">Writes and reads need a quorum of 2 of 3 ingesters per series; a restarted ingester has a gap for the time it was down.</Col>
+  <Col title="Ingest storage, one ingester per partition">Writes go on; recent reads of its partition fail until it is back; no gap.</Col>
+  <Col title="Ingest storage, two zones" hot>Writes go on; reads use the other zone's ingester; no gap.</Col>
+</Compare>
+
+<InLab>
+The lab runs three ingesters, one per partition, with zone awareness off and no rollout-operator, because its nodes carry no zone labels. Its ingesters stay in the ring as `LEAVING` when they stop (`unregister_on_shutdown: false`), so a restart takes back the same tokens and partition.
+</InLab>
+
+<Trap>
+Senders that all get `200` do not mean Mimir is healthy. During the outage writes succeed while dashboards on recent data fail; watch the read path too.
+</Trap>
+
+<Do>
+1. In WSL, check that your writer from step 6 is still sending: <Cmd>{`kubectl -n learn-m11 logs writer --tail=2`}</Cmd> Then read the partitions ring from a distributor: <Cmd>{`D=$(kubectl -n mimir get pods -l app.kubernetes.io/component=distributor -o jsonpath='{.items[0].metadata.name}')`}</Cmd> <Cmd>{`kubectl get --raw /api/v1/namespaces/mimir/pods/$D:8080/proxy/ingester/partition-ring | grep -o '"id":[0-9]*\\|"owner_ids":\\[[^]]*\\]'`}</Cmd> Three partitions, each with exactly one owner.
+2. Open a second WSL terminal and start a query loop there. It asks your tenant for your series once a second: <Cmd>{`while true; do echo "$(date -u +%T) $(curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(learn_m11_heartbeat)')"; sleep 1; done`}</Cmd> Each line ends with the count 6.
+3. In the first terminal, note the time and delete the ingester of partition 1. The StatefulSet creates it again at once: <Cmd>{`date -u +%T; kubectl -n mimir delete pod mimir-ingester-1`}</Cmd>
+4. Watch the loop. For several seconds it prints errors with `partition 1: too many unhealthy instances in the ring`, then the count 6 again. Copy one error line.
+5. Check the writes in the first terminal: <Cmd>{`kubectl -n learn-m11 logs writer --tail=6`}</Cmd> Every line, also those during the outage, ends in `status 200`. Stop the loop in the second terminal with Ctrl+C.
+6. Read how the new ingester caught up: <Cmd>{`kubectl -n mimir logs mimir-ingester-1 | grep -E 'starting consumption from|lower than configured target'`}</Cmd> The first line gives the offset it resumed from, the second the offset it reached and its lag.
+7. Wait until the pod is Ready, then count the samples of each series over the last three minutes: <Cmd>{`kubectl -n mimir wait --for=condition=Ready pod/mimir-ingester-1 --timeout=300s`}</Cmd> <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count_over_time(learn_m11_heartbeat[3m])'; echo`}</Cmd> All six series have the same count, about 36: the outage left no hole.
+8. Your practice in this module ends here. Delete the namespace, which stops the writer: <Cmd>{`kubectl delete namespace learn-m11`}</Cmd>
+9. Paste the error line from action 4 in the check below.
+</Do>
+
+<Done>
+Writes stayed at `status 200`, recent reads failed for a few seconds and came back, and every series of your writer kept all its samples.
+</Done>
+
+<Trap practice>
+The error window can be short, a few seconds in the lab. Start the loop of action 2 before you delete the pod. If you missed it, the loop's output is still on the screen: scroll up rather than deleting the pod again.
+</Trap>
+
+<Remember>
+Ingest storage: an ingester down stops no write, and Kafka fills the gap when it returns. Recent reads need one healthy ingester per partition, so run two per partition in different zones.
+</Remember>
+
+<Question id="q-m11-s13" answer="d">
+A Mimir cluster with ingest storage runs two zones, with one ingester per partition in each zone. Zone A loses all its ingesters at once for ten minutes. What happens?
+
+- Writes fail, because half of the ingesters are gone
+
+  Ingesters are not on the write path. Writes end at Kafka.
+
+- Queries of recent data fail until zone A is back
+
+  Every partition still has its zone B ingester, and one per partition is enough.
+
+- Zone A's ingesters lose the samples of those ten minutes
+
+  They read their partitions from their stored offsets when they return, so they catch up without a gap.
+
+- Writes and queries both go on, and zone A catches up from Kafka later
+
+  Kafka takes the writes, zone B serves the reads, and zone A resumes from its consumer group offsets.
+</Question>

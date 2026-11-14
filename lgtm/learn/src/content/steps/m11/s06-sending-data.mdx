@@ -1,0 +1,171 @@
+---
+id: m11-s06
+title: "Sending data: remote write and OTLP"
+kind: lab
+minutes: 25
+order: 6
+exam:
+  - cert: none
+tags: [mimir-ingest, prom-remote-write]
+check:
+  kind: exact
+  prompt: Mimir gave your writer's series a job label that the payload never set. Paste its value.
+  answers: ["writer"]
+outcome: You can point Prometheus remote write and an OTLP exporter at Mimir with a tenant, send a sample of your own, and predict the labels Mimir gives an OTLP metric.
+terms:
+  - term: Remote write endpoint
+    def: Mimir's path /api/v1/push, which takes Prometheus remote write requests.
+  - term: OTLP endpoint
+    def: Mimir's path /otlp/v1/metrics, which takes OTLP metrics over HTTP.
+  - term: target_info
+    def: The series where Mimir keeps the resource attributes of an OTLP sender that did not become labels.
+  - term: Promoted attribute
+    def: A resource attribute that Mimir copies onto every series of the sender as a label.
+sources:
+  - title: Grafana Mimir distributor, supported protocols
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/distributor/
+    checked: 2026-11-14
+  - title: Grafana Mimir HTTP API, remote write and OTLP
+    url: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
+    checked: 2026-11-14
+  - title: Configure the OpenTelemetry Collector to write metrics into Mimir
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configure-otel-collector/
+    checked: 2026-11-14
+  - title: Grafana Mimir authentication and authorization, remote write
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+    checked: 2026-11-14
+  - title: Grafana Mimir version 3.0 release notes
+    url: https://grafana.com/docs/mimir/v3.2.x/release-notes/v3.0/
+    checked: 2026-11-14
+  - title: OTLP specification, OTLP/HTTP JSON encoding
+    url: https://opentelemetry.io/docs/specs/otlp/
+    checked: 2026-11-14
+---
+
+<Problem>
+The lab has three writers into Mimir: Prometheus, the collector gateway and Tempo. Each one speaks a different protocol or sends as a different tenant, and you have never seen what their samples look like on arrival. Before you change one of them, you want to send a sample of your own and watch what Mimir makes of it.
+</Problem>
+
+<Idea>
+Mimir's distributor takes Prometheus remote write on `/api/v1/push` and OTLP on `/otlp/v1/metrics`, and every request names its tenant in the header `X-Scope-OrgID`. Remote write arrives as Prometheus series already. OTLP is translated: dots become underscores, `service.name` becomes the label `job`, and the other resource attributes go to `target_info` unless you promote them.
+</Idea>
+
+## Two protocols, one front door
+
+A distributor accepts Prometheus remote write, in version 1 and in version 2, which Mimir 3.0 lists as experimental. It also accepts OTLP over HTTP and the Influx line protocol. Remote write is protocol buffers compressed with snappy, as module m03 showed. OTLP over HTTP is protocol buffers too, and the OTLP specification also defines a JSON form of the same messages.
+
+The tenant goes in a header on every request. Prometheus sets it with `headers` in its `remote_write` entry. An OpenTelemetry Collector sets it with `headers` on its `otlp_http` exporter, whose endpoint is Mimir's `/otlp`: the exporter adds `/v1/metrics` itself. For a Collector, Mimir's documentation recommends OTLP over remote write.
+
+## What OTLP turns into
+
+An OTLP metric is not a Prometheus series yet. Mimir follows the OpenTelemetry rules for the translation. Dots in metric and attribute names become underscores, so `http.status_code` becomes `http_status_code`. The resource gives two labels to every series: `job` from `service.namespace` and `service.name` joined by a slash, or from `service.name` alone, and `instance` from `service.instance.id`. All other resource attributes go to one extra series, `target_info`, which you join in a query when you need them.
+
+A tenant can also promote chosen resource attributes, so they become labels on every series. Mimir's documentation marks that option experimental.
+
+<Flow caption="One OTLP data point on its way to a series">
+  <Stage title="Resource" kicker="service.name=writer">Becomes job="writer"; other attributes go to target_info.</Stage>
+  <Stage title="Data point" kicker="attribute n=3">Becomes the label n="3".</Stage>
+  <Stage title="Series" kicker="In tenant learn-m11" hot>learn_m11_heartbeat with job, n and any promoted labels.</Stage>
+</Flow>
+
+<InLab>
+Prometheus remote-writes to `http://mimir-gateway.mimir.svc/api/v1/push` as tenant `prom`, with exemplars and native histograms switched on. The collector gateway's exporter `otlp_http/mimir` sends to `/otlp` as tenant `lab`, and Mimir promotes `cluster`, `service.name` and a few Kubernetes attributes for that traffic. Tempo's metrics-generator remote-writes its span metrics as tenant `lab` too.
+</InLab>
+
+<Trap>
+Do not look for `service_name` to find an OTLP sender in a plain Mimir. The standard label is `job`, built from the service's namespace and name. This lab has `service_name` as well only because it promotes `service.name`.
+</Trap>
+
+<Do>
+1. In WSL, read the two real senders. Prometheus first: <Cmd>{`kubectl -n prom get prometheus -o jsonpath='{.items[0].spec.remoteWrite}'; echo`}</Cmd> Then the collector gateway: <Cmd>{`kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' | grep -A4 'otlp_http/mimir:'`}</Cmd> Note the path and the `X-Scope-OrgID` of each.
+2. Create the practice namespace of this module: <Cmd>{`kubectl create namespace learn-m11`}</Cmd>
+3. Save this as `m11-writer.yaml`. A ConfigMap holds an OTLP JSON body with six data points of one gauge, and a small pod fills in a counter and the time and posts it every five seconds as tenant `learn-m11`:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: writer-body
+     namespace: learn-m11
+   data:
+     body.json: |
+       {"resourceMetrics": [{
+         "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "writer"}}]},
+         "scopeMetrics": [{"metrics": [{"name": "learn_m11_heartbeat", "gauge": {"dataPoints": [
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "0"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "1"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "2"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "3"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "4"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "5"}}]}
+         ]}}]}]
+       }]}
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: writer
+     namespace: learn-m11
+   spec:
+     containers:
+       - name: writer
+         image: curlimages/curl:8.23.0
+         command: [/bin/sh, -c]
+         args:
+           - |
+             i=0
+             while true; do
+               sed -e "s/VALUE/$i/g" -e "s/TIME/$(date +%s)000000000/g" /body/body.json > /tmp/body.json
+               code=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Scope-OrgID: learn-m11' \
+                 -H 'Content-Type: application/json' --data @/tmp/body.json \
+                 http://mimir-gateway.mimir.svc/otlp/v1/metrics)
+               echo "$(date -u +%H:%M:%S) sent $i status $code"
+               i=$((i+1))
+               sleep 5
+             done
+         volumeMounts:
+           - { name: body, mountPath: /body }
+         resources:
+           requests: { cpu: 10m, memory: 16Mi }
+           limits: { cpu: 50m, memory: 32Mi }
+     volumes:
+       - name: body
+         configMap: { name: writer-body }
+   ```
+4. Apply it and wait for the pod: <Cmd>{`kubectl apply -f m11-writer.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m11 wait --for=condition=Ready pod/writer --timeout=120s`}</Cmd> After half a minute, read its log: <Cmd>{`kubectl -n learn-m11 logs writer --tail=3`}</Cmd> Every line ends in `status 200`. The pod keeps running until step 13 of this module.
+5. Query your tenant through the lab's gateway: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=learn_m11_heartbeat'; echo`}</Cmd> Six series come back, one per value of `n`, with the counter as their value.
+6. Read the labels of one series. `n` came from the data point. `job` and `service_name` came from the resource: `job` by the OTLP rule, `service_name` because the lab promotes `service.name`.
+7. Paste the value of `job` in the check below.
+</Do>
+
+<Done>
+Your writer's log shows `status 200`, and tenant `learn-m11` holds six series of `learn_m11_heartbeat` with a `job` label that you never wrote.
+</Done>
+
+<Trap practice>
+If the query returns an empty result, check the header first: without `X-Scope-OrgID: learn-m11` you are asking another tenant. If the log shows `status 404`, the path is wrong: the pod posts to `/otlp/v1/metrics`, while a Collector's exporter is configured with `/otlp` only.
+</Trap>
+
+<Remember>
+Remote write goes to `/api/v1/push`, OTLP to `/otlp/v1/metrics`, both with `X-Scope-OrgID`. OTLP gets translated: underscores for dots, `job` and `instance` from the resource, the rest in `target_info`.
+</Remember>
+
+<Question id="q-m11-s06" answer="a">
+An OTLP sender sets the resource attributes `service.namespace=shop` and `service.name=cart`. Nothing is promoted. Which label does Mimir give every metric of this sender?
+
+- `job="shop/cart"`
+
+  The OTLP translation joins the service namespace and name with a slash and stores them as `job`.
+
+- `service_name="cart"`
+
+  That label exists only when `service.name` is promoted. The standard label is `job`.
+
+- `job="cart"`
+
+  `service.name` alone becomes `job` only when the service namespace is empty.
+
+- `namespace="shop"`
+
+  Resource attributes that are not promoted go to `target_info`, not onto every series.
+</Question>

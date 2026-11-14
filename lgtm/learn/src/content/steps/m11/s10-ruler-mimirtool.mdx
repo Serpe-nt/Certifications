@@ -1,0 +1,162 @@
+---
+id: m11-s10
+title: Rules in the ruler, with mimirtool
+kind: lab
+minutes: 25
+order: 10
+exam:
+  - cert: none
+tags: [mimir-rules]
+check:
+  kind: exact
+  prompt: What value did the recorded series m11:learn_m11_heartbeat:count have in action 5?
+  answers: ["6"]
+outcome: You can load, list, check and delete a tenant's rule group with mimirtool, and read whether the ruler evaluates it.
+terms:
+  - term: Ruler
+    def: The optional Mimir component that evaluates each tenant's recording and alerting rules.
+  - term: Rule namespace
+    def: A named set of rule groups of one tenant in the ruler, like one rule file in Prometheus.
+  - term: mimirtool
+    def: Mimir's command-line tool for rules, Alertmanager configurations and other tenant tasks.
+sources:
+  - title: Grafana Mimir ruler
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ruler/
+    checked: 2026-11-14
+  - title: Mimirtool
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+    checked: 2026-11-14
+  - title: Grafana Mimir HTTP API, ruler endpoints
+    url: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
+    checked: 2026-11-14
+  - title: About ingest storage architecture, data freshness on the read path (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-14
+  - title: Grafana Mimir configuration parameters, ruler and limits
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+    checked: 2026-11-14
+  - title: grafana/mimirtool image tags (Docker Hub)
+    url: https://hub.docker.com/r/grafana/mimirtool/tags
+    checked: 2026-11-14
+---
+
+<Problem>
+In module m04 you read recording rules in the lab's Prometheus, loaded from files that the operator mounts. A team that only writes to Mimir has no Prometheus and no files to mount. Their dashboards still need recorded series, and their alerts must run somewhere.
+</Problem>
+
+<Idea>
+Mimir's ruler evaluates recording and alerting rules for each tenant, with the same rule format as Prometheus. Tenants send rule groups to the ruler's API, usually with `mimirtool`, and the ruler writes the recorded series back into the same tenant. Rules are data in Mimir, not files on a pod.
+</Idea>
+
+## A ruler per tenant, rules over an API
+
+The ruler is optional. Each tenant has its own rule groups, gathered in namespaces; a namespace plays the part of one rule file. A group has a name, an interval and a list of rules, written exactly as in a Prometheus rule file.
+
+By default the ruler runs its own querier inside its process. It reads the ingesters and store-gateways directly and writes each result through an internal distributor, so a recorded series lands in the tenant like any other sample. In the remote mode it sends the queries to the query-frontend instead, to profit from splitting and sharding. Alerting rules work the same way, and the firing alerts go to the Alertmanager that the ruler is pointed at: step 11.
+
+With ingest storage, a rule may depend on the result of an earlier rule in the same group, which might not be consumed yet. The ruler handles this: for such rules it asks for strong read consistency, and the ingesters wait until they have read everything written before the query.
+
+## mimirtool talks to the API
+
+The rules live in the ruler's object storage, and you change them through the HTTP API under `/prometheus/config/v1/rules`. `mimirtool` wraps that API. It reads the address from `MIMIR_ADDRESS` and the tenant from `MIMIR_TENANT_ID`, or from `--address` and `--id`.
+
+`mimirtool rules load FILE` uploads every group of a file and replaces groups of the same name. `rules list` shows the tenant's namespaces and groups, `rules get NAMESPACE GROUP` prints one group, and `rules delete NAMESPACE GROUP` removes it. `rules check FILE` works offline: it checks the recorded names against the `level:metric:operations` pattern of module m04.
+
+<Compare caption="Three kinds of mimirtool rules commands">
+  <Col title="Change the ruler">load, delete, delete-namespace, sync: they write through the API.</Col>
+  <Col title="Read the ruler">list, get, print, diff: they read through the API.</Col>
+  <Col title="Work offline" hot>lint, check, prepare: they need no cluster. lint and prepare rewrite the file; check only reads it.</Col>
+</Compare>
+
+The state of the rules, with each rule's health and last evaluation, is in a second API: `/prometheus/api/v1/rules`, the same as in Prometheus.
+
+<InLab>
+The lab's gateway sends the rule paths to the ruler, which stores rules in the bucket `mimir-ruler`. No tenant has rules today, so the ruler's metric `cortex_ruler_managers_total` from step 5 shows 0. The tenant limits allow 70 groups per tenant and 20 rules per group.
+</InLab>
+
+<Trap>
+Uploading a group is not evaluating it. Check `/prometheus/api/v1/rules`: a rule whose `health` stays `unknown` has not run yet, and one with `err` has a `lastError` that says why.
+</Trap>
+
+<Do>
+1. In WSL, save this as `m11-rules.yaml`. A ConfigMap holds a rule namespace with one recording rule that counts your heartbeat series, and a one-shot pod runs `mimirtool rules load` on it as tenant `learn-m11`. The image has no shell, so the pod passes its arguments straight to `mimirtool`.
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m11-rules
+     namespace: learn-m11
+   data:
+     rules.yaml: |
+       namespace: learn-m11
+       groups:
+         - name: heartbeat
+           interval: 1m
+           rules:
+             - record: m11:learn_m11_heartbeat:count
+               expr: count(learn_m11_heartbeat)
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: rules-load
+     namespace: learn-m11
+   spec:
+     restartPolicy: Never
+     containers:
+       - name: mimirtool
+         image: grafana/mimirtool:3.2.4
+         args: [rules, load, /rules/rules.yaml]
+         env:
+           - { name: MIMIR_ADDRESS, value: "http://mimir-gateway.mimir.svc" }
+           - { name: MIMIR_TENANT_ID, value: learn-m11 }
+         volumeMounts:
+           - { name: rules, mountPath: /rules }
+         resources:
+           requests: { cpu: 10m, memory: 32Mi }
+           limits: { cpu: 100m, memory: 128Mi }
+     volumes:
+       - name: rules
+         configMap: { name: m11-rules }
+   ```
+2. Apply it and read what `mimirtool` did: <Cmd>{`kubectl apply -f m11-rules.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m11 wait --for=jsonpath='{.status.phase}'=Succeeded pod/rules-load --timeout=120s`}</Cmd> <Cmd>{`kubectl -n learn-m11 logs rules-load`}</Cmd> The log names the group `heartbeat` in the namespace `learn-m11`.
+3. List the tenant's rules with a throw-away `mimirtool` pod: <Cmd>{`kubectl -n learn-m11 run mimirtool --rm -i --quiet --restart=Never --image=grafana/mimirtool:3.2.4 --env=MIMIR_ADDRESS=http://mimir-gateway.mimir.svc --env=MIMIR_TENANT_ID=learn-m11 -- rules list`}</Cmd> The table shows `learn-m11 | heartbeat`.
+4. Wait a minute or two, then read the rule's state from the ruler: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/rules; echo`}</Cmd> Repeat until the rule shows `"health":"ok"` and a `lastEvaluation` time.
+5. Query the recorded series: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=m11:learn_m11_heartbeat:count'; echo`}</Cmd> Its value is the number of heartbeat series your writer sends.
+6. Delete the group, then check that the ruler's configuration for your tenant is empty: <Cmd>{`kubectl -n learn-m11 run mimirtool --rm -i --quiet --restart=Never --image=grafana/mimirtool:3.2.4 --env=MIMIR_ADDRESS=http://mimir-gateway.mimir.svc --env=MIMIR_TENANT_ID=learn-m11 -- rules delete learn-m11 heartbeat`}</Cmd> <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/config/v1/rules; echo`}</Cmd> The answer is `{}`.
+7. Remove the load pod and its ConfigMap: <Cmd>{`kubectl -n learn-m11 delete pod/rules-load configmap/m11-rules`}</Cmd>
+8. Paste the value from action 5 in the check below.
+</Do>
+
+<Done>
+Your rule group was loaded, evaluated with health `ok`, wrote a series into tenant `learn-m11`, and is gone again.
+</Done>
+
+<Trap practice>
+`kubectl run --rm -i` may print `couldn't attach to pod ... falling back to streaming logs` when `mimirtool` ends before kubectl attaches. The command still ran; check its effect with the curl of action 6. If action 4 stays empty for more than two minutes, look at the load pod's log for an error.
+</Trap>
+
+<Remember>
+The ruler evaluates each tenant's rules and writes the results into that tenant. `mimirtool rules load`, `list` and `delete` manage them through the API; `/prometheus/api/v1/rules` shows whether they run.
+</Remember>
+
+<Question id="q-m11-s10" answer="c">
+A team loads a rule group with `mimirtool rules load` as tenant `team-a`. Where do the series of its recording rules end up?
+
+- In the Prometheus that first scraped the data
+
+  The ruler does not write back to Prometheus. It writes into Mimir.
+
+- In a special tenant for rule results
+
+  There is no such tenant. A rule's results belong to the tenant that owns the rule.
+
+- In tenant `team-a`, like any other sample
+
+  The ruler writes its results through a distributor into the rule's own tenant, where queries find them.
+
+- Only in the ruler's memory, until the next evaluation
+
+  Recorded series are stored like any other series, so they stay queryable over time.
+</Question>

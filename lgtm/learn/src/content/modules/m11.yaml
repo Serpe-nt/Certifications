@@ -1,0 +1,6 @@
+id: m11
+title: Mimir
+goal: Explain the write and read path of Mimir 3 and operate tenants, limits and rules.
+order: 11
+quiz: true
+exams: []

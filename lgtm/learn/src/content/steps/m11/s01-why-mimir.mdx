@@ -1,0 +1,104 @@
+---
+id: m11-s01
+title: "The problem: Prometheus at scale"
+kind: concept
+minutes: 10
+order: 1
+exam:
+  - cert: none
+tags: [mimir-why]
+outcome: You can name what one Prometheus server cannot do for many clusters and teams, and say which part of Mimir answers each gap.
+terms:
+  - term: Mimir
+    def: A horizontally scalable, multi-tenant long-term store for Prometheus and OpenTelemetry metrics.
+  - term: Component
+    def: One role of Mimir, such as the distributor or the ingester; each can run and scale on its own.
+  - term: Tenant
+    def: One isolated set of data and limits inside Mimir, named by a tenant ID on every request.
+  - term: Object storage
+    def: A store of whole files reached over HTTP, such as S3, used for Mimir's long-term blocks.
+sources:
+  - title: Introduction to Grafana Mimir
+    url: https://grafana.com/docs/mimir/v3.2.x/introduction/
+    checked: 2026-11-14
+  - title: Grafana Mimir architecture
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/
+    checked: 2026-11-14
+  - title: Grafana Mimir deployment modes
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/deployment-modes/
+    checked: 2026-11-14
+  - title: Configuration, scrape_config sample_limit (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+    checked: 2026-11-14
+  - title: Grafana Mimir authentication and authorization
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+    checked: 2026-11-14
+---
+
+<Problem>
+Five clusters each run a Prometheus that keeps one day on one disk. The platform team wants a year of history, one query across all five clusters, and a promise that one team's mistake cannot slow down another team's dashboards. No Prometheus setting gives you any of these three.
+</Problem>
+
+Module m03 ended with this gap and with remote write, the way out of it. This module opens the store at the other end of remote write.
+
+<Idea>
+Mimir is a long-term store for Prometheus and OpenTelemetry metrics. It splits the work of one Prometheus into components that scale on their own, keeps its data as blocks in object storage, and gives every team a tenant with its own data and its own limits. Prometheus keeps scraping; Mimir stores and answers the queries.
+</Idea>
+
+## What one Prometheus runs out of
+
+A Prometheus server keeps its recent samples in memory and its blocks on a local disk. Both belong to one machine. When the series grow, you can only give that machine more memory. When the disk fails, the data is gone, because local storage is not replicated. A query sees only the data of its own server, so a question about five clusters needs five queries or a second layer on top.
+
+Teams share the server too. Prometheus can cap the samples of one scrape job, but it has no notion of a team. One team that adds a label with user IDs uses up the memory that every team's queries need.
+
+## Split the job into components
+
+Mimir is one binary that can play many roles. The `-target` flag chooses the role: `-target=all` runs every component in one process, which the documentation calls monolithic mode and recommends for getting started. In microservices mode each process runs one component, such as `-target=distributor` or `-target=ingester`, and you scale each one on its own. That is the mode for production, and the mode the lab runs.
+
+Writes and reads take different paths through these components. Steps 2 and 3 follow each path, and step 5 finds every component as a pod in the lab.
+
+## Blocks in object storage
+
+Mimir stores samples in the same format as the Prometheus database, with one database per tenant. It cuts the data into blocks of two hours by default and uploads them to an object store such as Amazon S3, Google Cloud Storage or Azure Storage. The blocks live off the Mimir machines, so how much history you keep depends on a retention setting, not on the disk of one server. Step 4 covers the blocks.
+
+## Tenants and limits
+
+Every request to Mimir names a tenant in the HTTP header `X-Scope-OrgID`. Data written as one tenant is invisible to the others, and each tenant has its own limits on series, samples per second and label sizes. Mimir trusts the header: the documentation asks you to put an authenticating proxy in front of it that sets the header. Steps 7 and 8 work with tenants and limits.
+
+<Compare caption="Each gap and the step that answers it">
+  <Col title="More series than one machine">The write path spreads series over many ingesters (step 2).</Col>
+  <Col title="A year of history, safely">Blocks in object storage, compacted and kept by retention (step 4).</Col>
+  <Col title="Teams that harm each other" hot>Tenants with their own data and limits (steps 7 and 8).</Col>
+</Compare>
+
+<InLab>
+The lab runs Mimir 3.2.4 in microservices mode in the namespace `mimir`. It holds two tenants: `lab` for the shop and its traces' metrics, and `prom` for what the lab's Prometheus remote-writes. Since module m02 you have read them as the Grafana data sources `mimir` and `mimir-prom`.
+</InLab>
+
+<Trap>
+Mimir does not replace Prometheus in this lab. Prometheus still scrapes the cluster and sends every sample on; Mimir is the store at the other end and answers the same PromQL.
+</Trap>
+
+<Remember>
+One Prometheus has one machine's memory, one unreplicated disk and no walls between teams. Mimir answers with components that scale, blocks in object storage, and tenants with limits.
+</Remember>
+
+<Question id="q-m11-s01" answer="c">
+Two teams share one Prometheus server. One of them adds a label whose values are user IDs, and the server runs out of memory. Which feature of Mimir is meant for this situation?
+
+- Blocks in object storage, kept for a year
+
+  Object storage keeps the history. It does nothing about how many series one team creates.
+
+- Monolithic mode with `-target=all`
+
+  Monolithic mode runs every component in one process. It keeps the teams on shared resources.
+
+- Tenants with their own limits
+
+  Each team writes as its own tenant, and a per-tenant limit stops one team's series growth before it hurts the others.
+
+- Remote write from Prometheus
+
+  Remote write moves samples to Mimir. On its own it does not limit what one team sends.
+</Question>

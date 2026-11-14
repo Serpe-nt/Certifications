@@ -1,0 +1,644 @@
+# Module m11 Mimir: quiz pool. Card C10, 2026-11-14.
+# Sources: the Grafana Mimir documentation for version 3.2 (grafana.com/docs/mimir/v3.2.x/),
+# fetched on 2026-11-14, and the lab runs logged in lgtm/docs/verification/m11.md.
+# No mock pool has a question on these tags.
+
+- id: q-m11-001
+  tags: [mimir-why]
+  exam: { cert: none }
+  q: "Five clusters each run a Prometheus that keeps one day of data. The team wants one PromQL query across all five clusters and a year of history. Which setup gives both?"
+  options:
+    - text: "All five remote-write to one Mimir with blocks in object storage"
+      why: "Mimir holds the series of all five senders in one place and keeps long history as blocks in object storage, so one query covers everything."
+    - text: "Each Prometheus gets a larger disk and a retention of one year"
+      why: "A bigger local disk gives history, but still five separate servers to query, and no copy if a disk fails."
+    - text: "One Prometheus per cluster in agent mode, with no remote storage"
+      why: "Agent mode drops the local database and expects a remote store. Without one, nothing is kept at all."
+    - text: "A second Prometheus per cluster that scrapes the same targets"
+      why: "A pair of servers gives availability, not one query across clusters or a year of history."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/introduction/
+
+- id: q-m11-002
+  tags: [mimir-why, mimir-components]
+  exam: { cert: none }
+  q: "Every Mimir pod of a microservices deployment runs the same image. What makes one pod a distributor and another an ingester?"
+  options:
+    - text: "The name of the Kubernetes Service in front of the pod"
+      why: "A Service only routes traffic. The process inside decides its own role."
+    - text: "The <code>-target</code> flag the process is started with"
+      why: "Mimir is one binary, and <code>-target</code> chooses the component it runs, such as <code>-target=distributor</code>."
+    - text: "A role that the hash ring assigns after start-up"
+      why: "Rings share out work among pods of the same component. They do not choose the component."
+    - text: "The tenant header of the first request it receives"
+      why: "The tenant header selects a tenant's data. It has nothing to do with a pod's role."
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/deployment-modes/
+
+- id: q-m11-003
+  tags: [mimir-write-path]
+  exam: { cert: none }
+  q: "The Kafka cluster behind a Mimir 3 with ingest storage is down for 40 minutes. Prometheus remote-writes to Mimir. What do Prometheus and Mimir do in those 40 minutes?"
+  options:
+    - text: "Mimir's ingesters accept the writes and keep them until Kafka returns"
+      why: "Ingesters are not on the write path with ingest storage. They only read from Kafka."
+    - text: "The distributors keep every request in memory until Kafka returns"
+      why: "A distributor holds a request only until Kafka confirms it or the write fails. It is not a durable queue."
+    - text: "Writes fail; Prometheus retries them from its WAL"
+      why: "A write is done only when Kafka has it, so pushes fail. Prometheus retries from its WAL for outages of up to about two hours."
+    - text: "Writes succeed, and the samples are written to object storage at once"
+      why: "Samples reach object storage only as blocks that ingesters cut from what they consumed."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+
+- id: q-m11-004
+  tags: [mimir-write-path]
+  exam: { cert: none }
+  q: "With ingest storage, at which moment does the distributor answer a remote write request with success?"
+  options:
+    - text: "When the samples are in the ingesters' memory"
+      why: "That is the classic architecture. With ingest storage, ingesters read the records later."
+    - text: "When the request has passed validation"
+      why: "Validation comes first, but the request still has to be stored before the sender hears success."
+    - text: "When the samples are uploaded to object storage"
+      why: "Blocks are uploaded every two hours by the ingesters, long after the write."
+    - text: "When Kafka confirms it stored the records"
+      why: "The write path ends at Kafka: the distributor acknowledges the sender after Kafka confirms persistence."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+
+- id: q-m11-005
+  tags: [mimir-write-path, mimir-read-path]
+  exam: { cert: none }
+  q: "A smoke test writes one sample to Mimir, gets <code>200</code>, and queries it at once. Sometimes the query returns nothing; a second later it finds the sample. Why?"
+  options:
+    - text: "Ingesters read Kafka on their own time, a moment after the write"
+      why: "With ingest storage there is no read-after-write promise by default; the normal delay is under one second."
+    - text: "The query-frontend serves an old cached answer for about a second"
+      why: "A results cache could do that, but the first query had no earlier answer to serve."
+    - text: "The distributor drops the first sample of every new series"
+      why: "No such rule exists. A valid sample is written to Kafka."
+    - text: "The store-gateway needs a second to load the new block"
+      why: "A new sample is nowhere near a block yet. Recent data comes from the ingesters."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+
+- id: q-m11-006
+  tags: [mimir-write-path]
+  exam: { cert: none }
+  q: "How does a distributor decide which Kafka partition a series goes to?"
+  options:
+    - text: "It sends each series to the partition that holds the least data"
+      why: "Balancing by size would move a series between partitions. A series always goes to the same one."
+    - text: "It hashes the series and looks it up in the partitions ring"
+      why: "The distributor hashes each series and finds the partition that owns that token in the partitions ring."
+    - text: "It asks every ingester which partition has room"
+      why: "Ingesters take no part in the write path with ingest storage."
+    - text: "It writes the whole request to one random partition"
+      why: "Each series is sharded on its own, so one request can reach several partitions."
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/hash-ring/
+
+- id: q-m11-007
+  tags: [mimir-read-path, mimir-replication]
+  exam: { cert: none }
+  q: "Queries over the last 15 minutes fail with <code>partition 2: too many unhealthy instances in the ring</code>. The same queries for last week work. Which component do you check first?"
+  options:
+    - text: "The store-gateway that holds last week's blocks"
+      why: "The store-gateway serves the old blocks, and those queries work."
+    - text: "The compactor, which merges recent blocks"
+      why: "The compactor works in the background on the bucket. It answers no queries."
+    - text: "The ingester that owns partition 2"
+      why: "Recent data needs one healthy ingester per partition. The error names partition 2, so its ingester is unhealthy."
+    - text: "The distributors, which write partition 2"
+      why: "Distributors are on the write path. A failing read names the partition whose reader is missing."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ingester/
+
+- id: q-m11-008
+  tags: [mimir-read-path]
+  exam: { cert: none }
+  q: "What does the query-scheduler add between the query-frontend and the queriers?"
+  options:
+    - text: "It runs the PromQL engine itself for short, cheap queries"
+      why: "Queriers run the engine. The scheduler only holds and hands out work."
+    - text: "It caches the results of earlier queries"
+      why: "Result caching is a function of the query-frontend, not of the scheduler."
+    - text: "It reads blocks from object storage for the queriers"
+      why: "That is the store-gateway's job."
+    - text: "It holds the queue and serves the tenants round-robin"
+      why: "The scheduler keeps the in-memory queue, and queriers pull from it; tenants with waiting queries take turns."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/query-scheduler/
+
+- id: q-m11-009
+  tags: [mimir-read-path]
+  exam: { cert: none }
+  q: "With the default settings, which sources does a querier ask for the samples of exactly 12 hours and 30 minutes ago?"
+  options:
+    - text: "Only the ingesters, because the data is younger than 13 hours"
+      why: "Ingesters are asked up to 13 hours back, but the store is also asked for anything older than 12 hours."
+    - text: "Both the ingesters and the store-gateways"
+      why: "The time is inside <code>query_ingesters_within</code> (13 hours) and past <code>query_store_after</code> (12 hours), so both are asked."
+    - text: "Only the store-gateways, because the data is older than 12 hours"
+      why: "Ingesters still hold that data, so they are asked too, in case a block is not yet visible."
+    - text: "Only the query-frontend, from its results cache"
+      why: "The frontend can cache answers, but the querier itself always fetches from ingesters or store-gateways."
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+
+- id: q-m11-010
+  tags: [mimir-read-path]
+  exam: { cert: none }
+  q: "A dashboard asks for 30 days of data in one query. Which component cuts it into smaller queries that run in parallel?"
+  options:
+    - text: "The query-frontend, which splits long ranges into days"
+      why: "Splitting by a 24-hour interval is a function of the query-frontend, the entry point of the read path."
+    - text: "The store-gateway, which serves one block at a time"
+      why: "The store-gateway serves what the querier asks for; it does not split queries."
+    - text: "The compactor, which merged the blocks into one-day blocks"
+      why: "Compaction shapes the blocks, not the queries."
+    - text: "The distributor, which shards every request"
+      why: "Distributors shard writes, not queries."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/query-frontend/
+
+- id: q-m11-011
+  tags: [mimir-storage]
+  exam: { cert: none }
+  q: "A new Mimir runs with its default settings for a year. How much data does it keep in the bucket?"
+  options:
+    - text: "Fifteen days, the same default as Prometheus uses locally"
+      why: "That is Prometheus's local default. Mimir's bucket retention is a separate setting."
+    - text: "Seven days, the default of the compactor"
+      why: "Seven days is the lab's own setting, not a default."
+    - text: "Thirteen hours, the ingesters' local retention"
+      why: "Thirteen hours is how long ingesters keep uploaded blocks on their own disk."
+    - text: "Everything: the retention period is 0 by default"
+      why: "With 0, the compactor never deletes blocks, so the bucket grows until you set a retention."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configure-metrics-storage-retention/
+
+- id: q-m11-012
+  tags: [mimir-storage]
+  exam: { cert: none }
+  q: "A tenant's bucket shows three blocks for the same two-hour window, one from each ingester. A day later only one block covers that window and more. What happened?"
+  options:
+    - text: "The store-gateway deleted the two duplicate blocks"
+      why: "Store-gateways read blocks. They never delete them."
+    - text: "The compactor merged them into one larger block"
+      why: "Vertical compaction joins the blocks of the same range; horizontal compaction then joins adjacent ranges."
+    - text: "Two ingesters failed to upload, and their blocks expired"
+      why: "Uploaded blocks do not expire on their own. The merge is the compactor's work."
+    - text: "The ingesters merged their blocks before the upload"
+      why: "Each ingester uploads its own block. Merging happens later, in the bucket."
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/compactor/
+
+- id: q-m11-013
+  tags: [mimir-storage]
+  exam: { cert: none }
+  q: "A series with a leaked password in a label was written to Mimir yesterday. The team asks you to delete only that series. What can Mimir do?"
+  options:
+    - text: "Delete it with the Prometheus delete-series API"
+      why: "Mimir does not support Prometheus's delete-series API."
+    - text: "Mark the series for deletion so the compactor removes it"
+      why: "Deletion marks apply to whole blocks, not to single series."
+    - text: "Nothing per series; only whole blocks are deleted"
+      why: "Mimir supports neither per-series deletion nor per-series retention. Only whole blocks are deleted."
+    - text: "Drop it with a recording rule that overwrites the series"
+      why: "A rule writes new series. It cannot remove samples already stored."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configure-metrics-storage-retention/
+
+- id: q-m11-014
+  tags: [mimir-storage]
+  exam: { cert: none }
+  q: "The compactor has marked an old block for deletion. With the default settings, when is the block really removed from the bucket?"
+  options:
+    - text: "At once, when the deletion mark is written"
+      why: "The mark is a soft delete. The block stays for a delay so that readers can let go of it."
+    - text: "When the next store-gateway restarts"
+      why: "Store-gateways do not delete blocks."
+    - text: "After 13 hours, when the ingesters drop their copies"
+      why: "Thirteen hours is the ingesters' local retention, which has nothing to do with deletion marks."
+    - text: "After the deletion delay, 12 hours by default"
+      why: "The compactor first writes deletion-mark.json, then hard-deletes the block once the delay has passed."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+
+- id: q-m11-015
+  tags: [mimir-components]
+  exam: { cert: none }
+  q: "Which of these Mimir components is stateless, so that a Deployment without volumes suits it?"
+  options:
+    - text: "The query-frontend"
+      why: "The query-frontend keeps no data between restarts; the lab runs it as a Deployment."
+    - text: "The ingester"
+      why: "Ingesters keep a WAL and local blocks on a volume."
+    - text: "The store-gateway that reads the blocks"
+      why: "The store-gateway keeps index-headers on disk so that it need not download them again after a restart."
+    - text: "The Alertmanager"
+      why: "The Alertmanager keeps alert state on local disk."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/query-frontend/
+
+- id: q-m11-016
+  tags: [mimir-components]
+  exam: { cert: none }
+  q: "You read a distributor's <code>/metrics</code> and search for <code>mimir_</code> to find samples per tenant. Nothing comes up. What should you search for?"
+  options:
+    - text: "<code>prometheus_remote_storage_</code>, the sender's metrics"
+      why: "Those are metrics of the sending Prometheus, not of Mimir."
+    - text: "<code>otelcol_</code>, because Mimir uses the Collector internally"
+      why: "Mimir does not embed the Collector."
+    - text: "<code>cortex_</code>, the prefix of Mimir's own metrics"
+      why: "Mimir's component metrics start with <code>cortex_</code>, for example <code>cortex_distributor_received_samples_total</code>."
+    - text: "<code>up</code>, which counts the samples per tenant"
+      why: "<code>up</code> is a scrape result in Prometheus. It is not a Mimir metric."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
+
+- id: q-m11-017
+  tags: [mimir-ingest]
+  exam: { cert: none }
+  q: "An OpenTelemetry Collector should send metrics to Mimir over OTLP. Which endpoint goes into its <code>otlp_http</code> exporter?"
+  options:
+    - text: "<code>http://MIMIR/api/v1/push</code>"
+      why: "That path takes Prometheus remote write, not OTLP."
+    - text: "<code>http://MIMIR/otlp</code>"
+      why: "Mimir's documentation configures the exporter with <code>/otlp</code>; the exporter adds <code>/v1/metrics</code> itself."
+    - text: "<code>http://MIMIR/prometheus</code>"
+      why: "That prefix is the query API on the read path."
+    - text: "<code>http://MIMIR:4317</code>"
+      why: "Mimir takes OTLP over HTTP on its own HTTP port, not the Collector's gRPC port."
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configure-otel-collector/
+
+- id: q-m11-018
+  tags: [mimir-ingest, prom-remote-write]
+  exam: { cert: none }
+  q: "A Prometheus should remote-write into the Mimir tenant <code>team-a</code>, with no authenticating proxy in between. What goes into its <code>remote_write</code> entry?"
+  options:
+    - text: "<code>external_labels</code> with <code>tenant: team-a</code>"
+      why: "External labels are added to the series. Mimir reads the tenant from a header, not from a label."
+    - text: "The tenant in the path: <code>/api/v1/push/team-a</code>"
+      why: "The push path has no tenant part."
+    - text: "<code>basic_auth</code> with the user name <code>team-a</code>"
+      why: "Basic authentication is for a proxy in front of Mimir. Mimir itself reads the header."
+    - text: "<code>headers</code> with <code>X-Scope-OrgID: team-a</code>"
+      why: "Without a proxy, the documentation sets the tenant with a <code>headers</code> entry in <code>remote_write</code>."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+
+- id: q-m11-019
+  tags: [mimir-ingest]
+  exam: { cert: none }
+  q: "Services send OTLP with the resource attribute <code>k8s.namespace.name</code>. In Mimir, a query <code>sum by (k8s_namespace_name) (...)</code> returns one group without that label. Nothing is promoted. Where is the attribute?"
+  options:
+    - text: "On <code>target_info</code>, with the other resource attributes"
+      why: "Resource attributes other than those that form <code>job</code> and <code>instance</code> go to <code>target_info</code> unless promoted."
+    - text: "Dropped, because Mimir rejects dots in names"
+      why: "Dots become underscores. The attribute is kept, on another series."
+    - text: "In the label <code>namespace</code>, which Mimir adds to every series"
+      why: "No rule renames it to <code>namespace</code>."
+    - text: "In the exemplars of the series"
+      why: "Exemplars carry trace links, not resource attributes."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configure-otel-collector/
+
+- id: q-m11-020
+  tags: [mimir-tenants]
+  exam: { cert: none }
+  q: "A team's Collector sends to Mimir and gets <code>200</code>. Their new Grafana data source on the same Mimir finds none of their metrics, and no query fails. What is the likely cause?"
+  options:
+    - text: "Mimir has not created their tenant yet"
+      why: "A tenant exists as soon as its first sample arrives."
+    - text: "The Collector writes too fast for the ingesters"
+      why: "A rate problem would show as 429 at the sender, not as an empty query."
+    - text: "The data source and the Collector use different tenants"
+      why: "A query sees only its own tenant's data. Two different headers mean two different tenants."
+    - text: "The store-gateway has not loaded their blocks"
+      why: "Recent data comes from the ingesters, so fresh metrics would show anyway."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+
+- id: q-m11-021
+  tags: [mimir-tenants]
+  exam: { cert: none }
+  q: "An operator wants to add the tenant <code>team-d</code> to a running Mimir. What must happen before <code>team-d</code> can write?"
+  options:
+    - text: "A call to Mimir's tenant creation API"
+      why: "There is no such API. A tenant comes into being with its data."
+    - text: "Nothing; its first write with that header creates it"
+      why: "The ingesters open a tenant's database when its first sample arrives, and the tenant runs on the default limits."
+    - text: "A restart of every distributor"
+      why: "Distributors need no tenant list, and overrides reload without restarts."
+    - text: "A new bucket in object storage for the tenant"
+      why: "All tenants share the bucket; each has its own blocks inside it."
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+
+- id: q-m11-022
+  tags: [mimir-tenants]
+  exam: { cert: none }
+  q: "A query with the header <code>X-Scope-OrgID: lab|prom</code> fails with <code>too many tenant IDs present in the request</code>. What does that tell you?"
+  options:
+    - text: "Tenant federation is off; only one tenant per query"
+      why: "A list of tenants separated by a pipe works only with tenant federation enabled."
+    - text: "The pipe is not a valid character in tenant IDs"
+      why: "The pipe is a separator, not part of an ID. The error is about the count."
+    - text: "One of the two tenants holds no data"
+      why: "An empty tenant would return an empty result, not this error."
+    - text: "Each tenant needs its own header"
+      why: "The lab's gateway refuses several <code>X-Scope-OrgID</code> headers; federation uses one header with pipes."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+
+- id: q-m11-023
+  tags: [mimir-tenants]
+  exam: { cert: none }
+  q: "Mimir is reachable from every pod in the cluster. Any pod can send any <code>X-Scope-OrgID</code>. What does the documentation advise?"
+  options:
+    - text: "Switch off multi-tenancy, so that no header is needed at all"
+      why: "That puts every request into one tenant, which removes the isolation altogether."
+    - text: "Give each tenant a password in Mimir's limits"
+      why: "Limits hold no credentials. Mimir has no per-tenant password."
+    - text: "Use long, random tenant IDs that nobody can guess"
+      why: "A secret ID is not authentication, and IDs show up in logs and metrics."
+    - text: "Put an authenticating proxy in front that sets the header"
+      why: "Mimir trusts the header, so an authenticating reverse proxy must inject the right tenant ID."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+
+- id: q-m11-024
+  tags: [mimir-limits]
+  exam: { cert: none }
+  q: "After a deploy, a Prometheus logs HTTP 429 from Mimir for every remote write batch, and later its graphs have holes. What is happening?"
+  options:
+    - text: "Kafka is full, and the distributor reports it with HTTP 429"
+      why: "A Kafka outage fails writes with other errors. 429 means a rate limit."
+    - text: "The tenant is over its rate; Prometheus does not retry 429"
+      why: "The distributor drops requests above the tenant's rate with 429; without <code>retry_on_http_429</code>, Prometheus drops those batches."
+    - text: "An ingester rejects samples that are too old and reports 429"
+      why: "Ingesters reject after Kafka has the write, so the sender never sees their errors."
+    - text: "The series have too many labels for the tenant's limit"
+      why: "Label limits fail with 400 and an error ID, not with 429."
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/distributor/
+
+- id: q-m11-025
+  tags: [mimir-limits]
+  exam: { cert: none }
+  q: "A service sends OTLP with 35 attributes on each data point. Mimir answers <code>400</code> with <code>err-mimir-max-label-names-per-series</code>. Which change fixes it without touching Mimir?"
+  options:
+    - text: "Send fewer attributes, so each series has at most 30 labels"
+      why: "Each data point attribute becomes a label, and with <code>__name__</code>, <code>job</code> and any promoted attributes a series may have at most 30 labels by default."
+    - text: "Send the same data with remote write instead of OTLP"
+      why: "The same series would have the same labels and break the same limit."
+    - text: "Shorten every label value to under 2,048 characters"
+      why: "That is the limit on value length. The error is about the number of labels."
+    - text: "Send the data under a second tenant ID"
+      why: "A second tenant has the same default limit."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/mimir-runbooks/
+
+- id: q-m11-026
+  tags: [mimir-limits]
+  exam: { cert: none }
+  q: "A batch job replays the samples from five hours ago to two hours ago into a busy tenant. Every request returns <code>200</code>, but the samples never show up. Where do you find the reason?"
+  options:
+    - text: "In the job's own logs, which show the rejected samples"
+      why: "The job heard 200 for every request, so it logged nothing."
+    - text: "In the query-frontend's logs, at query time"
+      why: "The frontend only sees queries. The samples were dropped long before."
+    - text: "In the compactor's metrics, which count dropped blocks"
+      why: "No block was ever made from these samples."
+    - text: "In the ingesters' <code>cortex_discarded_samples_total</code>"
+      why: "Ingesters drop samples more than an hour older than the tenant's newest one, after Kafka has accepted the write."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/mimir-runbooks/
+
+- id: q-m11-027
+  tags: [mimir-limits]
+  exam: { cert: none }
+  q: "One tenant needs a higher ingestion rate today. How do you raise it for that tenant only, without a restart?"
+  options:
+    - text: "Change <code>ingestion_rate</code> in the <code>limits</code> block and roll the distributors"
+      why: "That changes the default for all tenants and needs a rollout."
+    - text: "Send the tenant's data through two gateways"
+      why: "The limit is per tenant across all distributors, whatever the path."
+    - text: "Add the tenant under <code>overrides</code> in the runtime configuration"
+      why: "Mimir reloads the runtime configuration every 10 seconds by default, and its overrides replace limits for one tenant."
+    - text: "Set a higher rate in the tenant's <code>X-Scope-OrgID</code> header"
+      why: "The header carries only the tenant ID."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/about-runtime-configuration/
+
+- id: q-m11-028
+  tags: [mimir-cardinality, cardinality]
+  exam: { cert: none }
+  q: "A tenant is close to its series limit, and the cardinality API is off. Which PromQL query shows the metric names with the most series?"
+  options:
+    - text: "<code>topk(10, count_over_time({__name__=~\".+\"}[30m]))</code>"
+      why: "This counts samples per series over 30 minutes, not series per metric name."
+    - text: "<code>topk(10, count by (__name__) ({__name__=~\".+\"}))</code>"
+      why: "Counting series grouped by metric name and keeping the top ten shows where the series are."
+    - text: "<code>topk(10, sum by (__name__, job) ({__name__=~\".+\"}))</code>"
+      why: "This adds up the values of the series, which says nothing about how many there are."
+    - text: "<code>count(count by (job) ({__name__=~\".+\"}))</code>"
+      why: "This counts the jobs, which is one number, not a list of metrics."
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/
+
+- id: q-m11-029
+  tags: [mimir-cardinality]
+  exam: { cert: none }
+  q: "A latency histogram has 13 buckets, 80 span names, 14 services and 2 status codes. To cut its series the most, which label is worth looking at first?"
+  options:
+    - text: "<code>le</code>, because buckets always cost the most"
+      why: "Thirteen bucket values multiply the series, but the span names multiply them more."
+    - text: "The status code, because errors are rare"
+      why: "With 2 values it multiplies the series by at most 2."
+    - text: "The span name, because it has the most values"
+      why: "Each value multiplies the series. The label with 80 values is the biggest factor."
+    - text: "The service, because each service belongs to one team"
+      why: "Fourteen values matter less than eighty."
+  answer: [2]
+  source: https://prometheus.io/docs/practices/naming/
+
+- id: q-m11-030
+  tags: [mimir-cardinality]
+  exam: { cert: none }
+  q: "Two calls of <code>/prometheus/api/v1/cardinality/label_names</code> a minute apart give very different totals. Nothing changed in the senders. Why?"
+  options:
+    - text: "In-memory counting shifts when an ingester cuts a block"
+      why: "In-memory counts follow the ingesters' open databases; <code>count_method=active</code> gives steadier numbers."
+    - text: "The API reads object storage, which updates only slowly"
+      why: "The API reads the ingesters, not the bucket."
+    - text: "The query-frontend caches every other answer"
+      why: "A cache could repeat an old answer, but not make two fresh ones differ."
+    - text: "Each call goes to a different tenant"
+      why: "The header decides the tenant; it was the same in both calls."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
+
+- id: q-m11-031
+  tags: [mimir-rules]
+  exam: { cert: none }
+  q: "A team loads a rule group with <code>mimirtool rules load</code>. Thirty seconds later <code>/prometheus/api/v1/rules</code> shows the rule with <code>health</code> set to <code>unknown</code>. What does that mean?"
+  options:
+    - text: "The expression has a syntax error"
+      why: "A rule that failed shows <code>err</code> and a <code>lastError</code>."
+    - text: "The ruler is down for this tenant"
+      why: "A ruler that is down would not list the rule at all."
+    - text: "The group was stored in the wrong namespace"
+      why: "The namespace does not change a rule's health."
+    - text: "The rule has not been evaluated yet"
+      why: "A new rule stays <code>unknown</code> until its first evaluation; then it shows <code>ok</code> or <code>err</code>."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ruler/
+
+- id: q-m11-032
+  tags: [mimir-rules]
+  exam: { cert: none }
+  q: "Which <code>mimirtool rules</code> command checks the names of recorded series in a local file without contacting Mimir?"
+  options:
+    - text: "<code>rules sync</code>"
+      why: "Sync compares the file with the cluster and applies the differences."
+    - text: "<code>rules diff</code>"
+      why: "Diff compares the file with the rules in the cluster."
+    - text: "<code>rules check</code>"
+      why: "Check reads only the file and reports recorded names that do not follow level:metric:operations."
+    - text: "<code>rules delete</code>"
+      why: "Delete removes a group from the cluster."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+
+- id: q-m11-033
+  tags: [mimir-alertmanager]
+  exam: { cert: none }
+  q: "A tenant's alerting rules fire in Mimir's ruler, the Alertmanager shows the alerts, but nobody is notified. The tenant never uploaded an Alertmanager configuration. What is the likely cause?"
+  options:
+    - text: "The ruler sends alerts only for recording rules"
+      why: "The ruler sends alerts from alerting rules; recording rules make no alerts."
+    - text: "The fallback configuration's receiver has no integration"
+      why: "A tenant without a configuration gets the fallback, and its receivers decide whether anyone is notified."
+    - text: "The Alertmanager needs a restart first"
+      why: "Configurations are loaded at runtime; no restart is involved."
+    - text: "The alerts went to every other tenant instead"
+      why: "Tenants never receive each other's alerts."
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/alertmanager/
+
+- id: q-m11-034
+  tags: [mimir-exemplars-histograms]
+  exam: { cert: none }
+  q: "Exemplars show on a latency graph for the last hour, but not for the same graph last week, although the metric is still there. Why?"
+  options:
+    - text: "The compactor removes all exemplars when it merges blocks"
+      why: "Exemplars are not kept with the blocks to begin with."
+    - text: "The store-gateway hides exemplars from old blocks"
+      why: "The store-gateway serves samples. Exemplars live in the ingesters."
+    - text: "The tenant's exemplar limit makes them expire after a day"
+      why: "The limit is a count, not a time."
+    - text: "Exemplars sit in a fixed buffer that newer ones overwrite"
+      why: "The circular buffer of <code>max_global_exemplars_per_user</code> holds the newest exemplars only."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/use-exemplars/about-exemplars/
+
+- id: q-m11-035
+  tags: [mimir-exemplars-histograms]
+  exam: { cert: none }
+  q: "A Prometheus has <code>send_exemplars: true</code> and remote-writes to a Mimir tenant that allows 100,000 exemplars, but Mimir holds none from it. What is missing on the Prometheus side?"
+  options:
+    - text: "<code>send_native_histograms: true</code>"
+      why: "Native histograms are a separate feature and do not carry exemplars by themselves."
+    - text: "A recording rule that copies the exemplars"
+      why: "Rules record values, not exemplars."
+    - text: "The flag <code>--enable-feature=exemplar-storage</code>"
+      why: "Without exemplar storage Prometheus keeps no exemplars, so it has none to send."
+    - text: "A second <code>remote_write</code> entry just for exemplars"
+      why: "Exemplars travel in the same remote write requests as the samples."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/use-exemplars/before-you-begin/
+
+- id: q-m11-036
+  tags: [mimir-exemplars-histograms]
+  exam: { cert: none }
+  q: "A classic histogram with 20 buckets is sent as a native histogram instead. How many series does Mimir then store for one label set?"
+  options:
+    - text: "One series; each sample holds all buckets"
+      why: "A native histogram is a single series with composite samples."
+    - text: "Twenty-two series, the same as the classic form"
+      why: "That is the classic form: 20 buckets plus <code>_sum</code> and <code>_count</code>."
+    - text: "Twenty series, without <code>_sum</code> and <code>_count</code>"
+      why: "The native form folds the buckets into the samples too."
+    - text: "Three series: buckets, sum and count"
+      why: "All three live in the samples of one series."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/send/native-histograms/
+
+- id: q-m11-037
+  tags: [mimir-replication]
+  exam: { cert: none }
+  q: "An ingester restarts after ten minutes away. Kafka kept every record. How does it get the samples it missed?"
+  options:
+    - text: "The other ingesters send it copies of what it missed"
+      why: "Ingesters do not copy data to each other with ingest storage."
+    - text: "It downloads them from the blocks in object storage"
+      why: "The missed samples were never cut into blocks."
+    - text: "It replays its WAL, then reads Kafka from its stored offset"
+      why: "The offset in its consumer group says where it stopped, so it catches up without a gap."
+    - text: "The distributors write them again"
+      why: "Distributors wrote them once, to Kafka. They keep no copy."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+
+- id: q-m11-038
+  tags: [mimir-replication]
+  exam: { cert: none }
+  q: "With ingest storage, how do you give the read path a replication factor of two?"
+  options:
+    - text: "Set <code>-ingester.ring.replication-factor=2</code>"
+      why: "The documentation says that flag is not used with ingest storage."
+    - text: "Run two ingesters per partition, in different zones"
+      why: "A partition can have several ingesters; two per partition is the recommended replication."
+    - text: "Give the Kafka topic two replicas per partition"
+      why: "Kafka replicas protect the records, not the read path through the ingesters."
+    - text: "Run two query-frontends"
+      why: "Frontends do not hold recent data."
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configure-zone-aware-replication/
+
+- id: q-m11-039
+  tags: [mimir-classic-architecture]
+  exam: { cert: none }
+  q: "In Mimir's classic architecture with the default replication factor, when does a write of one series succeed?"
+  options:
+    - text: "When Kafka has stored it"
+      why: "The classic architecture has no Kafka."
+    - text: "When one ingester has it"
+      why: "The default needs a quorum, not one ingester."
+    - text: "When all three of its ingesters have accepted it"
+      why: "Two of three are enough."
+    - text: "When two of its three ingesters have it"
+      why: "With a replication factor of 3, a write needs a quorum of 2."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ingester/
+
+- id: q-m11-040
+  tags: [mimir-classic-architecture]
+  exam: { cert: none }
+  q: "A Mimir 2 runbook says: after an ingester restart, expect a gap in its series for the time it was down. Does that hold for Mimir 3 with ingest storage?"
+  options:
+    - text: "No; it catches up from Kafka, so there is no gap"
+      why: "In the classic architecture an ingester cannot recover missed writes; with ingest storage, Kafka kept them."
+    - text: "Yes; ingesters lose what was written while they were down"
+      why: "That was true in the classic architecture only."
+    - text: "Yes, unless the compactor runs right after the restart"
+      why: "The compactor cannot recreate samples nobody stored."
+    - text: "No, because Mimir 3 has no ingesters"
+      why: "Mimir 3 still has ingesters; they read from Kafka."
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ingester/

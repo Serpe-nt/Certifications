@@ -1,0 +1,93 @@
+---
+id: m11-s11
+title: Mimir's Alertmanager
+kind: concept
+minutes: 12
+order: 11
+exam:
+  - cert: none
+tags: [mimir-alertmanager]
+outcome: You can explain how Mimir's Alertmanager serves many tenants, where a tenant's configuration comes from, and what happens to the alerts of a tenant without one.
+terms:
+  - term: Mimir Alertmanager
+    def: A multi-tenant, horizontally scalable version of the Prometheus Alertmanager that receives alerts from Mimir's ruler.
+  - term: Fallback configuration
+    def: The Alertmanager configuration Mimir uses for a tenant that has not uploaded its own.
+  - term: Receiver
+    def: A named destination for notifications in an Alertmanager configuration, such as an email address or a webhook.
+sources:
+  - title: Grafana Mimir Alertmanager
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/alertmanager/
+    checked: 2026-11-14
+  - title: Grafana Mimir ruler, alerting rules
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ruler/
+    checked: 2026-11-14
+  - title: Mimirtool, Alertmanager commands
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+    checked: 2026-11-14
+  - title: Grafana Mimir HTTP API, Alertmanager endpoints
+    url: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
+    checked: 2026-11-14
+---
+
+<Problem>
+Team A wants its alerts in its own chat channel, team B wants pages at night, and both send their rules to the same Mimir. One shared Alertmanager configuration would let each team break the other's routes, and each team would see the other's alerts.
+</Problem>
+
+<Idea>
+Mimir's Alertmanager is the Prometheus Alertmanager made multi-tenant. Each tenant uploads its own configuration, in the usual Alertmanager format, and sees only its own alerts. The ruler sends a tenant's firing alerts to that tenant's Alertmanager; a tenant without a configuration falls back to a default one.
+</Idea>
+
+## One Alertmanager per tenant, inside one component
+
+The component groups, deduplicates and routes alerts to receivers as the Prometheus Alertmanager does, and it reads the same configuration file format. The difference is that every tenant has a configuration and a web screen of its own, selected by the header `X-Scope-OrgID`, at the path `/alertmanager`.
+
+Alerts reach it from the ruler. Mimir's ruler is pointed at the Alertmanager with `-ruler.alertmanager-url`, which the configuration reference now marks as deprecated in favour of the per-tenant limit `ruler_alertmanager_client_config.alertmanager_url`; the lab still uses the old setting. When an alerting rule has been true for its whole `for` duration, the ruler sends the firing alert there, under the rule's tenant.
+
+<Flow caption="An alert from a rule to a receiver">
+  <Stage title="Ruler" kicker="Tenant team-a">An alerting rule stays true for its whole for duration.</Stage>
+  <Stage title="Alertmanager" kicker="team-a's configuration">Groups, deduplicates and routes the alert.</Stage>
+  <Stage title="Receiver" kicker="Notification">The chat channel or pager of team-a.</Stage>
+</Flow>
+
+## Where a tenant's configuration comes from
+
+A tenant uploads its configuration through the API, most often with `mimirtool alertmanager load FILE`, and reads or removes it with `mimirtool alertmanager get` and `delete`. `mimirtool alertmanager verify FILE` checks a file before upload.
+
+A tenant that never uploaded one gets the fallback configuration. Mimir always has one by default, and an operator can replace it with `-alertmanager.configs.fallback`. Without either a fallback or a tenant's own configuration, the tenant's screen cannot open and the ruler's notifications fail.
+
+## Scaling and state
+
+The component shards by tenant: each tenant is owned by some replicas of a hash ring, and any replica forwards a request to the owner. It keeps the alert state on a local disk and backs it up from time to time to object storage. A replica that starts asks the other replicas for the state first and reads the backup only if that fails. Because the backup is periodic, an outage of every replica can lose the most recent state.
+
+<InLab>
+The lab runs one Alertmanager pod with its state on a 1 GiB volume and its backups in the bucket `mimir-alertmanager`. Its fallback configuration has one route to a receiver named `default-receiver` with no integration, so a tenant without its own configuration gets alerts that notify nobody. No lab tenant has uploaded a configuration. The cluster's alerts today go another way: the lab's Prometheus evaluates them and sends them to the Prometheus stack's own Alertmanager in the namespace `prom`. Module m15 covers alerting.
+</InLab>
+
+<Trap>
+Alerts can reach the Alertmanager and still notify nobody. With the lab's fallback, a firing alert of a tenant without a configuration reaches the Alertmanager and stops there, because its only receiver has no integration.
+</Trap>
+
+<Remember>
+Each tenant has its own Alertmanager configuration and screen; the ruler sends a tenant's alerts there. No configuration means the fallback, and the lab's fallback notifies nobody.
+</Remember>
+
+<Question id="q-m11-s11" answer="b">
+Tenant `team-c` loads alerting rules into Mimir's ruler but never uploads an Alertmanager configuration. A rule fires. What does Mimir's Alertmanager do with the alert?
+
+- It rejects the alert, because the tenant has no configuration
+
+  As long as a fallback exists, the tenant is served with it.
+
+- It handles the alert with the fallback configuration
+
+  A tenant without its own configuration gets the fallback, and the fallback's routes decide where the alert goes.
+
+- It sends the alert to every receiver of every tenant
+
+  Tenants never see each other's alerts; that is the point of the multi-tenant Alertmanager.
+
+- It forwards the alert to the Prometheus Alertmanager of the cluster
+
+  Mimir's ruler and Alertmanager know nothing of a separate Prometheus Alertmanager unless the ruler is pointed at it.
+</Question>

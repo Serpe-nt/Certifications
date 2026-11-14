@@ -1,0 +1,118 @@
+---
+id: m11-s07
+title: Tenants and X-Scope-OrgID
+kind: lab
+minutes: 18
+order: 7
+exam:
+  - cert: none
+tags: [mimir-tenants]
+check:
+  kind: exact
+  prompt: How many series does count(up) find in tenant prom? Paste the number from action 1.
+  answers: ["29"]
+outcome: You can show that two tenants see different data for the same query, say what Mimir does with a request that has no tenant or two, and explain what creating a tenant involves.
+terms:
+  - term: X-Scope-OrgID
+    def: The HTTP header that carries the tenant ID on every write and query to Mimir.
+  - term: Tenant ID
+    def: The name of a tenant, up to 150 characters from letters, digits and a few symbols.
+  - term: Tenant federation
+    def: An optional Mimir feature that lets one query read several tenants, named with a pipe between them.
+sources:
+  - title: Grafana Mimir authentication and authorization
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+    checked: 2026-11-14
+  - title: About Grafana Mimir tenant IDs
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/about-tenant-ids/
+    checked: 2026-11-14
+  - title: About Grafana Mimir runtime configuration, per-tenant limits
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/about-runtime-configuration/
+    checked: 2026-11-14
+  - title: About ingest storage architecture, tenant TSDB (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-14
+  - title: Grafana Mimir HTTP API, tenants stats
+    url: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
+    checked: 2026-11-14
+---
+
+<Problem>
+A new team asks for "their own Mimir". You add a data source in Grafana, point it at the lab's Mimir, and their first query of `up` returns nothing at all. The same query on the data source `mimir-prom` returns every target of the cluster. Same server, same query, two answers.
+</Problem>
+
+<Idea>
+Mimir keeps a separate database for every tenant and picks the tenant from the header `X-Scope-OrgID` on each request. A query sees only the data written with the same tenant ID. A tenant comes into being when its first sample arrives; there is nothing to create first.
+</Idea>
+
+## One header decides what you see
+
+Every write and every query carries `X-Scope-OrgID`. The ingesters keep one database per tenant and create it when the first sample of that tenant arrives. In the bucket, each tenant has its own blocks and its own bucket index. So a query as tenant `lab` cannot see a sample written as `prom`, even when both have the same metric name and labels.
+
+Mimir trusts the header. Anyone who can reach Mimir can send any tenant ID, so the documentation asks you to put a reverse proxy in front that checks who is calling and sets the header itself. The lab's gateway checks nobody: it passes on whatever header you send.
+
+## No tenant, or two tenants
+
+Without the header, Mimir refuses the request with `401` and the message `no org id`. Some deployments switch multi-tenancy off; then every request becomes the tenant `anonymous`. The lab's gateway does something in between: when the header is missing, nginx sends `anonymous` itself. Your query then succeeds, but it reads a tenant that holds no data.
+
+A query can read several tenants at once only when tenant federation is switched on. You then list the tenants with a pipe, as in `lab|prom`. Without federation, Mimir refuses such a header. Tenant IDs themselves may hold letters, digits and the symbols `! - _ . * ' ( )`, up to 150 characters.
+
+## What creating a tenant means
+
+There is no API call that creates a tenant. You choose an ID and send data with it. The tenant then gets the default limits from the `limits` block of Mimir's configuration. If it needs other limits, the operator adds an entry under `overrides` in the runtime configuration, which Mimir reloads without a restart. Step 8 reads those limits.
+
+<Compare caption="The same query as three tenants in the lab">
+  <Col title="prom">count(up) returns the targets of the lab's Prometheus.</Col>
+  <Col title="lab">count(up) returns only the few targets the collector gateway scrapes itself.</Col>
+  <Col title="learn-m11" hot>count(up) returns nothing; your heartbeat series are here instead.</Col>
+</Compare>
+
+<InLab>
+The lab's runtime configuration has overrides for `lab` (500,000 series) and `prom` (300,000 series). Your tenant `learn-m11` has no entry, so it runs on the defaults of the lab's `limits` block.
+</InLab>
+
+<Trap>
+An empty result does not prove that a metric is missing. First check the tenant: the data source or the header may point at another tenant, or at `anonymous`.
+</Trap>
+
+<Do>
+1. In WSL, define a helper that queries one tenant through the lab's gateway, then count `up` as tenant `prom`: <Cmd>{`q() { curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $1" http://10.10.0.5/prometheus/api/v1/query --data-urlencode "query=$2"; echo; }`}</Cmd> <Cmd>{`q prom 'count(up)'`}</Cmd>
+2. Ask tenant `lab` the same: <Cmd>{`q lab 'count(up)'`}</Cmd> <Cmd>{`q lab 'count by (job) (up)'`}</Cmd> Only a handful of series, from the collector gateway's own scrapes.
+3. Ask your own tenant, then look for your series from the wrong side: <Cmd>{`q learn-m11 'count(up)'`}</Cmd> <Cmd>{`q lab 'count(learn_m11_heartbeat)'`}</Cmd> <Cmd>{`q learn-m11 'count(learn_m11_heartbeat)'`}</Cmd> Tenant `lab` cannot see your six series; tenant `learn-m11` can.
+4. Send no header at all, first through the gateway, then straight to the query-frontend: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(up)'; echo`}</Cmd> <Cmd>{`kubectl -n mimir port-forward svc/mimir-query-frontend 18110:8080 &`}</Cmd> <Cmd>{`curl -s -i 'http://127.0.0.1:18110/prometheus/api/v1/query?query=up'; kill %1`}</Cmd> The gateway answers with an empty success, as tenant `anonymous`. The query-frontend answers `401 Unauthorized` and `no org id`.
+5. Ask two tenants at once: <Cmd>{`q 'lab|prom' 'count(up)'`}</Cmd> The lab has no tenant federation, so Mimir answers `too many tenant IDs present in the request`.
+6. List the tenants the distributors know, with their series: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'Accept: application/json' http://10.10.0.5/distributor/all_user_stats; echo`}</Cmd> Your `learn-m11` is in the list, created by nothing but its first sample.
+7. Paste the number from action 1 in the check below.
+</Do>
+
+<Done>
+The same `count(up)` gave three different answers for three tenants, and a request with no tenant got either a 401 or the empty tenant `anonymous`.
+</Done>
+
+<Trap practice>
+If action 4 shows `Handling connection` lines, they come from the port-forward running in the background; the curl output is the line with `HTTP/1.1`. If the port is taken, pick another one above 1024 in both commands.
+</Trap>
+
+<Remember>
+The tenant is the header, and the header is trusted. A tenant exists once data arrives with its ID and runs on the default limits until an override says otherwise.
+</Remember>
+
+<Question id="q-m11-s07" answer="c">
+A new Grafana data source for Mimir has no custom header set, and every query returns an empty result without an error. Mimir sits behind an nginx proxy. What is the most likely cause?
+
+- The new tenant has not been created in Mimir yet
+
+  Tenants are not created ahead. Data arrives with an ID and the tenant exists.
+
+- Mimir rejects queries that have no tenant
+
+  Mimir itself answers such a request with 401 and an error, not with an empty success.
+
+- The proxy sends a default tenant with no data
+
+  An empty success with no header points to a proxy that adds a default ID, as the lab's gateway does with `anonymous`.
+
+- Tenant federation is off
+
+  Federation matters only when one query names several tenants. This data source names none.
+</Question>
