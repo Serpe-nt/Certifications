@@ -194,11 +194,12 @@ up one trace by its id: `69c22a0fcce4dfdf1184996cdc4cc838`, tenant `lab`. Before
 used 62 MiB. The trace was payment's flagd event stream: payment starts its flagd provider inside
 its first `charge` span, so the spans of that stream all belong to the trace of the shop's first
 order after payment started. The provider ends the stream every 10 minutes (its stream deadline)
-and opens a new one, and both ends mark each finished stream span as an error. Such a trace grows by
-a few spans every 10 minutes for the life of the payment pod, and soon has spans in every block
-Tempo keeps. A search over a recent window does not reach its root span, so Tempo shows
-`<root span not yet received>`, with error spans of `payment` and `flagd`, about 600 seconds
-long. A search for payment's errors finds it.
+and opens a new one. Each stream leaves a span `flagd.evaluation.v2.Service/EventStream` of about
+600 seconds in payment, always with status error, and one in flagd, often with status error. Such a
+trace grows by a few spans every 10 minutes for the life of the payment pod, and soon has spans in
+every block Tempo keeps. A search over a recent window does not reach its root span, so Tempo shows
+`<root span not yet received>`. A search for payment's errors finds it; adding
+`&& name != "flagd.evaluation.v2.Service/EventStream"` to the search leaves it out.
 
 Do not open that trace. If the querier was killed, it comes back by itself within seconds; nothing
 else needs doing. A restart of payment starts a new trace of this kind, which grows again.
