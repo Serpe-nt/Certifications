@@ -1,0 +1,112 @@
+---
+id: m14-s08
+title: "Incident: recommendations get slow, then fail for a moment"
+kind: lab
+minutes: 25
+order: 8
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [incident-saturation]
+flags: [recommendationCacheFailure]
+check:
+  kind: exact
+  prompt: Paste the name of the span attribute of get_product_list whose value grows from 10 to millions.
+  answers: ["demo.product.count"]
+outcome: You can follow a latency spike through an exemplar to the span that does too much work, and prove what keeps resetting a service with the container's termination reason.
+terms:
+  - term: Restart count
+    def: How many times the kubelet has restarted a container of a pod. It only goes up.
+  - term: OOMKilled
+    def: The reason Kubernetes records when the kernel killed a container for going over its memory limit.
+  - term: Saturation
+    def: How full a resource is, such as memory against its limit. One of the four golden signals.
+sources:
+  - title: Resource management for pods and containers (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+    checked: 2026-11-14
+  - title: Monitoring distributed systems, the four golden signals (Google SRE book)
+    url: https://sre.google/sre-book/monitoring-distributed-systems/
+    checked: 2026-11-14
+  - title: Introduction to exemplars (Grafana)
+    url: https://grafana.com/docs/grafana/latest/fundamentals/exemplars/
+    checked: 2026-11-14
+  - title: Status codes and their use in gRPC
+    url: https://grpc.io/docs/guides/status-codes/
+    checked: 2026-11-14
+---
+
+<Problem>
+The product pages feel slow. Every few minutes the "You may also like" box stays empty for a moment, then it comes back. No error lasts long enough to fire an alert, and the service that fills the box shows no errors on its own dashboard. The pattern repeats.
+</Problem>
+
+<Idea>
+A fault that comes and goes in a cycle often means a resource fills up and is reset. Latency shows the filling, and an exemplar from the slowest minute gives you one request that shows what work grew. The container's restart count and its last termination reason prove what reset it.
+</Idea>
+
+## Start from the slow requests
+
+The dashboard of the service that serves the box shows its rate, errors and latency. When latency climbs from milliseconds to hundreds of milliseconds while the error ratio stays at zero, the service still answers; it just takes longer. That is where exemplars help: a dot near the top of the Duration panel is one of the slow requests. Its trace shows which span took the time.
+
+## One span that does too much
+
+In a slow trace, look for the span that holds most of the time and has no slow child to blame. Then read its attributes. A good instrumentation records sizes: how many items were read, how many were returned. When one of those numbers is far larger than in a normal request, the work grew, and so did the memory that holds it. Compare with a span from before the fault: the same attribute had a small, steady value.
+
+## Saturation, then a reset
+
+Memory is a resource with a hard limit. In Kubernetes, the kernel enforces a container's memory limit with an out-of-memory kill, and the kubelet restarts the container. Kubernetes records the reason of the last termination as `OOMKilled`. A restart frees the memory, so the cycle starts again: the service is fast, then slower, then killed. While the container restarts, its callers get gRPC code 14, UNAVAILABLE, which the gRPC documentation describes as a service that cannot be reached for now. That is the empty box the users see.
+
+## Why the memory graph can miss it
+
+The lab's Prometheus reads a container's memory from the kubelet every 10 seconds. Memory that grows fast can go from far below the limit to the limit between two readings. The graph then shows a small rise, and after the restart a new series that starts low. A graph that never touches the limit does not prove that memory was fine. The termination reason does not depend on when the last sample was taken.
+
+<InLab>
+The container's limit is 500 MiB (`lab/demo/chart/values.yaml`). Kubernetes data is in the data source `prometheus`: `container_memory_working_set_bytes`, `kube_pod_container_status_restarts_total` and `kube_pod_container_status_last_terminated_reason`.
+</InLab>
+
+<Trap>
+A restart is not a fix. If the memory grows the same way after it, the next kill is a few minutes away, and an incident note that says "restarted, works now" will be wrong.
+</Trap>
+
+<Do>
+1. Open the <LabLink to="flags" path="/feature">flag screen</LabLink>, set `recommendationCacheFailure` to `on`, and note the time. Wait three minutes.
+2. Open the dashboard <LabLink to="grafana" path="/d/shop-red-recommendation">Shop / recommendation (RED)</LabLink>, last 15 minutes, and set **Span kind** to `SPAN_KIND_SERVER`. The Duration panel climbs from a few milliseconds to hundreds; Errors stays at 0%.
+3. Hover over a dot near the top of the Duration panel. The tooltip shows `span_name` and a `traceID`. Click **Query with Tempo**.
+4. In the trace, find the span `get_product_list` of `opentelemetry-demo/recommendation` and click it. Read its attributes, and compare `demo.product.count` with the number of products the span of `ListProducts` in product-catalog returned.
+5. In <LabLink to="grafana" path="/explore">Explore</LabLink>, pick `prometheus` and read the memory and the restarts: <Query lang="promql">{`container_memory_working_set_bytes{namespace="shop", container="recommendation"}`}</Query> <Query lang="promql">{`kube_pod_container_status_last_terminated_reason{namespace="shop", container="recommendation"}`}</Query> The second query shows the label `reason`.
+6. On the flag screen, set `recommendationCacheFailure` back to `off`, reload the page and check that it shows `off`. Note the time.
+7. Paste the name of the attribute from action 4 in the check below.
+</Do>
+
+<Done>
+The slow request's span read millions of product IDs where a normal one reads 10, and the container's last termination reason is OOMKilled. A list kept in memory that grows on every cache miss is the leak.
+</Done>
+
+<Trap practice>
+Copy the trace ID from the trace header, not from the tooltip: the tooltip can drop a leading zero. The pod's restart count stays after the flag is off; it is a counter, and the incident left it higher.
+</Trap>
+
+<Remember>
+Latency for the filling, an exemplar for one request that shows the growing work, the termination reason for the proof. A memory graph can miss the peak.
+</Remember>
+
+<Question id="q-m14-s08" answer="d">
+A service's p95 latency rises for three minutes, then drops back, and this repeats every few minutes. Its error ratio stays at 0, and its memory graph never reaches the limit. What do you check next?
+
+- The service's CPU limit, since latency rises
+
+  CPU can slow a service, but it does not explain why the slowness resets in a cycle.
+
+- The error ratio of the callers, to see who suffers
+
+  That measures impact. It does not tell you why the service resets itself.
+
+- The node's disk usage, since a full disk slows writes
+
+  A full disk does not empty itself every few minutes, so it does not fit the cycle.
+
+- The container's restart count and last termination reason
+
+  A cycle that resets often means the container is killed. OOMKilled would prove a memory limit, even if a sample missed the peak.
+</Question>
