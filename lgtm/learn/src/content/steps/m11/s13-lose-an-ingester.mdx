@@ -10,7 +10,7 @@ tags: [mimir-replication]
 check:
   kind: regex
   prompt: Paste one error line your query loop printed while the ingester was down.
-  pattern: "too many unhealthy instances"
+  pattern: ".*too many unhealthy instances.*"
 outcome: You can predict what writes and reads do when an ingester is lost under ingest storage, watch an ingester catch up from Kafka, and say what zones would change.
 terms:
   - term: Replication factor
@@ -86,18 +86,18 @@ The lab runs three ingesters, one per partition, with zone awareness off and no 
 </InLab>
 
 <Trap>
-A `200` from every sender is not a healthy Mimir. During the outage writes succeed while dashboards on recent data fail; watch the read path too.
+Senders that all get `200` do not mean Mimir is healthy. During the outage writes succeed while dashboards on recent data fail; watch the read path too.
 </Trap>
 
 <Do>
-1. In WSL, check that your writer from step 6 is still sending: <Cmd>kubectl -n learn-m11 logs writer --tail=2</Cmd> Then read the partitions ring from a distributor: <Cmd>{`D=$(kubectl -n mimir get pods -l app.kubernetes.io/component=distributor -o jsonpath='{.items[0].metadata.name}')`}</Cmd> <Cmd>{`kubectl get --raw /api/v1/namespaces/mimir/pods/$D:8080/proxy/ingester/partition-ring | grep -o '"id":[0-9]*\\|"owner_ids":\\[[^]]*\\]'`}</Cmd> Three partitions, each with exactly one owner.
+1. In WSL, check that your writer from step 6 is still sending: <Cmd>{`kubectl -n learn-m11 logs writer --tail=2`}</Cmd> Then read the partitions ring from a distributor: <Cmd>{`D=$(kubectl -n mimir get pods -l app.kubernetes.io/component=distributor -o jsonpath='{.items[0].metadata.name}')`}</Cmd> <Cmd>{`kubectl get --raw /api/v1/namespaces/mimir/pods/$D:8080/proxy/ingester/partition-ring | grep -o '"id":[0-9]*\\|"owner_ids":\\[[^]]*\\]'`}</Cmd> Three partitions, each with exactly one owner.
 2. Open a second WSL terminal and start a query loop there. It asks your tenant for your series once a second: <Cmd>{`while true; do echo "$(date -u +%T) $(curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(learn_m11_heartbeat)')"; sleep 1; done`}</Cmd> Each line ends with the count 6.
-3. In the first terminal, note the time and delete the ingester of partition 1. The StatefulSet creates it again at once: <Cmd>date -u +%T; kubectl -n mimir delete pod mimir-ingester-1</Cmd>
+3. In the first terminal, note the time and delete the ingester of partition 1. The StatefulSet creates it again at once: <Cmd>{`date -u +%T; kubectl -n mimir delete pod mimir-ingester-1`}</Cmd>
 4. Watch the loop. For several seconds it prints errors with `partition 1: too many unhealthy instances in the ring`, then the count 6 again. Copy one error line.
-5. Check the writes in the first terminal: <Cmd>kubectl -n learn-m11 logs writer --tail=6</Cmd> Every line, also those during the outage, ends in `status 200`. Stop the loop in the second terminal with Ctrl+C.
-6. Read how the new ingester caught up: <Cmd>kubectl -n mimir logs mimir-ingester-1 | grep -E 'starting consumption from|lower than configured target'</Cmd> The first line gives the offset it resumed from, the second the offset it reached and its lag.
-7. Wait until the pod is Ready, then count the samples of each series over the last three minutes: <Cmd>kubectl -n mimir wait --for=condition=Ready pod/mimir-ingester-1 --timeout=300s</Cmd> <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count_over_time(learn_m11_heartbeat[3m])'; echo`}</Cmd> All six series have the same count, about 36: the outage left no hole.
-8. Your practice in this module ends here. Delete the namespace, which stops the writer: <Cmd>kubectl delete namespace learn-m11</Cmd>
+5. Check the writes in the first terminal: <Cmd>{`kubectl -n learn-m11 logs writer --tail=6`}</Cmd> Every line, also those during the outage, ends in `status 200`. Stop the loop in the second terminal with Ctrl+C.
+6. Read how the new ingester caught up: <Cmd>{`kubectl -n mimir logs mimir-ingester-1 | grep -E 'starting consumption from|lower than configured target'`}</Cmd> The first line gives the offset it resumed from, the second the offset it reached and its lag.
+7. Wait until the pod is Ready, then count the samples of each series over the last three minutes: <Cmd>{`kubectl -n mimir wait --for=condition=Ready pod/mimir-ingester-1 --timeout=300s`}</Cmd> <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count_over_time(learn_m11_heartbeat[3m])'; echo`}</Cmd> All six series have the same count, about 36: the outage left no hole.
+8. Your practice in this module ends here. Delete the namespace, which stops the writer: <Cmd>{`kubectl delete namespace learn-m11`}</Cmd>
 9. Paste the error line from action 4 in the check below.
 </Do>
 

@@ -65,7 +65,7 @@ The lab runs one Alertmanager pod with its state on a 1 GiB volume and its backu
 </InLab>
 
 <Trap>
-A green Alertmanager is not a working pager. With the lab's fallback, a firing alert of a tenant without a configuration reaches the Alertmanager and stops there, because its only receiver has no integration.
+Alerts can reach the Alertmanager and still notify nobody. With the lab's fallback, a firing alert of a tenant without a configuration reaches the Alertmanager and stops there, because its only receiver has no integration.
 </Trap>
 
 <Remember>

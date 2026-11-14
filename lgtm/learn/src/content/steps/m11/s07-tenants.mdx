@@ -76,12 +76,12 @@ An empty result does not prove that a metric is missing. First check the tenant:
 </Trap>
 
 <Do>
-1. In WSL, define a helper that queries one tenant through the lab's gateway, then count `up` as tenant `prom`: <Cmd>{`q() { curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $1" http://10.10.0.5/prometheus/api/v1/query --data-urlencode "query=$2"; echo; }`}</Cmd> <Cmd>q prom 'count(up)'</Cmd>
-2. Ask tenant `lab` the same: <Cmd>q lab 'count(up)'</Cmd> <Cmd>q lab 'count by (job) (up)'</Cmd> Only a handful of series, from the collector gateway's own scrapes.
-3. Ask your own tenant, then look for your series from the wrong side: <Cmd>q learn-m11 'count(up)'</Cmd> <Cmd>q lab 'count(learn_m11_heartbeat)'</Cmd> <Cmd>q learn-m11 'count(learn_m11_heartbeat)'</Cmd> Tenant `lab` cannot see your six series; tenant `learn-m11` can.
-4. Send no header at all, first through the gateway, then straight to the query-frontend: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(up)'; echo`}</Cmd> <Cmd>kubectl -n mimir port-forward svc/mimir-query-frontend 18110:8080 &</Cmd> <Cmd>curl -s -i 'http://127.0.0.1:18110/prometheus/api/v1/query?query=up'; kill %1</Cmd> The gateway answers with an empty success, as tenant `anonymous`. The query-frontend answers `401 Unauthorized` and `no org id`.
-5. Ask two tenants at once: <Cmd>q 'lab|prom' 'count(up)'</Cmd> The lab has no tenant federation, so Mimir answers `too many tenant IDs present in the request`.
-6. List the tenants the distributors know, with their series: <Cmd>curl -s -H 'Host: mimir.lab.k8s.local' -H 'Accept: application/json' http://10.10.0.5/distributor/all_user_stats; echo</Cmd> Your `learn-m11` is in the list, created by nothing but its first sample.
+1. In WSL, define a helper that queries one tenant through the lab's gateway, then count `up` as tenant `prom`: <Cmd>{`q() { curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $1" http://10.10.0.5/prometheus/api/v1/query --data-urlencode "query=$2"; echo; }`}</Cmd> <Cmd>{`q prom 'count(up)'`}</Cmd>
+2. Ask tenant `lab` the same: <Cmd>{`q lab 'count(up)'`}</Cmd> <Cmd>{`q lab 'count by (job) (up)'`}</Cmd> Only a handful of series, from the collector gateway's own scrapes.
+3. Ask your own tenant, then look for your series from the wrong side: <Cmd>{`q learn-m11 'count(up)'`}</Cmd> <Cmd>{`q lab 'count(learn_m11_heartbeat)'`}</Cmd> <Cmd>{`q learn-m11 'count(learn_m11_heartbeat)'`}</Cmd> Tenant `lab` cannot see your six series; tenant `learn-m11` can.
+4. Send no header at all, first through the gateway, then straight to the query-frontend: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(up)'; echo`}</Cmd> <Cmd>{`kubectl -n mimir port-forward svc/mimir-query-frontend 18110:8080 &`}</Cmd> <Cmd>{`curl -s -i 'http://127.0.0.1:18110/prometheus/api/v1/query?query=up'; kill %1`}</Cmd> The gateway answers with an empty success, as tenant `anonymous`. The query-frontend answers `401 Unauthorized` and `no org id`.
+5. Ask two tenants at once: <Cmd>{`q 'lab|prom' 'count(up)'`}</Cmd> The lab has no tenant federation, so Mimir answers `too many tenant IDs present in the request`.
+6. List the tenants the distributors know, with their series: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'Accept: application/json' http://10.10.0.5/distributor/all_user_stats; echo`}</Cmd> Your `learn-m11` is in the list, created by nothing but its first sample.
 7. Paste the number from action 1 in the check below.
 </Do>
 

@@ -75,7 +75,7 @@ With `count_method=inmemory`, two calls of the cardinality API a minute apart ca
 </Trap>
 
 <Do>
-1. In WSL, try the cardinality API as tenant `lab`: <Cmd>curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/label_names; echo</Cmd> The answer says that cardinality analysis is disabled for the tenant.
+1. In WSL, try the cardinality API as tenant `lab`: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/label_names; echo`}</Cmd> The answer says that cardinality analysis is disabled for the tenant.
 2. Define the query helper of step 7 again if this is a new shell, and count the tenant's series: <Cmd>{`q() { curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $1" http://10.10.0.5/prometheus/api/v1/query --data-urlencode "query=$2"; echo; }`}</Cmd> <Cmd>{`q lab 'count({__name__=~".+"})'`}</Cmd> A few thousand series.
 3. Find the five metric names with the most series: <Cmd>{`q lab 'topk(5, count by (__name__) ({__name__=~".+"}))'`}</Cmd> One histogram from Tempo's span metrics is far ahead of the rest.
 4. Count the values of each label of that metric: <Cmd>{`for l in le span_name service_name span_kind status_code; do printf '%s ' $l; q lab "count(count by ($l) (traces_spanmetrics_latency_bucket))"; done`}</Cmd> The bucket label `le` has 13 values, and `span_name` has the most.

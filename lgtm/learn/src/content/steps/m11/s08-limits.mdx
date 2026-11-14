@@ -73,7 +73,7 @@ The lab's `limits` block raises the defaults to 50,000 samples per second, a bur
 </InLab>
 
 <Trap>
-A green sender is not proof of stored data with ingest storage. When graphs have holes and the sender shows no errors, read `cortex_discarded_samples_total` on the ingesters before you blame the sender.
+With ingest storage, a sender without errors does not prove that the data was stored. When graphs have holes and the sender shows no errors, read `cortex_discarded_samples_total` on the ingesters before you blame the sender.
 </Trap>
 
 <Do>
