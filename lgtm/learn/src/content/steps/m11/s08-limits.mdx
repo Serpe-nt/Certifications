@@ -40,7 +40,7 @@ sources:
 ---
 
 <Problem>
-A service restarts after a night offline and flushes two hours of buffered metrics into Mimir. Every request gets `200 OK`. In the morning the graphs still have a two-hour hole, and no sender logged a single error. Somewhere a limit said no, and only Mimir knows.
+At 08:00 a service comes back after a night offline and flushes the metrics it buffered from 03:00 to 05:00 into Mimir. Every request gets `200 OK`. In the morning the graphs still have a two-hour hole, and no sender logged a single error. Somewhere a limit said no, and only Mimir knows.
 </Problem>
 
 <Idea>
@@ -112,7 +112,7 @@ A Prometheus server's remote write to Mimir starts failing with HTTP 429 at the 
 
   Label checks fail with 400 and an error ID, not with 429.
 
-- The tenant exceeded its request rate or ingestion rate at the distributor
+- The tenant is over a rate limit at the distributor
 
   The distributor answers 429 when a tenant goes over its rate limits. Raise the tenant's override or smooth the job's output.
 </Question>

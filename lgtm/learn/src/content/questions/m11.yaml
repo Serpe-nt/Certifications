@@ -43,7 +43,7 @@
     - text: "Mimir's ingesters accept the writes and keep them until Kafka returns"
       why: "Ingesters are not on the write path with ingest storage. They only read from Kafka."
     - text: "The distributors keep every request in memory until Kafka returns"
-      why: "Distributors buffer only briefly before writing to Kafka. They are not a durable queue."
+      why: "A distributor holds a request only until Kafka confirms it or the write fails. It is not a durable queue."
     - text: "Writes fail; Prometheus retries them from its WAL"
       why: "A write is done only when Kafka has it, so pushes fail. Prometheus retries from its WAL for outages of up to about two hours."
     - text: "Writes succeed, and the samples are written to object storage at once"
@@ -225,7 +225,7 @@
     - text: "After the deletion delay, 12 hours by default"
       why: "The compactor first writes deletion-mark.json, then hard-deletes the block once the delay has passed."
   answer: [3]
-  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/compactor/
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
 
 - id: q-m11-015
   tags: [mimir-components]
@@ -406,7 +406,7 @@
 - id: q-m11-026
   tags: [mimir-limits]
   exam: { cert: none }
-  q: "A batch job replays three hours of old samples into a busy tenant. Every request returns <code>200</code>, but the samples never show up. Where do you find the reason?"
+  q: "A batch job replays the samples from five hours ago to two hours ago into a busy tenant. Every request returns <code>200</code>, but the samples never show up. Where do you find the reason?"
   options:
     - text: "In the job's own logs, which show the rejected samples"
       why: "The job heard 200 for every request, so it logged nothing."

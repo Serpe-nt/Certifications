@@ -66,7 +66,7 @@ The query-frontend answers `/prometheus/api/v1/query_exemplars` with a selector,
 
 ## Native histograms in Mimir
 
-A classic histogram arrives as one series per bucket plus `_sum` and `_count`, as module m04 showed. A native histogram arrives as one series whose samples hold all of that. Mimir accepts native histograms when `native_histograms_ingestion_enabled` is true, which is the default in this version, and it can cap the buckets per sample with `max_native_histogram_buckets`; the documentation recommends 160. Mimir converts OpenTelemetry exponential histograms into native ones, and it can also store a classic histogram in the native form with custom buckets, which needs no change in the code that measures.
+A classic histogram arrives as one series per bucket plus `_sum` and `_count`, as module m04 showed. A native histogram arrives as one series whose samples hold all of that. Mimir accepts native histograms when `native_histograms_ingestion_enabled` is true, which is the default in this version, and it can cap the buckets per sample with `max_native_histogram_buckets`; the documentation recommends 160. Mimir converts OpenTelemetry exponential histograms into native ones. It also stores classic histograms that a sender has turned into native histograms with custom buckets, which needs no change in the code that measures.
 
 <Compare caption="One latency histogram with 13 buckets, per label set">
   <Col title="Classic">15 series: 13 buckets with an le label, plus _sum and _count.</Col>

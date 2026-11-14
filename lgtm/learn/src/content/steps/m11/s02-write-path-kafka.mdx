@@ -91,7 +91,7 @@ All three ingesters of a Mimir 3 cluster with ingest storage are restarting at o
 
   That is how the classic architecture behaves. With ingest storage, ingesters are not on the write path.
 
-- Their writes succeed, because a write is done once Kafka has stored it
+- Writes succeed; a write is done once Kafka has it
 
   The distributor answers after Kafka confirms. The ingesters read the records later, from their stored offsets.
 
@@ -101,5 +101,5 @@ All three ingesters of a Mimir 3 cluster with ingest storage are restarting at o
 
 - Their writes are queued inside the distributors
 
-  Distributors only buffer briefly before writing to Kafka. Kafka is the durable queue.
+  A distributor holds a request only until Kafka confirms it or the write fails. Kafka is the durable queue.
 </Question>

@@ -52,11 +52,11 @@ Queries enter at the query-frontend, which cuts a long query into smaller ones a
 
 Grafana sends PromQL to the query-frontend, the entry point of the read path. The frontend can split a query over a long range into one query per day, which is the default interval, and run the parts in parallel. It can also shard a query into smaller pieces, and it can answer from a results cache when one is set up.
 
-The frontend does not run anything itself. It hands the parts to a query-scheduler, which keeps them in an in-memory queue. The scheduler serves the tenants with waiting queries round-robin, so one tenant with a heavy dashboard does not starve the others.
+The frontend fetches no samples itself. It hands the parts to a query-scheduler, which keeps them in an in-memory queue. The scheduler serves the tenants with waiting queries round-robin, so one tenant with a heavy dashboard does not starve the others.
 
 ## Queriers do the work
 
-A querier pulls a query from the scheduler's queue. It fetches every series the query needs, runs the PromQL engine on them and sends the result back to the frontend, which joins the parts and answers Grafana. Since Mimir 3.0 the engine is the Mimir Query Engine, which is compatible with PromQL.
+A querier pulls a query from the scheduler's queue. It fetches every series the query needs, runs the PromQL engine on them and sends the result back to the frontend, which joins the parts and answers Grafana. In Mimir 3 the default engine is the Mimir Query Engine, which is compatible with PromQL.
 
 Where the querier fetches from depends on time. Two settings decide it. Data younger than `query_ingesters_within`, 13 hours by default, is asked from the ingesters; data older than `query_store_after`, 12 hours by default, is asked from the store-gateways. The hour between the two is asked from both, so no block that is still being uploaded falls through the gap.
 
@@ -68,7 +68,7 @@ Where the querier fetches from depends on time. Two settings decide it. Data you
 
 ## Two sources of samples
 
-For recent data, the querier looks up which partitions hold the series, then asks one healthy ingester for each partition. With ingest storage, one answer per partition is enough, because every ingester of a partition has read the same records.
+For recent data, the querier asks one healthy ingester of every partition in the ring, because the labels of a query do not tell which partitions hold its series. With ingest storage, one answer per partition is enough, because every ingester of a partition has read the same records.
 
 For older data, the querier reads the tenant's bucket index, finds the blocks that cover the time range, and asks the store-gateways that hold them. A store-gateway keeps a small part of each block's index on local disk, the index-header, and downloads only the pieces of index and chunks a query needs. It never downloads a whole block.
 

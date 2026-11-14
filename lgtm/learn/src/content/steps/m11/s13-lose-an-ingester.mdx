@@ -56,7 +56,7 @@ The distributors write to Kafka, and Kafka replicates each partition across its 
 
 ## Reads need one ingester per partition
 
-A querier asks one ingester for each partition that may hold the series. All ingesters of a partition read the same records in the same order, so one answer is enough: a read quorum of one. The documentation calls the read path healthy as long as every partition has at least one healthy ingester, and recommends two ingesters per partition, a replication factor of two.
+A querier asks one ingester of each partition. All ingesters of a partition read the same records in the same order, so one answer is enough: a read quorum of one. The documentation calls the read path healthy as long as every partition has at least one healthy ingester, and recommends two ingesters per partition, a replication factor of two.
 
 With one ingester per partition, losing it leaves its partition with no reader. A query that needs recent data then fails with an error that names the partition, until an ingester is back. A query that reaches only the store-gateways, for data older than 13 hours, does not ask the ingesters at all.
 
