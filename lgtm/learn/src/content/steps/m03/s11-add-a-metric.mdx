@@ -85,12 +85,12 @@ A labelled counter has no series until its first use. Before any checkout, `work
 </Trap>
 
 <Do>
-1. In a terminal, go to `lgtm/lab/workshop` in your copy of the repository and compare the starting point with the solution: <Cmd>git diff --no-index app.py solutions/prometheus-client/app.py</Cmd> Find the four metrics, the hook `count_request` and the route `/metrics`.
-2. Start the solution. On the first run it creates a virtual environment and installs `prometheus-client`: <Cmd>python run.py solutions/prometheus-client</Cmd> Wait for the line `Running on http://127.0.0.1:8000`.
-3. In a second terminal, read the stock of one product three times, then ask twice for a SKU that does not exist. In PowerShell, type `curl.exe` instead of `curl`. <Cmd>curl http://127.0.0.1:8000/inventory/OLJCESPC7Z</Cmd> <Cmd>curl http://127.0.0.1:8000/inventory/NOPE</Cmd>
+1. In a terminal, go to `lgtm/lab/workshop` in your copy of the repository and compare the starting point with the solution: <Cmd>{`git diff --no-index app.py solutions/prometheus-client/app.py`}</Cmd> Find the four metrics, the hook `count_request` and the route `/metrics`.
+2. Start the solution. On the first run it creates a virtual environment and installs `prometheus-client`: <Cmd>{`python run.py solutions/prometheus-client`}</Cmd> Wait for the line `Running on http://127.0.0.1:8000`.
+3. In a second terminal, read the stock of one product three times, then ask twice for a SKU that does not exist. In PowerShell, type `curl.exe` instead of `curl`. <Cmd>{`curl http://127.0.0.1:8000/inventory/OLJCESPC7Z`}</Cmd> <Cmd>{`curl http://127.0.0.1:8000/inventory/NOPE`}</Cmd>
 4. Open http://127.0.0.1:8000/metrics in your browser. Find `# TYPE workshop_http_requests_total counter` and the lines under it. The route is `/inventory/<sku>` for both products, with one line for code 200 and one for code 404.
 5. Paste the value of the line with `code="404"` in the check below.
-6. Look at `workshop_checkouts_total`: it has no sample line yet. Now make some traffic for ten seconds, then reload the page: <Cmd>python load.py --rate 5 --duration 10</Cmd> `workshop_checkouts_total` now has a line per outcome, such as `placed` and `declined`, and `workshop_inventory_stock` has fallen for the products that were bought.
+6. Look at `workshop_checkouts_total`: it has no sample line yet. Now make some traffic for ten seconds, then reload the page: <Cmd>{`python load.py --rate 5 --duration 10`}</Cmd> `workshop_checkouts_total` now has a line per outcome, such as `placed` and `declined`, and `workshop_inventory_stock` has fallen for the products that were bought.
 7. Stop the service with Ctrl+C in its terminal. Start it again and reload the page: the request and checkout lines are gone until new requests arrive, and then they count from zero. This is the counter reset that `rate()` handles.
 8. Stop the service again with Ctrl+C.
 </Do>

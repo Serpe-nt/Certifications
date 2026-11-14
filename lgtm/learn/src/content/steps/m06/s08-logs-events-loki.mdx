@@ -72,26 +72,30 @@ A Loki query needs at least one label in braces. `{pod="counter"}` returns nothi
 </Trap>
 
 <Do>
-1. In WSL, create the namespace for this module: <Cmd>kubectl create namespace learn-m06</Cmd>
-2. Save this as `m06-counter.yaml`. It runs one small pod that prints a line every five seconds: <Cmd>{`apiVersion: v1
-kind: Pod
-metadata:
-  name: counter
-  namespace: learn-m06
-  labels:
-    app.kubernetes.io/name: counter
-spec:
-  containers:
-    - name: count
-      image: busybox:1.37
-      args: [/bin/sh, -c, 'i=0; while true; do echo "count $i"; i=$((i+1)); sleep 5; done']
-      resources:
-        requests: { cpu: 10m, memory: 16Mi }
-        limits: { cpu: 50m, memory: 32Mi }`}</Cmd>
-3. Apply it and wait until it runs: <Cmd>kubectl apply -f m06-counter.yaml</Cmd> <Cmd>kubectl -n learn-m06 wait --for=condition=Ready pod/counter --timeout=120s</Cmd> Then read the events the cluster still has: <Cmd>kubectl -n learn-m06 get events</Cmd> You see `Scheduled`, `Pulling`, `Pulled`, `Created` and `Started`.
+1. In WSL, create the namespace for this module: <Cmd>{`kubectl create namespace learn-m06`}</Cmd>
+2. Save this as `m06-counter.yaml`. It runs one small pod that prints a line every five seconds:
+
+   ```yaml
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: counter
+     namespace: learn-m06
+     labels:
+       app.kubernetes.io/name: counter
+   spec:
+     containers:
+       - name: count
+         image: busybox:1.37
+         args: [/bin/sh, -c, 'i=0; while true; do echo "count $i"; i=$((i+1)); sleep 5; done']
+         resources:
+           requests: { cpu: 10m, memory: 16Mi }
+           limits: { cpu: 50m, memory: 32Mi }
+   ```
+3. Apply it and wait until it runs: <Cmd>{`kubectl apply -f m06-counter.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m06 wait --for=condition=Ready pod/counter --timeout=120s`}</Cmd> Then read the events the cluster still has: <Cmd>{`kubectl -n learn-m06 get events`}</Cmd> You see `Scheduled`, `Pulling`, `Pulled`, `Created` and `Started`.
 4. Wait a minute. Open <LabLink to="grafana" path="/explore">Explore in Grafana</LabLink>, pick the data source `loki`, switch the query editor to Code, and run: <Query lang="logql">{`{namespace="learn-m06", container="count"} | pod="counter"`}</Query> The lines `count 0`, `count 1` and on arrive, newest first. Open one line and read its labels: `job` is `learn-m06/count`, `service_name` is `counter`.
 5. Now the events of the whole namespace: <Query lang="logql">{`{job="integrations/kubernetes/eventhandler", namespace="learn-m06"}`}</Query> One line per event, with `reason` as a label. Find the event whose message names the node the pod went to.
-6. Delete the namespace: <Cmd>kubectl delete namespace learn-m06</Cmd> Run the query of action 4 again: the lines are still in Loki, though the pod is gone.
+6. Delete the namespace: <Cmd>{`kubectl delete namespace learn-m06`}</Cmd> Run the query of action 4 again: the lines are still in Loki, though the pod is gone.
 7. Paste that event's `reason` from action 5 in the check below.
 </Do>
 

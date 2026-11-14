@@ -85,9 +85,9 @@ The console exporter is not a replacement for the OTLP one. Add it with a comma 
 </Trap>
 
 <Do>
-1. In `lgtm/lab/workshop`, set three variables in a terminal. In PowerShell: <Cmd>{`$env:OTEL_TRACES_EXPORTER = "console,otlp"; $env:OTEL_METRICS_EXPORTER = "console,otlp"; $env:OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED = "true"`}</Cmd> In bash: <Cmd>export OTEL_TRACES_EXPORTER=console,otlp OTEL_METRICS_EXPORTER=console,otlp OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED=true</Cmd>
-2. Start the logs solution in that terminal and wait for `Running on http://127.0.0.1:8000`: <Cmd>python run.py solutions/05-logs</Cmd>
-3. In a second terminal, call the computation once: <Cmd>curl http://127.0.0.1:8000/compute?n=20</Cmd>
+1. In `lgtm/lab/workshop`, set three variables in a terminal. In PowerShell: <Cmd>{`$env:OTEL_TRACES_EXPORTER = "console,otlp"; $env:OTEL_METRICS_EXPORTER = "console,otlp"; $env:OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED = "true"`}</Cmd> In bash: <Cmd>{`export OTEL_TRACES_EXPORTER=console,otlp OTEL_METRICS_EXPORTER=console,otlp OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED=true`}</Cmd>
+2. Start the logs solution in that terminal and wait for `Running on http://127.0.0.1:8000`: <Cmd>{`python run.py solutions/05-logs`}</Cmd>
+3. In a second terminal, call the computation once: <Cmd>{`curl http://127.0.0.1:8000/compute?n=20`}</Cmd>
 4. Within about five seconds the first terminal prints the request's two spans as JSON. Find the one with `"name": "fibonacci"`, note that its `parent_id` is the `span_id` of `GET /compute`, and read its attribute `workshop.compute.result`. Paste that value in the check below.
 5. Wait for the next metrics export, up to 15 seconds. Find `"name": "workshop.compute.duration"` and its `"aggregation_temporality": 2`, which means cumulative.
 6. In the same output, find `"name": "otel.sdk.exporter.span.exported"`. Its data point has `otel.component.name` `otlp_http_span_exporter/0`, `server.address` `otlp.lab.k8s.local` and no `error.type`: the exports succeeded.

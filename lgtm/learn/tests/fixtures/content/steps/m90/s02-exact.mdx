@@ -24,7 +24,14 @@ Run the command, read its output, paste the answer.
 <Do>
 1. Run the command:
    <Cmd>{`echo Ready`}</Cmd>
-2. Paste the word it prints into the check below.
+2. Save this as `ready.yaml`; the next step reads it:
+
+   ```yaml
+   checks:
+     - name: ready
+       command: "echo 'Ready' -- now"
+   ```
+3. Paste the word it prints into the check below.
 </Do>
 
 <Done>

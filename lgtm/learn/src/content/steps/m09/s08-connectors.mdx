@@ -85,43 +85,47 @@ Span metrics from sampled traces count only the spans that were kept. If a sampl
 </Trap>
 
 <Do>
-1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 first. Save this as `m09-config-s08.yaml`: <Cmd>{`apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: m09-collector
-  namespace: learn-m09
-data:
-  config.yaml: |
-    receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: localhost:4317
-    processors:
-      memory_limiter:
-        check_interval: 1s
-        limit_percentage: 80
-        spike_limit_percentage: 20
-    connectors:
-      span_metrics:
-        metrics_flush_interval: 15s
-    exporters:
-      debug/traces:
-        verbosity: basic
-      debug/metrics:
-        verbosity: detailed
-    service:
-      pipelines:
-        traces:
-          receivers: [otlp]
-          processors: [memory_limiter]
-          exporters: [debug/traces, span_metrics]
-        metrics:
-          receivers: [span_metrics]
-          exporters: [debug/metrics]`}</Cmd>
-2. Apply it and restart the Collector: <Cmd>kubectl apply -f m09-config-s08.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 rollout status deploy/m09-collector</Cmd>
-3. Wait 30 seconds for two flushes, then list the metric names the connector produced: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep -- '-> Name: traces' | sort | uniq -c</Cmd> Two names, each printed once per flush.
-4. Look at one data point with its dimensions: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep -A14 -- '-> Name: traces.span.metrics.duration' | head -30</Cmd> You see `service.name: Str(m09-shop)`, `span.name`, `span.kind`, `status.code` and `collector.instance.id`.
+1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 first. Save this as `m09-config-s08.yaml`:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m09-collector
+     namespace: learn-m09
+   data:
+     config.yaml: |
+       receivers:
+         otlp:
+           protocols:
+             grpc:
+               endpoint: localhost:4317
+       processors:
+         memory_limiter:
+           check_interval: 1s
+           limit_percentage: 80
+           spike_limit_percentage: 20
+       connectors:
+         span_metrics:
+           metrics_flush_interval: 15s
+       exporters:
+         debug/traces:
+           verbosity: basic
+         debug/metrics:
+           verbosity: detailed
+       service:
+         pipelines:
+           traces:
+             receivers: [otlp]
+             processors: [memory_limiter]
+             exporters: [debug/traces, span_metrics]
+           metrics:
+             receivers: [span_metrics]
+             exporters: [debug/metrics]
+   ```
+2. Apply it and restart the Collector: <Cmd>{`kubectl apply -f m09-config-s08.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m09 rollout restart deploy/m09-collector`}</Cmd> <Cmd>{`kubectl -n learn-m09 rollout status deploy/m09-collector`}</Cmd>
+3. Wait 30 seconds for two flushes, then list the metric names the connector produced: <Cmd>{`kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep -- '-> Name: traces' | sort | uniq -c`}</Cmd> Two names, each printed once per flush.
+4. Look at one data point with its dimensions: <Cmd>{`kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep -A14 -- '-> Name: traces.span.metrics.duration' | head -30`}</Cmd> You see `service.name: Str(m09-shop)`, `span.name`, `span.kind`, `status.code` and `collector.instance.id`.
 5. Paste the name of the metric that counts spans in the check below.
 </Do>
 

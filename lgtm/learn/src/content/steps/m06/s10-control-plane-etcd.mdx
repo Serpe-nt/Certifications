@@ -100,9 +100,9 @@ Read an alert's expression before you act on its name. On a kubeadm cluster with
 </Trap>
 
 <Do>
-1. In WSL, read the scheduler's flags on master1: <Cmd>kubectl -n kube-system get pod kube-scheduler-master1 -o yaml | grep -- --bind-address</Cmd>
-2. The controller manager and etcd: <Cmd>kubectl -n kube-system get pod kube-controller-manager-master1 -o yaml | grep -- --bind-address</Cmd> <Cmd>kubectl -n kube-system get pod etcd-master1 -o yaml | grep -- --listen-metrics-urls</Cmd>
-3. kube-proxy's setting; an empty value means its default, 127.0.0.1:10249: <Cmd>kubectl -n kube-system get configmap kube-proxy -o yaml | grep metricsBindAddress</Cmd>
+1. In WSL, read the scheduler's flags on master1: <Cmd>{`kubectl -n kube-system get pod kube-scheduler-master1 -o yaml | grep -- --bind-address`}</Cmd>
+2. The controller manager and etcd: <Cmd>{`kubectl -n kube-system get pod kube-controller-manager-master1 -o yaml | grep -- --bind-address`}</Cmd> <Cmd>{`kubectl -n kube-system get pod etcd-master1 -o yaml | grep -- --listen-metrics-urls`}</Cmd>
+3. kube-proxy's setting; an empty value means its default, 127.0.0.1:10249: <Cmd>{`kubectl -n kube-system get configmap kube-proxy -o yaml | grep metricsBindAddress`}</Cmd>
 4. On <LabLink to="prometheus" path="/query">the query page</LabLink>, list the jobs Prometheus scrapes: <Query lang="promql">{`count by (job) (up)`}</Query> `apiserver` is there with 1 target; no job for the scheduler, the controller manager, etcd or kube-proxy.
 5. The API server's view of its clients, by response code: <Query lang="promql">{`sum by (code) (rate(apiserver_request_total[5m]))`}</Query>
 6. The API server's view of etcd, the 99th percentile per operation: <Query lang="promql">{`histogram_quantile(0.99, sum by (le, operation) (rate(etcd_request_duration_seconds_bucket[5m])))`}</Query>

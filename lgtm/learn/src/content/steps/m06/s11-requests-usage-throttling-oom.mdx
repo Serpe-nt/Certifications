@@ -78,42 +78,46 @@ Raising requests does not stop throttling; only the limit does. The request deci
 </Trap>
 
 <Do>
-1. In WSL, create the namespace again if step 8 deleted it: <Cmd>kubectl create namespace learn-m06</Cmd>
-2. Save this as `m06-hogs.yaml`. `cpu-hog` asks for a full CPU with a limit of 0.1; `mem-hog` asks for 150 MB with a limit of 64Mi. `mem-hog` uses the image and the form of arguments of the Kubernetes documentation's memory task, `polinux/stress`; `cpu-hog` uses the same image with its `--cpu` option, where the documentation's CPU task uses another image, `vish/stress`: <Cmd>{`apiVersion: v1
-kind: Pod
-metadata:
-  name: cpu-hog
-  namespace: learn-m06
-spec:
-  containers:
-    - name: cpu-hog
-      image: polinux/stress
-      command: ["stress"]
-      args: ["--cpu", "1"]
-      resources:
-        requests: { cpu: 50m, memory: 16Mi }
-        limits: { cpu: 100m, memory: 32Mi }
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: mem-hog
-  namespace: learn-m06
-spec:
-  containers:
-    - name: mem-hog
-      image: polinux/stress
-      command: ["stress"]
-      args: ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]
-      resources:
-        requests: { cpu: 50m, memory: 32Mi }
-        limits: { cpu: 100m, memory: 64Mi }`}</Cmd>
-3. Apply it, wait two minutes, and look at the pods: <Cmd>kubectl apply -f m06-hogs.yaml</Cmd> <Cmd>kubectl -n learn-m06 get pods</Cmd> `cpu-hog` is Running with no restarts; `mem-hog` shows `OOMKilled` or `CrashLoopBackOff` and a growing restart count.
+1. In WSL, create the namespace again if step 8 deleted it: <Cmd>{`kubectl create namespace learn-m06`}</Cmd>
+2. Save this as `m06-hogs.yaml`. `cpu-hog` asks for a full CPU with a limit of 0.1; `mem-hog` asks for 150 MB with a limit of 64Mi. `mem-hog` uses the image and the form of arguments of the Kubernetes documentation's memory task, `polinux/stress`; `cpu-hog` uses the same image with its `--cpu` option, where the documentation's CPU task uses another image, `vish/stress`:
+
+   ```yaml
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: cpu-hog
+     namespace: learn-m06
+   spec:
+     containers:
+       - name: cpu-hog
+         image: polinux/stress
+         command: ["stress"]
+         args: ["--cpu", "1"]
+         resources:
+           requests: { cpu: 50m, memory: 16Mi }
+           limits: { cpu: 100m, memory: 32Mi }
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: mem-hog
+     namespace: learn-m06
+   spec:
+     containers:
+       - name: mem-hog
+         image: polinux/stress
+         command: ["stress"]
+         args: ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]
+         resources:
+           requests: { cpu: 50m, memory: 32Mi }
+           limits: { cpu: 100m, memory: 64Mi }
+   ```
+3. Apply it, wait two minutes, and look at the pods: <Cmd>{`kubectl apply -f m06-hogs.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m06 get pods`}</Cmd> `cpu-hog` is Running with no restarts; `mem-hog` shows `OOMKilled` or `CrashLoopBackOff` and a growing restart count.
 4. On <LabLink to="prometheus" path="/query">the query page</LabLink>, cpu-hog's usage in cores, flat at its limit: <Query lang="promql">{`rate(container_cpu_usage_seconds_total{namespace="learn-m06", container="cpu-hog"}[2m])`}</Query>
 5. The share of periods in which it was throttled: <Query lang="promql">{`rate(container_cpu_cfs_throttled_periods_total{namespace="learn-m06", container="cpu-hog"}[2m]) / rate(container_cpu_cfs_periods_total{namespace="learn-m06", container="cpu-hog"}[2m])`}</Query> Well above the alert's 0.25.
 6. Now mem-hog, through kube-state-metrics: <Query lang="promql">{`kube_pod_container_status_last_terminated_reason{namespace="learn-m06"}`}</Query> <Query lang="promql">{`kube_pod_container_status_restarts_total{namespace="learn-m06"}`}</Query>
 7. Look for mem-hog's memory in cAdvisor: <Query lang="promql">{`container_memory_working_set_bytes{namespace="learn-m06", container="mem-hog"}`}</Query> Most of the time it is empty: the container dies between two scrapes.
-8. Delete the namespace and everything in it: <Cmd>kubectl delete namespace learn-m06</Cmd> Then paste the `reason` from action 6 in the check below.
+8. Delete the namespace and everything in it: <Cmd>{`kubectl delete namespace learn-m06`}</Cmd> Then paste the `reason` from action 6 in the check below.
 </Do>
 
 <Done>

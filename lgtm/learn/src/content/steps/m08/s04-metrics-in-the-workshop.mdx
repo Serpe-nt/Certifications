@@ -87,9 +87,9 @@ Your code and your queries use different names. Look up the translated name once
 </Trap>
 
 <Do>
-1. In a terminal, go to `lgtm/lab/workshop` and stop the service from module m07 if it still runs (Ctrl+C). Compare the last tracing solution with the metrics one: <Cmd>git diff --no-index solutions/03-propagation/app.py solutions/04-metrics/app.py</Cmd> Find `get_meter`, the four `create_` calls and the `add()` and `record()` calls. Then compare the settings: <Cmd>git diff --no-index solutions/03-propagation/workshop.env solutions/04-metrics/workshop.env</Cmd>
-2. Start the solution and wait for the line `Running on http://127.0.0.1:8000`: <Cmd>python run.py solutions/04-metrics</Cmd>
-3. In a second terminal, in the same folder, make traffic for 30 seconds: <Cmd>python load.py --rate 5 --duration 30</Cmd> It places checkouts, some of which are declined on purpose, and calls `/compute`.
+1. In a terminal, go to `lgtm/lab/workshop` and stop the service from module m07 if it still runs (Ctrl+C). Compare the last tracing solution with the metrics one: <Cmd>{`git diff --no-index solutions/03-propagation/app.py solutions/04-metrics/app.py`}</Cmd> Find `get_meter`, the four `create_` calls and the `add()` and `record()` calls. Then compare the settings: <Cmd>{`git diff --no-index solutions/03-propagation/workshop.env solutions/04-metrics/workshop.env`}</Cmd>
+2. Start the solution and wait for the line `Running on http://127.0.0.1:8000`: <Cmd>{`python run.py solutions/04-metrics`}</Cmd>
+3. In a second terminal, in the same folder, make traffic for 30 seconds: <Cmd>{`python load.py --rate 5 --duration 30`}</Cmd> It places checkouts, some of which are declined on purpose, and calls `/compute`.
 4. Wait 15 seconds for the next export. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, choose the data source `mimir` and run this query to list what the service sends: <Query lang="promql">{`count by (__name__) ({service_name="workshop"})`}</Query> Your four metrics are there under their Prometheus names.
 5. Query the counter by outcome. You see `placed` and `declined`: <Query lang="promql">{`sum by (outcome) (workshop_checkouts_total{service_name="workshop"})`}</Query>
 6. Query the up-down counter and look at its labels: `job="workshop/workshop"`, an `instance` that is a UUID, and no `_total` in the name. Its value is 0 or close to it, because checkouts end quickly. <Query lang="promql">{`workshop_checkouts_active{service_name="workshop"}`}</Query>

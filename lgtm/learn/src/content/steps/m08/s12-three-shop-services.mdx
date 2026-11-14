@@ -81,10 +81,10 @@ All three send OTLP to the collector gateway in namespace `otel`. The shop's cha
 </Trap>
 
 <Do>
-1. Open `lgtm/lab/demo/src/fraud-detection/Dockerfile` in your copy of the repository and find the line with `JAVA_TOOL_OPTIONS`. Then search the Kotlin source for OpenTelemetry: <Cmd>git grep -n opentelemetry -- lgtm/lab/demo/src/fraud-detection/src</Cmd> It finds nothing.
+1. Open `lgtm/lab/demo/src/fraud-detection/Dockerfile` in your copy of the repository and find the line with `JAVA_TOOL_OPTIONS`. Then search the Kotlin source for OpenTelemetry: <Cmd>{`git grep -n opentelemetry -- lgtm/lab/demo/src/fraud-detection/src`}</Cmd> It finds nothing.
 2. In <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki`, over the last 15 minutes, open one line of fraud-detection and find `trace_id` and `telemetry_distro_name`: <Query lang="logql">{`{service_name="fraud-detection"} |= "Consumed record"`}</Query>
-3. Open `lgtm/lab/demo/src/ad/Dockerfile` and find the same `JAVA_TOOL_OPTIONS` line. Then list ad's use of the API: <Cmd>git grep -n -e GlobalOpenTelemetry -e spanBuilder -e WithSpan -e counterBuilder -- lgtm/lab/demo/src/ad/src</Cmd>
-4. Open `lgtm/lab/demo/src/checkout/Dockerfile`: the last line is `ENTRYPOINT [ "./checkout" ]`, with no agent. Then find where the SDK is built: <Cmd>git grep -n -e "func init" -e NewTracerProvider -e NewMeterProvider -e NewLoggerProvider -- lgtm/lab/demo/src/checkout/main.go</Cmd>
+3. Open `lgtm/lab/demo/src/ad/Dockerfile` and find the same `JAVA_TOOL_OPTIONS` line. Then list ad's use of the API: <Cmd>{`git grep -n -e GlobalOpenTelemetry -e spanBuilder -e WithSpan -e counterBuilder -- lgtm/lab/demo/src/ad/src`}</Cmd>
+4. Open `lgtm/lab/demo/src/checkout/Dockerfile`: the last line is `ENTRYPOINT [ "./checkout" ]`, with no agent. Then find where the SDK is built: <Cmd>{`git grep -n -e "func init" -e NewTracerProvider -e NewMeterProvider -e NewLoggerProvider -- lgtm/lab/demo/src/checkout/main.go`}</Cmd>
 5. Answer the check below: which service keeps its spans without any Java agent?
 </Do>
 

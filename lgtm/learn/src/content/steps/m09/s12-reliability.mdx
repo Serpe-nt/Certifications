@@ -85,48 +85,52 @@ A bigger queue buys time, not capacity. If the backend stays slower than the inp
 </Trap>
 
 <Do>
-1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 first. Save this as `m09-config-s12.yaml`. It adds an exporter to an address that does not exist, with a queue of only 10 requests: <Cmd>{`apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: m09-collector
-  namespace: learn-m09
-data:
-  config.yaml: |
-    receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: localhost:4317
-    processors:
-      memory_limiter:
-        check_interval: 1s
-        limit_percentage: 80
-        spike_limit_percentage: 20
-    exporters:
-      debug:
-        verbosity: basic
-      otlp_grpc/nowhere:
-        endpoint: m09-nowhere.learn-m09.svc.cluster.local:4317
-        tls:
-          insecure: true
-        timeout: 2s
-        sending_queue:
-          queue_size: 10
-        retry_on_failure:
-          initial_interval: 5s
-          max_interval: 30s
-          max_elapsed_time: 120s
-    service:
-      pipelines:
-        traces:
-          receivers: [otlp]
-          processors: [memory_limiter]
-          exporters: [debug, otlp_grpc/nowhere]`}</Cmd>
-2. Apply it and restart the Collector: <Cmd>kubectl apply -f m09-config-s12.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 rollout status deploy/m09-collector</Cmd> Then wait one minute.
-3. In a second terminal, forward the Collector's own metrics port: <Cmd>kubectl -n learn-m09 port-forward deploy/m09-collector 18120:8888</Cmd>
-4. In the first terminal, read the queue and the counters: <Cmd>curl -s http://localhost:18120/metrics | grep -E '^otelcol_(exporter_(queue_size|queue_capacity|enqueue_failed_spans|sent_spans)|receiver_(accepted|refused)_spans)'</Cmd> `otelcol_exporter_queue_size` for `otlp_grpc/nowhere` equals its capacity, 10; `otelcol_exporter_enqueue_failed_spans` grows; the debug exporter's `sent_spans` grows too; the receiver counts refused spans.
-5. Find the errors the Collector logs: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep -o '"error": "[^"]*"' | sort | uniq -c</Cmd> Next to the failed connection attempts, one error names the full queue. Paste its text in the check below.
-6. See the back-pressure arrive at the sender: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c generator --tail=3</Cmd> telemetrygen reports `code = Unavailable` with the same text: the refusal travelled from the exporter back to the client.
+1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 first. Save this as `m09-config-s12.yaml`. It adds an exporter to an address that does not exist, with a queue of only 10 requests:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m09-collector
+     namespace: learn-m09
+   data:
+     config.yaml: |
+       receivers:
+         otlp:
+           protocols:
+             grpc:
+               endpoint: localhost:4317
+       processors:
+         memory_limiter:
+           check_interval: 1s
+           limit_percentage: 80
+           spike_limit_percentage: 20
+       exporters:
+         debug:
+           verbosity: basic
+         otlp_grpc/nowhere:
+           endpoint: m09-nowhere.learn-m09.svc.cluster.local:4317
+           tls:
+             insecure: true
+           timeout: 2s
+           sending_queue:
+             queue_size: 10
+           retry_on_failure:
+             initial_interval: 5s
+             max_interval: 30s
+             max_elapsed_time: 120s
+       service:
+         pipelines:
+           traces:
+             receivers: [otlp]
+             processors: [memory_limiter]
+             exporters: [debug, otlp_grpc/nowhere]
+   ```
+2. Apply it and restart the Collector: <Cmd>{`kubectl apply -f m09-config-s12.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m09 rollout restart deploy/m09-collector`}</Cmd> <Cmd>{`kubectl -n learn-m09 rollout status deploy/m09-collector`}</Cmd> Then wait one minute.
+3. In a second terminal, forward the Collector's own metrics port: <Cmd>{`kubectl -n learn-m09 port-forward deploy/m09-collector 18120:8888`}</Cmd>
+4. In the first terminal, read the queue and the counters: <Cmd>{`curl -s http://localhost:18120/metrics | grep -E '^otelcol_(exporter_(queue_size|queue_capacity|enqueue_failed_spans|sent_spans)|receiver_(accepted|refused)_spans)'`}</Cmd> `otelcol_exporter_queue_size` for `otlp_grpc/nowhere` equals its capacity, 10; `otelcol_exporter_enqueue_failed_spans` grows; the debug exporter's `sent_spans` grows too; the receiver counts refused spans.
+5. Find the errors the Collector logs: <Cmd>{`kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep -o '"error": "[^"]*"' | sort | uniq -c`}</Cmd> Next to the failed connection attempts, one error names the full queue. Paste its text in the check below.
+6. See the back-pressure arrive at the sender: <Cmd>{`kubectl -n learn-m09 logs deploy/m09-collector -c generator --tail=3`}</Cmd> telemetrygen reports `code = Unavailable` with the same text: the refusal travelled from the exporter back to the client.
 7. Stop the port-forward in the second terminal with Ctrl+C.
 </Do>
 

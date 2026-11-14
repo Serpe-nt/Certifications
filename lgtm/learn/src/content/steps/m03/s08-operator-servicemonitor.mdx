@@ -89,62 +89,70 @@ With its default values, the `kube-prometheus-stack` chart's Prometheus only pic
 </Trap>
 
 <Do>
-1. In your WSL terminal, with `KUBECONFIG` pointing at the lab, create the namespace for this step: <Cmd>kubectl create namespace learn-m03</Cmd>
-2. Save this as `m03-app.yaml`. It runs a small example application that serves metrics on port 8080, and a Service whose port is named `web`: <Cmd>{`apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: example-app
-  namespace: learn-m03
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: example-app
-  template:
-    metadata:
-      labels:
-        app: example-app
-    spec:
-      containers:
-        - name: example-app
-          image: quay.io/brancz/prometheus-example-app:v0.5.0
-          ports:
-            - name: web
-              containerPort: 8080
-          resources:
-            requests: { cpu: 10m, memory: 16Mi }
-            limits: { cpu: 100m, memory: 64Mi }
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: example-app
-  namespace: learn-m03
-  labels:
-    app: example-app
-spec:
-  selector:
-    app: example-app
-  ports:
-    - name: web
-      port: 8080`}</Cmd>
-3. Apply it and wait for the pod: <Cmd>kubectl apply -f m03-app.yaml</Cmd> <Cmd>kubectl -n learn-m03 rollout status deploy/example-app</Cmd> On the <LabLink to="prometheus" path="/targets">Target health</LabLink> page, nothing from `learn-m03` appears yet: no scrape job asks for it.
-4. Save this as `m03-servicemonitor.yaml`. It selects Services with the label `app: example-app` and scrapes their port named `web` every 15 seconds: <Cmd>{`apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: example-app
-  namespace: learn-m03
-spec:
-  selector:
-    matchLabels:
-      app: example-app
-  endpoints:
-    - port: web
-      interval: 15s`}</Cmd>
-5. Apply it: <Cmd>kubectl apply -f m03-servicemonitor.yaml</Cmd> Within a minute or two, <LabLink to="prometheus" path="/config">the configuration page</LabLink> shows a new job, `serviceMonitor/learn-m03/example-app/0`.
+1. In your WSL terminal, with `KUBECONFIG` pointing at the lab, create the namespace for this step: <Cmd>{`kubectl create namespace learn-m03`}</Cmd>
+2. Save this as `m03-app.yaml`. It runs a small example application that serves metrics on port 8080, and a Service whose port is named `web`:
+
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: example-app
+     namespace: learn-m03
+   spec:
+     replicas: 1
+     selector:
+       matchLabels:
+         app: example-app
+     template:
+       metadata:
+         labels:
+           app: example-app
+       spec:
+         containers:
+           - name: example-app
+             image: quay.io/brancz/prometheus-example-app:v0.5.0
+             ports:
+               - name: web
+                 containerPort: 8080
+             resources:
+               requests: { cpu: 10m, memory: 16Mi }
+               limits: { cpu: 100m, memory: 64Mi }
+   ---
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: example-app
+     namespace: learn-m03
+     labels:
+       app: example-app
+   spec:
+     selector:
+       app: example-app
+     ports:
+       - name: web
+         port: 8080
+   ```
+3. Apply it and wait for the pod: <Cmd>{`kubectl apply -f m03-app.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m03 rollout status deploy/example-app`}</Cmd> On the <LabLink to="prometheus" path="/targets">Target health</LabLink> page, nothing from `learn-m03` appears yet: no scrape job asks for it.
+4. Save this as `m03-servicemonitor.yaml`. It selects Services with the label `app: example-app` and scrapes their port named `web` every 15 seconds:
+
+   ```yaml
+   apiVersion: monitoring.coreos.com/v1
+   kind: ServiceMonitor
+   metadata:
+     name: example-app
+     namespace: learn-m03
+   spec:
+     selector:
+       matchLabels:
+         app: example-app
+     endpoints:
+       - port: web
+         interval: 15s
+   ```
+5. Apply it: <Cmd>{`kubectl apply -f m03-servicemonitor.yaml`}</Cmd> Within a minute or two, <LabLink to="prometheus" path="/config">the configuration page</LabLink> shows a new job, `serviceMonitor/learn-m03/example-app/0`.
 6. Reload the Target health page and type `learn-m03` in the box "Filter by endpoint or labels". The pool `serviceMonitor/learn-m03/example-app/0` shows "1 / 1 up", with the address of the pod on port 8080.
 7. On <LabLink to="prometheus" path="/query">the query page</LabLink>, run <Query lang="promql">{`up{namespace="learn-m03"}`}</Query> Read the labels of the result: `namespace`, `pod`, `service`, `endpoint` and `job`. Paste the value of `job` in the check below.
-8. Clean up: <Cmd>kubectl delete namespace learn-m03</Cmd> Within a minute or two the job disappears from the configuration page.
+8. Clean up: <Cmd>{`kubectl delete namespace learn-m03`}</Cmd> Within a minute or two the job disappears from the configuration page.
 </Do>
 
 <Done>
@@ -152,7 +160,7 @@ A target from `learn-m03` was up on the Target health page, and its series carri
 </Done>
 
 <Trap practice>
-The ServiceMonitor names the Service port by its name, `web`. Writing `port: "8080"` does not match it. If the target does not appear after two minutes, check that the Service has the label `app: example-app` and a port named `web`: <Cmd>kubectl -n learn-m03 get service example-app --show-labels</Cmd>
+The ServiceMonitor names the Service port by its name, `web`. Writing `port: "8080"` does not match it. If the target does not appear after two minutes, check that the Service has the label `app: example-app` and a port named `web`: <Cmd>{`kubectl -n learn-m03 get service example-app --show-labels`}</Cmd>
 </Trap>
 
 <Remember>
