@@ -72,7 +72,7 @@
 - id: q-m13-005
   tags: [tempo-architecture]
   exam: { cert: none }
-  q: 'On this lab, <code>query_backend_after</code> is 15 minutes. A search covers the last 10 minutes. Where do the queriers read the spans?'
+  q: 'On this lab, <code>query_backend_after</code> is 15 minutes. You run <code>{ resource.service.name = "checkout" }</code> over the last 10 minutes. Where do the queriers read the spans?'
   options:
     - text: 'From the live-stores, which hold the recent traces'
       why: 'Time ranges newer than query_backend_after are served by the live-stores.'
@@ -212,7 +212,7 @@
     - text: 'Root spans only, because only they have a duration of the request'
       why: 'Every span has a start and an end time, so every span has a duration.'
     - text: 'Spans whose attribute <code>duration</code> is over 2 seconds'
-      why: 'An attribute would need a dot and a scope. Without them, duration is the intrinsic.'
+      why: 'An attribute needs a scope or at least a leading dot, as in <code>.duration</code>. Without them, duration is the intrinsic.'
   answer: [1]
   source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
 
@@ -255,7 +255,7 @@
   q: 'Which spans does <code>{ resource.service.name = "checkout" } >> { span:name = "astronomy-db" }</code> return?'
   options:
     - text: 'The checkout spans that have a database span below them'
-      why: 'Structural operators return the right side. The checkout spans would need <code>&>></code> or <code><<</code>.'
+      why: 'Structural operators return the right side. To get the checkout spans, swap the sides and use <code><<</code>.'
     - text: 'Database spans with a checkout span anywhere above'
       why: 'The descendant operator returns spans of the right side with an ancestor that matches the left.'
     - text: 'Both the checkout spans and the database spans'
@@ -368,7 +368,7 @@
   q: 'A Tempo 3.1 cluster runs the metrics-generator with only the span-metrics processor. Can it answer TraceQL metrics queries on the last 10 minutes?'
   options:
     - text: 'No, it needs the local-blocks processor in the metrics-generator'
-      why: 'Tempo 3.0 removed the local-blocks processor. It is no longer needed or accepted.'
+      why: 'Tempo 3.0 removed the local-blocks processor, and the docs say to remove it from the configuration.'
     - text: 'No, TraceQL metrics read only the span metrics in Mimir'
       why: 'TraceQL metrics read stored spans in Tempo, not series in Mimir.'
     - text: 'Yes, but only after the block-builder has flushed the spans'
@@ -454,7 +454,7 @@
     - text: '<code>{ resource.service.name = "checkout" } | rate() with(extrapolate=true)</code>'
       why: 'The experimental hint scales each span by one over the sampling probability recorded on it.'
     - text: '<code>{ resource.service.name = "checkout" } | rate() with(span_sample=0.15)</code>'
-      why: 'span_sample reads only a share of the stored spans. It lowers the count further.'
+      why: 'span_sample samples stored spans at query time to save work. It estimates the stored rate and cannot recover spans dropped at collection.'
     - text: '<code>{ resource.service.name = "checkout" } | rate() * 0.15</code>'
       why: 'Multiplying by 0.15 makes the rate smaller still. The real rate is larger than the stored one.'
   answer: [1]
@@ -568,7 +568,7 @@
     - text: '<code>X-Scope-OrgID: lab,learn-m13</code>'
       why: 'Tempo separates tenants in a query with a pipe, not a comma.'
     - text: '<code>X-Scope-OrgID: *</code>'
-      why: 'Tempo has no wildcard tenant. Each tenant must be named.'
+      why: 'There is no wildcard for querying all tenants; * exists only as a key of the overrides. Name each tenant.'
     - text: '<code>X-Scope-OrgID: lab|learn-m13</code>'
       why: 'With multi-tenant queries enabled, a pipe-separated list reads several tenants at once.'
     - text: 'Two headers, one per tenant, in the same request'

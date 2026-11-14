@@ -73,7 +73,7 @@ The tenant is a header, not part of the address. The same URL without the header
 </Trap>
 
 <Do>
-1. In WSL, read how the collector gateway sends the shop's spans: <Cmd>{`kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' | grep -A5 'otlp_grpc/tempo:'`}</Cmd> You see the endpoint `tempo-distributor.tempo.svc:4317` and the header `X-Scope-OrgID: lab`.
+1. In WSL (bash), read how the collector gateway sends the shop's spans: <Cmd>{`kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' | grep -A5 'otlp_grpc/tempo:'`}</Cmd> You see the endpoint `tempo-distributor.tempo.svc:4317` and the header `X-Scope-OrgID: lab`.
 2. Create the practice namespace of this module: <Cmd>{`kubectl create namespace learn-m13`}</Cmd>
 3. Save this as `m13-writer.yaml`. A ConfigMap holds one trace of three spans as OTLP JSON. A small pod fills in a new trace ID and the current second, and posts it every 20 seconds as tenant `learn-m13`:
 

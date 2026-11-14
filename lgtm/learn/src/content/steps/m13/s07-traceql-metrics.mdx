@@ -77,7 +77,7 @@ Span metrics and TraceQL metrics over the same spans do not always agree. They r
 1. In <LabLink to="grafana" path="/explore">Explore</LabLink>, data source `tempo`, query type **TraceQL**, time range **Last 15 minutes**, run: <Query lang="traceql">{`{ resource.service.name = "checkout" && span:kind = server } | rate()`}</Query> A graph replaces the trace table: checkout's server spans per second.
 2. Ask for a percentile: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && span:kind = server } | quantile_over_time(span:duration, .95)`}</Query> The values are seconds; product-catalog answers in a few milliseconds.
 3. Group and rank: <Query lang="traceql">{`{ span:kind = server } | rate() by (resource.service.name) | topk(3)`}</Query> Three services with the most server spans per second.
-4. In WSL, ask the API for four hours of the same series: <Cmd>{`curl -s -G -H 'Host: tempo.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/api/metrics/query_range --data-urlencode 'q={ resource.service.name = "checkout" && span:kind = server } | rate()' --data-urlencode "start=$(( $(date +%s) - 14400 ))" --data-urlencode "end=$(date +%s)"; echo`}</Cmd> Tempo refuses it. Paste the maximum duration from the message in the check below.
+4. In WSL (bash), ask the API for four hours of the same series: <Cmd>{`curl -s -G -H 'Host: tempo.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/api/metrics/query_range --data-urlencode 'q={ resource.service.name = "checkout" && span:kind = server } | rate()' --data-urlencode "start=$(( $(date +%s) - 14400 ))" --data-urlencode "end=$(date +%s)"; echo`}</Cmd> Tempo refuses it. Paste the maximum duration from the message in the check below.
 </Do>
 
 <Done>

@@ -18,7 +18,7 @@ terms:
   - term: Service graph
     def: Metrics of calls between pairs of services, built by matching a client span with the server span it called.
   - term: Dimension
-    def: A label of a span metric. Four come from the span itself; more can be added from span or resource attributes.
+    def: A label of a span metric. Four are built in; more can be added from span or resource attributes.
 sources:
   - title: Use the metrics-generator to create metrics from spans
     url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/span-metrics/span-metrics-metrics-generator/
@@ -38,7 +38,7 @@ sources:
 ---
 
 <Problem>
-Module m11 step 9 asked which metric costs tenant `lab` the most series in Mimir. The answer was not a metric any service of the shop exports: it was `traces_spanmetrics_latency_bucket`, written by Tempo. Nobody configured a histogram, and yet it is there, larger than anything else.
+Module m11 step 9 asked which metric costs tenant `lab` the most series in Mimir. The answer was not a metric any service of the shop exports: it was `traces_spanmetrics_latency_bucket`, written by Tempo. Nobody in the lab configured a histogram, and yet it is there, larger than anything else.
 </Problem>
 
 <Idea>
@@ -53,7 +53,7 @@ This lab adds three things in `lgtm/lab/helm/tempo/values.yaml`. `service.namesp
 
 ## Why the histogram is the largest metric
 
-A histogram is one series per bucket for each label combination, plus `_sum` and `_count`. On the lab on 2026-11-14, `traces_spanmetrics_calls_total` had 126 series, one per combination of the labels. The running configuration has 12 bucket bounds, from 0.002 to 4.1 seconds, and Prometheus adds `+Inf`, so the histogram had 126 × 13 = 1,638 bucket series. Tempo's configuration page lists two more bounds, up to 16.384 seconds, as the default; the running Tempo 3.1.1 uses the shorter list.
+A histogram is one series per bucket for each label combination, plus `_sum` and `_count`. On the lab on 2026-11-14, `traces_spanmetrics_calls_total` had 126 series, one per combination of the labels. The running configuration has 12 bucket bounds, from 0.002 to 4.1 seconds, and the histogram adds `+Inf`, so it had 126 × 13 = 1,638 bucket series. The 12 bounds come from the default values of the chart `tempo-distributed` 3.27.0, which the lab uses as they are; Tempo's own default, on its configuration page, has 14 bounds, up to 16.384 seconds.
 
 <Figures caption="Span metric series in tenant lab, 2026-11-14" unit="series">
   <Stat label="Latency buckets" value="1,638" amount={1638} max={1638} hot note="126 combinations times 13 buckets." />
@@ -61,7 +61,7 @@ A histogram is one series per bucket for each label combination, plus `_sum` and
   <Stat label="Calls counter" value="126" amount={126} max={1638} note="One per label combination." />
 </Figures>
 
-Every dimension multiplies this. Add an attribute with 50 values as a dimension, and the 126 combinations can become thousands, each times 13. The span name is usually the largest driver: a name that contains an ID creates a new series for every request. That is why the metrics-generator has limits on active series and on values per label, and folds the excess into an overflow series instead of dropping data.
+Every dimension multiplies this. Add an attribute with 50 values as a dimension, and the 126 combinations can become thousands, each times 13. The span name is usually the largest driver: a name that contains an ID creates a new series for every request. The metrics-generator can be given limits on active series and on values per label; with a series limit, it folds the excess into an overflow series instead of dropping data. Both limits are off by default, and this lab sets neither.
 
 ## Service graphs
 
@@ -98,9 +98,9 @@ A team adds the span attribute `customer.id`, with about 20,000 values, as a spa
 
   Dimensions are searched in span and resource attributes, so a span attribute is used.
 
-- Its series multiply by up to 20,000, times every bucket, until the generator's limits fold the excess into overflow series
+- Its series multiply by up to 20,000, unless a series limit is set and folds the excess into overflow series
 
-  Each value of a dimension is a new label combination, and each combination has one series per bucket.
+  Each value of a dimension is a new label combination, and each combination has its own series for every bucket.
 
 - It gains one label but keeps the same number of series
 
@@ -108,5 +108,5 @@ A team adds the span attribute `customer.id`, with about 20,000 values, as a spa
 
 - Tempo refuses spans that carry the attribute until the dimension is removed
 
-  The generator never refuses spans for this. It writes more series, up to its active series limit.
+  The generator never refuses spans for this. It writes more series, up to a series limit if one is set.
 </Question>

@@ -49,7 +49,7 @@ Tempo applies limits per tenant, as overrides. The distributor checks only the i
 
 ## A tenant is a header
 
-Every request to a Tempo with multi-tenancy on carries `X-Scope-OrgID`. The tenant name keeps the data apart all the way: in Kafka, in the live-stores, in the blocks under a folder of that name, and in the metrics-generator's series. A tenant needs no setup; the first write creates it. Tempo can also query several tenants at once: the query frontend's `multi_tenant_queries_enabled` is true on this lab, and a header such as `lab|learn-m13` reads both.
+Every request to a Tempo with multi-tenancy on carries `X-Scope-OrgID`. The tenant name keeps the data apart all the way: in Kafka, in the live-stores, in the blocks under a folder of that name, and in the metrics-generator's series. A tenant needs no setup: on this lab, the first write as `learn-m13` in step 3 was enough. Tempo can also query several tenants at once: the query frontend's `multi_tenant_queries_enabled` is true on this lab, and a header such as `lab|learn-m13` reads both.
 
 ## Overrides: one file, defaults and exceptions
 
@@ -77,7 +77,7 @@ A `200` from a Tempo distributor means Kafka has the spans. It does not mean the
 </Trap>
 
 <Do>
-1. In WSL, read the overrides every tenant gets: <Cmd>{`curl -s -H 'Host: tempo.lab.k8s.local' http://10.10.0.5/status/runtime_config`}</Cmd> Under `defaults` find `rate_limit_bytes`, `max_traces_per_user` and `max_bytes_per_trace`. `overrides: {}` means no tenant has values of its own.
+1. In WSL (bash), read the overrides every tenant gets: <Cmd>{`curl -s -H 'Host: tempo.lab.k8s.local' http://10.10.0.5/status/runtime_config`}</Cmd> Under `defaults` find `rate_limit_bytes`, `max_traces_per_user` and `max_bytes_per_trace`. `overrides: {}` means no tenant has values of its own.
 2. Save this as `m13-big.yaml`. The pod builds one trace of three spans, each with 1,000 attributes of 2,000 characters, about 6 MB in all, and posts it once as `learn-m13`:
 
    ```yaml

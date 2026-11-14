@@ -79,7 +79,7 @@ Compaction does not shorten retention. It changes how many blocks hold the data;
 </Trap>
 
 <Do>
-1. In WSL, read the newest jobs of the backend scheduler: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-scheduler-0:3200/proxy/status/backendscheduler | head -12`}</Cmd> Each row is a job with its tenant, type, status, the worker that ran it and its times. Compaction jobs come every few minutes.
+1. In WSL (bash), read the newest jobs of the backend scheduler: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-scheduler-0:3200/proxy/status/backendscheduler | head -12`}</Cmd> Each row is a job with its tenant, type, status, the worker that ran it and its times. Compaction jobs come every few minutes.
 2. Read how many blocks each tenant has, and how many were compacted at each level: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-worker-0:3200/proxy/metrics | grep -E '^tempodb_(blocklist_length|compaction_blocks_total)'`}</Cmd> Tenant `lab` has a few dozen live blocks; your tenant `learn-m13` has a few.
 3. Read what retention has done since the worker started: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-worker-0:3200/proxy/metrics | grep -E '^tempodb_retention'`}</Cmd> `tempodb_retention_deleted_total` counts blocks deleted for age or after compaction.
 4. Read the settings the scheduler runs with: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-scheduler-0:3200/proxy/status/config | grep -E '^ +(block_retention|compacted_block_retention|compaction_window|blocklist_poll):'`}</Cmd> Paste the value of `block_retention` in the check below.

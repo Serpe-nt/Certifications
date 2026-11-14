@@ -52,7 +52,7 @@ The difference between `>>` and `>` matters in the shop. Checkout's server span 
 
 ## Both sides, and the experimental negations
 
-A structural operator returns the right side. When you want both, the checkout span and the product-catalog spans below it, use the union form: `&>>`, `&>`, `&<<`, `&<` and `&~`. The negated forms `!>>`, `!>`, `!<<`, `!<` and `!~` find spans that do not have the relation. Tempo marks them experimental, because they can return false positives. One is still useful: `{ status = error } !< { status = error }` returns error spans that have no direct child in error, the place where a chain of errors starts.
+A structural operator returns the right side. When you want both, the checkout span and the product-catalog spans below it, use the union form: `&>>`, `&>`, `&<<`, `&<` and `&~`. The negated forms `!>>`, `!>`, `!<<`, `!<` and `!~` find spans that do not have the relation. Tempo marks them experimental, because they can return false positives. One is still useful: `{ status = error } !< { status = error }` returns error spans that have no direct child in error. The documentation calls that the last error of a cascade: the deepest one, usually where the failure began.
 
 ## Aggregates and groups
 
@@ -86,7 +86,7 @@ You found spans by their place in the tree, saw `>` miss what `>>` found, return
 </Done>
 
 <Trap practice>
-A structural query on a broad left side, such as `{ } >> { status = error }`, makes Tempo read the structure of every trace in the range. Keep the time range short, and put the most selective conditions in the selectors.
+Structural queries are slower than selectors joined with `&&`, which Tempo can filter early in the Parquet files, and an empty side such as `{ } >> { status = error }` gives it nothing to filter. Keep the time range short, and put the most selective conditions in the selectors.
 </Trap>
 
 <Question id="q-m13-s06" answer="a">

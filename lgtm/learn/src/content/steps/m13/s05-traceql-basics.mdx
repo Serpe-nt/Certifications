@@ -43,13 +43,13 @@ A TraceQL query is evaluated on one trace at a time. Braces select the spans of 
 
 ## A selector works on one span
 
-`{ }` selects every span of every trace. Conditions inside the braces are joined with `&&` and `||`, and all of them must be true on the same span: `{ resource.service.name = "checkout" && span:kind = server }` finds checkout's server spans, not a trace that has some checkout span and some server span elsewhere. A trace is returned when at least one of its spans matches, and the result shows the matching spans, three per trace unless you ask for more.
+`{ }` selects every span of every trace. Conditions inside the braces are joined with `&&` and `||`, and the whole expression is evaluated on one span at a time: `{ resource.service.name = "checkout" && span:kind = server }` finds checkout's server spans, not a trace that has some checkout span and some server span elsewhere. A trace is returned when at least one of its spans matches, and the result shows the matching spans, three per trace unless you ask for more.
 
 ## Intrinsics and scopes
 
 Intrinsics are written with a colon. `span:name`, `span:kind`, `span:status`, `span:duration` and `span:statusMessage` describe one span. `trace:duration`, `trace:rootService` and `trace:rootName` describe the whole trace and are the same on all its spans. They are cheap to read, so filter on them when you can. The short forms `name`, `kind`, `status` and `duration` mean the span's own fields: `duration` is `span:duration`, never the trace's length.
 
-Attributes are written with a dot and start with their scope. `resource.service.name` is set once per process; `span.rpc.method` sits on one span; `event.exception.message` on a span event; `link.` on a span link; `instrumentation.` on the instrumentation scope. A wrong scope is a silent miss: in this lab `{ span.rpc.method = "GetProduct" }` finds product lookups, and `{ resource.rpc.method = "GetProduct" }` finds nothing, because no process has that attribute. A leading dot without a scope, `{ .rpc.method = "GetProduct" }`, looks in every scope and works, but Tempo's tuning guide warns that it reads more.
+Attributes are written with a dot and start with their scope. `resource.service.name` is set once per process; `span.rpc.method` sits on one span; `event.exception.message` on a span event; `link.` on a span link; `instrumentation.` on the instrumentation scope. A wrong scope is a silent miss: in this lab `{ span.rpc.method = "GetProduct" }` finds product lookups, and `{ resource.rpc.method = "GetProduct" }` finds nothing, because no process has that attribute. A leading dot without a scope, `{ .rpc.method = "GetProduct" }`, looks in both the span and the resource attributes and works, but Tempo's tuning guide warns that it reads more.
 
 <Layers caption="Where a field lives">
   <Layer title="trace:">Duration, root service, root span name; one value per trace.</Layer>
@@ -98,7 +98,7 @@ Which query finds checkout server spans that took longer than 200 ms, as a scope
 
 - `{ service.name = "checkout" && trace:duration > 200ms && kind = server }`
 
-  `trace:duration` is the length of the whole trace, so this keeps every server span of a long trace.
+  `service.name` without a scope or a leading dot is a parse error, and `trace:duration` would be the length of the whole trace.
 
 - `{ resource.service.name = "checkout" && span:kind = server && span:duration > 200ms }`
 

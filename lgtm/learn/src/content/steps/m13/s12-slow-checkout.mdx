@@ -27,61 +27,60 @@ sources:
   - title: TraceQL metrics functions
     url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/functions/
     checked: 2026-11-14
-  - title: Diagnose errors with traces (Tempo)
-    url: https://grafana.com/docs/tempo/v3.1.x/solutions-with-traces/traces-diagnose-errors/
-    checked: 2026-11-14
   - title: Explicit locking, table-level locks (PostgreSQL)
     url: https://www.postgresql.org/docs/current/explicit-locking.html
     checked: 2026-11-14
 ---
 
 <Problem>
-Checkout's p95 jumps from a few tens of milliseconds to many seconds. CPU and memory of every pod look normal, nothing restarts, and no service logs an error. Five services sit between the button and the database, and each one is slower by the same amount.
+Checkout's p95 jumps from about 15 ms to many seconds, and some users get errors after exactly 15 seconds. CPU and memory of every pod look normal, nothing restarts, and no service logs an error about it. Five services sit between the button and the database, and each one is slower by the same amount.
 </Problem>
 
 <Idea>
-Follow the time, not the errors. Find slow traces, follow each one down to the span whose time is its own, then ask TraceQL what that span was doing and who else was busy at the same moment. In this case the span that waits is a database query, and the reason is a lock held by another statement.
+Follow the time, not the errors. Find slow traces, follow each one down to the span whose time is its own, then ask TraceQL what that span was doing and what else ran on the same table. Here the span that waits is a database query, and the reason is a lock that another transaction holds.
 </Idea>
 
 ## From a percentile to slow traces
 
-Start with a number that shows the problem, then turn it into traces. A TraceQL metrics query gives the percentile per service; a selector with `span:duration` gives the slow spans themselves. Choose the narrowest service that is slow: if product-catalog's server spans take seconds, checkout's do too, because checkout waits for them.
+Start with a number that shows the problem, then turn it into traces. A TraceQL metrics query gives the percentile per service; a selector with `span:duration` gives the slow spans themselves. Choose the deepest service that is slow: when product-catalog's server spans take seconds, checkout's do too, because checkout waits for them. On the lab, product-catalog's 95th percentile went from 7 to 11 ms to between 15 and 28 seconds within a minute of the flag.
 
 ## Down the tree to the span that waits
 
-A slow span with a slow child is waiting for that child. The child operator finds the slow children of the slow spans in one query: `{ resource.service.name = "product-catalog" && span:kind = server && span:duration > 1s } > { span:duration > 1s }`. Repeat one level down until a slow span has no slow child: its time is its own. Here it is a database span, `astronomy-db`, whose `db.query.text` is an ordinary `SELECT` on `catalog.products`. A `SELECT` by primary key that takes seconds is not slow work; it is waiting.
+A slow span with a slow child is waiting for that child. The child operator finds the slow children of the slow spans in one query: `{ resource.service.name = "product-catalog" && span:kind = server && span:duration > 1s } > { span:duration > 1s }`. On the lab it returned `astronomy-db` spans of 12 to 28 seconds, each an ordinary `SELECT` on `catalog.products`. A `SELECT` by primary key that takes seconds is not slow work; it is waiting.
 
-## Who else was there
+The rest of the trace tells the same story from above. In one checkout on the lab, product-catalog's `GetProduct` took 27.2 seconds and the frontend waited all of it. The shop's Envoy proxy, `frontend-proxy`, gave up after 15.0 seconds and marked its span as an error. That is where the users' errors come from: a timeout that turns slowness into failure two services above the cause.
 
-A query waits on a lock when another transaction holds it. TraceQL can look for that statement across all spans: `{ span.db.query.text =~ "LOCK.*" }` finds spans whose SQL starts with `LOCK`. In this shop, the fault flag makes product-catalog run `LOCK TABLE catalog.products IN ACCESS EXCLUSIVE MODE` in a transaction and keep it for 30 seconds, again and again. While it holds that lock, PostgreSQL lets no other transaction read the table, so every product lookup waits until the lock is released.
+## What held the table
 
-<Timeline caption="One cycle of the fault">
-  <Event at="0 s" title="Lock taken">A background transaction locks catalog.products in ACCESS EXCLUSIVE mode.</Event>
-  <Event at="0 to 30 s" title="Reads wait">Every SELECT on the table waits; product-catalog, checkout and the frontend all slow down.</Event>
-  <Event at="30 s" title="Released">The transaction ends, and the waiting queries finish at once.</Event>
-  <Event at="within 10 s" title="Again">A ticker checks the flag every 10 seconds and takes the lock again.</Event>
+A query waits on a lock when another transaction holds it, so look for statements on the same table: `{ span.db.query.text =~ "LOCK.*" }`. On the lab it found `LOCK TABLE catalog.products IN ACCESS EXCLUSIVE MODE`, as a trace of its own, started by product-catalog with no request above it. Its span lasted half a millisecond: taking a lock is quick. The transaction that took it kept it for 30 seconds, and that time belongs to no span, so a search on `span:duration` would never find the culprit. The SQL text does. While the lock is held, PostgreSQL lets no other transaction even read the table.
+
+<Timeline caption="One cycle of the fault, as the lab showed it">
+  <Event at="0 s" title="Lock taken">A background transaction runs LOCK TABLE catalog.products IN ACCESS EXCLUSIVE MODE.</Event>
+  <Event at="0 to 30 s" title="Reads wait">Every SELECT on the table waits; product-catalog, checkout and the frontend slow down.</Event>
+  <Event at="15 s" title="Proxy gives up">Envoy ends waiting requests with an error; the services below keep waiting.</Event>
+  <Event at="40 s" title="Again">A ticker checks the flag every 10 seconds and takes the lock again; the log line repeated every 40 seconds.</Event>
 </Timeline>
 
 ## Confirm the size, then stop
 
-Go back to aggregates. `quantile_over_time(span:duration, .95)` for product-catalog's server spans shows the waits as steps of seconds, and turning the flag off makes them stop. A trace explained one request; the metric shows that the pattern covers all of them.
+Go back to aggregates. `quantile_over_time(span:duration, .95)` for product-catalog's server spans shows the waits as values of many seconds per minute, and turning the flag off brings it back to milliseconds within a minute. A trace explained one request; the metric shows that the pattern covered all of them.
 
 <InLab>
-The flag is `productCatalogLockContention` on the flag screen. Product-catalog checks it every 10 seconds; the database spans are named `astronomy-db`, after the database service, with the SQL in `db.query.text`.
+The flag is `productCatalogLockContention` on the flag screen. Product-catalog checks it every 10 seconds and logs `lock contention scenario active` each time it takes the lock. Its database spans are named `astronomy-db`, after the database service, with the SQL in `db.query.text`.
 </InLab>
 
 <Trap>
-The deepest slow span is not always the culprit. A database span that waits shows where the time went, not why; look for what held the resource it waited for.
+The deepest slow span is not always the culprit. A database span that waits shows where the time went, not why; look for what held the resource it waited for, even if that took no time at all.
 </Trap>
 
 <Do>
 1. Open the <LabLink to="flags" path="/feature">flag screen</LabLink> and check that every flag is off. Set `productCatalogLockContention` to `on` and save. Note the time.
 2. Wait two minutes. In <LabLink to="grafana" path="/explore">Explore</LabLink>, data source `tempo`, query type **TraceQL**, time range **Last 5 minutes**, run: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && span:kind = server } | quantile_over_time(span:duration, .95)`}</Query> The 95th percentile is now seconds instead of milliseconds.
-3. Find slow product-catalog server spans: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && span:kind = server && span:duration > 1s }`}</Query> Open one trace and note which services above product-catalog are slow too.
+3. Find slow product-catalog server spans: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && span:kind = server && span:duration > 1s }`}</Query> Open one trace and follow it up: the frontend waits as long, and `frontend-proxy` may stop at 15 seconds with an error.
 4. Find the slow children of those spans and what they ran: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && span:kind = server && span:duration > 1s } > { span:duration > 1s } | select(span.db.query.text)`}</Query> The slow child is `astronomy-db`, a `SELECT` on `catalog.products`.
-5. Look for a lock statement in the same minutes: <Query lang="traceql">{`{ span.db.query.text =~ "LOCK.*" } | select(span.db.query.text, span:duration)`}</Query>
+5. Look for a lock statement in the same minutes: <Query lang="traceql">{`{ span.db.query.text =~ "LOCK.*" } | select(span.db.query.text, span:duration)`}</Query> Each result is a short trace of product-catalog with one span.
 6. Read the `db.query.text` of that span. Paste the two words of the lock mode, before `MODE`, in the check below.
-7. Go back to the flag screen, set `productCatalogLockContention` to `off` and save. Wait a minute and run the query of action 2 again: the percentile falls back to milliseconds.
+7. Go back to the flag screen, set `productCatalogLockContention` to `off` and save. Wait two minutes and run the query of action 2 again with the time range **Last 2 minutes**: the percentile is back to milliseconds.
 </Do>
 
 <Done>
@@ -89,7 +88,7 @@ You went from a percentile to the slow spans, down to the database query that wa
 </Done>
 
 <Trap practice>
-Switch the flag off when you are done, and check on the flag screen that it shows `off`. Other people practise in the same lab, and a flag left on spoils every number they read.
+Switch the flag off when you are done, and check on the flag screen that it shows `off`. Other people practise in the same lab, and a flag left on spoils every number they read. If nothing gets slow within two minutes of switching it on, product-catalog may not have picked up the flag: tell whoever runs the lab rather than leaving it on.
 </Trap>
 
 <Question id="q-m13-s12" answer="b">
