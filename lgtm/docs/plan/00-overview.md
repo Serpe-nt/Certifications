@@ -192,7 +192,8 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | after 8 | L8 limits and switches | the Loki, Mimir and Prometheus releases; m12 step 15, m11 steps 9 and 12 | Loki refuses a query that would read too much; the cardinality API answers for tenant `lab`; Prometheus stores exemplars if a target exposes any; the three steps teach what the lab now does |
 | beside 8 | L7 pods start after a sleep | `lgtm/lab/**`, module m00 step 7 | Calico renews its CNI token often enough to outlast a night's pause; one command for after a longer one; the lab's check names the fault; the runbook and the lesson tell the learner |
 | 9 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
-| 9 to 10 | C12 to C16 content | one module each | Modules m13 to m17, three sessions at a time, in order |
+| 9 | C12, C13, C14 | modules m13, m14, m15 | Tempo; correlation and incident debugging; alerting, SLOs and on-call. The first wave in which every card uses fault flags, one at a time in the whole lab |
+| 10 | C15, C16 content | modules m16, m17 | Observability as code; running it at scale |
 | 11 | C17 capstone | module m18 | Game days, interview bank, the exam steps (the mock pools exist since wave 4) |
 | 11 | QA sweep | none (planner) | Full walk-through on the live lab, link check, release |
 

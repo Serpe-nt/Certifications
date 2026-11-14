@@ -2,11 +2,11 @@
 
 A tag names one topic. Steps teach tags, questions carry them, and the site uses them to send a learner from a missed question back to the steps that teach it and to build weak-spot practice. `npm run check:content` fails a module pool question whose tag no step teaches.
 
-Owned by the planner. Version 4 (2026-11-14): tags for m10 to m12 (wave 8). Version 3 (2026-11-13): four tags added for m07 to m09 (wave 7). Version 2 (2026-11-12): tags for m04 to m06 added for wave 6. Version 1 (2026-11-11) was built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
+Owned by the planner. Version 5 (2026-11-14): tags for m13 to m15 (wave 9). Version 4 (2026-11-14): tags for m10 to m12 (wave 8). Version 3 (2026-11-13): four tags added for m07 to m09 (wave 7). Version 2 (2026-11-12): tags for m04 to m06 added for wave 6. Version 1 (2026-11-11) was built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
 
 ## Rules
 
-- Lower-case words joined by hyphens. The first word names the family: `helm-`, `prom-`, `promql-`, `exporter-`, `dashboard-`, `alert-`, `otel-`, `collector-`, and so on for later modules (`alloy-`, `mimir-`, `loki-`, `logql-`, `tempo-`, `traceql-`).
+- Lower-case words joined by hyphens. The first word names the family: `helm-`, `prom-`, `promql-`, `exporter-`, `dashboard-`, `alert-`, `otel-`, `collector-`, and so on for later modules (`alloy-`, `mimir-`, `loki-`, `logql-`, `tempo-`, `traceql-`, `correlation-`, `incident-`, `slo-`).
 - One tag is a topic a single step, or two or three neighbouring steps, can teach. Not one per question, and not one for a whole module.
 - A step carries 1 to 3 tags, a question 1 or 2; the first tag of a question is its main topic.
 - A tag has one home module. A later module may teach it again in more depth (the "Also" column); a question in that later module's pool may then carry it.
@@ -226,15 +226,56 @@ No quiz, so no question carries these; steps still need a tag.
 | `loki-drilldown` | 14 |  | 0 |
 | `loki-query-performance` | 15 |  | 0 |
 
+## m13 Tempo
+
+| Tag | Steps | Also | Mock |
+|---|---|---|---|
+| `tempo-why` | 1 |  | 0 |
+| `tempo-architecture` | 2 |  | 0 |
+| `tempo-ingest` | 3 |  | 0 |
+| `tempo-find-trace` | 4 |  | 0 |
+| `traceql-basics` | 5 |  | 0 |
+| `traceql-structural` | 6 |  | 0 |
+| `traceql-metrics` | 7 |  | 0 |
+| `tempo-metrics-generator` | 8 |  | 0 |
+| `tempo-sampling` | 9 | carries `otel-sampling` too | 0 |
+| `tempo-storage` | 10 |  | 0 |
+| `tempo-drilldown` | 11 |  | 0 |
+| `traceql-investigation` | 12 |  | 0 |
+| `tempo-tenants-limits` | 13 |  | 0 |
+
+## m14 Correlation and incident debugging
+
+| Tag | Steps | Also | Mock (OTCA) |
+|---|---|---|---|
+| `incident-loop` | 1 | carries `analysis` too | 0 |
+| `correlation-exemplars` | 2 | carries `correlation` too | 0 |
+| `correlation-trace-logs` | 3, 4 | carries `correlation` too | 0 |
+| `correlation-trace-metrics` | 5 |  | 0 |
+| `grafana-correlations` | 6 |  | 0 |
+| `incident-errors` | 7 |  | 0 |
+| `incident-saturation` | 8 |  | 0 |
+| `incident-queue-lag` | 9 |  | 0 |
+| `incident-dependency` | 10 |  | 0 |
+| `incident-partial-failure` | 11 |  | 0 |
+| `incident-note` | 12 |  | 0 |
+
 ## m15 Alerting, SLOs and on-call
 
-| Tag | Steps | Mock (PCA) |
-|---|---|---|
-| `alert-design` | 1 | 4 |
-| `alert-rules` | 2 | 8 |
-| `alert-alertmanager` | 3, 4 | 6 |
-| `alert-grafana-managed` | 5 | 1 |
+| Tag | Steps | Also | Mock (PCA) |
+|---|---|---|---|
+| `alert-design` | 1 |  | 4 |
+| `alert-rules` | 2 |  | 8 |
+| `alert-alertmanager` | 3, 4 |  | 6 |
+| `alert-grafana-managed` | 5, 6 |  | 1 |
+| `alert-logs-traces` | 7 |  | 0 |
+| `slo` | 8 | home is m02 step 8 | 4 |
+| `slo-burn-rate` | 9, 10 |  | 0 |
+| `slo-recording-rules` | 11 | carries `promql-recording-rules` too | 0 |
+| `alert-fatigue` | 12 |  | 0 |
+| `alert-runbooks` | 13 |  | 0 |
+| `alert-drill` | 14 |  | 0 |
 
 ## Modules without tags yet
 
-m13, m14, m16 to m18. The planner adds their tags when their cards are written; no mock question depends on them.
+m16 to m18. The planner adds their tags when their cards are written; no mock question depends on them.

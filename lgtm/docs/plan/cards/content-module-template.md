@@ -13,7 +13,7 @@ Model Opus 5.5, high effort. Skills: `caveman`, `humanizer`, `ponytail`, as ever
 - `lgtm/docs/plan/03-content-contract.md`, all of it. It is at version 2: a step is an article.
 - The two finished steps `lgtm/learn/src/content/steps/m02/s10-cardinality.mdx` (concept) and `s06-one-request-three-signals.mdx` (lab). The owner approved the form on these two. Open both in the site as well (see "Check your work") so that you know what each part looks like on the page.
 - `lgtm/docs/adr/dz-article-format.md`: why the form is what it is, and when each part is used.
-- `lgtm/docs/adr/c0-content-notes.md` and `c1-content-notes.md`: what the pilot and the first modules learned. All of it applies.
+- `lgtm/docs/adr/c0-content-notes.md`, `c1-content-notes.md` and every later `c*-content-notes.md`: what the modules before yours learned about the site, the lab and this machine. All of it applies.
 - `lgtm/docs/plan/01-curriculum.md`: your module, and the modules before and after it, so that you neither repeat nor skip.
 - `lgtm/docs/plan/04-tags.md`: the tags your steps must teach.
 - `lgtm/docs/plan/02-lab-contract.md` and `lgtm/lab/docs/reference.md` for every name, address, flag and command of the lab.
@@ -22,10 +22,10 @@ Model Opus 5.5, high effort. Skills: `caveman`, `humanizer`, `ponytail`, as ever
 
 ## How to write a step
 
-1. **Sources first.** Fetch the official pages for the step and keep them as text. List the facts the step needs, each with its page. If the product no longer works the way the outline assumes, the page wins: adjust the outline and say so at the top of the pull request.
+1. **Sources first.** Fetch the official pages for the step and keep them as text. List the facts the step needs, each with its page. If the product no longer works the way the outline assumes, the page wins: adjust the outline and say so at the top of the pull request. If the page and the lab disagree about what the software does, the lab wins: write what it does, say that the page reads otherwise, and log both.
 2. **Write the article.** The problem as a short scene, the idea in two or three sentences, then two to five sections that follow from each other. Explain why before how. The reader knows Kubernetes and Linux well and nothing about the tool. An information part (`<Flow>`, `<Compare>`, `<Figures>`, `<Layers>`, `<Timeline>`) goes where it shows something the text would otherwise list; the text must still make sense without it.
 3. **Terms and outcome.** Put every new word into `terms` with a one-line definition. Write the `outcome` as what the learner can do afterwards, not what the step covers.
-4. **Practice** (lab and drill steps). Run every action on the lab as a learner would, in the order written, and paste the decisive output into the log. Pick a check that needs the skill the step teaches and gives the same answer on every healthy lab.
+4. **Practice** (lab and drill steps). Run every action on the lab as a learner would, in the order written, with each command and file copied from the built page and not from your own files, and paste the decisive output into the log. Pick a check that needs the skill the step teaches and gives the same answer on every healthy lab.
 5. **The question.** One question that tests understanding, not memory of a sentence. Four options, each with an explanation that never starts with "Right" or "Correct".
 6. **Log as you go.** One row per statement and per action in `lgtm/docs/verification/<mNN>.md`. Numbers and names inside information parts need rows too.
 7. **Humanizer, then facts again.** Pass the step through `humanizer`. Then compare every fact, number, name, command and query with the log once more.
@@ -48,12 +48,12 @@ The lab cluster is running and three content sessions share it with the owner. R
 
 - No copied or adapted text from documentation, courses, books or exam-preparation sites.
 - Nothing about a feature you could not find in the current official documentation.
-- No sub-agents, except one read-only agent at the very end for an independent check: give it 5 step files and 10 questions and tell it to fetch the sources itself and judge every statement, every right answer and every wrong option. Fix what it finds, then look for the same kind of fault in the rest.
+- No sub-agents, except one read-only agent at the very end for an independent check: give it 5 step files and 10 questions and tell it to fetch the sources itself and judge every statement, every right answer and every wrong option, and whether each configuration or query shown would be accepted by the tool. Fix what it finds, then look for the same kind of fault in the rest.
 - Figures: at most three `<Figure>` per module, each with `alt` and a `brief`. You do not build them.
 
 ## Check your work
 
-- In `lgtm/learn`: `npm ci`, then `npm run check:content` and `npm run build`. In PowerShell use `npm.cmd`. No error and no warning that concerns your module.
+- In `lgtm/learn`: `npm ci`, then `npm run check:content` and `npm run build`. In PowerShell use `npm.cmd`. No error and no warning that concerns your module. The build ends with `check:pages`, which compares every command, query and file on the built page with its source.
 - Start the site on your card's port (`npx astro dev --port <port>`) and read every step as a learner: Learn, then Practice. Pass each lab check with the real answer and try one wrong answer. Take the module quiz once. Stop the server when you are done.
 - `npm run check:links` once at the end.
 
