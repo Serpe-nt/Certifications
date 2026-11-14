@@ -12,7 +12,8 @@ Left alone on purpose: `make reset` (m01 step 20, described from the owner's own
 
 | What | Since | Notes |
 |---|---|---|
-| A manifest copied from a lesson has broken indentation | found 2026-11-14 by card C9, confirmed on the built pages | A multi-line `<Cmd>` inside a numbered action loses the list item's indent on every later line. Twelve blocks in merged modules: m01 step 10 (three), m03 step 8 (two), m06 steps 8 and 11, m09 steps 5, 6, 8, 12 and 13. The lessons were tested from the workers' own files, not from the page, so no walk caught it. Card W3 (`cards/w8-w3-files-keep-indentation.md`) repairs them and adds the rule to `check:content`. Until then a learner types the indentation by hand or takes the file from the step's source in the repository. |
+| A manifest copied from a lesson has broken indentation | found 2026-11-14 by card C9, confirmed on the built pages | A multi-line `<Cmd>` inside a numbered action loses the list item's indent on every later line. Twelve blocks in merged modules: m01 step 10 (three), m03 step 8 (two), m06 steps 8 and 11, m09 steps 5, 6, 8, 12 and 13. The lessons were tested from the workers' own files, not from the page, so no walk caught it. Card W3 (`cards/w8-w3-files-keep-indentation.md`) repairs them. Until then a learner types the indentation by hand or takes the file from the step's source in the repository. |
+| A command copied from a lesson has typographic quotes or dashes | found 2026-11-14 by card C10, confirmed on the built pages | A `<Cmd>` written as plain text goes through the site's smart punctuation: `--for` becomes an en dash, straight quotes become curly. Forty-two blocks in eighteen merged steps of m03, m06, m07, m08 and m09. Card W3 repairs them and adds a test that compares every block on the built page with its source. Until then a learner retypes the two hyphens and the quotes. |
 
 ## Lab defects
 
