@@ -22,6 +22,12 @@ sources:
   - title: Operating etcd clusters for Kubernetes
     url: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/
     checked: 2026-11-12
+  - title: Calico 3.31.6 release notes
+    url: https://github.com/projectcalico/calico/blob/release-v3.31/release-notes/v3.31.6-release-notes.md
+    checked: 2026-11-14
+  - title: Managing service accounts (bound token rotation)
+    url: https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/
+    checked: 2026-11-14
 ---
 
 <Problem>
@@ -50,6 +56,12 @@ Every node reaches the API and the lab's names through `lb`, so `lb` must come u
 ## What a slow start looks like
 
 For the first minutes after a start, some pods show `Unknown` or restart while their dependencies come back. On the earlier, larger version of the lab, with seven nodes and the whole stack installed, the record in `acceptance-lab.md` shows every pod Ready about eight minutes after a restart, with nothing done by hand. This lab has no such record yet. Wait before you act; look at a pod only if it is still down ten minutes after the nodes are `Ready`.
+
+## After the PC has slept
+
+When Windows sleeps, the VMs stop where they are and go on when the PC wakes, with their clocks set forward. Nothing restarts and running pods carry on. What can break is starting a new pod. Calico, the lab's pod network, wires up each new pod through a plugin that talks to the API server with a token, and calico-node writes that token on each node with a validity of 24 hours. The lab's Calico 3.31.7 renews it whenever kubelet renews calico-node's own token: about every 48 minutes while the VMs run, and again at kubelet's first pass after a wake. A night's sleep therefore does no harm.
+
+After a sleep of more than about 23 hours, the token has run out when the PC wakes. A new pod then stays in `ContainerCreating`, and its events say `connection is unauthorized`. Run `make calico-renew` from `lgtm/lab` in WSL: it restarts calico-node one node at a time, each restart writes a new token, and it ends with one `PASS` line per node. `make lab-check` runs the same check first and names this command when a node's token has run out.
 
 <Trap>
 Do not restart the Windows host with the VMs still running and assume they come back. They shut down cleanly, but they stay off until you run `start` in an elevated PowerShell.

@@ -4,7 +4,11 @@
 # data sources (fixed UIDs, tenants) work, and it reaches Grafana through the
 # lab's Gateway like a browser does.
 #
-# Checks, after the load generator has run for LAB_CHECK_WARMUP minutes:
+# First, before any wait:
+#   0. every node can start new pods: Calico's CNI token has not run out
+#      (tests/lab/cni-token.sh; it runs out when the PC sleeps too long)
+#
+# Then, after the load generator has run for LAB_CHECK_WARMUP minutes:
 #   1. shop metrics in Mimir (tenant lab), with cluster="lgtm-lab"
 #   2. shop logs in Loki that carry a trace id
 #   3. a checkout trace in Tempo with spans from at least four services
@@ -50,6 +54,9 @@ promql_count() {
 }
 now="$(date +%s)"
 since=$((now - 900))
+
+echo "==> 0. Every node can start new pods (Calico's CNI token)"
+bash tests/lab/cni-token.sh || failures=$((failures + 1))
 
 echo "==> Waiting until the load generator has run for $warmup_minutes minutes"
 started="$($kubectl -n shop get pods -l app.kubernetes.io/name=load-generator -o jsonpath='{.items[0].status.startTime}')"
