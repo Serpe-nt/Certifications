@@ -1,0 +1,93 @@
+---
+id: m15-s06
+title: Data-source-managed or Grafana-managed
+kind: concept
+minutes: 12
+order: 6
+exam:
+  - cert: pca
+    domain: P5
+    competency: Configuring Alerting rules
+tags: [alert-grafana-managed]
+outcome: You can choose where a team's alert rules should live, in Prometheus, in Mimir's ruler or in Grafana, and say what each choice gives and costs.
+terms:
+  - term: Data-source-managed rule
+    def: A rule stored and evaluated in the data source itself, such as Mimir's or Loki's ruler, and only shown in Grafana.
+  - term: Rule namespace
+    def: A named set of rule groups of one tenant in a ruler, like one rule file in Prometheus.
+sources:
+  - title: Configure alert rules (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/alerting/alerting-rules/
+    checked: 2026-11-14
+  - title: Configure data source-managed alert rules, comparison with Grafana-managed rules
+    url: https://grafana.com/docs/grafana/v13.3/alerting/alerting-rules/create-data-source-managed-rule/
+    checked: 2026-11-14
+  - title: Configure Alertmanagers (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/alerting/set-up/configure-alertmanager/
+    checked: 2026-11-14
+  - title: Grafana Mimir ruler
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ruler/
+    checked: 2026-11-14
+---
+
+<Problem>
+Two teams argue in a design review. One wants every alert as YAML next to the service code, checked in CI and evaluated by Mimir. The other wants alerts clicked together in Grafana, because a rule there can read Loki and Mimir at once. Both are right about something, and the lab has both.
+</Problem>
+
+<Idea>
+A data-source-managed rule lives in the data source's ruler and runs there, in the Prometheus rule format. A Grafana-managed rule lives in Grafana's database, runs in Grafana, and can use any data source and Grafana's extra features. Pick by who owns the rule, where its data is, and how it is reviewed.
+</Idea>
+
+## Where each rule runs
+
+Grafana's documentation counts two rule types. Data-source-managed rules are stored in a Prometheus-compatible ruler, such as Mimir's or Loki's, and Grafana only shows and edits them through the ruler's API. Grafana-managed rules are stored in Grafana and evaluated by it; Grafana calls them the recommended option. A plain Prometheus server with rule files is the third place, and the oldest.
+
+<Layers caption="The lab's three places for an alert">
+  <Layer title="Prometheus in prom">Rule files from PrometheusRule resources; alerts go to the Alertmanager in prom. Cluster metrics only.</Layer>
+  <Layer title="Mimir's ruler">Rule groups per tenant, loaded with mimirtool; alerts go to Mimir's Alertmanager. The shop's metrics are in tenant lab.</Layer>
+  <Layer title="Grafana" hot>Rules in folders, any data source, contact points and notification policies of its own.</Layer>
+</Layers>
+
+## What Grafana-managed rules give
+
+The comparison page lists what only Grafana-managed rules have: several data sources in one rule, expressions that transform the query result, the No Data and Error states, images in notifications, role-based access per folder, the state history and version history of a rule, and Terraform provisioning. Data-source-managed rules, for their part, run inside the data source, which scales out horizontally and keeps working when Grafana is down.
+
+## What data-source-managed rules give
+
+They are plain Prometheus rule groups, so the same file works in Prometheus, in Mimir and, with LogQL, in Loki. They are text, so they go through review and CI, and `promtool` or `mimirtool` checks them before they load. They keep alerting in the metrics system: if Grafana is down for an upgrade, Mimir's ruler still evaluates and still sends. Both types can hold recording rules; in a ruler, the recorded series of an SLO stay next to the alert that reads them.
+
+## A rule of thumb
+
+Cluster and platform alerts that come with a chart stay where the chart put them, in Prometheus. Service SLO alerts, which need recording rules over the service's metrics, go to the ruler of the store that holds those metrics, as text in Git. Alerts that mix sources, or that a team without YAML habits owns, go to Grafana. Whatever you pick, write it down, so the person on call knows where to look and where to silence.
+
+<InLab>
+After this module the lab's alerts live in three places: kube-prometheus-stack's 135 rules and `LabVolumeFillingUp` in Prometheus, which notifies nobody; your SLO group of steps 10 to 14 in Mimir's ruler, tenant `lab`, whose Alertmanager falls back to a receiver with no integration; and no Grafana-managed rule, because step 5 removed it.
+</InLab>
+
+<Trap>
+A data-source-managed rule shown in Grafana is not a Grafana-managed rule. Its notifications go through the data source's Alertmanager, so Grafana's contact points and silences do not touch it.
+</Trap>
+
+<Remember>
+Data-source-managed: text, in the ruler, scales with the data source, Prometheus features only. Grafana-managed: in Grafana, any data source, more features, Grafana's own notification path.
+</Remember>
+
+<Question id="q-m15-s06" answer="a">
+A team needs one alert that fires when the error ratio from Mimir is high and, in the same window, Loki shows a matching log line. Which rule type can do this in one rule?
+
+- A Grafana-managed rule, because it can query several data sources and combine them
+
+  Grafana-managed rules can mix data sources and join the results with expressions.
+
+- A rule in Mimir's ruler, because Mimir can read Loki
+
+  Mimir's ruler evaluates PromQL over Mimir's own data. It cannot query Loki.
+
+- A rule in Loki's ruler, because LogQL can read Mimir's series
+
+  Loki's ruler runs LogQL over Loki's logs only.
+
+- A PrometheusRule, because the operator can join two data sources
+
+  The operator only loads rule files into Prometheus, which evaluates PromQL on its own data.
+</Question>

@@ -1,0 +1,194 @@
+---
+id: m15-s10
+title: Multi-window, multi-burn-rate alerts
+kind: lab
+minutes: 35
+order: 10
+exam:
+  - cert: pca
+    domain: P5
+    competency: Configuring Alerting rules
+tags: [slo-burn-rate]
+flags: [paymentFailure]
+check:
+  kind: exact
+  prompt: After the flag went off, which alert resolved first? Paste the value of its label window.
+  answers: ["1h"]
+outcome: You can write the two paging rules of a multi-window, multi-burn-rate SLO alert, load them into Mimir's ruler, watch them fire on a real fault, and explain why each resolves when it does.
+terms:
+  - term: Long window
+    def: The window that decides whether enough budget was spent to page, such as 1 hour.
+  - term: Short window
+    def: A second window, about 1/12 of the long one, that must also be over the threshold, so the alert stops soon after the fix.
+  - term: Multi-burn-rate alert
+    def: Several burn-rate conditions with their own windows, so fast and slow budget loss both page.
+sources:
+  - title: Alerting on SLOs (Google SRE workbook)
+    url: https://sre.google/workbook/alerting-on-slos/
+    checked: 2026-11-14
+  - title: Grafana Mimir ruler
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ruler/
+    checked: 2026-11-14
+  - title: Mimirtool
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+    checked: 2026-11-14
+  - title: Grafana Mimir HTTP API, ruler endpoints
+    url: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
+    checked: 2026-11-14
+---
+
+<Problem>
+The 1-hour burn-rate alert of step 9 pages within a minute of a total outage. The fix takes ten minutes. Then the alert keeps firing for most of an hour, the next person on call sees a red alert for a fault that is gone, and learns that this alert lies.
+</Problem>
+
+<Idea>
+Ask two windows the same question. The long window, 1 hour, makes sure enough budget was spent; the short window, 5 minutes, makes sure it is still being spent now. Pair two such conditions, a fast one and a slow one, and the alert pages on both quick and steady budget loss and stops minutes after the fix.
+</Idea>
+
+## Two windows per condition
+
+The workbook's final design asks for both: the 1-hour burn rate above 14.4 and the 5-minute burn rate above 14.4. The long window decides whether enough budget was spent; the short window, 1/12 of it, drops below the threshold about five minutes after the fault ends, and with it the alert. Detection stays almost as fast, because during a real outage the short window crosses first.
+
+The second paging condition does the same for slower loss: the 6-hour burn rate above 6, checked by a 30-minute window. A third pair, 3 days and 6 hours at burn rate 1, would open a ticket; this module leaves it out.
+
+<Timeline caption="A 100% outage of checkout, 99.9% SLO">
+  <Event at="0:00" title="Errors start">Every order fails.</Event>
+  <Event at="about 2 min" title="1h condition fires">Both 1h and 5m error ratios pass 1.44%.</Event>
+  <Event at="about 4 min" title="6h condition fires">Both 6h and 30m pass 0.6%.</Event>
+  <Event at="fix + about 5 min" title="1h condition resolves">The 5m window is clean again.</Event>
+  <Event at="fix + about 30 min" title="6h condition resolves">The 30m window is clean again.</Event>
+</Timeline>
+
+## The rules
+
+Recording rules compute the error ratio for each window: 5 minutes, 30 minutes, 1 hour and 6 hours. Two alerting rules, both named `CheckoutErrorBudgetBurn` and told apart by the label `window`, compare them with the thresholds. Both have `severity: page` and no `for`: the short window already filters out blips, and a `for` would only delay the page.
+
+The recorded names keep the colons of `level:metric:operations`, with `learn_m15` as the level, so nobody mistakes them for the lab's own series; step 11 explains why the recording rules matter.
+
+## Where they run
+
+The span metrics are in Mimir, tenant `lab`, so the rules go to Mimir's ruler, as m11 step 10 did for a practice tenant. A one-shot pod runs `mimirtool rules load` with the file from a ConfigMap. The ruler evaluates the group every minute and writes the recorded series back into tenant `lab`.
+
+<InLab>
+Tenant `lab` has no Alertmanager configuration of its own, so Mimir's Alertmanager uses its fallback, whose only receiver has no integration. The alert fires and is visible in the ruler's API and in Grafana's alert list, but no message is sent. Recorded series stay in tenant `lab` for the 7 days of retention after you remove the rules.
+</InLab>
+
+<Trap>
+Two alerts with the same name and the same labels would be one alert. The label `window` keeps the fast and the slow condition apart, so the routing, the silences and the person reading them can tell which one fired.
+</Trap>
+
+<Do>
+1. Save this as `m15-slo.yaml`: a ConfigMap with the rule namespace `learn-m15` and its group `checkout-slo`, and a pod that loads it into tenant `lab`.
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m15-slo
+     namespace: learn-m15
+   data:
+     rules.yaml: |
+       namespace: learn-m15
+       groups:
+         - name: checkout-slo
+           interval: 1m
+           rules:
+             - record: learn_m15:checkout_errors:ratio_rate5m
+               expr: |
+                 (sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[5m])) or vector(0))
+                 /
+                 sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[5m]))
+             - record: learn_m15:checkout_errors:ratio_rate30m
+               expr: |
+                 (sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[30m])) or vector(0))
+                 /
+                 sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[30m]))
+             - record: learn_m15:checkout_errors:ratio_rate1h
+               expr: |
+                 (sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[1h])) or vector(0))
+                 /
+                 sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[1h]))
+             - record: learn_m15:checkout_errors:ratio_rate6h
+               expr: |
+                 (sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[6h])) or vector(0))
+                 /
+                 sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[6h]))
+             - alert: CheckoutErrorBudgetBurn
+               expr: |
+                 learn_m15:checkout_errors:ratio_rate1h > (14.4 * 0.001)
+                 and
+                 learn_m15:checkout_errors:ratio_rate5m > (14.4 * 0.001)
+               labels:
+                 severity: page
+                 window: 1h
+             - alert: CheckoutErrorBudgetBurn
+               expr: |
+                 learn_m15:checkout_errors:ratio_rate6h > (6 * 0.001)
+                 and
+                 learn_m15:checkout_errors:ratio_rate30m > (6 * 0.001)
+               labels:
+                 severity: page
+                 window: 6h
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: slo-load
+     namespace: learn-m15
+   spec:
+     restartPolicy: Never
+     containers:
+       - name: mimirtool
+         image: grafana/mimirtool:3.2.4
+         args: [rules, load, /rules/rules.yaml]
+         env:
+           - { name: MIMIR_ADDRESS, value: "http://mimir-gateway.mimir.svc" }
+           - { name: MIMIR_TENANT_ID, value: lab }
+         volumeMounts:
+           - { name: rules, mountPath: /rules }
+         resources:
+           requests: { cpu: 10m, memory: 32Mi }
+           limits: { cpu: 100m, memory: 128Mi }
+     volumes:
+       - name: rules
+         configMap: { name: m15-slo }
+   ```
+2. Load it and read what `mimirtool` did: <Cmd>{`kubectl apply -f m15-slo.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m15 wait --for=jsonpath='{.status.phase}'=Succeeded pod/slo-load --timeout=120s`}</Cmd> <Cmd>{`kubectl -n learn-m15 logs slo-load`}</Cmd> The log names the group `checkout-slo` in the namespace `learn-m15`.
+3. After a minute or two, read the rules' state from the ruler: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/rules | grep -o '"health":"[a-z]*"' | sort | uniq -c`}</Cmd> The answer is `6 "health":"ok"`: all six rules have run without error. In Grafana, <LabLink to="grafana" path="/alerting/list">Alert rules</LabLink> lists them under Mimir, `learn-m15`, `checkout-slo`.
+4. Read the flag screen's API: <Cmd>{`curl -s -H 'Host: flags.lab.k8s.local' http://10.10.0.5/feature/api/read | grep -o '"defaultVariant":"[^"]*"' | sort | uniq -c`}</Cmd> Every flag is `off`. Note the time in UTC, then open <LabLink to="flags" path="/feature">the flag screen</LabLink> and set `paymentFailure` to `100%`.
+5. Every 30 seconds, read the alerts: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/alerts; echo`}</Cmd> The alert with `"window":"1h"` fires about two minutes after the flag: the 1-hour ratio passes 1.44% after about 52 seconds of failed orders (step 9), and the span metrics and the ruler's one-minute interval add about a minute. The alert with `"window":"6h"` needs 0.6% of six hours of orders, about 2.2 minutes of failed orders, so it fires about four minutes after the flag. Each answer shows `"state":"firing"`, the label `window` and a `value`.
+6. As soon as both have fired, set `paymentFailure` back to `off` on the flag screen and note the time. Read the flag API of action 4 again: every flag is `off`.
+7. Keep reading the alerts of action 5 every minute. The `1h` alert disappears about five to seven minutes after the flag went off, once the 5-minute window holds no failed order. The `6h` alert stays for about half an hour more, until the 30-minute window is clean; you need not wait for it. Note which `window` disappears first, and paste it in the check below.
+</Do>
+
+<Done>
+Your SLO alert fired on a real fault in both conditions, the 1-hour condition stopped a few minutes after the fix, and the 6-hour condition later. The flag is off.
+</Done>
+
+<Trap practice>
+If an alert does not fire within five minutes, look at the recorded series in Explore, data source Mimir: `learn_m15:checkout_errors:ratio_rate5m`. If it stays at 0, the flag did not reach the payment service; check the flag API and the payment pod's log. Never leave the flag on for more than 15 minutes.
+</Trap>
+
+<Remember>
+Page when both a long and a short window burn faster than the threshold: 1 hour and 5 minutes at 14.4, 6 hours and 30 minutes at 6. The long window gives precision, the short one a quick reset.
+</Remember>
+
+<Question id="q-m15-s10" answer="c">
+A 99.9% SLO alert uses only the 1-hour burn rate above 14.4. A total outage lasts 6 minutes and is then fixed. About how long does the alert keep firing after the fix?
+
+- About 5 minutes, until the errors leave a 5-minute window
+
+  That is the reset time of the two-window design, which this alert does not have.
+
+- Not at all, because the alert resolves as soon as the errors stop
+
+  The 1-hour error ratio still contains the outage after it ends.
+
+- Most of an hour, until the outage leaves the 1-hour window
+
+  Six minutes of 100% errors keep the 1-hour ratio near 10% for almost an hour, far above 1.44%.
+
+- Exactly 6 minutes, the length of the outage
+
+  The reset time depends on the window, not on how long the outage was.
+</Question>

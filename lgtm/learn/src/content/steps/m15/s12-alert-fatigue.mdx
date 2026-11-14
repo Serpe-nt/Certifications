@@ -1,0 +1,103 @@
+---
+id: m15-s12
+title: Alert fatigue and how to cut the noise
+kind: concept
+minutes: 14
+order: 12
+exam:
+  - cert: pca
+    domain: P5
+    competency: "Alerting basics (when, what, and why)"
+tags: [alert-fatigue]
+outcome: You can name what makes a team mute an alert, find it in a set of rules, and pick the fix, from deleting the rule to grouping, inhibition or a better threshold.
+terms:
+  - term: Alert fatigue
+    def: The state in which people get so many pages that they skim or ignore them, the real ones too.
+  - term: Pager load
+    def: How many paging incidents an on-call shift receives; a team can set a budget for it.
+  - term: Fan-out
+    def: One fault that makes several rules fire, so one incident arrives as many alerts.
+sources:
+  - title: Being on-call (Google SRE book)
+    url: https://sre.google/sre-book/being-on-call/
+    checked: 2026-11-14
+  - title: On-call (Google SRE workbook)
+    url: https://sre.google/workbook/on-call/
+    checked: 2026-11-14
+  - title: Alerting best practices (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/alerting/best-practices/
+    checked: 2026-11-14
+  - title: Alerting on SLOs, low-traffic services (Google SRE workbook)
+    url: https://sre.google/workbook/alerting-on-slos/
+    checked: 2026-11-14
+  - title: InfoInhibitor runbook (kube-prometheus)
+    url: https://runbooks.prometheus-operator.dev/runbooks/general/infoinhibitor/
+    checked: 2026-11-14
+---
+
+<Problem>
+The on-call engineer says it calmly: "I look at the page subject and know it's a duplicate, so I ignore it." The pages do not take long, there are just many of them. One night a real one has the same subject, and it waits until morning.
+</Problem>
+
+<Idea>
+Alert fatigue comes from pages that are not actionable, not new, or not one per incident. Each has its own fix: delete or demote the rule, group and inhibit the fan-out, fit the threshold to the traffic. Measure the pager load per shift and review the rules on a schedule, so the noise does not come back.
+</Idea>
+
+## Four kinds of noise, all seen in this module
+
+Rules that page on causes. In step 2, a Deployment with a bad image tag went pending in your own rule, in `KubeDeploymentReplicasMismatch` and in `KubePodNotReady`. While the module was written, `CPUThrottlingHigh` went pending for the idle practice webhook. None of them was a user problem.
+
+Fan-out. One fault, three rules. The SRE book asks to control how many alerts one incident sends, by grouping related alerts in the monitoring or alerting system, for us the Alertmanager.
+
+Thresholds that do not fit the system. The Grafana rule of step 5 fired at once, because 10 orders a minute is normal elsewhere but not in this lab, where checkout gets about 3.
+
+Low traffic. At about 200 orders an hour, three failed orders in an hour already cross the 14.4 burn rate of step 10. The workbook says such services need other means: artificial traffic from probes, several small services combined into one SLO, or a product change so that one failure matters less.
+
+## Fixes, from cheapest to deepest
+
+- Delete or demote. A page nobody acted on in the last months becomes a ticket, a dashboard panel, or nothing. Grafana's best practices ask for regular reviews that remove alerts which lead to no action.
+- Group and inhibit. `group_by` turns a fan-out into one message; an inhibition rule mutes the alerts that a bigger one explains, as in step 3.
+- Fit the condition. Use a ratio, not a count; a `for` or a short window against blips; `keep_firing_for` against flapping.
+- Fix the cause. A page that is always the same fix wants automation or a change to the service.
+
+<Compare caption="Which fix for which noise">
+  <Col title="Not actionable">Demote to a ticket or delete.</Col>
+  <Col title="One fault, many alerts" hot>Group, and inhibit the dependent alerts.</Col>
+  <Col title="Flapping or blips">A short window, for, or keep_firing_for.</Col>
+</Compare>
+
+## Measure the load
+
+The SRE workbook targets at most two incidents per on-call shift, so there is time to follow each one up. The SRE book reaches the same bound from the work one incident takes, about six hours: at most two incidents per 12-hour on-call shift. It names misconfigured monitoring as a common cause of overload. Count pages per shift, and how many led to action. A number that grows is the first sign of fatigue, long before someone mutes a channel.
+
+<InLab>
+kube-prometheus-stack ships its own fix for noisy `info` alerts. The rule `InfoInhibitor` fires in a namespace that has an `info` alert and no warning or critical one, and the lab's Alertmanager has an inhibition rule that lets it mute every `severity="info"` alert of that namespace. While this module was written, `InfoInhibitor` fired for `learn-m15` because of the throttled webhook.
+</InLab>
+
+<Trap>
+Raising every threshold cuts real pages along with the noise. Find out which pages led to no action, and fix those rules.
+</Trap>
+
+<Remember>
+Noise is pages that are not actionable, not new, or not one per incident. Delete or demote, group and inhibit, fit the condition, and count the pages per shift.
+</Remember>
+
+<Question id="q-m15-s12" answer="b">
+When a database goes down, the on-call person gets one page from the database and 25 pages from services that cannot reach it. All 26 are correct. What reduces the noise without losing the signal?
+
+- Raise the for duration of every service alert to one hour
+
+  The services' alerts would still fire, only later, and real service problems would page an hour late.
+
+- Inhibit the service alerts while the database alert fires, matched on the shared label
+
+  The database alert explains the others. Inhibition mutes them while it fires and lets them through otherwise.
+
+- Delete the service alerts, because the database alert is enough
+
+  A service can fail for reasons other than the database; it would then never page.
+
+- Send the 26 pages to a second on-call person
+
+  Two people get the same noise; nothing is reduced.
+</Question>

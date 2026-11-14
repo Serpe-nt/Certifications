@@ -1,0 +1,192 @@
+---
+id: m15-s14
+title: "On-call drill: a fault you do not know, found from the page"
+kind: drill
+minutes: 40
+order: 14
+exam:
+  - cert: none
+tags: [alert-drill]
+flags: [paymentFailure, paymentUnreachable, productCatalogFailure]
+check:
+  kind: regex
+  prompt: Paste the error text or the product id that told you the cause in action 6.
+  pattern: ".*(Invalid token|produced zero addresses|OLJCESPC7Z|Product Catalog Fail).*"
+outcome: You can take a page from your own SLO alert, follow its runbook to the failing dependency, name the fault before anyone tells you, and close the incident cleanly.
+terms:
+  - term: Drill
+    def: A practice incident with a real fault, run on purpose, so the team learns the path from page to cause before a real night.
+  - term: Mitigate
+    def: Stop the harm to users first, for example by switching a feature off, before the root cause is fixed.
+sources:
+  - title: Alerting on SLOs (Google SRE workbook)
+    url: https://sre.google/workbook/alerting-on-slos/
+    checked: 2026-11-14
+  - title: Incident response (Google SRE workbook)
+    url: https://sre.google/workbook/incident-response/
+    checked: 2026-11-14
+  - title: TraceQL (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/traceql/
+    checked: 2026-11-14
+  - title: Mimirtool
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+    checked: 2026-11-14
+---
+
+<Problem>
+Your SLO alert is loaded, its runbook link is set, and so far it has only fired when you broke checkout yourself. On call, the page comes without a hint. This step switches on one of three faults at random. You learn which one only at the end, after you have named it.
+</Problem>
+
+<Idea>
+A drill tests the whole path: the alert fires on a symptom, its text says how bad it is and where to start, and the person on call goes from the dashboard to a failing trace to the cause. Mitigate first, then name the cause, then check that the alert resolves.
+</Idea>
+
+## The page starts the search
+
+The SLO alert says that orders fail and how many. It does not say why, and it should not: one symptom has many causes, as step 1 said. The runbook link opens the checkout dashboard, which shows when the errors started and which operations fail.
+
+From there, a trace with an error shows the path of one failing order through the services. The span that failed first, and its status message, name the dependency. Module m14 went further on this path; here the goal is one clean run from page to cause.
+
+<Flow caption="From the page to the cause">
+  <Stage title="Page" kicker="summary, runbook_url">Checkout fails a share of orders.</Stage>
+  <Stage title="Dashboard" kicker="Shop / checkout (RED)">When it started, which operation.</Stage>
+  <Stage title="Trace" kicker="status = error">The first failing span and its message.</Stage>
+  <Stage title="Cause" kicker="name it">A dependency of checkout.</Stage>
+</Flow>
+
+## Three faults, three traces
+
+The drill picks one of three faults, all on the order path of checkout:
+
+- payment rejects a share of the charges it receives;
+- checkout cannot reach the payment service at all;
+- the product catalog fails for one particular product, so the orders whose cart holds it fail, about one in five.
+
+Each leaves a different mark in the trace: a payment span with an error and its own message, a checkout client span to payment whose error says the call never reached a server, or a product-catalog span with an error for one product. Read the span's status message and its service before you guess.
+
+## Mitigate, then close
+
+In a real incident the first job is to stop the harm: roll back, switch a feature off, move traffic. Here the mitigation is the drill's stop command, which switches the fault off. Then watch the 1-hour condition of your alert resolve about five minutes later, as step 10 showed, and note the times. A short note with the times of the page, the cause and the fix is the start of a review.
+
+<InLab>
+The drill is a pod in `learn-m15` that uses the flag screen's API, the same one the flag screen reads, through the shop's frontend proxy. It refuses to start while any flag is on, switches its fault off by itself after 15 minutes, and also when the pod is deleted.
+</InLab>
+
+<Trap>
+Do not read the flag screen during the drill. It would tell you the answer, and the real pager will not have one.
+</Trap>
+
+<Do>
+1. Check the starting point: every flag off, and your SLO alerts inactive. <Cmd>{`curl -s -H 'Host: flags.lab.k8s.local' http://10.10.0.5/feature/api/read | grep -o '"defaultVariant":"[^"]*"' | sort | uniq -c`}</Cmd> <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/alerts; echo`}</Cmd> If the alert with `window` `1h` from step 10 still fires, wait until it is gone. The `6h` one may stay for half an hour after step 10; the drill does not depend on it.
+2. Save this as `m15-drill.yaml`. Read the program if you like; it does not print which fault it picks.
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: drill
+     namespace: learn-m15
+   data:
+     drill.py: |
+       import json, random, signal, sys, time, urllib.request
+       API = "http://frontend-proxy.shop.svc:8080/feature/api"
+       FAULTS = {"paymentUnreachable": "on", "productCatalogFailure": "on", "paymentFailure": "50%"}
+       def read():
+           return json.load(urllib.request.urlopen(API + "/read", timeout=10))
+       def write(doc):
+           body = json.dumps({"data": doc}).encode()
+           req = urllib.request.Request(API + "/write", data=body, headers={"Content-Type": "application/json"})
+           urllib.request.urlopen(req, timeout=10)
+       def variant(flag):
+           rule = flag.get("targeting", {}).get("if")
+           return rule[1] if isinstance(rule, list) and len(rule) == 3 else flag["defaultVariant"]
+       def switch(doc, name, value):
+           flag = doc["flags"][name]
+           rule = flag.get("targeting", {}).get("if")
+           if isinstance(rule, list) and len(rule) == 3:
+               rule[1] = value
+           else:
+               flag["defaultVariant"] = value
+       def stop(*args):
+           doc = read()
+           was = [name for name in FAULTS if variant(doc["flags"][name]) != "off"]
+           for name in FAULTS:
+               switch(doc, name, "off")
+           write(doc)
+           print("Drill over. Every drill flag is off. The fault was:", ", ".join(was) or "none", flush=True)
+           sys.exit(0)
+       if sys.argv[1:] == ["stop"]:
+           stop()
+       doc = read()
+       on = [name for name, flag in doc["flags"].items() if variant(flag) != "off"]
+       if on:
+           print("Not started: these flags are on already:", ", ".join(on), flush=True)
+           sys.exit(1)
+       name = random.choice(sorted(FAULTS))
+       switch(doc, name, FAULTS[name])
+       write(doc)
+       print(time.strftime("%H:%M:%S UTC", time.gmtime()), "A fault is on. It goes off by itself in 15 minutes.", flush=True)
+       signal.signal(signal.SIGTERM, stop)
+       time.sleep(900)
+       stop()
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: drill
+     namespace: learn-m15
+   spec:
+     restartPolicy: Never
+     terminationGracePeriodSeconds: 30
+     containers:
+       - name: drill
+         image: docker.io/library/python:3.14.7-alpine3.24
+         command: [python, -u, /app/drill.py]
+         volumeMounts:
+           - { name: app, mountPath: /app }
+         resources:
+           requests: { cpu: 10m, memory: 32Mi }
+           limits: { cpu: 100m, memory: 64Mi }
+     volumes:
+       - name: app
+         configMap: { name: drill }
+   ```
+3. Start the drill and read its first line: <Cmd>{`kubectl apply -f m15-drill.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m15 logs drill`}</Cmd> It says that a fault is on. Note the time.
+4. Wait for the page. Read the alerts every minute: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/alerts; echo`}</Cmd> The page is the alert with `"window":"1h"` turning `firing`. How long it takes depends on the fault: about two minutes when every order fails, about three when half of them fail, and 5 to 10 minutes when only the orders whose cart holds one particular product fail, about one in five. Read its `summary`, and open its `runbook_url`.
+5. On the dashboard, set the time range to the last 30 minutes and Span kind to `SPAN_KIND_SERVER`. Find when the errors started.
+6. In <LabLink to="grafana" path="/explore">Explore</LabLink>, data source Tempo, query type **TraceQL**, find failing orders: <Query lang="traceql">{`{ resource.service.name = "checkout" && name = "oteldemo.CheckoutService/PlaceOrder" && status = error }`}</Query> Open one trace. Find the first span with an error: its service, its name and its status message. Decide which of the three faults it is, and copy the error text or the product id that told you.
+7. Mitigate: stop the drill. It switches the fault off and tells you what it was: <Cmd>{`kubectl -n learn-m15 exec drill -- python /app/drill.py stop`}</Cmd> Read the flag API of action 1 again: every flag is `off`. Note the time.
+8. Read the alerts of action 4 until the `window` `1h` alert is gone, about five minutes. Then clean up the module: delete the rule group, check that tenant `lab` has no rules left, and delete the namespace with everything in it: <Cmd>{`kubectl -n learn-m15 run mimirtool --rm -i --quiet --restart=Never --image=grafana/mimirtool:3.2.4 --env=MIMIR_ADDRESS=http://mimir-gateway.mimir.svc --env=MIMIR_TENANT_ID=lab -- rules delete learn-m15 checkout-slo`}</Cmd> <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/config/v1/rules; echo`}</Cmd> <Cmd>{`kubectl delete namespace learn-m15`}</Cmd> The second command answers `{}`. Paste the error text or the product id from action 6 in the check below.
+</Do>
+
+<Done>
+You went from a page you did not cause to a named fault in a dependency, mitigated it, saw the alert resolve, and removed everything the module created. Every flag is off.
+</Done>
+
+<Trap practice>
+If no alert fires within ten minutes, the fault may not have reached its service. Run the stop command of action 7, which switches it off and names it, and start the drill again with a new pod: `kubectl -n learn-m15 delete pod drill`, then action 3.
+</Trap>
+
+<Remember>
+On call: read the page, follow its runbook, find the first failing span, mitigate, then name the cause and check that the alert resolves. A drill makes that path known before it is needed.
+</Remember>
+
+<Question id="q-m15-s14" answer="a">
+Your SLO alert pages for checkout. A failing trace shows checkout's client span `oteldemo.PaymentService/Charge` with the error "name resolver error: produced zero addresses", and no payment span below it. What does that point to?
+
+- Checkout cannot reach the payment service, so payment never saw the request
+
+  A client span with no server span below it means the call did not arrive; the problem is reaching payment, not payment's own logic.
+
+- Payment rejected the card, because the order was invalid
+
+  A rejection would come from payment itself, with a payment span carrying the error.
+
+- The product catalog failed for one product in the cart
+
+  That fault shows an error on a product-catalog span, not on the call to payment.
+
+- Tempo dropped the payment span, so nothing is wrong
+
+  Missing child spans are possible, but the client span's own error says the call failed.
+</Question>

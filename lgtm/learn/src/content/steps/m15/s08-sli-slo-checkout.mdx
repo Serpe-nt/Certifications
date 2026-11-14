@@ -1,0 +1,117 @@
+---
+id: m15-s08
+title: An SLI and an SLO for checkout
+kind: lab
+minutes: 22
+order: 8
+exam:
+  - cert: pca
+    domain: P1
+    competency: "Basics of SLOs, SLAs, and SLIs"
+tags: [slo]
+check:
+  kind: exact
+  prompt: Paste the span_name of the server span that counts checkout's orders.
+  answers: ["oteldemo.CheckoutService/PlaceOrder"]
+outcome: You can write an availability SLI as good events over valid events from the lab's span metrics, choose an SLO for it, and say what each part of the query stands for.
+terms:
+  - term: SLI specification
+    def: What you want to measure, in words, such as "the share of orders that are placed".
+  - term: SLI implementation
+    def: How you measure it, such as one query over one set of series. One specification can have several.
+  - term: Good event
+    def: An event that counts as success for the SLI, such as an order span that did not end with an error.
+  - term: Compliance period
+    def: The window over which an SLO is judged, for example the last 30 days.
+sources:
+  - title: Implementing SLOs (Google SRE workbook)
+    url: https://sre.google/workbook/implementing-slos/
+    checked: 2026-11-14
+  - title: Service level objectives (Google SRE book)
+    url: https://sre.google/sre-book/service-level-objectives/
+    checked: 2026-11-14
+  - title: Metrics-generator (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-generator/
+    checked: 2026-11-14
+---
+
+<Problem>
+Module m02 step 8 defined the SLI, the SLO and the error budget. Now someone asks for checkout's SLO by Friday. Which requests count? Is a declined card a failure? Over how many days? Each answer changes the number, and the number decides when people are woken up.
+</Problem>
+
+<Idea>
+Write the SLI as a ratio: good events divided by valid events, over a window. Choose the events closest to what the user feels that you can already measure. Then choose a target and a compliance period, and write down every choice, because the alert of step 10 will be built on them.
+</Idea>
+
+## Specification first, then implementation
+
+The SRE workbook separates the two. The specification is what you want, in words: "the share of orders that the shop places successfully". The implementation is how you measure it: which component, which series, which status counts as good. One specification can have several implementations, at the load balancer, in the service, in the browser; each sees a different part of the truth at a different cost.
+
+For a first SLI, the workbook advises the implementation that needs the least new work. In this lab, that is the span metrics from step 7: every order already makes a server span `oteldemo.CheckoutService/PlaceOrder` in checkout, and Tempo already counts those spans by status.
+
+## The SLI for checkout
+
+A valid event is one `PlaceOrder` server span. A good event is one that did not end with `STATUS_CODE_ERROR`. The ratio over a window is:
+
+<Query lang="promql">{`sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code!="STATUS_CODE_ERROR"}[1h])) / sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[1h]))`}</Query>
+
+Both sides are summed before the division, as module m04 taught for every ratio. The alerts of the next steps use the other side of the same coin, the error ratio: bad events over valid events, which is 1 minus the SLI.
+
+## The target and the window
+
+The SLO adds a target and a compliance period: "99.9% of orders are placed, over a rolling 30 days". The budget is the 0.1% that may fail. At the lab's rate of about 200 orders an hour, 30 days hold about 144,000 orders and a budget of about 144 failed ones.
+
+<Figures caption="Checkout in the lab, about 200 orders an hour" unit="Orders">
+  <Stat label="Orders in 30 days" value="about 144,000" amount={144000} max={144000} />
+  <Stat label="Budget at 99.9%" value="about 144" amount={144} max={144000} hot note="Too small to see on this scale." />
+</Figures>
+
+A span metric counts what reached Tempo. Orders that never reached checkout, because the frontend failed first, are not in this SLI. That is the price of the cheap implementation; a second SLI at the frontend proxy would see them.
+
+<InLab>
+The SLI uses `traces_spanmetrics_calls_total` in tenant `lab`, written by Tempo's metrics-generator with the labels `service_name`, `span_name`, `span_kind` and `status_code`. A healthy lab is close to 1.0; errors appear only while a fault flag such as `paymentFailure` is on.
+</InLab>
+
+<Trap>
+A span status of error is the service's own verdict. A request that a client gave up on, or one that returned wrong data with a success status, counts as good here. An SLI is only as honest as the events it counts.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source Mimir, switch to **Code**, and set the range to the last 1 hour. Find checkout's server spans and their names: <Query lang="promql">{`sum by (span_name, status_code) (rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER"}[5m]))`}</Query>
+2. Count the valid events of the last hour, the orders: <Query lang="promql">{`sum(increase(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[1h]))`}</Query> Multiply by 24 × 30 for the orders of a 30-day window, and take 0.1% of that for the budget.
+3. Run the SLI of the article over one hour. Then change `[1h]` to `[1d]` in both places and run it again. The longer window holds older failures, if there were any.
+4. Run the error ratio, the number the alerts will compare: <Query lang="promql">{`(sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[1h])) or vector(0)) / sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[1h]))`}</Query> The `or vector(0)` gives 0 instead of an empty result when there is no error series.
+5. Paste the span name of the server span that counts orders in the check below.
+</Do>
+
+<Done>
+You found the event that counts an order, measured the lab's order rate, and ran the SLI and its error ratio over two windows.
+</Done>
+
+<Trap practice>
+Without `span_name`, the SLI would mix `PlaceOrder` with every other span of checkout, client spans included. Filter on the one span that is an order.
+</Trap>
+
+<Remember>
+SLI = good events / valid events, over a window. Pick the cheapest honest implementation, write down what counts as good, and set the target and the compliance period together.
+</Remember>
+
+<Question id="q-m15-s08" answer="d">
+An SLI counts a request as good when its HTTP status is below 500. The service starts returning 200 with an empty page because of a bug. What does the SLI show?
+
+- A drop, because users see empty pages
+
+  The SLI counts by status code only; a 200 is good to it, whatever the page holds.
+
+- A drop, because the latency changes
+
+  This SLI is about status codes, not latency; a latency SLI would be a separate one.
+
+- Nothing, because SLIs ignore successful requests
+
+  Successful requests are the good events of the ratio; they are counted.
+
+- No change, because the requests still count as good events
+
+  The bug is invisible to an SLI built on status codes. A correctness SLI or a probe that checks the content would catch it.
+</Question>

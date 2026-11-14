@@ -1,0 +1,201 @@
+---
+id: m15-s13
+title: Runbooks and annotations
+kind: lab
+minutes: 18
+order: 13
+exam:
+  - cert: pca
+    domain: P5
+    competency: Configuring Alerting rules
+tags: [alert-runbooks]
+check:
+  kind: exact
+  prompt: Paste the runbook_url that the ruler shows for your alerts after action 4.
+  answers: ["http://grafana.lab.k8s.local/d/shop-red-checkout"]
+outcome: You can give an alert the annotations a person needs to act, summary, description and runbook link, with templates for the live values, and update a loaded rule group in place.
+terms:
+  - term: Runbook
+    def: A short document for one alert, also called a playbook. It says what the alert means, how bad it is, how to check and how to mitigate.
+  - term: runbook_url
+    def: The common annotation that links an alert to its runbook page.
+  - term: humanizePercentage
+    def: A Prometheus template function that prints a ratio such as 0.0153 as a percentage.
+sources:
+  - title: Labels and annotations (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/alerting/fundamentals/alert-rules/annotation-label/
+    checked: 2026-11-14
+  - title: Alerting rules, templating (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+    checked: 2026-11-14
+  - title: Template reference (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/template_reference/
+    checked: 2026-11-14
+  - title: On-call, maintaining playbooks (Google SRE workbook)
+    url: https://sre.google/workbook/on-call/
+    checked: 2026-11-14
+  - title: Mimirtool
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+    checked: 2026-11-14
+---
+
+<Problem>
+The phone shows `CheckoutErrorBudgetBurn severity=page window=1h`, nothing else. The person on call has never touched checkout. How bad is it, which numbers, where to look first? Every minute spent finding that out is budget burnt.
+</Problem>
+
+<Idea>
+An alert carries text for the person it wakes: a summary with the live numbers, a description with what it means and the first checks, and a link to its runbook. Write them as annotations with templates, so each notification says what is happening now, and keep a runbook entry for every paging alert.
+</Idea>
+
+## What a page must answer
+
+A page should answer four questions before the laptop opens: what is broken for users, how bad it is now, where to look first, and where the full instructions are. Grafana's documentation asks for annotations a first responder can act on without knowing how the alert was built. It lists five optional annotations. Three are text: `summary` for what was detected and why, `description` for what happened and what the alert does, and `runbook_url` for the page that guides the response. The other two, `__dashboardUid__` and `__panelId__`, link a dashboard panel. The documentation's example description also says how to respond.
+
+The SRE workbook adds that each new alert should come with its playbook entry, and that playbooks age as fast as production changes. Keep the entry short and structured, so it can be kept current.
+
+## Templates put the numbers in
+
+Annotations are templates, filled in at every evaluation. In a Prometheus or Mimir rule, `{{ $value }}` is the value of the alert and `{{ $labels.x }}` a label of the series the expression returned. `humanizePercentage` prints the ratio `0.0153` as `1.53%`. For your SLO alert, `$value` is the left side of the `and`: the long window's error ratio.
+
+A label that the rule adds itself, under `labels`, is not in `$labels`. A first version of this file used `{{ $labels.window }}`, and on the lab the page read "over : the error budget burns fast". The recorded series have no labels at all, so each alert carries its own text instead: "over the last hour" and "over the last 6 hours".
+
+<Layers caption="What the person paged reads">
+  <Layer title="Labels">CheckoutErrorBudgetBurn, severity page, window 1h: which alert, how it is routed.</Layer>
+  <Layer title="summary">Checkout fails 3.054% of orders over the last hour: what and how bad.</Layer>
+  <Layer title="description">The SLO and the first checks.</Layer>
+  <Layer title="runbook_url" hot>Where to start: here, the checkout dashboard.</Layer>
+</Layers>
+
+## Updating a loaded group
+
+`mimirtool rules load` replaces a group of the same name in the same namespace. Its output says which rule changed. The recorded series continue, because the recording rules did not change; alerts already firing are re-evaluated with the new text.
+
+<InLab>
+The lab has no wiki, so the `runbook_url` of this module points at the dashboard Shop / checkout (RED), which is the first step of checkout's runbook. A team points it at its runbook page and links the dashboard from there.
+</InLab>
+
+<Trap>
+Do not put `{{ $value }}` into a label. A label that changes with every evaluation makes a new alert each time; numbers belong in annotations.
+</Trap>
+
+<Do>
+1. Save this as `m15-slo-v2.yaml`. It is the file of step 10 with an `annotations` block on each alert and a new name for the load pod, `slo-load-2`.
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m15-slo
+     namespace: learn-m15
+   data:
+     rules.yaml: |
+       namespace: learn-m15
+       groups:
+         - name: checkout-slo
+           interval: 1m
+           rules:
+             - record: learn_m15:checkout_errors:ratio_rate5m
+               expr: |
+                 (sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[5m])) or vector(0))
+                 /
+                 sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[5m]))
+             - record: learn_m15:checkout_errors:ratio_rate30m
+               expr: |
+                 (sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[30m])) or vector(0))
+                 /
+                 sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[30m]))
+             - record: learn_m15:checkout_errors:ratio_rate1h
+               expr: |
+                 (sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[1h])) or vector(0))
+                 /
+                 sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[1h]))
+             - record: learn_m15:checkout_errors:ratio_rate6h
+               expr: |
+                 (sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[6h])) or vector(0))
+                 /
+                 sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[6h]))
+             - alert: CheckoutErrorBudgetBurn
+               expr: |
+                 learn_m15:checkout_errors:ratio_rate1h > (14.4 * 0.001)
+                 and
+                 learn_m15:checkout_errors:ratio_rate5m > (14.4 * 0.001)
+               labels:
+                 severity: page
+                 window: 1h
+               annotations:
+                 summary: "Checkout fails {{ $value | humanizePercentage }} of orders over the last hour: the error budget burns fast."
+                 description: "SLO: 99.9% of PlaceOrder spans succeed over 30 days. Start with the dashboard, then find the failing span in an error trace."
+                 runbook_url: "http://grafana.lab.k8s.local/d/shop-red-checkout"
+             - alert: CheckoutErrorBudgetBurn
+               expr: |
+                 learn_m15:checkout_errors:ratio_rate6h > (6 * 0.001)
+                 and
+                 learn_m15:checkout_errors:ratio_rate30m > (6 * 0.001)
+               labels:
+                 severity: page
+                 window: 6h
+               annotations:
+                 summary: "Checkout fails {{ $value | humanizePercentage }} of orders over the last 6 hours: the error budget burns fast."
+                 description: "SLO: 99.9% of PlaceOrder spans succeed over 30 days. Start with the dashboard, then find the failing span in an error trace."
+                 runbook_url: "http://grafana.lab.k8s.local/d/shop-red-checkout"
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: slo-load-2
+     namespace: learn-m15
+   spec:
+     restartPolicy: Never
+     containers:
+       - name: mimirtool
+         image: grafana/mimirtool:3.2.4
+         args: [rules, load, /rules/rules.yaml]
+         env:
+           - { name: MIMIR_ADDRESS, value: "http://mimir-gateway.mimir.svc" }
+           - { name: MIMIR_TENANT_ID, value: lab }
+         volumeMounts:
+           - { name: rules, mountPath: /rules }
+         resources:
+           requests: { cpu: 10m, memory: 32Mi }
+           limits: { cpu: 100m, memory: 128Mi }
+     volumes:
+       - name: rules
+         configMap: { name: m15-slo }
+   ```
+2. Apply it and read the load pod's log: <Cmd>{`kubectl apply -f m15-slo-v2.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m15 wait --for=jsonpath='{.status.phase}'=Succeeded pod/slo-load-2 --timeout=120s`}</Cmd> <Cmd>{`kubectl -n learn-m15 logs slo-load-2`}</Cmd> A line `updating group` names the first rule that differs: rule `#4`, the first alert.
+3. Remove the two load pods, which have done their work: <Cmd>{`kubectl -n learn-m15 delete pod slo-load slo-load-2`}</Cmd>
+4. After a minute, read the annotations the ruler now holds: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' 'http://10.10.0.5/prometheus/api/v1/rules?exclude_alerts=true' | grep -o '"runbook_url":"[^"]*"' | sort | uniq -c`}</Cmd> Two rules, one link. Without `exclude_alerts=true` the endpoint also returns each rule's active alerts with their annotations, and the `6h` alert, which can still fire from step 10, would add a third link.
+5. Open the link in your browser and check that it leads to the dashboard. Paste the `runbook_url` in the check below.
+</Do>
+
+<Done>
+Both alerts of your SLO group carry a summary with live numbers, a description with the first checks, and a runbook link. Step 14 shows them on a real page.
+</Done>
+
+<Trap practice>
+With `exclude_alerts=true` the rules API shows the annotation templates as written, with `{{ $value }}` in them. They are filled in only on an active alert, which the rules API embeds when you leave the parameter out, and which `/prometheus/api/v1/alerts` lists on its own; step 14 reads that one.
+</Trap>
+
+<Remember>
+Every paging alert carries `summary` with live numbers, `description` with the first checks, and `runbook_url`. Numbers go in annotations, never in labels.
+</Remember>
+
+<Question id="q-m15-s13" answer="c">
+An alert's annotation is `summary: "Error ratio is {{ $value }}"`. The expression is `job:errors:ratio_rate5m > 0.05`. The ratio is 0.12. What does the summary say?
+
+- "Error ratio is 0.05", the threshold
+
+  $value is the value of the alert's series, not the number it was compared with.
+
+- `"Error ratio is {{ $value }}"`, because annotations are not templated
+
+  Annotation values are templates; Prometheus fills them in at each evaluation.
+
+- "Error ratio is 0.12", the value of the series after the comparison
+
+  A comparison keeps the left side's value, so $value is the error ratio itself.
+
+- "Error ratio is 12%", because Prometheus formats ratios
+
+  Plain $value prints the number as it is; humanizePercentage would print 12%.
+</Question>
