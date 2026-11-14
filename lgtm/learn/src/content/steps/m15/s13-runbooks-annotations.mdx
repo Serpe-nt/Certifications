@@ -55,11 +55,13 @@ The SRE workbook adds that each new alert should come with its playbook entry, a
 
 ## Templates put the numbers in
 
-Annotations are templates, filled in at every evaluation. In a Prometheus or Mimir rule, `{{ $value }}` is the value of the alert and `{{ $labels.window }}` one of its labels. `humanizePercentage` prints the ratio `0.0153` as `1.53%`. For your SLO alert, `$value` is the left side of the `and`: the long window's error ratio.
+Annotations are templates, filled in at every evaluation. In a Prometheus or Mimir rule, `{{ $value }}` is the value of the alert and `{{ $labels.x }}` a label of the series the expression returned. `humanizePercentage` prints the ratio `0.0153` as `1.53%`. For your SLO alert, `$value` is the left side of the `and`: the long window's error ratio.
+
+A label that the rule adds itself, under `labels`, is not in `$labels`. A first version of this file used `{{ $labels.window }}`, and on the lab the page read "over : the error budget burns fast". The recorded series have no labels at all, so each alert carries its own text instead: "over the last hour" and "over the last 6 hours".
 
 <Layers caption="What the person paged reads">
   <Layer title="Labels">CheckoutErrorBudgetBurn, severity page, window 1h: which alert, how it is routed.</Layer>
-  <Layer title="summary">Checkout fails 35% of orders over 1h: what and how bad.</Layer>
+  <Layer title="summary">Checkout fails 3.054% of orders over the last hour: what and how bad.</Layer>
   <Layer title="description">The SLO and the first checks.</Layer>
   <Layer title="runbook_url" hot>Where to start: here, the checkout dashboard.</Layer>
 </Layers>
@@ -121,7 +123,7 @@ Do not put `{{ $value }}` into a label. A label that changes with every evaluati
                  severity: page
                  window: 1h
                annotations:
-                 summary: "Checkout fails {{ $value | humanizePercentage }} of orders over {{ $labels.window }}: the error budget burns fast."
+                 summary: "Checkout fails {{ $value | humanizePercentage }} of orders over the last hour: the error budget burns fast."
                  description: "SLO: 99.9% of PlaceOrder spans succeed over 30 days. Start with the dashboard, then find the failing span in an error trace."
                  runbook_url: "http://grafana.lab.k8s.local/d/shop-red-checkout"
              - alert: CheckoutErrorBudgetBurn
@@ -133,7 +135,7 @@ Do not put `{{ $value }}` into a label. A label that changes with every evaluati
                  severity: page
                  window: 6h
                annotations:
-                 summary: "Checkout fails {{ $value | humanizePercentage }} of orders over {{ $labels.window }}: the error budget burns fast."
+                 summary: "Checkout fails {{ $value | humanizePercentage }} of orders over the last 6 hours: the error budget burns fast."
                  description: "SLO: 99.9% of PlaceOrder spans succeed over 30 days. Start with the dashboard, then find the failing span in an error trace."
                  runbook_url: "http://grafana.lab.k8s.local/d/shop-red-checkout"
    ---

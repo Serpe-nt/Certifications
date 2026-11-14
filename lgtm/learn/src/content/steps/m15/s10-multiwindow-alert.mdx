@@ -53,8 +53,8 @@ The second paging condition does the same for slower loss: the 6-hour burn rate 
 
 <Timeline caption="A 100% outage of checkout, 99.9% SLO">
   <Event at="0:00" title="Errors start">Every order fails.</Event>
-  <Event at="about 1 min" title="1h condition fires">Both 1h and 5m error ratios pass 1.44%.</Event>
-  <Event at="about 3 min" title="6h condition fires">Both 6h and 30m pass 0.6%.</Event>
+  <Event at="about 2 min" title="1h condition fires">Both 1h and 5m error ratios pass 1.44%.</Event>
+  <Event at="about 4 min" title="6h condition fires">Both 6h and 30m pass 0.6%.</Event>
   <Event at="fix + about 5 min" title="1h condition resolves">The 5m window is clean again.</Event>
   <Event at="fix + about 30 min" title="6h condition resolves">The 30m window is clean again.</Event>
 </Timeline>
@@ -156,9 +156,9 @@ Two alerts with the same name and the same labels would be one alert. The label 
 2. Load it and read what `mimirtool` did: <Cmd>{`kubectl apply -f m15-slo.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m15 wait --for=jsonpath='{.status.phase}'=Succeeded pod/slo-load --timeout=120s`}</Cmd> <Cmd>{`kubectl -n learn-m15 logs slo-load`}</Cmd> The log names the group `checkout-slo` in the namespace `learn-m15`.
 3. After a minute or two, read the rules' state from the ruler: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/rules | grep -o '"health":"[a-z]*"' | sort | uniq -c`}</Cmd> The answer is `6 "health":"ok"`: all six rules have run without error. In Grafana, <LabLink to="grafana" path="/alerting/list">Alert rules</LabLink> lists them under Mimir, `learn-m15`, `checkout-slo`.
 4. Read the flag screen's API: <Cmd>{`curl -s -H 'Host: flags.lab.k8s.local' http://10.10.0.5/feature/api/read | grep -o '"defaultVariant":"[^"]*"' | sort | uniq -c`}</Cmd> Every flag is `off`. Note the time in UTC, then open <LabLink to="flags" path="/feature">the flag screen</LabLink> and set `paymentFailure` to `100%`.
-5. Every 30 seconds, read the alerts: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/alerts; echo`}</Cmd> TODO-FIRE
+5. Every 30 seconds, read the alerts: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/alerts; echo`}</Cmd> The alert with `"window":"1h"` fires about two minutes after the flag: the 1-hour ratio passes 1.44% after about 52 seconds of failed orders (step 9), and the span metrics and the ruler's one-minute interval add about a minute. The alert with `"window":"6h"` needs 0.6% of six hours of orders, about 2.2 minutes of failed orders, so it fires about four minutes after the flag. Each answer shows `"state":"firing"`, the label `window` and a `value`.
 6. As soon as both have fired, set `paymentFailure` back to `off` on the flag screen and note the time. Read the flag API of action 4 again: every flag is `off`.
-7. Keep reading the alerts of action 5 every minute. TODO-RESOLVE Note which `window` disappears first, and paste it in the check below.
+7. Keep reading the alerts of action 5 every minute. The `1h` alert disappears about five to seven minutes after the flag went off, once the 5-minute window holds no failed order. The `6h` alert stays for about half an hour more, until the 30-minute window is clean; you need not wait for it. Note which `window` disappears first, and paste it in the check below.
 </Do>
 
 <Done>
