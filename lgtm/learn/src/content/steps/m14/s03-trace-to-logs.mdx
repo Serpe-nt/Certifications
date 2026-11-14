@@ -1,0 +1,111 @@
+---
+id: m14-s03
+title: From a trace to its logs
+kind: lab
+minutes: 15
+order: 3
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [correlation-trace-logs, correlation]
+check:
+  kind: regex
+  prompt: Paste the LogQL query that Related logs ran for the span you chose.
+  pattern: '\{service_name="[a-z-]+"\} \| trace_id="[0-9a-f]{32}"'
+outcome: You can open the log lines of one span from the trace view, read the Tempo data source's trace to logs settings, and say what would make the link return nothing.
+terms:
+  - term: Trace to logs
+    def: A setting of the Tempo data source that builds a log query from a span and opens it in a log data source.
+  - term: Tag mapping
+    def: A pair that turns a span attribute, such as service.name, into a log label, such as service_name.
+  - term: Time shift
+    def: How far before the span's start and after its end the log query searches.
+sources:
+  - title: Configure trace to logs correlation (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-logs/
+    checked: 2026-11-14
+  - title: Traces in Explore, trace view (Grafana)
+    url: https://grafana.com/docs/grafana/latest/explore/trace-integration/
+    checked: 2026-11-14
+  - title: Ingesting logs to Loki using OpenTelemetry Collector (Grafana Loki)
+    url: https://grafana.com/docs/loki/latest/send-data/otel/
+    checked: 2026-11-14
+  - title: Logs data model, trace context fields (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/data-model/
+    checked: 2026-11-14
+---
+
+<Problem>
+A trace shows that the span `charge` of the payment service failed. Its status message is short. The payment service wrote more about the failure in its log, but Loki holds thousands of payment lines from the same minute. You want only the lines of this one request, without copying IDs by hand.
+</Problem>
+
+<Idea>
+The Tempo data source can turn a span into a Loki query. It maps the span's `service.name` to the Loki label `service_name`, adds a filter on the trace ID, and searches a time window around the span. The link works only when the log lines carry the same service label and the trace ID.
+</Idea>
+
+## What the query is made of
+
+The lab's Tempo data source builds a custom query: `{${__tags}} | trace_id="${__trace.traceId}"`. Grafana fills `${__tags}` from the tag mappings. Here there is one: the span attribute `service.name` becomes the label `service_name`, because Loki stores OpenTelemetry resource attributes with underscores instead of dots. Grafana fills `${__trace.traceId}` with the trace ID. The result is a stream selector for one service and a filter on the structured metadata field `trace_id`. Grafana searches from 5 minutes before the span starts to 5 minutes after it ends, because log lines are not written at the exact moment a span starts or ends.
+
+## Why both halves are needed
+
+The stream selector keeps the query cheap: Loki opens only the streams of one service. The filter on `trace_id` keeps the result to one request. The OpenTelemetry log data model has optional fields for a trace ID and a span ID. When a service writes a log line inside a span, its SDK fills them, and Loki keeps them as structured metadata. A line written outside any span has no trace ID, and this query cannot find it.
+
+## What breaks it
+
+Grafana's documentation names the usual faults, and none of them shows an error. A tag that maps to a label name Loki does not have, for example `service.name` without the rename to `service_name`, matches no stream. A span without any of the mapped attributes gets no logs link at all. A time shift of zero can miss lines written a moment before or after the span. And a service that writes its logs without the trace context returns nothing, even when the query is right.
+
+<Compare caption="Two halves of the generated query">
+  <Col title="Stream selector">From the tag mapping, such as `{service_name="payment"}`. Picks the streams of one service.</Col>
+  <Col title="Trace ID filter" hot>From the trace, `| trace_id="..."`. Keeps the lines of one request.</Col>
+</Compare>
+
+<InLab>
+In Grafana 13.3, the link is called **Related logs** on the span and in the trace header. Grafana's documentation still calls it **Logs for this span**.
+</InLab>
+
+<Trap>
+An empty result does not prove that the service wrote no logs. First read the query Grafana built: a label name or a time window can be wrong while the logs exist.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, pick the data source `tempo`, choose the query type **TraceQL**, set the time range to the last 15 minutes and find recent payments: <Query lang="traceql">{`{ resource.service.name = "payment" && name = "charge" }`}</Query>
+2. Open one trace from the table. In the trace view, click the row of the span `charge` of `opentelemetry-demo/payment` to open its details.
+3. In the span details, click **Related logs**. Loki opens in a split pane. Read the query at the top of the Loki pane and the log lines below it.
+4. Expand one log line and check that its `trace_id` is the trace ID shown in the trace header.
+5. Open **Connections** > **Data sources** > **Tempo** and scroll to **Trace to logs**. Read the data source, the two time shifts, the tag `service.name` as `service_name`, and the custom query. Change nothing.
+6. Copy the LogQL query from action 3 and paste it in the check below.
+</Do>
+
+<Done>
+The Loki pane showed the lines of payment that belong to this one trace, and you found each part of its query in the Tempo data source's settings.
+</Done>
+
+<Trap practice>
+If the TraceQL search returns nothing, widen the time range to 30 minutes; the load generator places an order about once a minute. Copy the query from the Loki pane, not from the settings page, where it still holds the variables.
+</Trap>
+
+<Remember>
+Trace to logs is a query that Grafana builds: a service label from the tag mapping, the trace ID as a filter, and a time window around the span.
+</Remember>
+
+<Question id="q-m14-s03" answer="a">
+A team's Tempo data source maps the tag `service.name` without renaming it. Their services send logs to Loki over OTLP. What happens when they click the logs link on a span?
+
+- The query uses the label `service.name`, which matches no Loki stream
+
+  Loki stores the attribute as `service_name`. A custom tag must be given the Loki name explicitly.
+
+- Grafana renames the tag to `service_name` on its own
+
+  Grafana renames `service.name` only in its default tags, when no tags are configured.
+
+- The link shows lines of every service with that trace ID
+
+  The tag still becomes part of the stream selector, so the query is not widened to every service.
+
+- The link does not appear on any span
+
+  The link appears, because the span carries the attribute `service.name`. The query it builds is what fails.
+</Question>

@@ -1,0 +1,6 @@
+id: m14
+title: Correlation and incident debugging
+goal: Go from an alert to a cause across metrics, traces and logs, with evidence, in a few minutes.
+order: 14
+quiz: true
+exams: [otca]

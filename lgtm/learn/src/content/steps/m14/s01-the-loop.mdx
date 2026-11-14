@@ -1,0 +1,103 @@
+---
+id: m14-s01
+title: "The loop: symptom, metric, trace, log, cause"
+kind: concept
+minutes: 10
+order: 1
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [incident-loop, analysis]
+outcome: You can name the five moves of an investigation, say which signal answers which question, and tell evidence from a coincidence.
+terms:
+  - term: Symptom
+    def: What users feel, such as failed orders or slow pages. The place an investigation starts.
+  - term: Hypothesis
+    def: A possible cause that you can test against the data.
+  - term: Evidence
+    def: A fact from the data that confirms one hypothesis and rules the others out.
+  - term: Red herring
+    def: A signal that changes at the same time as the fault but does not cause it.
+sources:
+  - title: Effective troubleshooting (Google SRE book, chapter 12)
+    url: https://sre.google/sre-book/effective-troubleshooting/
+    checked: 2026-11-14
+  - title: Monitoring distributed systems (Google SRE book, chapter 6)
+    url: https://sre.google/sre-book/monitoring-distributed-systems/
+    checked: 2026-11-14
+  - title: Observability primer (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/observability-primer/
+    checked: 2026-11-14
+  - title: Introduction to exemplars (Grafana)
+    url: https://grafana.com/docs/grafana/latest/fundamentals/exemplars/
+    checked: 2026-11-14
+  - title: Configure trace to logs correlation (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-logs/
+    checked: 2026-11-14
+---
+
+<Problem>
+It is 02:10 and a message says "checkout is failing". Grafana is open, with metrics, traces and logs from ten services. You could open twenty dashboards and read every log line. Twenty minutes later you would still not know which service broke, or why.
+</Problem>
+
+What helps at that moment is a fixed order of moves, so that each answer tells you where to look next.
+
+<Idea>
+An investigation is a loop. Start from the symptom users feel, use a metric to find when and where it happens, open one trace that shows it, and read the log lines of that trace. From them you form a guess about the cause, and you test it against the data until one piece of evidence proves it.
+</Idea>
+
+<Flow caption="One turn of the loop">
+  <Stage title="Symptom" kicker="Users">Orders fail, pages are slow.</Stage>
+  <Stage title="Metric" kicker="When and where">Which service, which call, since when.</Stage>
+  <Stage title="Trace" kicker="Which request">One request that shows the fault, span by span.</Stage>
+  <Stage title="Log" kicker="What the code saw">The error message of that request.</Stage>
+</Flow>
+
+## Start from what users feel
+
+Begin with the symptom: an alert or a complaint about something users notice, such as failed orders or slow pages. A symptom tells you the problem is real and how bad it is. If many users are hurt, the first job is to stop the damage. Google's SRE book calls this triage, and it comes before the search for a root cause. Keep the evidence while you do it, so you can find the cause afterwards.
+
+## Each signal answers one question
+
+A metric answers "when, where and how much". It shows the minute the error ratio rose and the service and the call where it rose, and you can compare it with a quiet hour. A metric cannot show one request. A trace can: it shows the path of a single request through the services, with the time spent and the status of every step. A log line holds what the code wrote at that moment, often the exact error message. So each move narrows the search, and the signals hand over to each other through shared values: a trace ID, a service name, a time.
+
+## Moving between the signals
+
+In this lab you rarely type the next query yourself. A latency graph carries exemplars, which are trace IDs of real requests, so a click opens one slow request. A span in a trace links to the log lines with the same trace ID. A log line links back to its trace, and a span links to the metrics of its service. Steps 2 to 5 take each of these links apart.
+
+## Evidence, not coincidence
+
+Every fault makes many things move at the same time. The SRE book warns that correlation is not causation: two graphs that rise together may share a cause, or may just happen together. So treat each finding as a hypothesis and test it. Ask what else would be true if it were the cause, and look for that. A value that is on every failed request may also be on many requests that succeed. The investigation ends when one piece of evidence explains the symptom and rules the other guesses out: an error message, a status code, a product ID.
+
+<InLab>
+The data sources `mimir`, `tempo` and `loki` are wired to each other in this lab: exemplars on `mimir` open traces in `tempo`, spans in `tempo` link to logs in `loki` and to metrics in `mimir`, and log lines in `loki` link back to `tempo`.
+</InLab>
+
+<Trap>
+The first thing that looks wrong is not always the cause. A busy CPU or one unusual attribute during an incident may be a red herring. Check whether it is also there when nothing fails.
+</Trap>
+
+<Remember>
+Symptom, metric, trace, log, cause. Each move narrows the search, and the investigation ends with one piece of evidence, not with a feeling.
+</Remember>
+
+<Question id="q-m14-s01" answer="c">
+During an incident, a colleague sees that every failed order in the traces has the attribute `region="eu"` and says the European region is the cause. What should you check first?
+
+- Whether the error ratio of the European region is above 50%
+
+  A high error ratio in one region does not show that the region causes the errors. You need to compare with the requests that succeed.
+
+- Whether the European region also has the highest latency
+
+  Latency is another symptom. It does not test whether the attribute explains the failures.
+
+- Whether the orders that succeed also carry `region="eu"`
+
+  If most successful orders carry it too, the attribute is a coincidence and not the cause.
+
+- Whether the log lines of the failed orders mention Europe
+
+  The logs may mention the region for every order. That repeats the same finding instead of testing it.
+</Question>
