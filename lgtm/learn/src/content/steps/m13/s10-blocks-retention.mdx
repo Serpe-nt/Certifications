@@ -1,0 +1,118 @@
+---
+id: m13-s10
+title: Blocks, vParquet and retention
+kind: lab
+minutes: 15
+order: 10
+exam:
+  - cert: none
+tags: [tempo-storage]
+check:
+  kind: exact
+  prompt: What block retention does the backend scheduler run with? Paste the value exactly as action 4 shows it.
+  answers: ["48h0m0s"]
+outcome: You can say what a Tempo block holds and why it is columnar, follow a block from the block-builder through compaction to deletion, and read the retention the lab enforces.
+terms:
+  - term: Block
+    def: A folder in object storage under tenant/block ID, with the spans in data.parquet, a meta.json, bloom filters and an index.
+  - term: vParquet5
+    def: The block format Tempo 3.1 writes by default, a nested Parquet schema with one row per trace.
+  - term: Compaction
+    def: Merging several small blocks of the same time window into one larger block, so queriers open fewer blocks.
+  - term: Blocklist
+    def: The list of blocks per tenant that each component keeps in memory and refreshes by polling the object store.
+  - term: Dedicated column
+    def: An attribute promoted from the generic attribute map to a Parquet column of its own, so queries on it read less.
+sources:
+  - title: Block format (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/block-format/
+    checked: 2026-11-14
+  - title: Apache Parquet block format (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/configuration/parquet/
+    checked: 2026-11-14
+  - title: Compaction (operations)
+    url: https://grafana.com/docs/tempo/v3.1.x/operations/compaction/
+    checked: 2026-11-14
+  - title: Compaction (backend scheduler and worker)
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/compaction/
+    checked: 2026-11-14
+  - title: Block-builder
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/block-builder/
+    checked: 2026-11-14
+---
+
+<Problem>
+The lab promises 48 hours of traces. A block-builder writes a few new blocks every five minutes, so after two days a tenant would have hundreds of small blocks, and a search over the whole range would open every one. Something must merge them, and something must delete them on time.
+</Problem>
+
+<Idea>
+A Tempo block is a Parquet file of whole traces plus the metadata that makes it findable. The backend scheduler hands out compaction jobs that merge small blocks of the same hour and retention jobs that delete blocks past the retention period; backend workers run them. A block is visible to queries only once its `meta.json` exists.
+</Idea>
+
+## What a block-builder writes
+
+Each cycle, a block-builder writes one or more blocks per tenant and partition. A block is a folder `TENANT/BLOCKID/` in the bucket. `data.parquet` holds the spans, and `meta.json` holds the block's time range, tenant and number of traces. Bloom filters and an index let a querier find a trace ID without reading the data. The block-builder writes `meta.json` last: until it exists, no querier sees the block, so a crash in the middle leaves nothing half visible. The IDs of its blocks are derived from the partition, tenant and Kafka offsets, so a retry after a crash writes the same block again instead of a second copy.
+
+## Why Parquet
+
+Parquet stores data by column. A TraceQL condition such as `span.http.response.status_code = 500` reads the column of that attribute, not whole traces. Each row of a Tempo block is one trace; its spans are nested inside it, under their resource and scope. A few fields, such as `service.name`, the span name, kind, status and duration, have columns of their own. Other attributes sit in a generic attribute map that is slower to scan, unless an operator promotes them to dedicated columns. Tempo 3.1 writes the format vParquet5 by default; vParquet4 can still be chosen, and vParquet3 can no longer be written.
+
+## Compaction and retention
+
+The backend scheduler is a single pod. Every cycle it looks at each tenant's blocklist and creates compaction jobs: groups of two to four blocks of the same one-hour window and level, smallest first. A backend worker merges each group into one block and marks the inputs compacted by renaming their `meta.json` to `meta.compacted.json`. The old blocks stay readable for one more hour, because other components only learn about the new block when they next poll the bucket, every five minutes.
+
+Retention is a job of its own, created once an hour: it deletes blocks whose data is older than the retention period. The period is `block_retention`, 48 hours in this lab. A trace is therefore kept between 48 and about 49 hours.
+
+<Timeline caption="Life of a block in this lab">
+  <Event at="0 to 5 min" title="Built">A block-builder flushes the cycle's spans as a level-0 block.</Event>
+  <Event at="minutes later" title="Compacted">A backend worker merges it with others of the same hour.</Event>
+  <Event at="+1 h" title="Old copy deleted">The compacted inputs are removed after one hour.</Event>
+  <Event at="48 h" title="Deleted">The next hourly retention job removes the block.</Event>
+</Timeline>
+
+<InLab>
+The lab sets `block_retention: 48h` under the backend scheduler in `lgtm/lab/helm/tempo/values.yaml`, matching the 48 hours the lab keeps logs. The rest is Tempo's defaults: a one-hour compaction window, one hour for compacted blocks, a blocklist poll every five minutes. The bucket is `tempo-traces` in the lab's object store.
+</InLab>
+
+<Trap>
+Compaction does not shorten retention. It changes how many blocks hold the data; only retention jobs delete it, by age.
+</Trap>
+
+<Do>
+1. In WSL, read the newest jobs of the backend scheduler: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-scheduler-0:3200/proxy/status/backendscheduler | head -12`}</Cmd> Each row is a job with its tenant, type, status, the worker that ran it and its times. Compaction jobs come every few minutes.
+2. Read how many blocks each tenant has, and how many were compacted at each level: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-worker-0:3200/proxy/metrics | grep -E '^tempodb_(blocklist_length|compaction_blocks_total)'`}</Cmd> Tenant `lab` has a few dozen live blocks; your tenant `learn-m13` has a few.
+3. Read what retention has done since the worker started: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-worker-0:3200/proxy/metrics | grep -E '^tempodb_retention'`}</Cmd> `tempodb_retention_deleted_total` counts blocks deleted for age or after compaction.
+4. Read the settings the scheduler runs with: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-scheduler-0:3200/proxy/status/config | grep -E '^ +(block_retention|compacted_block_retention|compaction_window|blocklist_poll):'`}</Cmd> Paste the value of `block_retention` in the check below.
+</Do>
+
+<Done>
+You saw compaction jobs being handed out and finished, the number of live blocks per tenant, and the retention period the lab enforces.
+</Done>
+
+<Trap practice>
+The lab's object store has a console, but its keys are a Secret; this step does not need them. Everything about blocks that a learner needs is on the scheduler's status page and in the worker's metrics.
+</Trap>
+
+<Remember>
+A block is Parquet plus `meta.json`, invisible until `meta.json` is written. Compaction merges blocks of the same hour; retention deletes them after 48 hours here.
+</Remember>
+
+<Question id="q-m13-s10" answer="c">
+A query in Tempo that filters on `span.customer.tier` is slow, while a query on the span name over the same range is fast. What change helps the first one most?
+
+- Lower the block retention so that fewer blocks exist
+
+  Retention removes old data. It does not change how an attribute is stored in the blocks that remain.
+
+- Run more backend workers so compaction finishes sooner
+
+  Fewer blocks help every query a little. The attribute is still read from the generic map in each block.
+
+- Add `customer.tier` as a dedicated column of scope span
+
+  A dedicated column stores the attribute in its own Parquet column, so the query stops scanning the generic attribute map.
+
+- Switch the block format back to vParquet3
+
+  Tempo 3.1 refuses to write vParquet3, and the older format has fewer dedicated columns, not more.
+</Question>

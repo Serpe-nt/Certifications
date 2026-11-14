@@ -1,0 +1,109 @@
+---
+id: m13-s07
+title: TraceQL metrics
+kind: drill
+minutes: 20
+order: 7
+exam:
+  - cert: none
+tags: [traceql-metrics]
+check:
+  kind: exact
+  prompt: Paste the maximum time range of a metrics query on this lab, exactly as the error of action 4 writes it.
+  answers: ["3h0m0s"]
+outcome: You can turn a TraceQL selector into a time series with rate, count and quantile functions, group it with by(), and say what limits a metrics query on this lab.
+terms:
+  - term: TraceQL metrics
+    def: A TraceQL query that ends in a function such as rate() or quantile_over_time() and returns time series computed from stored spans at query time.
+  - term: quantile_over_time()
+    def: A TraceQL metrics function that returns a percentile of a numeric field, such as span:duration, per step.
+  - term: Exemplar
+    def: A trace ID attached to a point of a time series, so you can open a trace that contributed to that value.
+sources:
+  - title: TraceQL metrics
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/
+    checked: 2026-11-14
+  - title: TraceQL metrics functions
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/functions/
+    checked: 2026-11-14
+  - title: Configure TraceQL metrics
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/configure-traceql-metrics/
+    checked: 2026-11-14
+  - title: Metrics-generator, local-blocks removed (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-generator/
+    checked: 2026-11-14
+  - title: Tempo 3.0 release notes, TraceQL metrics
+    url: https://grafana.com/docs/tempo/v3.1.x/release-notes/v3-0/
+    checked: 2026-11-14
+  - title: Metrics from traces (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/
+    checked: 2026-11-14
+---
+
+<Problem>
+A product manager asks how many checkouts per second include a payment over 2 ms, split by service version. No metric has that label combination, and nobody wants a new metric for one question. The spans to answer it are already in Tempo.
+</Problem>
+
+<Idea>
+A TraceQL metrics query is a selector followed by a function such as `rate()`, `count_over_time()` or `quantile_over_time()`. Tempo runs it over the stored spans when you ask and returns time series, like a PromQL range query. Any attribute can be a filter or a group, so a one-off question needs no new metric.
+</Idea>
+
+## From spans to series
+
+The selector picks spans, as in steps 5 and 6. The function after the pipe turns them into numbers per time step. `rate()` counts matching spans per second. `count_over_time()` counts them per step. `sum_over_time()`, `min_over_time()`, `max_over_time()` and `avg_over_time()` take a numeric field, and `quantile_over_time(span:duration, .95)` returns the 95th percentile, in seconds when the field is a duration. `histogram_over_time()` returns buckets for a heat map. `by()` after the function splits the result into one series per value, and `topk(n)` keeps the largest n series.
+
+On the lab, `{ resource.service.name = "product-catalog" && span:kind = server } | quantile_over_time(span:duration, .95)` returned about 0.0075, so 7.5 ms, for the last ten minutes. `{ span:kind = server } | rate() by (resource.service.name) | topk(3)` named frontend-proxy, frontend and flagd. Tempo 3.1 also lets you divide one metrics query by another, each in parentheses, to get a ratio such as an error percentage in one query.
+
+## Where the numbers come from
+
+Tempo 2 needed a processor in the metrics-generator to make recent data available to these queries. Tempo 3 removed it: the live-stores answer for recent spans, and the queriers read blocks for older ones. The query frontend's setting `query_backend_after`, 15 minutes here, divides the two. The metrics-generator is not involved at all; TraceQL metrics are general availability in Tempo 3.0, and alerting on them is still experimental.
+
+Because a metrics query reads raw spans, it is far more expensive than a PromQL query on span metrics. Tempo limits its time range with `query_frontend.metrics.max_duration`. The documentation gives a default of 24 hours; this lab's Tempo runs with 3 hours and refuses anything longer with HTTP 400. The API's answer also carries exemplars: for each point, trace IDs of spans behind it, up to 100 per query on this lab.
+
+<Compare caption="Two ways to get RED numbers from traces">
+  <Col title="Span metrics">Made by the metrics-generator as spans arrive, stored in Mimir, cheap to query, fixed labels. Step 8.</Col>
+  <Col title="TraceQL metrics" hot>Made at query time from stored spans, any attribute as a filter or label, expensive, limited to 3 hours here.</Col>
+</Compare>
+
+<InLab>
+TraceQL metrics work on this lab with no extra setting: the metrics-generator runs only `service-graphs` and `span-metrics`, and that does not matter for them. Grafana's Traces Drilldown, step 11, is built on these queries.
+</InLab>
+
+<Trap>
+Span metrics and TraceQL metrics over the same spans do not always agree. They run on different paths: spans that arrive late are stored but not counted by the metrics-generator, and the generator's series limits can fold detail into an overflow series.
+</Trap>
+
+<Do>
+1. In <LabLink to="grafana" path="/explore">Explore</LabLink>, data source `tempo`, query type **TraceQL**, time range **Last 15 minutes**, run: <Query lang="traceql">{`{ resource.service.name = "checkout" && span:kind = server } | rate()`}</Query> A graph replaces the trace table: checkout's server spans per second.
+2. Ask for a percentile: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && span:kind = server } | quantile_over_time(span:duration, .95)`}</Query> The values are seconds; product-catalog answers in a few milliseconds.
+3. Group and rank: <Query lang="traceql">{`{ span:kind = server } | rate() by (resource.service.name) | topk(3)`}</Query> Three services with the most server spans per second.
+4. In WSL, ask the API for four hours of the same series: <Cmd>{`curl -s -G -H 'Host: tempo.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/api/metrics/query_range --data-urlencode 'q={ resource.service.name = "checkout" && span:kind = server } | rate()' --data-urlencode "start=$(( $(date +%s) - 14400 ))" --data-urlencode "end=$(date +%s)"; echo`}</Cmd> Tempo refuses it. Paste the maximum duration from the message in the check below.
+</Do>
+
+<Done>
+You turned selectors into rates, a percentile and a ranking, and found the time range limit of metrics queries on this lab.
+</Done>
+
+<Trap practice>
+If Explore shows a trace table instead of a graph, the query has no metrics function at the end. If a metrics query times out, shorten the time range before you blame Tempo.
+</Trap>
+
+<Question id="q-m13-s07" answer="d">
+On this lab, which query returns the 99th percentile duration of checkout's server spans, one series per `rpc.method`?
+
+- `{ resource.service.name = "checkout" && span:kind = server } | quantile_over_time(.99) by (span.rpc.method)`
+
+  The function needs the field it measures first, such as `span:duration`, then the quantile.
+
+- `{ resource.service.name = "checkout" && span:kind = server } | avg(span:duration) > 99ms`
+
+  This is a span set aggregate that keeps traces. It returns traces, not a series.
+
+- `{ resource.service.name = "checkout" && span:kind = server } | by(span.rpc.method) | count() > 99`
+
+  This groups spans inside each trace and keeps traces with more than 99 of them.
+
+- `{ resource.service.name = "checkout" && span:kind = server } | quantile_over_time(span:duration, .99) by (span.rpc.method)`
+
+  The function takes the duration field and the quantile, and by() splits the result per method.
+</Question>

@@ -1,0 +1,170 @@
+---
+id: m13-s03
+title: Sending traces, and a tenant of your own
+kind: lab
+minutes: 25
+order: 3
+exam:
+  - cert: none
+tags: [tempo-ingest]
+check:
+  kind: exact
+  prompt: How many traces did the search of action 7 return as tenant lab? Paste the number.
+  answers: ["0"]
+outcome: You can follow a span from the shop through the collector gateway to Tempo, send spans of your own to a practice tenant, and read them back with curl and the tenant header.
+terms:
+  - term: X-Scope-OrgID
+    def: The HTTP header that names the tenant. Tempo stores and searches each tenant's spans apart from the others.
+  - term: OTLP/HTTP with JSON
+    def: The OpenTelemetry protocol over HTTP with a JSON body, sent to /v1/traces. Easy to write by hand for a test.
+  - term: Trace ID
+    def: 16 bytes written as 32 hex characters, shared by every span of one trace.
+sources:
+  - title: Distributor
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/distributor/
+    checked: 2026-11-14
+  - title: Push spans with HTTP (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/api_docs/pushing-spans-with-http/
+    checked: 2026-11-14
+  - title: Tempo HTTP API
+    url: https://grafana.com/docs/tempo/v3.1.x/api_docs/
+    checked: 2026-11-14
+  - title: Enable multitenancy (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/operations/manage-advanced-systems/multitenancy/
+    checked: 2026-11-14
+---
+
+<Problem>
+A colleague tests a new service by sending spans to the lab, and they land among the shop's traces in tenant `lab`. Now the shop's span metrics count a service that does not exist, and every search shows test traces. You want to try Tempo's API freely, but without touching what everyone else reads.
+</Problem>
+
+<Idea>
+Tempo keeps every tenant apart: the header `X-Scope-OrgID` on a write says where the spans go, and the same header on a read says where to look. The shop's spans reach Tempo through the collector gateway as tenant `lab`. Yours go straight to a distributor as tenant `learn-m13`, and you read them with curl.
+</Idea>
+
+## The road of a shop span
+
+A service of the shop sends its spans over OTLP to the collector gateway in the namespace `otel`. The gateway's traces pipeline adds Kubernetes attributes and the label `cluster`, cleans and redacts some attributes, batches the spans, and sends them with its exporter `otlp_grpc/tempo` to `tempo-distributor.tempo.svc:4317`. That exporter sets the header `X-Scope-OrgID: lab`, so every span of the shop is in tenant `lab`. The distributor writes them to Kafka, as step 2 showed.
+
+<Flow caption="Two ways into Tempo in this lab">
+  <Stage title="Shop service" kicker="OTLP">Spans to the collector gateway.</Stage>
+  <Stage title="Collector gateway" kicker="otel">Processors, then tenant lab.</Stage>
+  <Stage title="Distributor" kicker="tempo">Your pod writes here directly, as learn-m13.</Stage>
+</Flow>
+
+## A trace of your own
+
+The distributor accepts OTLP over gRPC on port 4317 and over HTTP on port 4318. Over HTTP, a JSON body on `/v1/traces` is enough, which makes a test sender a few lines of shell. In the JSON form of OTLP, the trace ID is 32 hex characters and a span ID 16, the times are nanoseconds since 1970 as strings, and `kind` and the status code are numbers: kind 2 is server, kind 3 is client, status code 2 is error.
+
+Every request needs a tenant, because multi-tenancy is on in this lab. Without the header, Tempo refuses with the message `no org id`: on this lab a write of a span got HTTP `503` from the distributor, and a read got `401` from the query frontend. With the header, it accepts the spans and keeps them apart from every other tenant, from Kafka to the blocks.
+
+## Why Grafana does not show your spans
+
+Grafana's data source `tempo` sends `X-Scope-OrgID: lab` with every query. It cannot see tenant `learn-m13`, and nothing in its search will ever list your service. That is the point of a practice tenant: you read it with curl and the header, through the lab's address `tempo.lab.k8s.local`, which reaches the query frontend.
+
+The two read APIs behave differently when the trace is not in your tenant. `/api/v2/traces/ID` answers `200` with an empty trace, `{"trace":{},"metrics":{}}`; the older `/api/traces/ID` answers `404`. An empty answer from the first one means "not in this tenant", not "Tempo is broken".
+
+<InLab>
+Tempo's metrics-generator runs for every tenant in this lab, so your spans also become span metrics, written to Mimir as tenant `learn-m13`. Tenant `lab` stays clean.
+</InLab>
+
+<Trap>
+The tenant is a header, not part of the address. The same URL without the header fails, and with another tenant's name it finds nothing.
+</Trap>
+
+<Do>
+1. In WSL, read how the collector gateway sends the shop's spans: <Cmd>{`kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' | grep -A5 'otlp_grpc/tempo:'`}</Cmd> You see the endpoint `tempo-distributor.tempo.svc:4317` and the header `X-Scope-OrgID: lab`.
+2. Create the practice namespace of this module: <Cmd>{`kubectl create namespace learn-m13`}</Cmd>
+3. Save this as `m13-writer.yaml`. A ConfigMap holds one trace of three spans as OTLP JSON. A small pod fills in a new trace ID and the current second, and posts it every 20 seconds as tenant `learn-m13`:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: writer-body
+     namespace: learn-m13
+   data:
+     body.json: |
+       {"resourceSpans": [{
+         "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "m13-writer"}}]},
+         "scopeSpans": [{"scope": {"name": "m13-practice"}, "spans": [
+           {"traceId": "TRACE", "spanId": "1000000000000001", "name": "place-order", "kind": 2,
+            "startTimeUnixNano": "SECS000000000", "endTimeUnixNano": "SECS120000000",
+            "attributes": [{"key": "order.items", "value": {"intValue": "3"}}]},
+           {"traceId": "TRACE", "spanId": "1000000000000002", "parentSpanId": "1000000000000001",
+            "name": "reserve-stock", "kind": 3,
+            "startTimeUnixNano": "SECS005000000", "endTimeUnixNano": "SECS025000000"},
+           {"traceId": "TRACE", "spanId": "1000000000000003", "parentSpanId": "1000000000000001",
+            "name": "charge-card", "kind": 3,
+            "startTimeUnixNano": "SECS030000000", "endTimeUnixNano": "SECS110000000",
+            "status": {"code": 2, "message": "card declined"}}
+         ]}]
+       }]}
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: writer
+     namespace: learn-m13
+   spec:
+     containers:
+       - name: writer
+         image: curlimages/curl:8.23.0
+         command: [/bin/sh, -c]
+         args:
+           - |
+             while true; do
+               t=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
+               sed -e "s/TRACE/$t/g" -e "s/SECS/$(date +%s)/g" /body/body.json > /tmp/body.json
+               code=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Scope-OrgID: learn-m13' \
+                 -H 'Content-Type: application/json' --data @/tmp/body.json \
+                 http://tempo-distributor.tempo.svc:4318/v1/traces)
+               echo "$(date -u +%H:%M:%S) trace $t status $code"
+               sleep 20
+             done
+         volumeMounts:
+           - { name: body, mountPath: /body }
+         resources:
+           requests: { cpu: 10m, memory: 16Mi }
+           limits: { cpu: 50m, memory: 32Mi }
+     volumes:
+       - name: body
+         configMap: { name: writer-body }
+   ```
+4. Apply it and wait for the pod: <Cmd>{`kubectl apply -f m13-writer.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m13 wait --for=condition=Ready pod/writer --timeout=120s`}</Cmd> After a minute, read its log: <Cmd>{`kubectl -n learn-m13 logs writer --tail=3`}</Cmd> Every line ends in `status 200`. Keep the pod: step 10 finds its blocks, and step 13 deletes the namespace.
+5. Copy the newest trace ID from the log and read the trace back as your tenant. Replace TRACEID with it: <Cmd>{`curl -s -H 'Host: tempo.lab.k8s.local' -H 'X-Scope-OrgID: learn-m13' http://10.10.0.5/api/v2/traces/TRACEID | grep -o '"name":"[a-z-]*"'`}</Cmd> You see the three span names. Run it again with `X-Scope-OrgID: lab`, and once without the header: the first answers an empty trace, the second `no org id`.
+6. Search your tenant for the last ten minutes: <Cmd>{`curl -s -G -H 'Host: tempo.lab.k8s.local' -H 'X-Scope-OrgID: learn-m13' http://10.10.0.5/api/search --data-urlencode 'q={ resource.service.name = "m13-writer" }' --data-urlencode "start=$(( $(date +%s) - 600 ))" --data-urlencode "end=$(date +%s)" | grep -o '"traceID":"[0-9a-f]*"' | wc -l`}</Cmd> The search returns your traces, up to 20, the default limit.
+7. Run the same search as tenant `lab`: <Cmd>{`curl -s -G -H 'Host: tempo.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/api/search --data-urlencode 'q={ resource.service.name = "m13-writer" }' --data-urlencode "start=$(( $(date +%s) - 600 ))" --data-urlencode "end=$(date +%s)" | grep -o '"traceID":"[0-9a-f]*"' | wc -l`}</Cmd> Paste the number in the check below.
+</Do>
+
+<Done>
+Your pod wrote a trace every 20 seconds as `learn-m13`. You read it back by ID and by search with that header, and tenant `lab` did not see it.
+</Done>
+
+<Trap practice>
+If the search finds nothing in the first seconds, wait. A live-store makes a trace searchable only after it has received no new span for a few seconds; a read by trace ID works sooner.
+</Trap>
+
+<Remember>
+The header `X-Scope-OrgID` decides where spans are written and where a query looks. Grafana reads tenant `lab`; a practice tenant is read with curl.
+</Remember>
+
+<Question id="q-m13-s03" answer="d">
+A test pod posts spans to the distributor with `X-Scope-OrgID: team-x` and gets `200`. In Grafana, the Tempo data source of tenant `lab` finds nothing. What is the most likely reason?
+
+- The distributor dropped the spans because they came without the collector gateway
+
+  A distributor accepts OTLP from any sender. The gateway is only the shop's road to Tempo.
+
+- The spans are still in Kafka and become searchable after the next block-builder cycle
+
+  Live-stores make recent spans searchable within seconds, so a missing block is not the reason.
+
+- Tenant names must start with lab, so Tempo stored the spans as anonymous
+
+  Tempo accepts any tenant name in the header and stores the spans under that name.
+
+- The spans are in tenant team-x, and the data source only searches tenant lab
+
+  Each tenant is kept apart. A query sees only the tenant named in its own header.
+</Question>

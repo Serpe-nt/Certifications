@@ -1,0 +1,93 @@
+---
+id: m13-s01
+title: Why a trace store, and trace-first debugging
+kind: concept
+minutes: 10
+order: 1
+exam:
+  - cert: none
+tags: [tempo-why]
+outcome: You can say what a trace store answers that metrics and logs cannot, and start a latency investigation from one slow request instead of from dashboards.
+terms:
+  - term: Trace store
+    def: A database that keeps spans and puts them back together as whole traces, found by trace ID or by search.
+  - term: Trace-first debugging
+    def: Starting an investigation from one slow or failed request and reading where its time went, then checking how common that pattern is.
+sources:
+  - title: Grafana Tempo
+    url: https://grafana.com/docs/tempo/v3.1.x/
+    checked: 2026-11-14
+  - title: Introduction (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/introduction/
+    checked: 2026-11-14
+  - title: Traces and telemetry (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/introduction/telemetry/
+    checked: 2026-11-14
+---
+
+<Problem>
+At 14:05 the checkout panel shows the 95th percentile going from 40 ms to 3 seconds. The request crosses six services. Each service has its own latency panel, and four of them look a little slower. No log line has an error. Which service is the cause, and which ones are only waiting for it?
+</Problem>
+
+A metric is an average over many requests, and a log line describes one moment in one process. Neither shows how the time of one request was spent across the services it touched.
+
+<Idea>
+A trace store keeps every span of a request and puts them back together as one trace, so you can see which call took the time. Trace-first debugging starts from one slow request, finds the span that waited, and only then asks how many other requests did the same. Tempo is the trace store of this lab.
+</Idea>
+
+## What a metric and a log line cannot say
+
+A latency metric answers "how slow are requests to this service". It cannot say which downstream call made them slow, because the number was computed before anyone asked. When service A calls B and B calls C, a slow C makes all three panels rise together. Logs have the same gap from the other side: each process writes about its own work, and the lines of six processes do not say which one waited for which.
+
+A trace keeps the order and the nesting. Each span has a start time, a duration and a parent, so the waterfall shows that A spent 3 seconds inside a call to B, and that B spent almost all of it inside a call to C. The span with the time of its own, and no slow child, is where to look.
+
+## A trace store answers by request
+
+Tempo receives spans from instrumented applications and stores them in object storage, the only storage it needs. It answers two kinds of questions. Give it a trace ID and it returns every span with that ID, collected from wherever they were written. Give it a search, written in TraceQL, and it returns the traces that match, such as every checkout over one second or every trace where a database call failed.
+
+A trace is never closed: a service can send another span for it at any time, and Tempo collects all spans of the ID when you ask. This is why a trace with very many spans is expensive to fetch, and why Tempo has limits on the size of one trace, which step 13 shows.
+
+## Trace-first as a habit
+
+The habit has three moves. First, find one request that shows the problem: a slow trace, found with a search. Second, read its waterfall from the top and follow the time down to the deepest span that holds it. Third, go back to aggregates and ask whether that span is slow in most slow requests or only in this one. Metrics then confirm the size of the problem, and logs from that service at that moment explain the detail.
+
+<Flow caption="Trace-first debugging">
+  <Stage title="Find" kicker="1">A search returns slow or failed traces.</Stage>
+  <Stage title="Read" kicker="2">Follow the time down the waterfall to the span that waits.</Stage>
+  <Stage title="Count" kicker="3">Check how many traces share that span.</Stage>
+  <Stage title="Explain" kicker="4">Logs and metrics of that service give the reason.</Stage>
+</Flow>
+
+Modules m07 and m09 handed you traces to open. This module teaches you to find them: by ID, by search and from a log line, and then with TraceQL, the query language of Tempo.
+
+<InLab>
+In this lab every service of the shop sends its spans through the collector gateway to Tempo, tenant `lab`, and Grafana's data source `tempo` reads them. One checkout of the load generator is one trace of 70 to more than 100 spans, across the load generator, frontend-proxy, frontend, checkout, cart, product-catalog, payment and the flag service.
+</InLab>
+
+<Trap>
+The service whose panel rose the most is not always the cause. A service that waits for a slow dependency shows the same latency as the dependency, plus its own.
+</Trap>
+
+<Remember>
+Metrics say that requests are slow; one trace says where the time went. Find a slow trace first, then count how common its pattern is.
+</Remember>
+
+<Question id="q-m13-s01" answer="c">
+Checkout, cart and product-catalog all show a higher p95 latency since 14:05. Which first move tells you which of them is the cause?
+
+- Compare the three latency panels and pick the one that rose the most
+
+  A caller that waits for a slow dependency rises by the same amount or more, so the biggest rise can be a victim.
+
+- Search the logs of all three services for error lines since 14:05
+
+  A slow call often writes no error at all, and the lines of three processes do not show who waited for whom.
+
+- Open one slow checkout trace and follow its time to the deepest span that holds it
+
+  The waterfall shows which call held the time and which spans were only waiting for their children.
+
+- Restart the three services one at a time and watch the panels
+
+  A restart changes the system you are trying to read and may hide the cause for a while without explaining it.
+</Question>

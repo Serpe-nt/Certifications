@@ -1,0 +1,99 @@
+---
+id: m13-s09
+title: "Sampling: head, tail, and what Tempo then holds"
+kind: concept
+minutes: 12
+order: 9
+exam:
+  - cert: none
+tags: [tempo-sampling, otel-sampling]
+outcome: You can say what a head or a tail sampler leaves in Tempo, and how that changes a search, span metrics and TraceQL metrics.
+terms:
+  - term: Head sampling
+    def: Keeping or dropping a trace when its first span starts, before anything is known about how the request will go.
+  - term: Tail sampling
+    def: Keeping or dropping a trace in a collector after most of its spans have arrived, so the rule can look at errors and durations.
+  - term: Decision period
+    def: How long a tail sampler waits for the spans of a trace before it decides. Spans that come later need a new decision.
+  - term: Extrapolation
+    def: Scaling a count by one over the sampling probability recorded on each span, so a rate reflects the traffic before sampling.
+sources:
+  - title: Sampling (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/set-up-for-tracing/instrument-send/set-up-collector/tail-sampling/
+    checked: 2026-11-14
+  - title: Sampling (OpenTelemetry concepts)
+    url: https://opentelemetry.io/docs/concepts/sampling/
+    checked: 2026-11-14
+  - title: Environment variable specification, OTEL_TRACES_SAMPLER
+    url: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+    checked: 2026-11-14
+  - title: TraceQL metrics functions, extrapolation
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/functions/
+    checked: 2026-11-14
+  - title: TraceQL metrics sampling
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/sampling-guide/
+    checked: 2026-11-14
+---
+
+<Problem>
+A team keeps 10% of its traces to save storage. During an incident, a log line with an error carries a trace ID, and the link to Tempo opens an empty trace. Later the span metrics dashboard shows checkout at 5 requests a second, while the load balancer counts 50. Both numbers came from Tempo, and both are right for what Tempo was given.
+</Problem>
+
+<Idea>
+Sampling decides which traces reach Tempo, and Tempo can only answer for those. A head sampler decides at the first span, so it cannot prefer slow or failed requests; a tail sampler decides in a collector after seeing the spans. Every count made from stored spans shrinks with the sample unless it is made before sampling or scaled back up.
+</Idea>
+
+## Head sampling, from module m07
+
+Module m07 step 10 showed the SDK samplers. The usual head sampler keeps a fixed share of traces chosen from the trace ID, and a `ParentBased` sampler makes every service follow the decision of the root, so a trace is kept or dropped as a whole. It is cheap and simple. Its weakness is timing: the decision is made before the request has failed or become slow, so an error trace has the same chance of being dropped as a fast one.
+
+## Tail sampling, from module m09
+
+Module m09 step 9 built the other kind. A tail sampler in a collector buffers spans by trace ID for a decision period, then applies policies such as "keep traces with an error" or "keep traces over one second". All spans of a trace must reach the same collector, which is why a load-balancing layer routes by trace ID in front of the samplers. A trace that lasts longer than the decision period can be cut: spans that arrive after the decision need a new one, and Tempo may store only part of the trace.
+
+<Compare caption="Two places to decide">
+  <Col title="Head">In the SDK, at the root span. Cheap, no buffering. Cannot prefer errors or slow requests.</Col>
+  <Col title="Tail" hot>In a collector, after a decision period. Can keep every error and every slow trace. Needs buffering and routing by trace ID.</Col>
+</Compare>
+
+## What Tempo then holds
+
+Tempo stores what arrives and knows nothing about what was dropped. Three things follow.
+
+A search returns only kept traces. A link to a trace ID from a log line or an exemplar opens nothing when that trace was dropped. A tail sampler that keeps errors makes this rare for the requests you care about.
+
+Span metrics count only the spans the metrics-generator receives. Behind a sampler, its request rate is too low by the sampling factor. Tempo's guidance for a tail-sampling collector is to generate span metrics and service graphs in the collector before the sampler, from every span.
+
+TraceQL metrics count stored spans at query time, so they are low by the same factor. Tempo 3.1 adds an experimental hint for head-sampled data: `with(extrapolate=true)` scales each span by one over the sampling probability that a probability sampler recorded in its trace state. Do not confuse it with `with(sample=true)`, which samples at query time to make a query cheaper and has nothing to do with how the data was collected.
+
+<InLab>
+This lab does not sample. The collector gateway's traces pipeline has no sampling processor, no shop service sets `OTEL_TRACES_SAMPLER`, so the SDKs use their default `parentbased_always_on`, and the beacon keeps every trace in code. Every count from Tempo here covers all requests.
+</InLab>
+
+<Trap>
+A missing trace behind a sampler is not a broken link. Before you debug the data source, ask whether the trace was ever kept.
+</Trap>
+
+<Remember>
+Tempo answers only for the traces it was sent. Make span metrics before a sampler, and read TraceQL metrics on sampled data as a share of the traffic.
+</Remember>
+
+<Question id="q-m13-s09" answer="b">
+A collector keeps every error trace and 5% of the others with tail sampling, then sends the kept spans to Tempo, whose metrics-generator makes span metrics. What do those span metrics show?
+
+- The true error ratio, because every error trace was kept
+
+  Errors are all kept, but most successful requests were dropped, so the ratio comes out far too high.
+
+- Rates that are too low and an error ratio that is too high
+
+  The generator only sees kept spans: most fast, successful requests are missing, while every error is there.
+
+- Correct rates, because Tempo extrapolates from the sampling policy
+
+  Tempo does not know the collector's policies. Extrapolation is a query hint for probability-sampled data only.
+
+- Nothing at all, because span metrics need unsampled data
+
+  The generator makes metrics from whatever spans it receives. They are skewed, not missing.
+</Question>

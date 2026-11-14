@@ -1,0 +1,110 @@
+---
+id: m13-s06
+title: "TraceQL: structure and aggregates"
+kind: drill
+minutes: 20
+order: 6
+exam:
+  - cert: none
+tags: [traceql-structural]
+check:
+  kind: token
+  slot: span-m13-3
+  prompt: Paste the beacon.token of the slot span-m13-3, found with the child operator in action 6.
+outcome: You can relate two span sets by their place in the trace with the structural operators, and filter traces by a count, an average or a group of their spans.
+terms:
+  - term: Structural operator
+    def: An operator between two span selectors that relates them by position in the trace tree, such as >> for descendant or > for child.
+  - term: Union structural operator
+    def: A structural operator with an ampersand, such as &>>, that returns the matching spans of both sides.
+  - term: Aggregate
+    def: A pipeline function over the span set of each trace, such as count(), avg(), min(), max() or sum().
+  - term: by()
+    def: A pipeline step that splits each trace's span set into groups by a field before the next step.
+sources:
+  - title: Construct a TraceQL query
+    url: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+    checked: 2026-11-14
+  - title: Tune TraceQL query performance
+    url: https://grafana.com/docs/tempo/v3.1.x/traceql/tune-traceql-queries/
+    checked: 2026-11-14
+---
+
+<Problem>
+Product-catalog serves the shop's pages and the checkout. Its server spans are fast on average, but you want to know how it behaves only when checkout calls it. A selector on product-catalog alone mixes both callers. You need to ask for product-catalog spans that sit below a checkout span in the same trace.
+</Problem>
+
+<Idea>
+Structural operators relate two span sets of the same trace: one side must be an ancestor, a parent, a child, a descendant or a sibling of the other. They return the spans of the right side, unless the operator starts with an ampersand. Aggregates after a pipe then keep or drop a whole trace by a number over its spans.
+</Idea>
+
+## Descendant, child, sibling
+
+`{A} >> {B}` returns spans matching B that have an ancestor matching A anywhere above them. `{A} > {B}` is stricter: A must be B's direct parent. `{A} << {B}` and `{A} < {B}` turn this around and return the ancestors or parents. `{A} ~ {B}` returns spans matching B that have a sibling matching A, a span with the same parent.
+
+The difference between `>>` and `>` matters in the shop. Checkout's server span `PlaceOrder` calls payment and empties the cart directly, but it reaches cart and product-catalog through an internal span, `prepareOrderItemsAndShippingQuoteFromCart`. So `{ resource.service.name = "checkout" && span:kind = server } > { span:kind = client }` returns only the `Charge` and `EmptyCart` calls. On the lab, `{ resource.service.name = "frontend" && span:kind = server } > { resource.service.name = "checkout" }` returned no trace at all, while the same query with `>>` found checkout below the frontend in every checkout trace.
+
+<Compare caption="One relation, three operators, on a checkout trace">
+  <Col title="A >> B" hot>B anywhere below A. Finds product-catalog below checkout.</Col>
+  <Col title="A > B">B directly below A. Misses calls made from an internal span in between.</Col>
+  <Col title="A &>> B">Like >>, but returns the spans of A and of B.</Col>
+</Compare>
+
+## Both sides, and the experimental negations
+
+A structural operator returns the right side. When you want both, the checkout span and the product-catalog spans below it, use the union form: `&>>`, `&>`, `&<<`, `&<` and `&~`. The negated forms `!>>`, `!>`, `!<<`, `!<` and `!~` find spans that do not have the relation. Tempo marks them experimental, because they can return false positives. One is still useful: `{ status = error } !< { status = error }` returns error spans that have no direct child in error, the place where a chain of errors starts.
+
+## Aggregates and groups
+
+After a pipe, `count()`, `avg()`, `min()`, `max()` and `sum()` work on the span set of each trace and keep the trace when the comparison is true. `{ trace:rootName = "user_checkout_multi" } | count() > 100` keeps multi-item checkouts with more than 100 spans; on the lab one had 104. `{ resource.service.name = "product-catalog" && span:kind = server } | avg(span:duration) > 1ms` keeps traces whose catalog calls average over a millisecond, and the result shows the average.
+
+`by()` splits a trace's span set into groups first. `{ resource.service.name = "cart" } | by(span:name) | count() > 4` returns, per trace, the groups of cart spans with the same name that appear more than four times; in checkout traces that is the Valkey calls. Remember that all of this is per trace. Counting across all traces over time is the job of TraceQL metrics, step 7.
+
+<InLab>
+The beacon's trace is the smallest tree in the lab: a root `beacon.tick` and one child `beacon.slot`. Both carry `beacon.slot`, only the child carries `beacon.token`.
+</InLab>
+
+<Trap>
+`{A} && {B}` is not a structural query. It only asks that both span sets exist somewhere in the trace, with no relation between them.
+</Trap>
+
+<Remember>
+`>>` anywhere below, `>` directly below, `~` beside; the right side is returned unless the operator starts with `&`. Aggregates keep or drop a whole trace.
+</Remember>
+
+<Do>
+1. In <LabLink to="grafana" path="/explore">Explore</LabLink>, use the data source `tempo`, query type **TraceQL**, time range **Last 15 minutes**.
+2. Find product-catalog only when checkout called it: <Query lang="traceql">{`{ resource.service.name = "checkout" && span:kind = server } >> { resource.service.name = "product-catalog" && span:kind = server }`}</Query> Each result is a checkout trace; the matching spans are product-catalog's.
+3. Make it strict and compare: <Query lang="traceql">{`{ resource.service.name = "frontend" && span:kind = server } > { resource.service.name = "checkout" }`}</Query> No trace: checkout is not a direct child of the frontend's server span. Change `>` to `>>` and checkout spans appear.
+4. Return both sides: <Query lang="traceql">{`{ resource.service.name = "checkout" && span:kind = server } &>> { resource.service.name = "product-catalog" && span:kind = server }`}</Query> Each trace now shows the checkout server span as well.
+5. Filter whole traces by their spans: <Query lang="traceql">{`{ trace:rootName = "user_checkout_multi" } | count() > 100`}</Query> <Query lang="traceql">{`{ resource.service.name = "cart" } | by(span:name) | count() > 4`}</Query> Open one result of each and look at what was counted.
+6. Reach your token through the tree: <Query lang="traceql">{`{ span:name = "beacon.tick" && span.beacon.slot = "span-m13-3" } > { } | select(span.beacon.token)`}</Query> The empty right side matches any span, and the operator keeps only children of that root. Paste the `beacon.token` in the check below.
+</Do>
+
+<Done>
+You found spans by their place in the tree, saw `>` miss what `>>` found, returned both sides with `&>>`, and kept traces by a count over their spans.
+</Done>
+
+<Trap practice>
+A structural query on a broad left side, such as `{ } >> { status = error }`, makes Tempo read the structure of every trace in the range. Keep the time range short, and put the most selective conditions in the selectors.
+</Trap>
+
+<Question id="q-m13-s06" answer="a">
+Which query returns the database spans of product-catalog, but only in traces where checkout called product-catalog?
+
+- `{ resource.service.name = "checkout" } >> { resource.service.name = "product-catalog" && span:name = "astronomy-db" }`
+
+  The database spans are on the right side, and >> requires a checkout span anywhere above them.
+
+- `{ resource.service.name = "checkout" } > { resource.service.name = "product-catalog" && span:name = "astronomy-db" }`
+
+  The child operator needs a checkout span as the direct parent. The parent of a database span is product-catalog's own server span.
+
+- `{ resource.service.name = "checkout" } && { span:name = "astronomy-db" }`
+
+  This only asks that both exist in the trace, including database calls made for another caller in the same trace.
+
+- `{ resource.service.name = "product-catalog" && span:name = "astronomy-db" } >> { resource.service.name = "checkout" }`
+
+  The sides are reversed: this asks for checkout spans below a database span, which never happens.
+</Question>
