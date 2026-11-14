@@ -116,7 +116,7 @@ The compactor applies retention every few minutes and deletes chunks two hours a
            limits: { cpu: 100m, memory: 64Mi }
    ```
 
-3. Apply it, wait until the pod runs, and give it a minute: <Cmd>kubectl apply -f m12-writer.yaml</Cmd> <Cmd>kubectl -n learn-m12 wait --for=condition=Ready pod/writer --timeout=120s</Cmd>
+3. Apply it, wait until the pod runs, and give it a minute: <Cmd>{`kubectl apply -f m12-writer.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m12 wait --for=condition=Ready pod/writer --timeout=120s`}</Cmd>
 4. Grafana's `loki` data source reads tenant `lab` only, so read the practice tenant with curl: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/query_range --data-urlencode 'query={app="m12-writer"} |= "level=error"' --data-urlencode 'since=10m' | grep -o 'level=error[^"]*'`}</Cmd> A few error lines come back.
 5. Ask Loki to delete the error lines of the last 10 minutes: <Cmd>{`curl -s -o /dev/null -w '%{http_code}\\n' -X POST -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' -G http://10.10.0.5/loki/api/v1/delete --data-urlencode 'query={app="m12-writer"} |= "level=error"' --data-urlencode "start=$(( $(date +%s) - 600 ))" --data-urlencode "end=$(date +%s)"`}</Cmd> Loki answers `204`.
 6. List the tenant's delete requests: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/delete`}</Cmd> Your request is there with its `request_id`, its query, and a `status`. Paste the status in the check below.

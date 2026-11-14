@@ -89,9 +89,9 @@ Writes: distributor, then three ingesters, then the object store. Reads: query f
 </Remember>
 
 <Do>
-1. In WSL, list Loki's pods and where they run: <Cmd>kubectl -n loki get pods -o wide</Cmd> Group them by the part they play on the write path, on the read path, or in the background.
+1. In WSL, list Loki's pods and where they run: <Cmd>{`kubectl -n loki get pods -o wide`}</Cmd> Group them by the part they play on the write path, on the read path, or in the background.
 2. Read the ingesters' hash ring through the lab's gateway. Each ingester should be `ACTIVE`: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/ring | grep -o 'ACTIVE' | wc -l`}</Cmd> The answer is 3.
-3. In `lgtm/lab`, read the replication factor the lab sets for Loki: <Cmd>grep -n -A1 commonConfig helm/loki/values.yaml</Cmd>
+3. In `lgtm/lab`, read the replication factor the lab sets for Loki: <Cmd>{`grep -n -A1 commonConfig helm/loki/values.yaml`}</Cmd>
 4. In <LabLink to="grafana" path="/explore">Explore</LabLink>, with the data source `loki` and the time range **Last 15 minutes**, run a query you will recognize: <Query lang="logql">{`{service_name="beacon"} |= "log-m12-8"`}</Query>
 5. Find your query in the logs of the component that received it: <Query lang="logql">{`{namespace="loki", container="query-frontend"} |= "metrics.go" |= "log-m12-8"`}</Query> Read `splits`, `shards`, `total_bytes` and `ingester_requests` in the line. Paste the container's name in the check below.
 </Do>

@@ -82,7 +82,7 @@ A label with a value per request makes a stream per request. Loki refuses new st
 </Remember>
 
 <Do>
-1. Check that the writer from step 11 is running: <Cmd>kubectl -n learn-m12 get pod writer</Cmd> If the namespace is gone, apply `m12-writer.yaml` from step 11 again first.
+1. Check that the writer from step 11 is running: <Cmd>{`kubectl -n learn-m12 get pod writer`}</Cmd> If the namespace is gone, apply `m12-writer.yaml` from step 11 again first.
 2. Save this Job as `m12-burst.yaml`. It sends 12 pushes of 500 streams each to tenant `learn-m12`. Every stream has the label `request_id` with a new value, the classic mistake:
 
    ```yaml
@@ -121,11 +121,11 @@ A label with a value per request makes a stream per request. Loki refuses new st
                limits: { cpu: 500m, memory: 64Mi }
    ```
 
-3. Run it and wait for it to finish, about a minute: <Cmd>kubectl apply -f m12-burst.yaml</Cmd> <Cmd>kubectl -n learn-m12 wait --for=condition=Complete job/burst --timeout=300s</Cmd>
-4. Read what Loki answered: <Cmd>kubectl -n learn-m12 logs job/burst</Cmd> The first pushes get `HTTP 204`. Push 10 gets `HTTP 429` and `maximum active stream limit exceeded when trying to create stream`, and so do the pushes after it.
+3. Run it and wait for it to finish, about a minute: <Cmd>{`kubectl apply -f m12-burst.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m12 wait --for=condition=Complete job/burst --timeout=300s`}</Cmd>
+4. Read what Loki answered: <Cmd>{`kubectl -n learn-m12 logs job/burst`}</Cmd> The first pushes get `HTTP 204`. Push 10 gets `HTTP 429` and `maximum active stream limit exceeded when trying to create stream`, and so do the pushes after it.
 5. Count the burst's streams with a metric query: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=count(count_over_time({app="m12-burst"}[15m]))'`}</Cmd> Paste the number at the end of the answer in the check below.
 6. Run the same query without the outer `count( )`, and read the error: the result would have one series per stream, far above 500.
-7. Delete the Job, and keep the writer for step 13: <Cmd>kubectl -n learn-m12 delete job burst</Cmd>
+7. Delete the Job, and keep the writer for step 13: <Cmd>{`kubectl -n learn-m12 delete job burst`}</Cmd>
 </Do>
 
 <Done>

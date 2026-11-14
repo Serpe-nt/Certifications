@@ -82,7 +82,7 @@ Loki rules are Prometheus rules with LogQL expressions. Load them per tenant thr
 </Remember>
 
 <Do>
-1. Check that the writer of step 11 still runs and writes an error line every 25 seconds: <Cmd>kubectl -n learn-m12 get pod writer</Cmd>
+1. Check that the writer of step 11 still runs and writes an error line every 25 seconds: <Cmd>{`kubectl -n learn-m12 get pod writer`}</Cmd>
 2. Save this rule group as `m12-rule.yaml`:
 
    ```yaml
@@ -101,7 +101,7 @@ Loki rules are Prometheus rules with LogQL expressions. Load them per tenant thr
 4. Read the rule's state: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/prometheus/api/v1/rules`}</Cmd> At first, `health` is `unknown` and `lastEvaluation` is `0001-01-01`: the ruler has not picked up the group yet. Repeat every 30 seconds; within about two minutes `health` turns `ok`.
 5. When `health` is `ok`, read the `state` of the rule in the same answer, and look at the alert itself: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/prometheus/api/v1/alerts`}</Cmd> Its `value` is the number of error lines in the last two minutes. Paste the state in the check below.
 6. Remove the rule namespace and check that it is gone: <Cmd>{`curl -s -X DELETE -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/rules/m12`}</Cmd> <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/rules`}</Cmd> The last answer is `no rule groups found`.
-7. The practice workloads of this module are done. Delete the namespace: <Cmd>kubectl delete namespace learn-m12</Cmd> The tenant's logs stay in Loki until the 48 hours of retention have passed.
+7. The practice workloads of this module are done. Delete the namespace: <Cmd>{`kubectl delete namespace learn-m12`}</Cmd> The tenant's logs stay in Loki until the 48 hours of retention have passed.
 </Do>
 
 <Done>
