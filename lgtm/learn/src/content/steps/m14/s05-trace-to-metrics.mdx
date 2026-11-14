@@ -1,0 +1,117 @@
+---
+id: m14-s05
+title: From a trace to its metrics and the service graph
+kind: lab
+minutes: 15
+order: 5
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [correlation-trace-metrics]
+check:
+  kind: exact
+  prompt: Paste the name of the database node that product-catalog calls in the service graph.
+  answers: ["astronomy-db"]
+outcome: You can go from one span to its service's request rate and latency, read the service graph, and say which settings and metrics both depend on.
+terms:
+  - term: Trace to metrics
+    def: A setting of the Tempo data source that links a span to metric queries, filled with the span's attributes.
+  - term: Service graph
+    def: A map of services and the calls between them, drawn from metrics that Tempo derives from spans.
+  - term: Virtual node
+    def: A node in the service graph for something that sends no spans itself, such as a database or a message broker.
+sources:
+  - title: Configure trace to metrics correlation (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-metrics/
+    checked: 2026-11-14
+  - title: Service Graph and Service Graph view (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/tempo/service-graph/
+    checked: 2026-11-14
+  - title: Service graphs (Tempo)
+    url: https://grafana.com/docs/tempo/latest/metrics-from-traces/service_graphs/
+    checked: 2026-11-14
+  - title: Trace view span links, createSpanLink.tsx (Grafana v13.3.0 source)
+    url: https://github.com/grafana/grafana/blob/v13.3.0/public/app/features/explore/TraceView/createSpanLink.tsx
+    checked: 2026-11-14
+  - title: Span metrics (Tempo)
+    url: https://grafana.com/docs/tempo/latest/metrics-from-traces/span-metrics/
+    checked: 2026-11-14
+---
+
+<Problem>
+You found a slow span of product-catalog in one trace. Is that one request unlucky, or is product-catalog slow for everybody right now? And who else calls product-catalog and would feel it? One trace cannot answer either question.
+</Problem>
+
+<Idea>
+A span links back to metrics in two ways. Trace to metrics opens metric queries for the span's service, filled with its attributes. The service graph shows every service and every call between them, with their rate, errors and latency. Both read metrics that Tempo's metrics generator writes to Mimir, so both depend on it.
+</Idea>
+
+## From a span to its service's metrics
+
+The Tempo data source's **Trace to metrics** section names a metrics data source, tags and queries. The lab maps `service.name` to `service_name` and defines two queries, **Request rate** and **Latency p95**, on the span metrics `traces_spanmetrics_calls_total` and `traces_spanmetrics_latency_bucket`. Grafana puts the mapped tags into the query in place of `$__tags`. In the span details, each query becomes a button with its name. A click opens the metric for that service, around the span's time, so you can compare one request with all requests.
+
+## The service graph
+
+The service graph is drawn from other metrics of the same generator: `traces_service_graph_request_total`, `traces_service_graph_request_failed_total` and two latency histograms, one seen by the client and one by the server. The generator finds pairs of spans, a client span in one service and its server span in the next, and counts one edge per pair. A call to something that sends no spans, such as a database, becomes a virtual node. Tempo names a database node from the span's `peer.service` first, then from `server.address`. In Explore, the query type **Service Graph** shows a table, filled from the span metrics, and a node graph. Each circle shows a service's average response time and requests per second. Its ring is green for successful requests and shows faults as a red arc.
+
+## What breaks both
+
+Grafana's documentation says it plainly: without span metrics or service graph metrics, there is no data to show. Grafana's page on trace to metrics says the tags must be on the span for a link to appear. Grafana 13.3 shows the buttons anyway: when no mapped tag is on the span, `$__tags` stays empty and the query covers every service, which is easy to miss on a busy graph. And the metrics must be in the tenant the data source reads. In this lab that is tenant `lab` through `mimir`; tenant `prom` has no span metrics.
+
+<Layers caption="Where the service graph comes from">
+  <Layer title="Spans">Client and server spans of each call, sent to Tempo.</Layer>
+  <Layer title="Metrics generator">Pairs the spans and writes traces_service_graph_* to Mimir.</Layer>
+  <Layer title="Data source settings" hot>Tempo's service graph setting names the data source mimir.</Layer>
+  <Layer title="Node graph">Explore draws circles and edges from those metrics.</Layer>
+</Layers>
+
+<InLab>
+The service graph data source is under **Additional settings** of the Tempo data source, with the value Mimir. The span's buttons are named after the lab's two queries, **Request rate** and **Latency p95**.
+</InLab>
+
+<Trap>
+The service graph shows calls that were traced. A service that calls another without passing on the trace context, or without a client span, leaves no edge, even though the call happens.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, pick `tempo`, query type **TraceQL**, last 15 minutes, and find a product-catalog server span: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && kind = server }`}</Query>
+2. Open one trace and click a span of `opentelemetry-demo/product-catalog` to open its details. Click **Request rate**. Mimir opens in a split pane with a query on `traces_spanmetrics_calls_total` for `service_name="product-catalog"`. Close the pane.
+3. In the same span details, click **Latency p95** and read the query. Close the pane again.
+4. Change the query type to **Service Graph** and run it. Under the table, the node graph shows the services.
+5. Find the circle of `product-catalog`. Follow its arrows to the node it calls that is a database. Click the circle of `product-catalog` and look at the menu: **Request rate**, **Request classic histogram**, **Failed request rate** and **View traces**.
+6. Open **Connections** > **Data sources** > **Tempo**. Read **Trace to metrics**, then open **Additional settings** and find the service graph data source. Change nothing.
+7. Paste the name of the database node from action 5 in the check below.
+</Do>
+
+<Done>
+You opened the metrics of product-catalog from one of its spans, found product-catalog's database in the service graph, and read the two settings that make both work.
+</Done>
+
+<Trap practice>
+The node graph can be crowded. Switch its layout to **Grid** to find the node faster, or drag the graph to move it.
+</Trap>
+
+<Remember>
+Trace to metrics and the service graph both read metrics that Tempo derives from spans. No generator, no tags, or the wrong tenant, and both stay empty.
+</Remember>
+
+<Question id="q-m14-s05" answer="c">
+After a Tempo upgrade, the Service Graph in Explore is empty, while TraceQL still finds new traces. What should you check first?
+
+- Whether the Loki data source is linked in the Tempo data source
+
+  Loki is the target of trace to logs. The service graph reads metrics, not logs.
+
+- Whether the spans still carry their trace IDs and span IDs
+
+  TraceQL finds new traces, so the spans are stored with their IDs.
+
+- Whether `traces_service_graph_*` metrics are still written
+
+  The service graph is drawn only from those metrics. Without them it is empty, whatever Tempo stores.
+
+- Whether the exemplar entries of the Mimir data source are still there
+
+  Exemplars link metrics to traces. The service graph does not use them.
+</Question>

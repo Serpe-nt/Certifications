@@ -1,0 +1,115 @@
+---
+id: m14-s11
+title: "Incident: one product page breaks"
+kind: lab
+minutes: 20
+order: 11
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [incident-partial-failure]
+flags: [productCatalogFailure]
+check:
+  kind: exact
+  prompt: Paste the ID of the product whose requests fail.
+  answers: ["OLJCESPC7Z"]
+outcome: You can find a failure that hits only some requests by breaking errors down by an attribute with TraceQL, and name the one value they share.
+terms:
+  - term: Partial failure
+    def: A fault that hits only some requests, such as those for one product, one customer or one region.
+  - term: High-cardinality attribute
+    def: An attribute with many possible values, such as a product ID. Fine on a span, too costly as a metric label.
+sources:
+  - title: TraceQL, construct queries (Tempo)
+    url: https://grafana.com/docs/tempo/latest/traceql/construct-traceql-queries/
+    checked: 2026-11-14
+  - title: TraceQL metrics queries (Tempo)
+    url: https://grafana.com/docs/tempo/latest/traceql/metrics-queries/
+    checked: 2026-11-14
+  - title: Span metrics (Tempo)
+    url: https://grafana.com/docs/tempo/latest/metrics-from-traces/span-metrics/
+    checked: 2026-11-14
+  - title: Status codes and their use in gRPC
+    url: https://grpc.io/docs/guides/status-codes/
+    checked: 2026-11-14
+---
+
+<Problem>
+A customer writes: "One telescope page shows an error, every time, all evening." Other product pages open. The error ratio of the shop barely moves, so no alert fired. You need to find which requests fail and what they have in common, out of thousands that work.
+</Problem>
+
+<Idea>
+A failure that hits only some requests hides in averages. Find the failed spans first, then break them down by an attribute until one value stands out. TraceQL can filter on any span attribute and count spans by it, so it can split by values that a metric could never keep as labels, such as a product ID.
+</Idea>
+
+## Why the dashboards stay calm
+
+Span metrics count calls by service, span name, kind and status code. They do not carry a product ID, and they should not: one label value per product would multiply the series. So if one product of ten fails, a service's error ratio rises a little, and the panels look almost normal. The facts that tell the failing requests apart are attributes on the spans, and Tempo keeps them.
+
+## Filter on the failed spans
+
+Start with the failed spans of the service that serves the requests. A TraceQL query such as `{ resource.service.name = "product-catalog" && status = error }` returns only traces with such a span, and `select()` adds attributes to the result so that you can read them without opening every trace. If all failed spans show the same value, you have a candidate.
+
+## Count by the attribute
+
+Reading a list can mislead when it is long. A TraceQL metrics query counts instead: `count_over_time() by (span.demo.product.id)` turns the matching spans into one series per value. If one value has all the failures and the others none, the failure is tied to it. Then go back to a span with that value and read its status message and events, which say what the code did with it.
+
+## Check the other side too
+
+A value that every failed span carries is only the answer if the successful spans do not carry it. Count the successful spans by the same attribute. In step 7 every failed charge said `loyalty_level=gold`, and so did some successful ones. Here the question is the same: is the value present only on the failures?
+
+<Compare caption="Where a product ID can live">
+  <Col title="Metric label">One series per product per status; costly, and not in the span metrics.</Col>
+  <Col title="Span attribute" hot>On each span; TraceQL filters and counts by it.</Col>
+</Compare>
+
+<InLab>
+product-catalog sets `demo.product.id` on its `GetProduct` server spans. The frontend calls `GetProduct` for product pages and for the products a recommendation lists; checkout calls it for each item of an order.
+</InLab>
+
+<Trap>
+A failure that hits one value in a hundred will not show on a service's error ratio as a spike. Absence of a spike is not absence of a fault; a complaint about one item is a reason to break the errors down.
+</Trap>
+
+<Do>
+1. Open the <LabLink to="flags" path="/feature">flag screen</LabLink>, set `productCatalogFailure` to `on`, and note the time. The flag screen notes that this flag has targeting rules; switching it on sets the first rule. Wait two minutes.
+2. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, pick `tempo`, query type **TraceQL**, last 15 minutes, and list failed product-catalog spans with their product: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && status = error } | select(span.demo.product.id)`}</Query>
+3. Count the failed `GetProduct` spans per product. Under **Metrics Options**, keep **Type** on Range, and run: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && name = "oteldemo.ProductCatalogService/GetProduct" && status = error } | count_over_time() by (span.demo.product.id)`}</Query>
+4. Now count the successful ones the same way: <Query lang="traceql">{`{ resource.service.name = "product-catalog" && name = "oteldemo.ProductCatalogService/GetProduct" && status != error } | count_over_time() by (span.demo.product.id)`}</Query> Compare the two graphs: since the minute you switched the flag on, one product has failed spans and no successful ones, while every other product is served.
+5. Run the query of action 2 again and open one trace. Click the failed `GetProduct` span of product-catalog and read its **Status Message**, its events and `rpc.response.status_code`.
+6. On the flag screen, set `productCatalogFailure` back to `off`, reload the page and check that it shows `off`. Note the time.
+7. Paste the product ID from action 3 in the check below.
+</Do>
+
+<Done>
+Only one product ID has failed GetProduct spans, and since the flag it has no successful ones, while the nine other products are served. The span's status message, "Error: Product Catalog Fail Feature Flag Enabled", says the failure was switched on for that product.
+</Done>
+
+<Trap practice>
+Failed spans also appear on the callers' side: the frontend calls GetProduct for product pages and for the products a recommendation lists, and checkout calls it when it prepares an order. Count on product-catalog's own server span, where the product ID is set. If action 3 returns nothing, the time range may not reach the first failure yet.
+</Trap>
+
+<Remember>
+When only some requests fail, filter on the failed spans and count them by an attribute. One value with all the failures and no successes is the evidence.
+</Remember>
+
+<Question id="q-m14-s11" answer="b">
+Some checkouts fail, about 2 in 100. The service's error panel shows a small, steady error ratio. Which TraceQL query helps most to find what the failed requests share?
+
+- `{ resource.service.name = "checkout" } | count_over_time()`
+
+  This counts all spans of the service. It does not separate failures or split them by a value.
+
+- `{ resource.service.name = "checkout" && status = error } | count_over_time() by (span.user.id)`
+
+  It counts only the failed spans, one series per value of the attribute, so a value with all the failures stands out.
+
+- `{ status = ok } | count_over_time() by (resource.service.name)`
+
+  This counts successful spans per service. It cannot show what the failed ones share.
+
+- `{ resource.service.name = "checkout" } | rate()`
+
+  A rate of all spans shows the volume, not the failed requests or their attributes.
+</Question>

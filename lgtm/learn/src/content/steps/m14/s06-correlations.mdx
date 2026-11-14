@@ -1,0 +1,114 @@
+---
+id: m14-s06
+title: Build your own link with Correlations
+kind: lab
+minutes: 20
+order: 6
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [grafana-correlations]
+check:
+  kind: regex
+  prompt: Paste the TraceQL query that your correlation ran in the Tempo pane.
+  pattern: '\{ resource\.service\.name = "[a-z-]+" && status = error \}'
+outcome: You can create a correlation that turns a value in a log line into a query in another data source, use a transformation to get the value you need, and remove it again.
+terms:
+  - term: Correlation
+    def: A Grafana object that links a field of one data source's results to a query in another data source or to a URL.
+  - term: Results field
+    def: The field of the source data beside which Grafana shows the correlation's link.
+  - term: Transformation
+    def: A rule in a correlation, regular expression or logfmt, that takes a variable out of a field's value.
+sources:
+  - title: Correlations (Grafana)
+    url: https://grafana.com/docs/grafana/latest/administration/correlations/
+    checked: 2026-11-14
+  - title: Create a new correlation (Grafana)
+    url: https://grafana.com/docs/grafana/latest/administration/correlations/create-a-new-correlation/
+    checked: 2026-11-14
+  - title: Correlations Editor in Explore (Grafana)
+    url: https://grafana.com/docs/grafana/latest/explore/correlations-editor-in-explore/
+    checked: 2026-11-14
+  - title: Use variables and transformations in a correlation (Grafana)
+    url: https://grafana.com/docs/grafana/latest/administration/correlations/use-variables-and-transformations/
+    checked: 2026-11-14
+---
+
+<Problem>
+During incidents your team does the same thing again and again: read a log line, note its service, open Tempo and search for that service's failed spans. The provisioned links do not offer that jump, and the data sources are provisioned, so nobody can add a derived field in the user interface.
+</Problem>
+
+<Idea>
+A correlation is a link that lives outside the data source settings. It names a source data source, a field in its results, and a target query that uses values from the same row as variables. Grafana shows it in Explore beside that field, and a transformation can cut a variable out of a longer value.
+</Idea>
+
+## Where correlations live
+
+Correlations are stored in Grafana, each with a source and a target data source. You can create them on the page **Administration** > **Plugins and data** > **Correlations**, in Explore's correlations editor, or by provisioning. The documentation names the visualizations that show their links in Explore: the logs panel and the table. Only users who may change data sources can create one. In this lab, Grafana accepts a correlation whose source is the provisioned, read-only data source `loki`; the correlation itself is not provisioned, and you can delete it.
+
+## Variables come from the row
+
+A query correlation has a target query with variables in the form `${name}`. Grafana fills them from the row of the log line you click. For a Loki log line in this lab, the variables are the line's fields: `labels`, `Time`, `Line`, `tsNs`, `labelTypes`, `id` and `trace_id`. The service name is not one of them: it sits inside `labels`, which holds every label and metadata field of the line as one JSON text. A transformation takes it out. A regular expression with one capture group, applied to the field `labels`, puts the captured text into a new variable named by its map value.
+
+## What you build
+
+You build one link: from any shop log line to the failed spans of the service that wrote it. The target is Tempo with the query `{ resource.service.name = "${service_name}" && status = error }`. The results field is `trace_id`, so the link sits under **Links**, next to **Open trace**. A line without `trace_id`, like the checkout line of step 4, would show no link.
+
+<Flow caption="Your correlation, from click to query">
+  <Stage title="Log line" kicker="Source: loki">The row has labels, Line and trace_id.</Stage>
+  <Stage title="Transformation" kicker="Regex on labels">Captures payment into service_name.</Stage>
+  <Stage title="Tempo pane" kicker="Target: tempo">Runs the TraceQL query with payment filled in.</Stage>
+</Flow>
+
+<InLab>
+Everything you create in this step has a name that starts with `m14`, and the step deletes it at the end. The lab's own links stay as they are.
+</InLab>
+
+<Trap>
+A correlation whose results field the source data does not have is saved without an error, and its link never appears. In this lab, `service_name` is not a field of a Loki row; use `trace_id` and a transformation.
+</Trap>
+
+<Do>
+1. Open **Administration** > **Plugins and data** > **Correlations** and click **Add correlation** (or **Add new** if the list is not empty).
+2. As **Label**, type `m14 errors of this service`. Click **Next**.
+3. Leave **Type** on Query. As **Target**, choose **Tempo**. In the query editor, keep **TraceQL** and type: <Query lang="traceql">{`{ resource.service.name = "\${service_name}" && status = error }`}</Query> Click **Next**.
+4. As **Source**, choose **Loki**. As **Results field**, type `trace_id`. The box below names `service_name` as a variable of the target query: a field or a transformation must provide it.
+5. Click **Add transformation**. Choose the type **Regular expression**. As **Field**, type `labels`. As **Expression**, type `"service_name":"([^"]+)"`. As **Map value**, type `service_name`. Click **Add**.
+6. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, pick `loki`, last 15 minutes, and run: <Query lang="logql">{`{service_name="payment"}`}</Query> Expand one line. Under **Links**, `trace_id` now has two links: **Open trace** and **m14 errors of this service**. Click the second one. Tempo opens in a split pane with your query, filled with `payment`.
+7. Copy the TraceQL query from the Tempo pane for the check below.
+8. Delete your correlation: open **Administration** > **Plugins and data** > **Correlations**, click the delete icon at the end of the row `m14 errors of this service`, then **Delete**. The list is empty again.
+</Do>
+
+<Done>
+Your own link opened Tempo with a query built from the log line's labels, and the correlation is gone again.
+</Done>
+
+<Trap practice>
+Type each value into an empty box: an input that already holds text keeps it. If the link does not appear in action 6, check the results field: it must be `trace_id`, not `service_name`. On an empty result in action 6, the payment service had no failed spans in the time range; the query is still right.
+</Trap>
+
+<Remember>
+A correlation links a field of one data source to a query in another, outside the provisioned settings. Its variables come from the row, and a transformation cuts out the part you need.
+</Remember>
+
+<Question id="q-m14-s06" answer="a">
+You create a correlation with Loki as the source, the results field `k8s_pod_name`, and a target query on Mimir. It saves without an error, but no link appears in Explore's log details. What is the most likely reason?
+
+- k8s_pod_name is a label inside the row's labels field, not a field of its own
+
+  A Loki row has fields such as labels, Line and trace_id. A label needs a transformation on labels to become a variable.
+
+- Correlations cannot target a Prometheus-type data source
+
+  A correlation can target any data source. The target does not decide whether the link shows.
+
+- The source data source is provisioned, so its correlations are hidden
+
+  In this lab, a correlation on the provisioned Loki data source works, as the step showed.
+
+- Log details only show links that are defined as derived fields
+
+  Log details show derived fields and correlations side by side under Links.
+</Question>

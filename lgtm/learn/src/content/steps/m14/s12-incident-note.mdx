@@ -1,0 +1,101 @@
+---
+id: m14-s12
+title: "The incident note: timeline, cause, evidence, actions"
+kind: concept
+minutes: 15
+order: 12
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [incident-note]
+outcome: You can write a short incident note from your own evidence, with a timeline, the cause, the proof, the impact and what was done.
+terms:
+  - term: Incident note
+    def: A short written record of one incident, its impact, the cause, the evidence and the actions taken.
+  - term: Postmortem
+    def: Google SRE's name for the written account of an incident and of what the team learned from it.
+  - term: Blameless
+    def: Written about systems and decisions, not about which person made a mistake.
+  - term: Time to detect
+    def: The time from the start of a fault to the moment someone notices it.
+sources:
+  - title: Postmortem culture, learning from failure (Google SRE book, chapter 15)
+    url: https://sre.google/sre-book/postmortem-culture/
+    checked: 2026-11-14
+  - title: Managing incidents (Google SRE book, chapter 14)
+    url: https://sre.google/sre-book/managing-incidents/
+    checked: 2026-11-14
+  - title: Effective troubleshooting (Google SRE book, chapter 12)
+    url: https://sre.google/sre-book/effective-troubleshooting/
+    checked: 2026-11-14
+---
+
+<Problem>
+A week after the payment incident of step 7, a colleague asks what happened. You remember "something with payment". The dashboards have moved on, the traces have been deleted by retention, and the person who switched the fault off is on holiday. What is left is whatever someone wrote down.
+</Problem>
+
+<Idea>
+An incident note is the written record of one incident: what users felt and for how long, a timeline, the cause, the evidence that proves it, and what was done. Write it from the facts you collected during the investigation, with times, queries and IDs, so that someone who was not there can check every line.
+</Idea>
+
+## What goes into the note
+
+Google's SRE book calls the written account of an incident a postmortem. It says what users lost, how the team stopped the damage, what caused it, and what will be done so that it does not happen again. A note for a small incident has the same parts, only shorter. Start with one sentence of summary. Then the impact: who was affected, how many, and for how long. Then the timeline, the cause, the evidence and the actions.
+
+## The timeline is built from your evidence
+
+Each line of a timeline has a time and one fact: when the fault started, when the first symptom showed, when someone noticed, when the cause was found, when it was fixed, when the graphs were back to normal. Take the times from the data, not from memory: the first failed span in Tempo, the first error log line, the minute the error ratio rose. The gaps between the lines are useful too. The time from the start to the first alert or complaint is the time to detect, and it often shows what to improve.
+
+<Timeline caption="Step 7 as it ran on this lab on 2026-11-14 (UTC)">
+  <Event at="18:25:24" title="Fault starts">paymentFailure set to 50% on the flag screen.</Event>
+  <Event at="18:26:06" title="First failed order">payment logs "Payment request failed. Invalid token."</Event>
+  <Event at="18:27" title="Symptom on the dashboard">Errors panel of checkout rises; with span kind server, about half the orders fail.</Event>
+  <Event at="18:28" title="Cause found">Failed span charge in payment, same message in its log line.</Event>
+  <Event at="18:29:17" title="Fault removed">Flag set to off; no failed charge after 18:29:15.</Event>
+</Timeline>
+
+## Cause and evidence are not the same line
+
+The cause is a statement: "the payment service refused charges with Invalid token". The evidence is what proves it, written so that someone else can find it again: the TraceQL query, one trace ID, the log line, and the count of failed orders. Say also what you ruled out and how, for example that the loyalty level on the failed spans was a coincidence because successful charges carry it too. A note that states a cause without evidence is an opinion.
+
+## Blameless, and about the system
+
+The SRE book asks for blameless postmortems: they look for the reasons in systems and processes, and assume that everyone acted in good faith with what they knew. So write "the fault flag stayed on for four minutes" rather than who forgot it. The actions at the end follow from that: what would have shown the fault sooner, what would have limited it, and who does each item. For the lab, one action might be an alert on the error ratio of checkout's server spans, which module m15 builds.
+
+<Compare caption="Two ways to write the cause">
+  <Col title="Opinion">Payment was broken for a while, probably a bad deploy.</Col>
+  <Col title="Evidence" hot>payment refused 5 charges between 18:26:06 and 18:29:15 with "Invalid token" (trace 3d3855ad41f8786a1e1960a0e8c39652).</Col>
+</Compare>
+
+<InLab>
+Your own note for step 7 comes from your times: the minute you switched the flag on and off, the first failed span you found, and the trace ID you opened. Write it while the traces are still in Tempo; the lab keeps them for 48 hours.
+</InLab>
+
+<Trap>
+A note that only says what was done ("restarted payment, works now") is not finished. Without the cause and its evidence, nobody can tell whether the restart fixed anything or the fault just went away.
+</Trap>
+
+<Remember>
+Summary, impact, timeline, cause, evidence, actions. Every time and every claim in the note points to data someone else can open.
+</Remember>
+
+<Question id="q-m14-s12" answer="c">
+An incident note says: "14:05 checkout errors. 14:20 restarted payment. 14:21 fixed." What is the most important part missing?
+
+- The names of the engineers who worked on it
+
+  A blameless note is about the system. Names do not help the next reader find the cause.
+
+- A screenshot of the dashboard during the incident
+
+  A screenshot can support the evidence, but the note still does not say what the cause was.
+
+- The cause and the evidence that proves it
+
+  Without them, nobody knows whether the restart fixed the cause or the fault ended on its own.
+
+- The exact minute the incident started, to the second
+
+  More precise times help, but the note has no cause or proof at all, which matters more.
+</Question>

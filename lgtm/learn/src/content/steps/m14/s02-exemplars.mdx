@@ -1,0 +1,109 @@
+---
+id: m14-s02
+title: "Exemplars: from a latency spike to one trace"
+kind: lab
+minutes: 15
+order: 2
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [correlation-exemplars, correlation]
+check:
+  kind: exact
+  prompt: Paste the value of rpc_method from the tooltip of an exemplar on checkout's OTLP latency graph.
+  answers: ["oteldemo.CheckoutService/PlaceOrder"]
+outcome: You can open one slow request from a latency graph, read in the data source what makes the exemplar link work, and say what would break it.
+terms:
+  - term: Exemplar link
+    def: A data source setting that turns one label of an exemplar into a link to a trace in a tracing data source.
+  - term: Label name
+    def: The exemplar label that holds the trace ID, such as traceID or trace_id.
+sources:
+  - title: Introduction to exemplars (Grafana)
+    url: https://grafana.com/docs/grafana/latest/fundamentals/exemplars/
+    checked: 2026-11-14
+  - title: Configure the Prometheus data source, exemplars (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/prometheus/configure/
+    checked: 2026-11-14
+  - title: About Grafana Mimir exemplars
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/use-exemplars/about-exemplars/
+    checked: 2026-11-14
+  - title: Metrics data model, exemplars (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/data-model/
+    checked: 2026-11-14
+---
+
+<Problem>
+The p95 latency of checkout jumped from 20 to 60 milliseconds for three minutes. The graph says when and how much. It does not say which request was slow, which service it waited on, or why. You need one real slow request from those three minutes.
+</Problem>
+
+<Idea>
+An exemplar is one real request stored next to a metric value, with its trace ID as a label. The Grafana data source decides which label holds the trace ID and which tracing data source opens it. If the label name, the tenant or the target does not match, the jump from the graph to the trace fails.
+</Idea>
+
+## Two kinds of exemplars in this lab
+
+Tenant `lab` in Mimir gets exemplars from two places. Tempo's metrics generator writes span metrics such as `traces_spanmetrics_latency_bucket`, and puts the trace ID in an exemplar label called `traceID`. The shop's services also send their own OpenTelemetry histograms, such as `rpc_server_call_duration_seconds_bucket`. Their exemplars come from the SDK and carry `trace_id` and `span_id`. In module m02 you clicked span metrics exemplars on a dashboard. Here you use the service's own histogram.
+
+## What makes the link work
+
+The link is not stored in Mimir. It is a setting of the Grafana data source that reads the metric. In the Prometheus data source, the Exemplars section has one entry per label name. Each entry names the label that holds the trace ID and either a tracing data source (an internal link) or a URL. The lab's data source `mimir` has two entries, `traceID` and `trace_id`, and both point to `tempo`. Grafana reads the label from the exemplar and opens that trace with **Query with Tempo**.
+
+## What breaks it
+
+Three things break the jump. If the data source had no entry for `trace_id`, Grafana would have no rule that turns that label of the OTLP histogram into a link. If you query a tenant that keeps no exemplars, there is nothing to click: tenant `prom` (data source `mimir-prom`) has none, because none of the lab's Prometheus scrape targets exposes an exemplar, so there is nothing to store or send; its exemplar storage is off as well. And if the entry pointed to a tracing data source that reads another tenant, Tempo would not find the trace.
+
+<Compare caption="Exemplar labels in tenant lab">
+  <Col title="Span metrics">traceID, written by Tempo's metrics generator.</Col>
+  <Col title="OTLP histograms" hot>trace_id and span_id, written by the service's SDK.</Col>
+</Compare>
+
+<InLab>
+The data source `mimir` is provisioned from `lab/helm/grafana/values.yaml`, so its settings page is read-only. The page says so in a banner at the top.
+</InLab>
+
+<Trap>
+When an exemplar does not open its trace, look at the Grafana data source before you blame Mimir. The label name in the exemplar entry must be the label the exemplar carries, letter for letter: `traceID` and `trace_id` are different names.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, pick the data source `mimir`, set the time range to the last 30 minutes, and run checkout's own p95 latency: <Query lang="promql">{`histogram_quantile(0.95, sum by (le) (rate(rpc_server_call_duration_seconds_bucket{service_name="checkout"}[5m])))`}</Query>
+2. Open **Options** under the query and switch **Exemplars** on. Small dots appear on the graph.
+3. Hover over a dot near the top of the graph. The tooltip is titled Exemplar. Find `trace_id`, `span_id` and `rpc_method` among its labels, then click **Query with Tempo**. The trace opens in a split pane.
+4. Open **Connections** > **Data sources** > **Mimir**. Read the banner, then scroll to **Exemplars**. Note the two entries, their **Label name** and their **Data source**. Change nothing.
+5. Back in Explore, switch the data source to `mimir-prom` and run a Prometheus histogram with exemplars on: <Query lang="promql">{`histogram_quantile(0.95, sum by (le) (rate(prometheus_http_request_duration_seconds_bucket[5m])))`}</Query> The line appears, but no dots.
+6. Paste the value of `rpc_method` from action 3 in the check below.
+</Do>
+
+<Done>
+One dot on checkout's graph opened a trace in Tempo, and you found the two exemplar entries in the data source that make such links work.
+</Done>
+
+<Trap practice>
+If no dots appear in action 2, the time range may be too short or the query has not run again; click **Run query**. The tooltip shows the exemplar's own value, which can sit away from the p95 line.
+</Trap>
+
+<Remember>
+Mimir stores the exemplar with a trace ID label. The Grafana data source turns that label into a link, one entry per label name.
+</Remember>
+
+<Question id="q-m14-s02" answer="b">
+A team's new service sends SDK histograms whose exemplars carry the label `trace_id`. Their Prometheus data source in Grafana has one exemplar entry, with the label name `traceID`, and the exemplars do not open traces. What is the fix?
+
+- Rename the label in Mimir with a relabeling rule on the tenant
+
+  The label is fine as it is. The setting that reads it is in the Grafana data source.
+
+- Add a second exemplar entry with the label name `trace_id`
+
+  A data source can have several exemplar entries, one per label name that holds a trace ID.
+
+- Turn on exemplar storage for the tenant in Mimir
+
+  The exemplars are already stored and shown. Only the link from their label to a trace is missing.
+
+- Point the existing entry at a different tracing data source
+
+  The entry would still read the label `traceID`, which these exemplars do not carry.
+</Question>

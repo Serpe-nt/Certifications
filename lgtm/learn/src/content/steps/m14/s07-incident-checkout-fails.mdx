@@ -1,0 +1,116 @@
+---
+id: m14-s07
+title: "Incident: some orders fail at checkout"
+kind: lab
+minutes: 25
+order: 7
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [incident-errors]
+flags: [paymentFailure]
+check:
+  kind: regex
+  prompt: Paste the error message that the failing service wrote, as the log line shows it.
+  pattern: '.*[Ii]nvalid token.*'
+outcome: You can start from an error ratio on a dashboard, narrow it to one failing call, and prove the cause with the error message of the service that failed.
+terms:
+  - term: Error ratio
+    def: The share of spans with status error among all spans of a service or a call.
+  - term: Span kind
+    def: Whether a span is the server side of a call, the client side, or internal work. Dashboards often filter on it.
+sources:
+  - title: Effective troubleshooting (Google SRE book, chapter 12)
+    url: https://sre.google/sre-book/effective-troubleshooting/
+    checked: 2026-11-14
+  - title: Semantic conventions for HTTP spans, status (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+    checked: 2026-11-14
+  - title: Traces in Explore, trace view (Grafana)
+    url: https://grafana.com/docs/grafana/latest/explore/trace-integration/
+    checked: 2026-11-14
+  - title: Constructing TraceQL queries (Tempo)
+    url: https://grafana.com/docs/tempo/latest/traceql/construct-traceql-queries/
+    checked: 2026-11-14
+  - title: Status codes and their use in gRPC
+    url: https://grpc.io/docs/guides/status-codes/
+    checked: 2026-11-14
+---
+
+<Problem>
+Support forwards three messages from customers: "I clicked Place order and got an error." Other customers order without trouble. The site is up, the shop's pods are running, and nobody changed anything today. You are asked to find out why some orders fail, and to show the proof.
+</Problem>
+
+This is the first full turn of the loop. You start where a team usually starts: on a dashboard.
+
+<Idea>
+Start from the error ratio of the service users talk to, then split it until one call stands out. Open one failed request of that call, go to the span where the error began, and read what that service wrote. The cause is proven when the error message explains every failed order you looked at.
+</Idea>
+
+## Start on the dashboard, with the right span kind
+
+The dashboard **Shop / checkout (RED)** shows checkout's rate, errors and duration from span metrics. Its Errors panel divides the failed spans by all spans of checkout. Checkout makes many client calls for each order, to cart, product catalog and payment, and most of them succeed, so a failure of one order in two can show as a few percent. The panel has a **Span kind** filter. With `SPAN_KIND_SERVER`, it counts only the calls checkout receives, one per order, and the real share of failed orders appears.
+
+## Split the errors by call
+
+A dashboard answers the question it was built for. To split further, open the same metric in Explore and group the failed spans by `span_name`. Each span name is one call. If one client call fails as often as the orders do, that call is the next place to look. TraceQL then finds requests where exactly that span failed, and you open one.
+
+## From the failed span to the message
+
+The trace view puts a failed span of the trace into its header, with a **Go to span** button. A failed request leaves an error on every span it passes through on the way back: the service that failed, the client span that called it, and the server span of the caller. The useful one is the deepest, where the error began. Its status message and its log lines, through **Related logs**, hold the text the service wrote.
+
+## Why the frontend's server span looks healthy
+
+The browser called the frontend, and the frontend answered with HTTP status 422. The OpenTelemetry conventions say a server span must leave its status unset for a 4xx answer, because the client sent something the server refused. So the frontend's server span `POST /api/checkout` is not an error, and a view filtered to server spans shows no failure in the frontend. Its other spans of the same request do carry the error: the client span of its gRPC call to checkout, with code 13, and its internal span for the API route. With span kind All, the frontend's Errors panel rises too. The failure also shows on checkout's spans, and on the client span of the load generator, which did get a 4xx.
+
+<InLab>
+The load generator places about three orders a minute, so a fault in checkout needs two or three minutes to show clearly on a graph. Span metrics come from Tempo's metrics generator; the dashboard's Errors panel uses `traces_spanmetrics_calls_total` with `status_code="STATUS_CODE_ERROR"`.
+</InLab>
+
+<Trap>
+An error that appears on every span of a failed request does not start in every service. Follow it down to the deepest failed span; the spans above it only pass the error on.
+</Trap>
+
+<Do>
+1. Open the dashboard <LabLink to="grafana" path="/d/shop-red-checkout">Shop / checkout (RED)</LabLink>, last 15 minutes. Note that the Errors panel is at 0%.
+2. Open the <LabLink to="flags" path="/feature">flag screen</LabLink>, find `paymentFailure`, and set it to `50%`. Note the time. Wait three minutes.
+3. Back on the dashboard, the Errors panel has risen to a few percent. Set **Span kind** to `SPAN_KIND_SERVER`. The share is now much higher: these are failed orders.
+4. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with `mimir` and split checkout's failed spans by call: <Query lang="promql">{`sum by (span_name) (rate(traces_spanmetrics_calls_total{service_name="checkout", status_code="STATUS_CODE_ERROR"}[5m]))`}</Query> Two span names appear. One is the order itself; the other is a call that checkout makes.
+5. Switch to `tempo`, query type **TraceQL**, and find failed calls of that kind: <Query lang="traceql">{`{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && status = error }`}</Query> Open one trace.
+6. In the trace header, a failed span is named with **Go to span**. Click it. Read the span's service, its **Status Message** and its exception.
+7. In that span's details, click **Related logs**. Expand the WARN line and read its `exception_message`. Copy the message for the check below.
+8. On the flag screen, set `paymentFailure` back to `off`. Reload the page and check that it shows `off`. Write down the time.
+</Do>
+
+<Done>
+The failed orders all went through checkout's call to the payment service, and the payment service's own log line gives the reason in one sentence. That message is the evidence.
+</Done>
+
+<Trap practice>
+The failed span and the log line also carry `demo.user_context.loyalty_level=gold`. It is tempting to blame gold customers. Look at a successful charge span of payment: it carries a loyalty level too, chosen at random. A value that every failed request carries is a cause only if the successful ones do not.
+</Trap>
+
+<Remember>
+Dashboard for the symptom, a split by call for the place, the deepest failed span for the service, its log line for the reason. Keep the flag times: step 12 turns them into an incident note.
+</Remember>
+
+<Question id="q-m14-s07" answer="b">
+In a failed request, the frontend's server span `POST /api/checkout` has HTTP status 422 and no error status, while checkout's and payment's spans have status error. Why is the frontend span not marked as an error?
+
+- The frontend's SDK does not record span status at all
+
+  The frontend records status on other spans. The rule for this span is about the kind of status code.
+
+- 4xx leaves a server span's status unset
+
+  A 4xx means the client sent something the server refused, so the server span is not counted as an error.
+
+- The collector removes error status from spans of the frontend
+
+  The lab's gateway changes span names, not span status.
+
+- 422 counts as a success code in HTTP
+
+  422 is a client error code. The span is unset because of who made the error, not because it succeeded.
+</Question>

@@ -1,0 +1,109 @@
+---
+id: m14-s04
+title: "From a log line to its trace: derived fields"
+kind: lab
+minutes: 15
+order: 4
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [correlation-trace-logs, correlation]
+check:
+  kind: exact
+  prompt: Paste the text of the checkout log line that never carries a trace_id.
+  answers: ["sending to postProcessor"]
+outcome: You can jump from a log line to its trace, read the Loki data source's derived field that makes the link, and explain why some lines of a traced service have no link.
+terms:
+  - term: Derived field
+    def: A Loki data source setting that takes a value from a log line or its labels and turns it into a link.
+  - term: Internal link
+    def: A link that opens a query in another Grafana data source, such as a trace in Tempo, instead of a web address.
+sources:
+  - title: Configure the Loki data source, derived fields (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/loki/configure/
+    checked: 2026-11-14
+  - title: Configure trace to logs correlation (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-logs/
+    checked: 2026-11-14
+  - title: Logs SDK, emit a LogRecord (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/sdk/
+    checked: 2026-11-14
+  - title: Logs API, emit a LogRecord (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/logs/api/
+    checked: 2026-11-14
+---
+
+<Problem>
+A log search for "error" finds one line from checkout at 14:02. It tells you what failed, but not which services the request passed through or where it spent its time. You want the request's trace, and you would rather not copy a trace ID from the line into a TraceQL query by hand.
+</Problem>
+
+<Idea>
+A derived field in the Loki data source reads a value from each log line and makes a link out of it. The lab has one, named `trace_id`: it takes the line's `trace_id` field and opens that trace in Tempo. A line without a trace ID gets no link, and that tells you something about the code that wrote it.
+</Idea>
+
+## How the derived field works
+
+A derived field has a name, a type, a matcher and a target. With the type **Label**, the matcher is a regular expression that Grafana applies to the names of the line's labels, including structured metadata. With the type **Regex in log line**, it applies to the text of the line, and the first capture group becomes the value. The lab's field uses the type Label with the matcher `trace_id`, an internal link to the data source `tempo`, and the query `${__value.raw}`, which is the value itself. The link appears under **Links** in the log details, labelled **Open trace**.
+
+## What breaks it
+
+The derived field only builds a link from the value. Grafana's documentation points out that the trace must already be in Tempo, or the link opens Tempo and finds nothing. If a service wrote the trace ID under another name, such as `traceId`, a matcher of `trace_id` would not see it. And if the trace ID is only inside the text of the line, a field of type Label finds nothing: that case needs the type Regex in log line.
+
+## Why some lines have no trace ID
+
+The OpenTelemetry Logs SDK fills a record's trace ID and span ID from the context it is given when the line is written. Checkout is written in Go and logs through the `otelslog` bridge. Where its code passes the request's context, as for "payment went through", the line carries `trace_id`. Where it calls the logger without that context, as for "sending to postProcessor", the line has no trace ID, even though it was written during the same order. Loki's field list shows this as a share: `trace_id` on some lines of a service, not on all.
+
+<Compare caption="Two lines that checkout writes for every order">
+  <Col title="payment went through" hot>Written with the request's context. Carries trace_id and span_id, and shows Open trace.</Col>
+  <Col title="sending to postProcessor">Written without it. No trace_id, no link.</Col>
+</Compare>
+
+<InLab>
+The derived field is provisioned in `lab/helm/grafana/values.yaml` with `matcherType: label` and `matcherRegex: trace_id`. Every shop service sends its logs to Loki over OTLP, so the trace ID is structured metadata, not part of the line's text.
+</InLab>
+
+<Trap>
+A missing link does not mean the request had no trace. The line may have been written without the trace context, or under another field name. Look at the line's fields before you look for a fault in Tempo.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, pick the data source `loki`, set the time range to the last 15 minutes, and run: <Query lang="logql">{`{service_name="checkout"} |= "payment went through"`}</Query>
+2. Expand one line. Under **Links**, `trace_id` has an **Open trace** link. Click it. The trace opens in Tempo in a split pane; close that pane again.
+3. Now list every checkout line and look at the field list beside the logs: <Query lang="logql">{`{service_name="checkout"}`}</Query> In the field list on the left, `trace_id` shows a percentage below 100%.
+4. Find the lines without a trace ID: <Query lang="logql">{`{service_name="checkout"} | trace_id=""`}</Query> Expand one of them. It has no `trace_id` field and no **Open trace** link.
+5. Open **Connections** > **Data sources** > **Loki** and scroll to **Derived fields**. Read the name, the type, the label, the query, the URL label and the internal link. Change nothing.
+6. Paste the text of the checkout line from action 4 that also appears once in every order in the check below.
+</Do>
+
+<Done>
+One click on a log line opened its trace, and you found checkout lines that carry no trace ID, written in the same orders.
+</Done>
+
+<Trap practice>
+Action 4 also lists other lines without a trace ID, such as "Successful to write message", whose numbers change every time. Paste the line whose text is always the same.
+</Trap>
+
+<Remember>
+The link from a log line to its trace is a derived field: a name to match, a target data source, and a value that must be in the line. No trace ID in the line, no link.
+</Remember>
+
+<Question id="q-m14-s04" answer="d">
+A service writes plain text logs to stdout, such as `charge failed trace=4bf92f3577b34da6a3ce929d0e0e4736`, and a collector ships them to Loki without parsing. The Loki data source has a derived field of type Label with the matcher `trace_id`. Why is there no link to the trace?
+
+- Loki drops trace IDs from lines that do not come over OTLP
+
+  Loki keeps the line's text as it is. The trace ID is still there, inside the text.
+
+- The derived field needs the internal link switched off for text logs
+
+  An internal link works for any value the field extracts. The field extracts nothing here.
+
+- Tempo cannot open traces whose ID came from a log line
+
+  The trace ID is the same value, wherever Grafana reads it from.
+
+- A Label field cannot read the ID inside the text
+
+  A field of type Regex in log line, with a capture group for the ID, would find it.
+</Question>
