@@ -1,9 +1,9 @@
 # Lab runbook
 
-How to run the lab from day to day: start and stop it with the VMs, upgrade one release, reset
-it, find a missing signal, free disk. Commands run from `lgtm/lab` in WSL with
-`export KUBECONFIG=~/.kube/lgtm-lab.config`, except the VM commands, which run in an elevated
-PowerShell in `lgtm\lab\vm\hyperv`. Addresses and passwords: `reference.md`.
+How to run the lab from day to day: start and stop it with the VMs, bring it back after the PC
+has slept, upgrade Calico or one release, reset it, find a missing signal, free disk. Commands
+run from `lgtm/lab` in WSL with `export KUBECONFIG=~/.kube/lgtm-lab.config`, except the VM
+commands, which run in an elevated PowerShell in `lgtm\lab\vm\hyperv`. Addresses and passwords: `reference.md`.
 
 ## Start and stop
 
@@ -34,6 +34,63 @@ If one pod stays down for more than 10 minutes after the nodes are Ready, look a
 `kubectl -n <namespace> describe pod <pod>` and its logs before deleting it. A pod that waits on a
 volume shows it in the events (`FailedAttachVolume`): open the Longhorn screen and check that the
 volume has a healthy replica.
+
+## After the PC has slept
+
+When Windows sleeps, the VMs do not shut down: they stop where they are and go on when the PC
+wakes, with their clocks set forward. Running pods carry on. What can break is starting new pods.
+
+What you see: a new pod stays in `ContainerCreating`, and `kubectl describe pod` shows events
+`FailedCreatePodSandBox` with
+`plugin type="calico" failed (add): error getting ClusterInformation: connection is unauthorized: Unauthorized`.
+Pods that are being deleted on that node can hang as well.
+
+Why: Calico's CNI plugin, which gives each new pod its network, talks to the API server with a
+token that calico-node writes on each node. The token is valid 24 hours. Since Calico 3.31.6
+calico-node renews it whenever kubelet rotates calico-node's own token, about every 48 minutes
+and again soon after a wake, so a sleep of up to about 23 hours does no harm. After a longer
+sleep the token has run out when the PC wakes, and new pods on that node fail until the renewal
+comes. On Calico 3.31.4, which the lab had until card L7, the renewal came only every 6 to 12
+hours of running time, and a 14-hour sleep was enough. Details and the arithmetic:
+`lgtm/docs/adr/l7-calico-cni-token.md`.
+
+The command, from `lgtm/lab` in WSL:
+
+```bash
+make calico-renew     # restarts calico-node one node at a time, waits, then checks; about 2 minutes
+```
+
+Each node's calico-node is down for a few seconds, one node at a time; Longhorn may report
+`CalicoIsDown` on that node for that moment. It is safe to run on a healthy lab.
+
+How to check: `make calico-renew` ends with one `PASS` line per node, and `make lab-check` runs the
+same check first (`tests/lab/cni-token.sh`). It fails with a sentence that names the node and this
+command when a node's token is 24 hours old or when the API server refused it after its last
+renewal. To read the renewals yourself:
+
+```bash
+kubectl -n calico-system logs -l k8s-app=calico-node -c calico-node --prefix --timestamps --tail=-1 --since=25h | grep 'Wrote updated CNI kubeconfig file'
+```
+
+Shutting Windows down is different: the VMs shut down with it and stay off until
+`lab-vms.ps1 start`, and every calico-node writes a new token when it starts.
+
+## Upgrade Calico
+
+Calico is not a Helm release. Its version is `calico_version` in
+`ansible/inventory/group_vars/all.yml`; `make cluster` installs that version on a new cluster but
+never touches the operator of a running one. To move a running lab to the version in that file,
+follow Calico's steps for an operator installation
+(https://docs.tigera.io/calico/3.31/operations/upgrading/kubernetes-upgrade), with `VERSION` the
+value of `calico_version`:
+
+```bash
+kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/projectcalico/calico/vVERSION/manifests/operator-crds.yaml
+kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/projectcalico/calico/vVERSION/manifests/tigera-operator.yaml
+kubectl get tigerastatus                       # every row AVAILABLE True, after a few minutes
+```
+
+The operator then replaces every pod in `calico-system`, calico-node one node at a time.
 
 ## Upgrade or change one release
 

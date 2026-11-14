@@ -14,7 +14,7 @@ From a clean Windows 11 Pro PC, with every prerequisite and step explained: `boo
 | master1 | 10.10.0.11 | 2 | 4 GB | 25 GB | kubeadm control plane, etcd |
 | worker1 to worker4 | 10.10.0.30 to .33 | 4 | 8 GB | 30 GB + 40 GB at `/var/lib/longhorn` | workloads, Longhorn data |
 
-Ubuntu Server 24.04, Kubernetes 1.35 with containerd and Calico 3.31.4, one network card per VM,
+Ubuntu Server 24.04, Kubernetes 1.35 with containerd and Calico 3.31.7, one network card per VM,
 SSH user `vaka` with the key `~/.ssh/ansible`, no password login. `cluster-endpoint.k8s.local`
 and every name under `lab.k8s.local` resolve to `lb`.
 
@@ -92,7 +92,11 @@ kubectl get nodes
    machine. Nothing writes `~/.kube/config`.
 
 Every play is safe to run again: what exists is left alone, and a re-run on a healthy cluster
-changes nothing. `make cluster ANSIBLE_ARGS="--limit worker4"` limits a run.
+changes nothing. That includes Calico: `master_init` installs the operator of `calico_version`
+only when there is none, so a new `calico_version` reaches a running cluster only by the steps in
+`runbook.md`, "Upgrade Calico". Since card L7 (2026-11-14) the version is 3.31.7, which renews the
+CNI plugin's token often enough for the lab to survive a night's sleep of the PC
+(`lgtm/docs/adr/l7-calico-cni-token.md`). `make cluster ANSIBLE_ARGS="--limit worker4"` limits a run.
 
 Other targets: `make help` lists them all.
 
@@ -104,6 +108,7 @@ Other targets: `make help` lists them all.
 | `make cluster-check` | HAProxy sees every API server, lab DNS answers, all nodes Ready, system pods Ready, one etcd member per control-plane node, `kubectl get --raw /readyz` from WSL |
 | `make lint` | yamllint, ansible-lint (production profile), syntax checks, inventory up to date |
 | `make lint-ps` | PSScriptAnalyzer and Pester for the Hyper-V script, through Windows PowerShell |
+| `make calico-renew` | after a long sleep of the PC: restarts calico-node one node at a time so each writes a new CNI token, waits, then checks every node's token (`runbook.md`, "After the PC has slept") |
 | `make forget-host-keys` | forgets the VMs' SSH host keys (kept in `~/.ssh/known_hosts_lgtm-lab`) after destroy and create |
 
 ## One control-plane node
