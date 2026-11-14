@@ -8,6 +8,12 @@ None. Every action of m00 to m09 has been done on the lab as a learner would do 
 
 Left alone on purpose: `make reset` (m01 step 20, described from the owner's own run), pushing a delta metric into Mimir (m08), and changing a lab release to settle the inferences of m06, which stay marked `inference` in its log.
 
+## Lesson defects
+
+| What | Since | Notes |
+|---|---|---|
+| A manifest copied from a lesson has broken indentation | found 2026-11-14 by card C9, confirmed on the built pages | A multi-line `<Cmd>` inside a numbered action loses the list item's indent on every later line. Twelve blocks in merged modules: m01 step 10 (three), m03 step 8 (two), m06 steps 8 and 11, m09 steps 5, 6, 8, 12 and 13. The lessons were tested from the workers' own files, not from the page, so no walk caught it. Card W3 (`cards/w8-w3-files-keep-indentation.md`) repairs them and adds the rule to `check:content`. Until then a learner types the indentation by hand or takes the file from the step's source in the repository. |
+
 ## Lab defects
 
 | What | Since | Notes |
