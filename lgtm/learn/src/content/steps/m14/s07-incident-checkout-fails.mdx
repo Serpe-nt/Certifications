@@ -102,7 +102,7 @@ In a failed request, the frontend's server span `POST /api/checkout` has HTTP st
 
   The frontend records status on other spans. The rule for this span is about the kind of status code.
 
-- For a 4xx answer, the conventions leave a server span's status unset
+- 4xx leaves a server span's status unset
 
   A 4xx means the client sent something the server refused, so the server span is not counted as an error.
 
@@ -110,7 +110,7 @@ In a failed request, the frontend's server span `POST /api/checkout` has HTTP st
 
   The lab's gateway changes span names, not span status.
 
-- 422 is a success code in HTTP
+- 422 counts as a success code in HTTP
 
   422 is a client error code. The span is unset because of who made the error, not because it succeeded.
 </Question>

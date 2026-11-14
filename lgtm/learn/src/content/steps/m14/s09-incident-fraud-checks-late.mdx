@@ -105,15 +105,15 @@ A consumer group's lag grows. In the consumer's logs, each order ID appears once
 
   Each order appears once, so the consumer does not receive copies.
 
-- The topic has lost messages
+- The topic has lost some of its messages
 
   Lost messages would make the lag smaller, not larger.
 
-- The consumer handles each message more slowly than before
+- Each message is handled more slowly than before
 
   The same messages, one per order, arrive at a normal rate, but each line comes later than before.
 
-- The consumer group has no members left
+- The consumer group has no members left in it
 
   A group with no members writes no lines at all. Here the consumer still works, only slowly.
 </Question>

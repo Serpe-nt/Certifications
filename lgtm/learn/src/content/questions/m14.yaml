@@ -3,13 +3,13 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: At 02:10 an alert says the checkout error ratio is 30%. Which move gives you the most useful next fact?
   options:
-    - text: Split the failed spans of checkout by span name to see which call fails
+    - text: Split checkout's failed spans by span name
       why: The metric tells you where the errors are. Splitting it by call narrows the search before you open single requests.
-    - text: Read the newest checkout log lines until an error appears
+    - text: Read the newest checkout log lines until an error line appears
       why: Without knowing which call fails, you read many unrelated lines. Logs are more useful once you know which request to read.
-    - text: Restart every pod of checkout to see whether the errors stop
+    - text: Restart every checkout pod and see whether the errors stop
       why: A restart may hide the cause and destroys evidence. It is not a way to find where the errors come from.
-    - text: Open the newest trace of checkout and read all of its spans
+    - text: Open the newest checkout trace and read every one of its spans
       why: The newest trace may be one that succeeded. Choose a failed request of the failing call instead.
   answer: [0]
   source: https://sre.google/sre-book/effective-troubleshooting/
@@ -37,7 +37,7 @@
   options:
     - text: How many requests failed in the last hour
       why: Counting requests over time is what a metric does well. A single trace is one request.
-    - text: Which service and which call made one slow request slow
+    - text: Which call made one slow request slow
       why: A trace shows one request's path with the time and status of each step, so it shows where that request spent its time.
     - text: Whether the error ratio is higher than yesterday
       why: Comparing a ratio over days needs a metric with history, not one request.
@@ -55,7 +55,7 @@
       why: Mimir keeps an exemplar's labels as they arrive. The two names are still different in storage.
     - text: Tempo accepts either label name in its search API
       why: Tempo receives a trace ID, not a label name. Grafana must first know which label holds the ID.
-    - text: The data source has one exemplar entry for each of the two label names
+    - text: The data source has an exemplar entry for each label
       why: Each entry maps one label name to the Tempo data source, so both kinds of exemplars become links.
     - text: Grafana finds any label that looks like a 32-character hex value
       why: Grafana does not guess. It reads the label named in an exemplar entry of the data source.
@@ -69,11 +69,11 @@
   options:
     - text: The data source <code>mimir-prom</code> has no exemplar entries
       why: Entries turn exemplars into links. With no exemplars stored, there is nothing to draw, entry or not.
-    - text: Prometheus histograms cannot have exemplars
+    - text: Prometheus histograms can never carry exemplars
       why: Prometheus can store and send exemplars when the feature is on. The lab's Prometheus runs without it.
-    - text: Tenant <code>prom</code> has exemplars switched off in Grafana
+    - text: Grafana switches exemplars off for tenant <code>prom</code>
       why: Grafana does not switch exemplars per tenant. It shows what the tenant returns.
-    - text: The tenant holds no exemplars, because its sender stores none
+    - text: Tenant <code>prom</code> holds no exemplars at all
       why: The lab's Prometheus runs without exemplar storage, so it has none to send to Mimir.
   answer: [3]
   source: https://grafana.com/docs/mimir/v3.2.x/manage/use-exemplars/before-you-begin/
@@ -83,13 +83,13 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: The logs link on a span returns no lines. The service writes logs to Loki over OTLP, and the lines carry <code>trace_id</code>. The Tempo data source has a span start time shift and end time shift of 0. What is the likely cause?
   options:
-    - text: The log lines were written slightly before or after the span, outside the window
+    - text: The lines fall just outside the span's time window
       why: With no shift, the query covers only the span's exact time. Grafana's documentation suggests a few seconds either way.
     - text: Loki cannot filter on structured metadata such as <code>trace_id</code>
       why: A label filter after the stream selector filters structured metadata. The query shape works.
     - text: The span has no attribute that the tag mapping reads
       why: Then the link would not appear at all. Here it appears and returns nothing.
-    - text: Trace IDs in logs must be written in upper case
+    - text: Trace IDs in log lines must be written in upper case
       why: The filter compares the value as Grafana writes it. Case is not the problem here.
   answer: [0]
   source: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-logs/
@@ -99,13 +99,13 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: Why does the lab's trace to logs query select a service with <code>{service_name="..."}</code> and filter the trace ID afterwards, instead of searching every stream for the trace ID?
   options:
-    - text: Loki cannot search for a value in all streams at once
+    - text: Loki cannot search for one value in all streams at once
       why: Loki can, with a wide selector. It is just slow and reads much more data.
-    - text: The stream selector keeps Loki to the streams of one service, which keeps the query cheap
+    - text: It keeps Loki to the streams of one service
       why: Loki reads only the chunks of the selected streams, then the filter keeps the lines of one trace.
-    - text: The trace ID is a stream label, so it must come after the selector
+    - text: The trace ID is a stream label, so it must follow the selector
       why: The trace ID is structured metadata, not a stream label. That is why it is a filter.
-    - text: Grafana's data source allows only one label in a query
+    - text: The data source allows only one label in a generated query
       why: The tag mapping can add several labels. The lab maps one.
   answer: [1]
   source: https://grafana.com/docs/grafana/latest/datasources/tempo/configure-tempo-data-source/configure-trace-to-logs/
@@ -117,9 +117,9 @@
   options:
     - text: Loki drops the trace ID from lines that arrive in large batches
       why: Loki keeps the fields each record carries. The difference comes from the service.
-    - text: The collector samples trace IDs on log lines
+    - text: The collector samples trace IDs on some of the log lines
       why: The lab's collector does not remove trace IDs from logs. Sampling applies to traces, not log fields.
-    - text: The lines without it were logged without passing the request's context
+    - text: Those lines were logged without the request's context
       why: The SDK fills the trace fields from the context it gets. A call without the request's context has no trace to copy.
     - text: Only lines of severity WARN and above carry a trace ID
       why: In this lab, INFO lines such as "payment went through" carry a trace ID too.
@@ -131,13 +131,13 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: A team ships plain text logs where the trace ID appears as <code>traceid=...</code> inside the line. Which derived field turns it into a link to Tempo?
   options:
-    - text: Type Label, with the matcher <code>traceid</code>
+    - text: Type Label, with the matcher <code>traceid</code> on the label names
       why: A Label field looks at label and metadata names. Here the ID is only in the text of the line.
-    - text: Type Label, with the matcher <code>trace_id</code>
+    - text: Type Label, with the matcher <code>trace_id</code> like the lab's field
       why: There is no such label on these lines, so the field finds nothing.
     - text: A correlation with the results field <code>traceid</code>
       why: Without parsing, the row has no field named traceid. The value is still inside Line.
-    - text: Type Regex in log line, with a capture group after <code>traceid=</code>
+    - text: Type Regex in log line, with a capture group
       why: This type reads the line's text, and its first capture group becomes the value of the link.
   answer: [3]
   source: https://grafana.com/docs/grafana/latest/datasources/loki/configure/
@@ -147,9 +147,9 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: A span of product-catalog has no Request rate button in its details, although other services' spans have one. The data source maps the tag <code>service.name</code>. What should you look at first?
   options:
-    - text: Whether that span carries the attribute <code>service.name</code>
+    - text: Whether that span carries <code>service.name</code>
       why: The tags must be on the span for a trace to metrics link to appear. A span without them gets no link.
-    - text: Whether Mimir is reachable from Grafana
+    - text: Whether Mimir is reachable from Grafana right now
       why: Then other services' buttons would fail too. Here only one service's spans lack the button.
     - text: Whether the Loki data source is linked in Tempo
       why: Loki is used by trace to logs. The Request rate button is trace to metrics.
@@ -163,11 +163,11 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: In the service graph, a node named <code>astronomy-db</code> appears, although no service of that name sends spans. Where does it come from?
   options:
-    - text: Grafana adds a node for each data source it knows
+    - text: Grafana adds one node for each data source it knows
       why: The node graph shows services and calls from metrics, not Grafana's data sources.
     - text: The database sends its own spans through the collector
       why: The PostgreSQL server sends no spans in this lab. Only the client side of the call is traced.
-    - text: Tempo's generator makes a virtual node from database client spans
+    - text: Tempo makes a virtual node from the client spans
       why: A client span with a database attribute becomes an edge to a virtual node, named from peer.service or server.address.
     - text: Mimir creates a series for every host name in the cluster
       why: Mimir stores what the generator writes. It does not invent nodes.
@@ -181,9 +181,9 @@
   options:
     - text: Add a derived field in the Loki data source settings
       why: The settings page of a provisioned data source cannot be changed in the UI.
-    - text: Create a correlation with Loki as the source and Tempo as the target
+    - text: Create a correlation from Loki to Tempo
       why: Correlations are stored on their own, so they can use a provisioned data source as the source.
-    - text: Add a dashboard link to every Loki panel
+    - text: Add a dashboard link to every panel that shows Loki logs
       why: Dashboard links do not appear in Explore's log details and do not take values from the line.
     - text: Clone the Tempo data source and add trace to logs there
       why: Trace to logs goes from spans to logs. The team wants the opposite direction.
@@ -195,13 +195,13 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: A correlation's target query uses <code>${service_name}</code>, and its source is Loki. The service name is inside the row's <code>labels</code> field as JSON. What fills the variable?
   options:
-    - text: A regular expression transformation on <code>labels</code> with the map value <code>service_name</code>
+    - text: A regex transformation on <code>labels</code>, mapped to <code>service_name</code>
       why: The capture group of the regex becomes a new variable named by the map value.
-    - text: Grafana reads every label as a variable on its own
+    - text: Grafana reads every label of the row as a variable of its own
       why: For a Loki row, the variables are its fields. The labels arrive together as one JSON value.
     - text: A derived field named <code>service_name</code> in the Loki data source
       why: A derived field makes its own link. It does not fill a correlation's variables, and the data source is read-only here.
-    - text: The results field set to <code>labels</code>
+    - text: The results field set to <code>labels</code> instead of <code>trace_id</code>
       why: The results field decides where the link shows. It does not split the JSON into variables.
   answer: [0]
   source: https://grafana.com/docs/grafana/latest/administration/correlations/use-variables-and-transformations/
@@ -213,11 +213,11 @@
   options:
     - text: The panel samples only one span in twenty-five
       why: The span metrics count every span the generator receives. The low number comes from what is divided.
-    - text: Most of checkout's spans are successful client calls, which dilute the ratio
+    - text: Successful client calls dilute the ratio
       why: Each order makes several client calls that succeed. Filtering on server spans counts one span per order.
-    - text: Errors are counted only after five minutes
+    - text: Errors are counted only after a delay of five minutes
       why: The rate uses a window, but that delays the line. It does not make the share smaller.
-    - text: Failed orders are retried, so most of them succeed in the end
+    - text: Failed orders are retried, so most succeed in the end
       why: The load generator does not retry a failed order. The share is low for another reason.
   answer: [1]
   source: https://grafana.com/docs/tempo/latest/metrics-from-traces/span-metrics/
@@ -243,13 +243,13 @@
   exam: {cert: otca, domain: O1, competency: Telemetry Data}
   q: A request fails with HTTP 422 from the frontend. On the frontend's server span, what does the span status show?
   options:
-    - text: Error, because 422 is a failure
+    - text: Error, because every 4xx status is a failure
       why: For a server span, a 4xx answer means the client made the mistake, so the status stays unset.
-    - text: OK, because the server answered
+    - text: OK, because the server answered the request
       why: Instrumentation leaves the status unset for this case. OK is set only on purpose.
     - text: Error, with the message of the 422 body
       why: The status is not set to error for a 4xx answer on a server span.
-    - text: Unset, because the conventions leave 4xx unset on server spans
+    - text: Unset, as the conventions require for 4xx
       why: The HTTP conventions say a server span must leave its status unset for status codes in the 4xx range.
   answer: [3]
   source: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
@@ -259,13 +259,13 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: Which line belongs in the evidence part of an incident note?
   options:
-    - text: "The payment service was probably overloaded."
+    - text: '"The payment service was probably overloaded at that time."'
       why: This is a guess. Evidence names data that another person can open and check.
-    - text: "Trace 3d3855ad... shows payment's span charge failing with Invalid token; 5 such log lines from 18:26 to 18:29."
+    - text: '"Trace 3d3855ad... shows payment''s span charge failing with Invalid token."'
       why: It names a trace, a span, a message and a count. Anyone can open them and check.
-    - text: "Alice restarted payment at 18:31."
+    - text: '"Alice restarted payment at 18:31 and it worked again."'
       why: That is an action for the timeline, and a blameless note names the action, not the person.
-    - text: "We will add more alerts."
+    - text: '"We will add more alerts on the payment service."'
       why: That is a follow-up action, not evidence of the cause.
   answer: [1]
   source: https://sre.google/sre-book/postmortem-culture/
@@ -309,11 +309,11 @@
   options:
     - text: The container's CPU usage just before the restart
       why: CPU use shows load. It does not say why the kernel or the kubelet stopped the container.
-    - text: The last termination reason of the container, such as OOMKilled
+    - text: The last termination reason, such as OOMKilled
       why: A memory limit is enforced by the kernel with an out-of-memory kill, and Kubernetes records it as the last state's reason.
-    - text: The number of requests the service received
+    - text: The number of requests the service received that hour
       why: Load can explain growth, but it does not prove why the container stopped.
-    - text: The image tag of the restarted container
+    - text: The image tag and digest of the restarted container
       why: The image is the same before and after a restart. It holds no reason.
   answer: [1]
   source: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
@@ -323,13 +323,13 @@
   exam: {cert: none}
   q: A container's memory graph, scraped every 10 seconds, rises from 110 MiB and then the series ends; a new one starts at 3 MiB. The limit is 500 MiB. A colleague says memory cannot be the problem, because the graph never came near the limit. What do you answer?
   options:
-    - text: Agree, because the scrape would have caught a value near 500 MiB
+    - text: 'Agree: the scrape would have caught a value near 500 MiB'
       why: Memory can grow faster than one scrape interval. The graph shows only the samples taken.
-    - text: Raise the scrape interval to one minute to see the trend better
+    - text: Raise the scrape interval to one minute to see the trend
       why: A longer interval misses even more of a fast peak.
-    - text: The new series means the container restarted; its last termination reason says why
+    - text: Read the container's last termination reason
       why: A new series that starts low is a new container. The recorded reason, such as OOMKilled, does not depend on a sample.
-    - text: The graph is wrong because cAdvisor cannot measure Python processes
+    - text: The graph is wrong, because cAdvisor cannot measure Python
       why: cAdvisor measures the container's memory, whatever language runs inside it.
   answer: [2]
   source: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
@@ -339,13 +339,13 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: A slow trace has one span that took 525 ms while its child calls took 3 ms in all. Which attribute of that span is most likely to show why?
   options:
-    - text: A size the span recorded, such as the number of items it processed
+    - text: A size it recorded, such as an item count
       why: When a span spends its time on its own work, a size that grew explains the extra work.
-    - text: The span's start time
+    - text: The span's start time within the trace
       why: The start time places the span. It does not explain why it was slow.
     - text: The name of the library that created the span
       why: The scope names the instrumentation. It is the same in fast and slow requests.
-    - text: The trace ID of the request
+    - text: The trace ID of the request it belongs to
       why: The trace ID identifies the request. It carries no information about the work done.
   answer: [0]
   source: https://grafana.com/docs/grafana/latest/explore/trace-integration/
@@ -357,11 +357,11 @@
   options:
     - text: As a second, separate fault in the callers' network
       why: The errors start and stop with the restarts. They are an effect, not a second cause.
-    - text: As the root cause, since they are the first errors users saw
+    - text: As the root cause, since users saw these errors first
       why: Users saw them first, but they come from the restarts, which have their own cause.
-    - text: As noise to leave out of the note
+    - text: As noise that should be left out of the note
       why: They are the impact users felt. An incident note records the impact.
-    - text: "As the impact: callers could not connect while the killed service restarted"
+    - text: 'As impact: callers failed during the restarts'
       why: UNAVAILABLE with a refused connection is what callers see while nothing listens. It belongs in the impact, linked to the cause.
   answer: [3]
   source: https://grpc.io/docs/guides/status-codes/
@@ -371,13 +371,13 @@
   exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
   q: You click <b>Query with Tempo</b> on an exemplar, but Tempo says the trace was not found. The exemplar is from five minutes ago. Which setting is most likely wrong?
   options:
-    - text: The tracing data source in the exemplar entry reads a tenant that does not hold the trace
+    - text: The tracing data source reads another tenant
       why: The link only sends the trace ID. If the target reads another tenant, Tempo cannot find it.
-    - text: The exemplar entry's label name
+    - text: The label name in the exemplar entry is misspelled
       why: With a wrong label name, there would be no link to click at all.
-    - text: The Prometheus scrape interval
+    - text: The Prometheus scrape interval is too long
       why: The scrape interval changes how often samples are taken, not whether a trace exists in Tempo.
-    - text: The time range of the latency panel
+    - text: The time range of the latency panel is too short
       why: The panel's time range decides which exemplars are drawn. The trace lookup uses the ID.
   answer: [0]
   source: https://grafana.com/docs/grafana/latest/datasources/prometheus/configure/
@@ -389,11 +389,11 @@
   options:
     - text: The CPU graphs of all nodes, to find a busy one
       why: That starts from a possible cause. The loop starts from what users feel.
-    - text: The error ratio of the service users call, with a filter on its server spans
+    - text: The error ratio of checkout's server spans
       why: It measures the symptom where users feel it, and tells you when it started and how big it is.
     - text: The logs of every service, searched for the word error
       why: Without a time and a place, a search over all logs returns too much to read.
-    - text: The list of deployments made this week
+    - text: The list of deployments made by all teams this week
       why: Recent changes are worth checking, but only once you know which service and minute to compare them with.
   answer: [1]
   source: https://sre.google/sre-book/monitoring-distributed-systems/
@@ -439,9 +439,89 @@
       why: The frontend still reaches checkout. The break is between checkout and payment.
     - text: Payment is failing, but its errors are not recorded
       why: Payment has no errors because it gets no requests at all.
-    - text: The service graph has stopped working
+    - text: The service graph has stopped working for now
       why: Other edges still show traffic and failures, so the graph is working.
-    - text: checkout's calls do not reach payment, so payment sees nothing to fail
+    - text: checkout's calls do not reach payment
       why: A quiet edge with a red caller means the requests do not arrive. An idle service shows no errors.
   answer: [3]
   source: https://grafana.com/docs/grafana/latest/datasources/tempo/service-graph/
+
+- id: q-m14-029
+  tags: [incident-partial-failure]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: Customers say one product page always fails. The product service's error ratio is 1.5% and steady. Why can a span metrics panel not show which product fails?
+  options:
+    - text: Span metrics drop the error status of spans
+      why: Span metrics keep the status code as a label. That is how the panel shows 1.5%.
+    - text: Span metrics are sampled, so rare errors are lost
+      why: The generator counts the spans it receives. The 1.5% is there; the product is not.
+    - text: The product ID is a span attribute, not a label of the span metrics
+      why: Span metrics carry service, span name, kind and status. A label per product would multiply the series.
+    - text: The panel's time range is too short to see one product
+      why: Any time range shows the same labels. The product ID is not among them.
+  answer: [2]
+  source: https://grafana.com/docs/tempo/latest/metrics-from-traces/span-metrics/
+
+- id: q-m14-030
+  tags: [incident-partial-failure]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: A TraceQL count of failed spans by <code>span.demo.product.id</code> returns one product. What else do you check before you write that this product is the cause?
+  options:
+    - text: That the product has no successful spans then
+      why: If the product also succeeds often, it may only be popular. A value only on failures is evidence.
+    - text: That the product has the highest price in the catalog
+      why: Price is not part of the evidence. The question is whether the value comes only with failures.
+    - text: That the product's spans are the slowest of all
+      why: Speed is another signal. It does not show that the product goes with the failures.
+    - text: That the service's error ratio is above 5% now
+      why: A partial failure can stay far below any ratio. The size of the ratio proves nothing about the product.
+  answer: [0]
+  source: https://grafana.com/docs/tempo/latest/traceql/metrics-queries/
+
+- id: q-m14-031
+  tags: [incident-partial-failure]
+  exam: {cert: otca, domain: O1, competency: Telemetry Data}
+  q: Why is a product ID a good span attribute but a poor metric label?
+  options:
+    - text: Metric labels can only hold numbers, not text
+      why: Metric labels hold text. The problem is how many values there are.
+    - text: Each value makes new series; a span field does not
+      why: A label with many values multiplies the series of a metric. On a span it is one more field of that span.
+    - text: Span attributes are deleted after one hour
+      why: Attributes live as long as the trace, 48 hours in this lab.
+    - text: Metrics cannot be grouped by a label value
+      why: Grouping by labels is what PromQL does. The cost of many values is the issue.
+  answer: [1]
+  source: https://grafana.com/docs/tempo/latest/metrics-from-traces/span-metrics/
+
+- id: q-m14-032
+  tags: [incident-note]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: Your incident timeline has a gap of 40 minutes between the first failed request and the first alert. Where does that belong in the note?
+  options:
+    - text: Nowhere, only the time of the fix matters
+      why: The time to detect is part of the incident. It shows where monitoring was blind.
+    - text: In the cause, as the reason for the incident
+      why: The late alert did not cause the fault. It made the impact longer.
+    - text: In the summary, with the person who was late
+      why: A blameless note names systems, not people.
+    - text: In the timeline and in the actions
+      why: The gap is the time to detect. A follow-up action can shorten it next time.
+  answer: [3]
+  source: https://sre.google/sre-book/postmortem-culture/
+
+- id: q-m14-033
+  tags: [grafana-correlations]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: Which Explore visualizations show the links of a correlation, according to Grafana's documentation?
+  options:
+    - text: The graph and the node graph
+      why: The documentation names other visualizations for correlation links.
+    - text: The logs panel and the table
+      why: These two show correlation links next to field values.
+    - text: Only the trace view
+      why: The trace view has its own links, such as Related logs, configured in the data source.
+    - text: Every visualization in Explore and in dashboards
+      why: The documentation lists only two Explore visualizations.
+  answer: [1]
+  source: https://grafana.com/docs/grafana/latest/administration/correlations/

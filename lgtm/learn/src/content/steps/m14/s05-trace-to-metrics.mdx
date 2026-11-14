@@ -100,11 +100,11 @@ After a Tempo upgrade, the Service Graph in Explore is empty, while TraceQL stil
 
   Loki is the target of trace to logs. The service graph reads metrics, not logs.
 
-- Whether the spans still carry trace IDs
+- Whether the spans still carry their trace IDs and span IDs
 
   TraceQL finds new traces, so the spans are stored with their IDs.
 
-- Whether the metrics generator still writes traces_service_graph_* metrics
+- Whether `traces_service_graph_*` metrics are still written
 
   The service graph is drawn only from those metrics. Without them it is empty, whatever Tempo stores.
 

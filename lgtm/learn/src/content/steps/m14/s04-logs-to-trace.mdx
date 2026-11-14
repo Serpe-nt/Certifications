@@ -103,7 +103,7 @@ A service writes plain text logs to stdout, such as `charge failed trace=4bf92f3
 
   The trace ID is the same value, wherever Grafana reads it from.
 
-- The trace ID is only in the text, and a Label field reads label names
+- A Label field cannot read the ID inside the text
 
   A field of type Regex in log line, with a capture group for the ID, would find it.
 </Question>

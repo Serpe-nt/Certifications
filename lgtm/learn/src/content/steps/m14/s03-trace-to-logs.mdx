@@ -93,7 +93,7 @@ Trace to logs is a query that Grafana builds: a service label from the tag mappi
 <Question id="q-m14-s03" answer="a">
 A team's Tempo data source maps the tag `service.name` without renaming it. Their services send logs to Loki over OTLP. What happens when they click the logs link on a span?
 
-- The query uses the label `service.name`, which matches no Loki stream
+- The query uses the label `service.name`, which matches no stream
 
   Loki stores the attribute as `service_name`. A custom tag must be given the Loki name explicitly.
 
@@ -105,7 +105,7 @@ A team's Tempo data source maps the tag `service.name` without renaming it. Thei
 
   The tag still becomes part of the stream selector, so the query is not widened to every service.
 
-- The link does not appear on any span
+- The logs link does not appear on any of the spans
 
   The link appears, because the span carries the attribute `service.name`. The query it builds is what fails.
 </Question>
