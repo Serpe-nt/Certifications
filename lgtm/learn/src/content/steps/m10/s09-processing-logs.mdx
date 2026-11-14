@@ -67,7 +67,7 @@ Module m12 explains why a label with many values is expensive in Loki. Here the 
 `stage.drop` discards a line when its conditions match. With `source = "uri"` and an `expression`, it tests the extracted value, not the whole line. Several conditions in one `stage.drop` must all match; for "this or that", write several `stage.drop` blocks. Each dropped line raises the counter `loki_process_dropped_lines_total`, labelled with the `drop_counter_reason` you choose. Your Alloy scrapes its own metrics since step 6, so that counter is already in your Mimir tenant.
 
 <InLab>
-The lab's `loki.process "pod_logs"` runs `stage.cri` inside a `stage.match`, makes `flags` and `stream` labels, drops the label `filename` with `stage.label_drop`, and moves `pod` and `service_instance_id` into structured metadata.
+The lab's `loki.process "pod_logs"` runs `stage.cri` inside a `stage.match`, makes `flags` and `stream` labels, drops the label `filename` with `stage.label_drop`, and lists `k8s_pod_name`, `pod` and `service_instance_id` in `stage.structured_metadata`, so `pod` and `service_instance_id` leave the label set.
 </InLab>
 
 <Trap>

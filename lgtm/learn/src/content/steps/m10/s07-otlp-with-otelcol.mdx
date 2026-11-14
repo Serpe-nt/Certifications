@@ -26,6 +26,9 @@ sources:
   - title: otelcol.processor.batch (v1.21)
     url: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.processor.batch/
     checked: 2026-11-14
+  - title: Batch processor (opentelemetry-collector v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/processor/batchprocessor/README.md
+    checked: 2026-11-14
   - title: otelcol.exporter.otlp (v1.21)
     url: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.exporter.otlp/
     checked: 2026-11-14
@@ -49,7 +52,7 @@ Each `otelcol.*` component wraps one Collector component: `otelcol.receiver.otlp
 
 ## The same components, wired differently
 
-In the Collector, components are declared in one place and wired in `service.pipelines`, a separate list per signal. In Alloy, the wiring is inside each component. The receiver's `output` block says `traces = [otelcol.processor.batch.default.input]`; the processor's `output` names the exporter's `input`. A receiver that should also pass on metrics adds `metrics = [...]` to the same block. The behaviour of each piece, its settings and its defaults come from the Collector code it wraps. Alloy 1.21 bundles Collector v0.162.0.
+In the Collector, components are declared in one place and wired in `service.pipelines`, a separate list per signal. In Alloy, the wiring is inside each component. The receiver's `output` block says `traces = [otelcol.processor.batch.default.input]`; the processor's `output` names the exporter's `input`. A receiver that should also pass on metrics adds `metrics = [...]` to the same block. The behaviour of each piece and the meaning of its settings come from the Collector code it wraps, but a few defaults differ. Alloy's `otelcol.processor.batch` sends a batch at 2000 items and caps it at 3000, where the Collector's batch processor uses 8192 and no cap; step 8 meets this again. Alloy 1.21 bundles Collector v0.162.0.
 
 <Compare caption="One traces pipeline, two ways to write it">
   <Col title="Collector (m09)">receivers, processors, exporters declared by ID; wired in service.pipelines.traces.</Col>

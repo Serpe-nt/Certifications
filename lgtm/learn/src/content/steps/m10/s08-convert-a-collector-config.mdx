@@ -37,6 +37,9 @@ sources:
   - title: otelcol.exporter.debug (v1.21)
     url: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.exporter.debug/
     checked: 2026-11-14
+  - title: Alloy Helm chart values, stabilityLevel (grafana/alloy v1.21.3, GitHub)
+    url: https://github.com/grafana/alloy/blob/v1.21.3/operations/helm/charts/alloy/values.yaml
+    checked: 2026-11-14
   - title: otelcol.processor.transform (v1.21)
     url: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.processor.transform/
     checked: 2026-11-14
@@ -72,7 +75,7 @@ Each Collector ID becomes a component label. In this file every label starts wit
 The converted file still has two faults. `alloy validate` checks syntax, components, names and arguments without running anything, so it catches both, though it cannot catch every fault that would only show at run time. The transform statement was written in the Collector's short form, without a context, and the converter wrote `context = ""`, which Alloy rejects as an unknown context. Give it `context = "resource"` and drop the `resource.` prefix from the path. The `debug` exporter becomes `otelcol.exporter.debug`, which is experimental in Alloy. Alloy runs only generally available components unless `--stability.level` allows lower ones, so `alloy validate` and `alloy run` both refuse it with the default flag.
 
 <InLab>
-The lab's Alloys run with `--stability.level=generally-available`, set by the k8s-monitoring chart. An experimental component in their configuration would stop them from loading it.
+The lab's Alloy pods run with `--stability.level=generally-available`. The k8s-monitoring values do not set it: it is the default of the Alloy chart's `alloy.stabilityLevel`, which the Alloy Operator renders into each collector's pod. An experimental component in their configuration would stop them from loading it.
 </InLab>
 
 <Trap>

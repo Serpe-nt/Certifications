@@ -52,7 +52,7 @@ Run Alloy where the data is. Node files and node metrics need one Alloy per node
 
 A host daemon is one Alloy per machine, a DaemonSet on Kubernetes. It is required for pod log files and machine-level metrics such as node exporter's, because only an Alloy on that node can read them. Its weak points: you cannot scale it apart from the nodes, and every instance opens its own connections to every backend.
 
-Centralized collection runs a few Alloys apart from the applications, which discover their targets over the network. Grafana recommends it for application telemetry, and a StatefulSet for Prometheus metrics, because each pod keeps its own volume for the write-ahead log. A Deployment is enough where no state is kept on disk, for example a traces-only pipeline. Its rule of thumb for size is about 10 KB of memory per active series, and it suggests looking at horizontal scaling around one million series.
+Centralized collection runs a few Alloys apart from the applications, which discover their targets over the network. Grafana's deployment page calls it the recommended topology for collecting application telemetry, and a StatefulSet the recommended option for Prometheus metrics, because each pod keeps its own volume for the write-ahead log. A Deployment is enough where no state is kept on disk, for example a traces-only pipeline. Its rule of thumb for size is about 10 KB of memory per active series, and it suggests looking at horizontal scaling around one million series.
 
 A sidecar runs Alloy as an extra container in the application's pod. It suits short-lived jobs, serverless functions and pods that nothing can reach over the network, and fits long-lived services badly: it cannot scale on its own and makes resource use hard to predict.
 

@@ -19,7 +19,7 @@
     - text: "It keeps working with Loki 3.7 but not with Mimir 3"
       why: "The problem is that it is no longer maintained, not a backend version."
   answer: [0]
-  source: https://grafana.com/docs/agent/latest/
+  source: https://grafana.com/docs/loki/latest/setup/migrate/migrate-to-alloy/
 
 - id: q-m10-002
   tags: [alloy-why, alloy-convert]
@@ -104,7 +104,7 @@
 - id: q-m10-007
   tags: [alloy-syntax, alloy-components]
   exam: {cert: none}
-  q: 'A file holds <code>declare "app_logs" { argument "dest" { } ... }</code> and later <code>app_logs "team_a" { dest = [loki.write.main.receiver] }</code>. What is app_logs?'
+  q: 'A file holds a <code>declare "app_logs"</code> block with an <code>argument "dest"</code> block inside it, and later <code>app_logs "team_a" { dest = [loki.write.main.receiver] }</code>. What is app_logs?'
   options:
     - text: "A module that Alloy downloads from a Git repository"
       why: "Modules from Git use import.git; declare defines a component in the file itself."
@@ -177,7 +177,7 @@
     - text: "The Graph page, on the edge into loki.write"
       why: "The graph shows the wiring and, with live debugging, rates; not individual files."
     - text: "The debug info of loki.source.file: each file and its offset"
-      why: "Its debug info lists the path, labels, whether the reader runs and the read offset."
+      why: "Its debug info lists each path, whether the reader runs and the read offset."
   answer: [3]
   source: https://grafana.com/docs/alloy/v1.21/troubleshoot/debug/
 
@@ -264,7 +264,7 @@
 - id: q-m10-017
   tags: [alloy-logs]
   exam: {cert: none}
-  q: 'After <code>stage.json { expressions = { level = "" } }</code>, a loki.process has <code>stage.drop { source = "level" value = "debug" }</code> and <code>stage.drop { expression = "healthz" }</code>. Which lines are dropped?'
+  q: 'After <code>stage.json { expressions = { level = "" } }</code>, a loki.process has two drop stages: one sets <code>source = "level"</code> and <code>value = "debug"</code>, the next sets <code>expression = "healthz"</code>. Which lines are dropped?'
   options:
     - text: "Only lines that are debug and also mention healthz"
       why: "Conditions in one block are joined with AND; separate blocks act one after the other."
@@ -312,7 +312,7 @@
 - id: q-m10-020
   tags: [alloy-metrics]
   exam: {cert: none}
-  q: 'With <code>prometheus.scrape "pods" { targets = discovery.relabel.k.output  forward_to = [prometheus.remote_write.m.receiver] }</code> and nothing else set, how often is each target scraped?'
+  q: 'A <code>prometheus.scrape "pods"</code> block sets only <code>targets = discovery.relabel.k.output</code> and <code>forward_to = [prometheus.remote_write.m.receiver]</code>. How often is each target scraped?'
   options:
     - text: "Every 15 seconds, as in most examples"
       why: "15 seconds is common in examples; Alloy's default is longer."
@@ -392,7 +392,7 @@
 - id: q-m10-025
   tags: [alloy-otlp]
   exam: {cert: none}
-  q: 'An SDK sends logs and traces to <code>otelcol.receiver.otlp "r" { grpc { } output { traces = [otelcol.exporter.otlp.t.input] } }</code>. What happens to the logs?'
+  q: 'An SDK sends logs and traces to an <code>otelcol.receiver.otlp "r"</code> whose output block holds only <code>traces = [otelcol.exporter.otlp.t.input]</code>. What happens to the logs?'
   options:
     - text: "They are sent to the same exporter as the traces"
       why: "Only the traces list names the exporter."
@@ -440,7 +440,7 @@
 - id: q-m10-028
   tags: [alloy-convert]
   exam: {cert: none}
-  q: "A converted file contains <code>otelcol.processor.batch \"default\" { timeout = \"2s\"  send_batch_size = 8192 }</code>, though the Collector file only set timeout. Why did send_batch_size appear?"
+  q: "A converted <code>otelcol.processor.batch \"default\"</code> block sets <code>timeout = \"2s\"</code> and <code>send_batch_size = 8192</code>, though the Collector file only set timeout. Why did send_batch_size appear?"
   options:
     - text: "The converter copies every default of the Collector into the output"
       why: "Defaults that match Alloy's are left out of the output."

@@ -45,7 +45,7 @@ Alloy is the stronger choice for Prometheus-style and Loki-style collection in a
 
 ## What both share
 
-Alloy is listed by OpenTelemetry as one of the Collector's distributions, and its `otelcol` components wrap the Collector's code. For OTLP, a batch processor or a transform, the behaviour is the same in both. The differences are around that core: the configuration language, the extra components, and the tooling.
+Alloy is listed by OpenTelemetry as one of the Collector's distributions, and its `otelcol` components wrap the Collector's code. For OTLP, a batch processor or a transform, the code is the same in both, though a few defaults differ (Alloy's batch processor sends at 2000 items, the Collector's at 8192), so set them explicitly when you move a pipeline. The differences are around that core: the configuration language, the extra components, and the tooling.
 
 <Compare caption="Arguments a team would give">
   <Col title="OpenTelemetry Collector">Vendor-neutral project; the YAML and the components the OTCA exam covers; the widest set of contrib components; already running in many teams.</Col>
@@ -60,7 +60,7 @@ Choose Alloy when you need several signals in one collector and some of them are
 
 Grafana's own page names the limits. If you only scrape Prometheus metrics with no other needs, Prometheus Agent may be simpler. If the team is deeply invested in another collector's ecosystem and needs only one signal, staying may make more sense. And if the pipeline is OpenTelemetry from end to end and the backend is not Grafana's, the Collector keeps you on the standard and on the configuration your colleagues and the exam use.
 
-Alloy also contains a second way in. `alloy otel` starts the OTel Engine, the upstream Collector runtime, which reads Collector YAML without conversion. It is a public preview feature. It has no Alloy UI and serves only its own metrics on port 8888. Grafana recommends the Default Engine, `alloy run`, for the stable and complete Alloy experience.
+Alloy also contains a second way in. `alloy otel` starts the OTel Engine, the upstream Collector runtime, which reads Collector YAML without conversion. It is a public preview feature. Run on its own, it has no Alloy UI and serves only its own metrics on port 8888; an Alloy Engine extension can run a Default Engine pipeline beside it in the same process. Grafana recommends the Default Engine, `alloy run`, for the stable and complete Alloy experience.
 
 <Timeline caption="Questions to ask, in order">
   <Event at="1" title="Where does the data come from?">Files and scrapes favour Alloy; OTLP from SDKs fits either.</Event>
