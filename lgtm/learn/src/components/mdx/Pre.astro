@@ -1,0 +1,13 @@
+---
+// A fenced code block in a step (a file, mostly), drawn like <Cmd> with its own Copy button.
+// Markdown ends the block's text with a newline; it is dropped so that what the page shows
+// and what Copy gives is the text between the fences, exactly.
+const html = (await Astro.slots.render('default')).replace(/\n(<\/code>)$/, '$1');
+const lang = /class="language-([\w-]+)"/.exec(html)?.[1] ?? '';
+const names: Record<string, string> = { yaml: 'YAML', python: 'Python', json: 'JSON', bash: 'Shell', sh: 'Shell' };
+---
+<div class="codeblock" data-file={lang || 'text'}>
+  <span class="codeblock-label mono">{names[lang] ?? 'Text'}</span>
+  <pre set:html={html} />
+  <button type="button" class="codeblock-copy mono" data-copy>Copy</button>
+</div>

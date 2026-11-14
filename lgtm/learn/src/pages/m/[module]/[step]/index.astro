@@ -179,7 +179,7 @@ const tickX = (i: number) => 10 + (500 * (i - 1)) / Math.max(1, total - 1);
       // clipped first frame of its entrance.
       let waiting = [
         ...document.querySelectorAll(
-          '.prose > h2, .prose .part, .prose .info, .prose [data-figure], .prose [data-query], .prose [data-cmd], .side-box, .stepnav-wrap, .scale',
+          '.prose > h2, .prose .part, .prose .info, .prose [data-figure], .prose [data-query], .prose [data-cmd], .prose [data-file], .side-box, .stepnav-wrap, .scale',
         ),
       ];
       let queued = false;

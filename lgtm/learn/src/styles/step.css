@@ -1218,7 +1218,7 @@
     & .toc:not(.st-seen) li,
     & .side-box:not(.st-seen) :is(.term, .chip),
     & .sources:not(.st-seen) a,
-    & .prose :is([data-query], [data-cmd]):not(.st-seen) pre {
+    & .prose :is([data-query], [data-cmd], [data-file]):not(.st-seen) pre {
       clip-path: inset(0 100% 0 0);
     }
     & .info:not(.st-seen) :is(.stage, .col, .layer, .event, .stat-label, .stat-value, .info-cap),
@@ -1690,10 +1690,10 @@
   }
 
   /* Queries, commands and figures */
-  .prose :is([data-query], [data-cmd]).st-seen {
+  .prose :is([data-query], [data-cmd], [data-file]).st-seen {
     animation: st-boot-y 380ms var(--lg-ease-out) backwards;
   }
-  .prose :is([data-query], [data-cmd]).st-seen pre {
+  .prose :is([data-query], [data-cmd], [data-file]).st-seen pre {
     animation: st-type 700ms steps(28) 200ms backwards;
   }
   .prose [data-figure].st-seen {
