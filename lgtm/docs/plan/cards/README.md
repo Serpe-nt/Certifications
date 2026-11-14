@@ -106,6 +106,17 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - If a new pod stays in ContainerCreating with `connection is unauthorized`, Calico's token has run out after a very long sleep of the PC: tell the planner, change nothing (`make calico-renew` is the owner's).
 - Host ports, all on 127.0.0.1: C12 uses 8097, C13 8098, C14 8100 for the site. Port-forwards: C12 18100 to 18109, C13 18110 to 18119, C14 18120 to 18129.
 
+## Wave 10
+
+- Worktrees are cut from `main`. Everything in the notes of waves 8 and 9 still holds: practice namespaces and practice tenants, the cap on practice memory (1 GiB of requests per module, 0.5 GiB on one worker), the owner's go-ahead said in your own session, no password typed or read, numbers read from the lab on the day, every `<Cmd>` and `<Query>` a template string and every file a fenced block, practice run from the built page, and the lab deciding where a page of documentation and the software disagree.
+- The lab since wave 9: Calico 3.31.7; Loki refuses a query that would read more than 500 MiB, run longer than a minute or span more than 49 hours; Mimir's cardinality API answers for tenant `lab`; nobody hears an alert of the lab (every route ends at an empty receiver). `lgtm/docs/plan/05-open-items.md` has the rest.
+- **Card C16 breaks parts of the lab on purpose**, each once and for a few minutes: one Kafka broker, the object store, one worker node, and before those two changes of a release's values that it takes back. It messages the other cards before each and again when `make lab-check` has passed. If a request of yours fails in such a window, wait for that word and run the action again; a drill is not a finding of yours.
+- No fault flags in this wave. If card L9 runs beside you, it switches a few flags for two minutes each to prove its fix, and says so first.
+- A token is a secret. Card C15 creates one Grafana service account token with the owner's go-ahead; it goes straight into a Secret of its namespace and is never printed, logged or committed. No card uses an account, a token or a key of the owner's outside the lab.
+- Tools run from their official images in pods of your namespace, pinned by tag. Earlier sessions were refused when they tried to download a binary and run it on the PC.
+- Give your independent checker the source of whatever your lessons lean on: the lab's values, the demo's code, the repository's workflows. In wave 9 half of one module's findings came from reading the demo's source.
+- Host ports, all on 127.0.0.1: C15 uses 8097, C16 8098, FG 8105 for the site; card L9, if it runs, 8104. Port-forwards: C15 18100 to 18109, C16 18110 to 18119.
+
 ## Pull request text
 
 - Title: `[lgtm <card id>] <what it delivers>`
@@ -151,8 +162,11 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 9 | `w9-c13-incident-debugging.md` | C13 module m14 Correlation and incident debugging |
 | 9 | `w9-c14-alerting-slo.md` | C14 module m15 Alerting, SLOs and on-call |
 | beside 8 | `w8-w3-files-keep-indentation.md` | W3 what a learner copies is what the lesson tested: 54 blocks in m01, m03 and m06 to m09 (lost indentation, typographic quotes and dashes), a test that compares every block on the built page with its source, a Copy button on fenced blocks |
+| 10 | `w10-c15-observability-as-code.md` | C15 module m16 Observability as code |
+| 10 | `w10-c16-running-at-scale.md` | C16 module m17 Running it at scale, with failure drills on the lab |
+| 10 | `w10-fg-figures.md` | FG the six figures the lessons ask for, built with `stageshow` |
 | after 9 | `w9-l9-flags-reach-every-service.md` | L9 a fault flag reaches every service of the shop; a wrong name in `lgtm.md`; the memory kills of Tempo's querier |
 | after 8 | `w8-l8-query-limits-and-switches.md` | L8 Loki's query limits, Mimir's cardinality API for tenant `lab`, exemplar storage in Prometheus if a target exposes exemplars; m12 step 15 and m11 steps 9 and 12 follow |
 | beside 8 | `w8-l7-pods-start-after-sleep.md` | L7 new pods start after the PC has slept: Calico's CNI token, a command, a check, the runbook and m00 step 7 |
 
-Cards for wave 10 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
+The cards of wave 11 (the capstone m18 and the final sweep) are written by the planner when wave 10 is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
