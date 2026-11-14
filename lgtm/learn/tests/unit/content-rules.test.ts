@@ -113,6 +113,16 @@ describe('rules', () => {
     expect(rulesFor({ 'steps/m90/s07-recap.mdx': positional })).toEqual(['steps/m90/s07-recap.mdx question-positional']);
   });
 
+  it('a command or query is a template string, and a file is a fenced block', () => {
+    const f = 'steps/m90/s02-exact.mdx';
+    expect(rulesFor({ [f]: edit(f, '<Cmd>{`echo Ready`}</Cmd>', '<Cmd>kubectl wait --for=condition=Ready pod/x</Cmd>') })).toEqual([`${f} code-template`]);
+    expect(rulesFor({ [f]: edit(f, '<Cmd>{`echo Ready`}</Cmd>', '<Cmd>{`kind: Pod\nmetadata:\n  name: x`}</Cmd>') })).toEqual([`${f} code-indent`]);
+    const q = 'steps/m90/s01-concept.mdx';
+    expect(rulesFor({ [q]: edit(q, /<Query lang="promql">\{`(.*)`\}<\/Query>/, '<Query lang="promql">up</Query>') })).toEqual([`${q} code-template`]);
+    // Several lines that all start in the first column, or a newline written as \n, are safe.
+    expect(rulesFor({ [f]: edit(f, '<Cmd>{`echo Ready`}</Cmd>', '<Cmd>{`echo Ready\necho done`}</Cmd> <Cmd>{`printf "a:\\n  b: 1\\n"`}</Cmd>') })).toEqual([]);
+  });
+
   it('token slots are unique', () => {
     const copy = edit('steps/m90/s06-token.mdx', 'id: m90-s06', 'id: m90-s08').replaceAll('q-m90-s06', 'q-m90-s08');
     expect(rulesFor({ 'steps/m90/s08-token.mdx': copy })).toEqual(['steps/m90/s08-token.mdx token-slot-unique']);

@@ -96,98 +96,102 @@ The memory limiter is not a replacement for sizing the Collector. Above the soft
 </Trap>
 
 <Do>
-1. In WSL, with `KUBECONFIG` pointing at the lab, create the practice namespace: <Cmd>kubectl create namespace learn-m09</Cmd>
-2. Save this as `m09-collector.yaml`. The ConfigMap holds the Collector's configuration; the Deployment runs the Collector and the generator side by side, with requests of 50m CPU and 96Mi of memory in total: <Cmd>{`apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: m09-collector
-  namespace: learn-m09
-data:
-  config.yaml: |
-    receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: localhost:4317
-    processors:
-      memory_limiter:
-        check_interval: 1s
-        limit_percentage: 80
-        spike_limit_percentage: 20
-      filter/drop-child:
-        error_mode: ignore
-        trace_conditions:
-          - 'span.name == "okey-dokey-0"'
-      resource/env:
-        attributes:
-          - key: deployment.environment.name
-            value: learn
-            action: upsert
-      attributes/drop-ip:
-        actions:
-          - key: network.peer.address
-            action: delete
-      batch:
-        timeout: 2s
-    exporters:
-      debug:
-        verbosity: detailed
-    service:
-      pipelines:
-        traces:
-          receivers: [otlp]
-          processors: [memory_limiter, filter/drop-child, resource/env, attributes/drop-ip, batch]
-          exporters: [debug]
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: m09-collector
-  namespace: learn-m09
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: m09-collector
-  template:
-    metadata:
-      labels:
-        app: m09-collector
-    spec:
-      containers:
-        - name: collector
-          image: otel/opentelemetry-collector-contrib:0.165.0
-          args: ["--config=/conf/config.yaml"]
-          env:
-            - name: GOMEMLIMIT
-              value: "128MiB"
-          resources:
-            requests: { cpu: 40m, memory: 80Mi }
-            limits: { cpu: 200m, memory: 160Mi }
-          volumeMounts:
-            - name: config
-              mountPath: /conf
-        - name: generator
-          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.165.0
-          args:
-            - traces
-            - --otlp-endpoint=localhost:4317
-            - --otlp-insecure
-            - --duration=inf
-            - --rate=1
-            - --service=m09-shop
-            - --telemetry-attributes=user.email="learner@example.com"
-            - --telemetry-attributes=demo.payment.card_number="4111-1111-1111-1111"
-          resources:
-            requests: { cpu: 10m, memory: 16Mi }
-            limits: { cpu: 50m, memory: 32Mi }
-      volumes:
-        - name: config
-          configMap:
-            name: m09-collector`}</Cmd>
-3. Apply it and wait for the pod: <Cmd>kubectl apply -f m09-collector.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout status deploy/m09-collector</Cmd>
-4. Read what reaches the debug exporter: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector --tail=40</Cmd> Under `Resource attributes` you find `deployment.environment.name: Str(learn)`, added by `resource/env`. Under `Attributes` the span has no `network.peer.address`: `attributes/drop-ip` deleted it.
-5. Count the span names in the log: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep 'Name           :' | sort | uniq -c</Cmd> Only one name is left; the filter dropped the other. Paste it in the check below.
+1. In WSL, with `KUBECONFIG` pointing at the lab, create the practice namespace: <Cmd>{`kubectl create namespace learn-m09`}</Cmd>
+2. Save this as `m09-collector.yaml`. The ConfigMap holds the Collector's configuration; the Deployment runs the Collector and the generator side by side, with requests of 50m CPU and 96Mi of memory in total:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m09-collector
+     namespace: learn-m09
+   data:
+     config.yaml: |
+       receivers:
+         otlp:
+           protocols:
+             grpc:
+               endpoint: localhost:4317
+       processors:
+         memory_limiter:
+           check_interval: 1s
+           limit_percentage: 80
+           spike_limit_percentage: 20
+         filter/drop-child:
+           error_mode: ignore
+           trace_conditions:
+             - 'span.name == "okey-dokey-0"'
+         resource/env:
+           attributes:
+             - key: deployment.environment.name
+               value: learn
+               action: upsert
+         attributes/drop-ip:
+           actions:
+             - key: network.peer.address
+               action: delete
+         batch:
+           timeout: 2s
+       exporters:
+         debug:
+           verbosity: detailed
+       service:
+         pipelines:
+           traces:
+             receivers: [otlp]
+             processors: [memory_limiter, filter/drop-child, resource/env, attributes/drop-ip, batch]
+             exporters: [debug]
+   ---
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: m09-collector
+     namespace: learn-m09
+   spec:
+     replicas: 1
+     selector:
+       matchLabels:
+         app: m09-collector
+     template:
+       metadata:
+         labels:
+           app: m09-collector
+       spec:
+         containers:
+           - name: collector
+             image: otel/opentelemetry-collector-contrib:0.165.0
+             args: ["--config=/conf/config.yaml"]
+             env:
+               - name: GOMEMLIMIT
+                 value: "128MiB"
+             resources:
+               requests: { cpu: 40m, memory: 80Mi }
+               limits: { cpu: 200m, memory: 160Mi }
+             volumeMounts:
+               - name: config
+                 mountPath: /conf
+           - name: generator
+             image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.165.0
+             args:
+               - traces
+               - --otlp-endpoint=localhost:4317
+               - --otlp-insecure
+               - --duration=inf
+               - --rate=1
+               - --service=m09-shop
+               - --telemetry-attributes=user.email="learner@example.com"
+               - --telemetry-attributes=demo.payment.card_number="4111-1111-1111-1111"
+             resources:
+               requests: { cpu: 10m, memory: 16Mi }
+               limits: { cpu: 50m, memory: 32Mi }
+         volumes:
+           - name: config
+             configMap:
+               name: m09-collector
+   ```
+3. Apply it and wait for the pod: <Cmd>{`kubectl apply -f m09-collector.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m09 rollout status deploy/m09-collector`}</Cmd>
+4. Read what reaches the debug exporter: <Cmd>{`kubectl -n learn-m09 logs deploy/m09-collector -c collector --tail=40`}</Cmd> Under `Resource attributes` you find `deployment.environment.name: Str(learn)`, added by `resource/env`. Under `Attributes` the span has no `network.peer.address`: `attributes/drop-ip` deleted it.
+5. Count the span names in the log: <Cmd>{`kubectl -n learn-m09 logs deploy/m09-collector -c collector | grep 'Name           :' | sort | uniq -c`}</Cmd> Only one name is left; the filter dropped the other. Paste it in the check below.
 6. Keep the namespace: steps 6, 8, 12 and 13 use the same Collector. Step 13 deletes it.
 </Do>
 

@@ -74,10 +74,10 @@ Do not fix a scrape problem by editing the generated configuration Secret or the
 
 <Do>
 1. In WSL, list the kinds of object in the release's manifest and how many of each: <Cmd>{`helm -n prom get manifest kube-prometheus-stack | grep '^kind:' | sort | uniq -c`}</Cmd> You see one `Prometheus`, one `Alertmanager`, 30 `PrometheusRule`, 25 `ConfigMap` and one `DaemonSet`, but no `StatefulSet` and no `CustomResourceDefinition`.
-2. Find the StatefulSets the operator made: <Cmd>kubectl -n prom get statefulsets</Cmd> `prometheus-prom-prometheus` and `alertmanager-prom-alertmanager`.
-3. List the CRDs the operator reads: <Cmd>kubectl get crd | grep monitoring.coreos.com</Cmd> There are ten.
-4. List the pods in `prom` and match each to a component: <Cmd>kubectl -n prom get pods</Cmd> One operator, one kube-state-metrics, five node exporters, one Prometheus and one Alertmanager.
-5. List the scrape sources the release set up: <Cmd>kubectl -n prom get servicemonitors</Cmd>
+2. Find the StatefulSets the operator made: <Cmd>{`kubectl -n prom get statefulsets`}</Cmd> `prometheus-prom-prometheus` and `alertmanager-prom-alertmanager`.
+3. List the CRDs the operator reads: <Cmd>{`kubectl get crd | grep monitoring.coreos.com`}</Cmd> There are ten.
+4. List the pods in `prom` and match each to a component: <Cmd>{`kubectl -n prom get pods`}</Cmd> One operator, one kube-state-metrics, five node exporters, one Prometheus and one Alertmanager.
+5. List the scrape sources the release set up: <Cmd>{`kubectl -n prom get servicemonitors`}</Cmd>
 6. See which switches the lab turned off: <Cmd>{`helm -n prom get values kube-prometheus-stack | grep -A1 -E 'kubeEtcd|kubeScheduler|kubeControllerManager|kubeProxy'`}</Cmd>
 7. Paste the number of ServiceMonitors from action 5 in the check below.
 </Do>

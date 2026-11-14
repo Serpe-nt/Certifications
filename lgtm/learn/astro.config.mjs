@@ -23,7 +23,7 @@ export default defineConfig({
     inlineStylesheets: 'never',
     format: 'directory',
   },
-  integrations: [mdx(), react()],
+  integrations: [mdx({ syntaxHighlight: false }), react()],
   devToolbar: { enabled: false },
   vite: {
     plugins: [tailwindcss(), devApi()],

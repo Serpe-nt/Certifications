@@ -75,6 +75,11 @@ export function scanBody(body: string): ScanResult {
   return { tags, rawHtml };
 }
 
+/** A <Cmd> or <Query> written as {`...`}: the template string's raw text; otherwise null. */
+export function templateRaw(inner: string): string | null {
+  return /^\s*\{\s*`([\s\S]*)`\s*\}\s*$/.exec(inner)?.[1] ?? null;
+}
+
 /** Plain text of a fragment: tags and Markdown markers removed, whitespace collapsed. */
 export function plainText(fragment: string): string {
   return fragment

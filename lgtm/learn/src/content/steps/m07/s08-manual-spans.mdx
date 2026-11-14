@@ -153,8 +153,8 @@ The semantic convention page for exceptions on spans is now marked Deprecated an
        server_span.set_attribute("workshop.order.id", order_id)
    ```
 
-5. Compare with the solution; only the docstring at the top should differ: <Cmd>git diff --no-index app.py solutions/02-manual-spans/app.py</Cmd>
-6. Start the service with <Cmd>python run.py</Cmd> and make traffic in a second terminal: <Cmd>python load.py --duration 60</Cmd>
+5. Compare with the solution; only the docstring at the top should differ: <Cmd>{`git diff --no-index app.py solutions/02-manual-spans/app.py`}</Cmd>
+6. Start the service with <Cmd>{`python run.py`}</Cmd> and make traffic in a second terminal: <Cmd>{`python load.py --duration 60`}</Cmd>
 7. In <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, data source `tempo`, find a declined charge: <Query lang="traceql">{`{ resource.service.name = "workshop" && name = "checkout.charge" && status = error }`}</Query> Open the trace. Read the status and its description on `checkout.charge`, open its exception event, and see the status of `POST /checkout`.
 8. In a successful checkout, find the event `stock reserved` on `checkout.reserve` and the attributes `workshop.sku` and `workshop.order.id` on the server span. Then find a `fibonacci` span: <Query lang="traceql">{`{ resource.service.name = "workshop" && name = "fibonacci" }`}</Query>
 9. Paste the `exception.type` of the exception event in the check below. Leave the service running for step 9, or stop it.

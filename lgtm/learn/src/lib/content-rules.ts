@@ -2,7 +2,7 @@
 // Each problem names the file and the rule, so a content worker knows what to fix.
 import { DOMAINS, LAB_HOSTS } from './exams.ts';
 import { moduleSchema, questionFileSchema, stepSchema, SLOT_ID, STEP_ID, type ModuleData, type QuestionData, type StepData } from './schema.ts';
-import { plainText, scanBody, splitQuestion } from './mdx-scan.ts';
+import { plainText, scanBody, splitQuestion, templateRaw } from './mdx-scan.ts';
 import type { RawCorpus } from './content-load.ts';
 
 export interface Issue {
@@ -184,6 +184,15 @@ export function checkContent(corpus: RawCorpus, opts: RuleOptions = {}): { issue
     }
     for (const t of tags.filter((x) => x.name === 'Query')) {
       if (!['promql', 'logql', 'traceql'].includes(t.attrs.lang ?? '')) err(s.file, 'query-lang', `line ${t.line}: <Query> needs lang="promql|logql|traceql"`);
+    }
+    // What a learner copies must be what the author wrote (scripts/check-pages.ts compares the built page).
+    for (const t of tags.filter((x) => x.name === 'Cmd' || x.name === 'Query')) {
+      const raw = templateRaw(t.inner);
+      if (raw === null) {
+        err(s.file, 'code-template', `line ${t.line}: write <${t.name}>{\`...\`}</${t.name}>; plain text between the tags gets typographic quotes and dashes, so the copied text fails`);
+      } else if (/\n[ \t]/.test(raw)) {
+        err(s.file, 'code-indent', `line ${t.line}: a line of this <${t.name}> starts with a space, and Markdown removes it on the page; write a file as a fenced code block under the list item, and keep <${t.name}> for lines that start in the first column`);
+      }
     }
     for (const f of tags.filter((x) => x.name === 'Figure')) {
       const fid = f.attrs.id ?? '';

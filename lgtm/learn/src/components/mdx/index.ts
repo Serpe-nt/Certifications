@@ -26,8 +26,11 @@ import Layers from './Layers.astro';
 import Layer from './Layer.astro';
 import Timeline from './Timeline.astro';
 import Event from './Event.astro';
+import Pre from './Pre.astro';
 
 export const mdxComponents = {
   Why, Problem, Idea, Points, Point, InLab, Do, Done, Trap, Remember, Question, LabLink, Cmd, Query, Figure,
   Flow, Stage, Compare, Col, Figures, Stat, Layers, Layer, Timeline, Event,
+  // Fenced code blocks: MDX renders them through the `pre` component.
+  pre: Pre,
 };

@@ -86,13 +86,13 @@ Reading only the values file gives you a wrong picture of a Helm-installed Colle
 </Trap>
 
 <Do>
-1. In WSL, with `KUBECONFIG` pointing at the lab, list the gateway's pods: <Cmd>kubectl -n otel get pods -l app.kubernetes.io/instance=otel-gateway -o wide</Cmd> Two pods, each on its own worker.
+1. In WSL, with `KUBECONFIG` pointing at the lab, list the gateway's pods: <Cmd>{`kubectl -n otel get pods -l app.kubernetes.io/instance=otel-gateway -o wide`}</Cmd> Two pods, each on its own worker.
 2. Save the rendered configuration to a file. The ConfigMap keeps it under the key `relay`: <Cmd>{`kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' > gateway.yaml`}</Cmd>
-3. Show the pipelines: <Cmd>grep -n -A60 '^  pipelines:' gateway.yaml</Cmd> Count them, and for `traces` write down the processors in order.
-4. Show the memory limiter as the Collector loads it: <Cmd>grep -n -A6 '^  memory_limiter:' gateway.yaml</Cmd> Both `limit_mib` and `limit_percentage` are there.
-5. See which exporters are defined: <Cmd>grep -n -A1 -E '^  (debug|otlp_grpc|otlp_http)' gateway.yaml</Cmd>
+3. Show the pipelines: <Cmd>{`grep -n -A60 '^  pipelines:' gateway.yaml`}</Cmd> Count them, and for `traces` write down the processors in order.
+4. Show the memory limiter as the Collector loads it: <Cmd>{`grep -n -A6 '^  memory_limiter:' gateway.yaml`}</Cmd> Both `limit_mib` and `limit_percentage` are there.
+5. See which exporters are defined: <Cmd>{`grep -n -A1 -E '^  (debug|otlp_grpc|otlp_http)' gateway.yaml`}</Cmd>
 6. For each exporter ID from action 5, look for it in the pipelines from action 3. One ID appears in none of them. Paste it in the check below.
-7. Delete the file when you are done: <Cmd>rm gateway.yaml</Cmd> It holds the demo database's monitoring password from the values file.
+7. Delete the file when you are done: <Cmd>{`rm gateway.yaml`}</Cmd> It holds the demo database's monitoring password from the values file.
 </Do>
 
 <Done>

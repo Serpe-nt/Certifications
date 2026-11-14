@@ -87,46 +87,50 @@ A plain SHA-256 of an e-mail address is not anonymous. Anyone with a list of add
 </Trap>
 
 <Do>
-1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 again first. Save this as `m09-config-s06.yaml`; it replaces the Collector's configuration with one that redacts: <Cmd>{`apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: m09-collector
-  namespace: learn-m09
-data:
-  config.yaml: |
-    receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: localhost:4317
-    processors:
-      memory_limiter:
-        check_interval: 1s
-        limit_percentage: 80
-        spike_limit_percentage: 20
-      filter/drop-child:
-        error_mode: ignore
-        trace_conditions:
-          - 'span.name == "okey-dokey-0"'
-      transform/redact:
-        error_mode: ignore
-        trace_statements:
-          - set(span.attributes["user.hash"], SHA256(span.attributes["user.email"])) where span.attributes["user.email"] != nil
-          - delete_key(span.attributes, "user.email")
-          - replace_pattern(span.attributes["demo.payment.card_number"], "^\\\\d{4}-\\\\d{4}-\\\\d{4}-", "****-****-****-")
-      batch:
-        timeout: 2s
-    exporters:
-      debug:
-        verbosity: detailed
-    service:
-      pipelines:
-        traces:
-          receivers: [otlp]
-          processors: [memory_limiter, filter/drop-child, transform/redact, batch]
-          exporters: [debug]`}</Cmd>
-2. Apply it, then restart the Collector so that it reads the new file: <Cmd>kubectl apply -f m09-config-s06.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 rollout status deploy/m09-collector</Cmd>
-3. Read the span attributes: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector --tail=30</Cmd> `user.email` is gone, `user.hash` holds 64 hexadecimal characters, and `demo.payment.card_number` reads `****-****-****-1111`. Paste the value of `user.hash` in the check below.
+1. If `learn-m09` is gone, apply `m09-collector.yaml` from step 5 again first. Save this as `m09-config-s06.yaml`; it replaces the Collector's configuration with one that redacts:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m09-collector
+     namespace: learn-m09
+   data:
+     config.yaml: |
+       receivers:
+         otlp:
+           protocols:
+             grpc:
+               endpoint: localhost:4317
+       processors:
+         memory_limiter:
+           check_interval: 1s
+           limit_percentage: 80
+           spike_limit_percentage: 20
+         filter/drop-child:
+           error_mode: ignore
+           trace_conditions:
+             - 'span.name == "okey-dokey-0"'
+         transform/redact:
+           error_mode: ignore
+           trace_statements:
+             - set(span.attributes["user.hash"], SHA256(span.attributes["user.email"])) where span.attributes["user.email"] != nil
+             - delete_key(span.attributes, "user.email")
+             - replace_pattern(span.attributes["demo.payment.card_number"], "^\\d{4}-\\d{4}-\\d{4}-", "****-****-****-")
+         batch:
+           timeout: 2s
+       exporters:
+         debug:
+           verbosity: detailed
+       service:
+         pipelines:
+           traces:
+             receivers: [otlp]
+             processors: [memory_limiter, filter/drop-child, transform/redact, batch]
+             exporters: [debug]
+   ```
+2. Apply it, then restart the Collector so that it reads the new file: <Cmd>{`kubectl apply -f m09-config-s06.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m09 rollout restart deploy/m09-collector`}</Cmd> <Cmd>{`kubectl -n learn-m09 rollout status deploy/m09-collector`}</Cmd>
+3. Read the span attributes: <Cmd>{`kubectl -n learn-m09 logs deploy/m09-collector -c collector --tail=30`}</Cmd> `user.email` is gone, `user.hash` holds 64 hexadecimal characters, and `demo.payment.card_number` reads `****-****-****-1111`. Paste the value of `user.hash` in the check below.
 4. Now the gateway. Read its redaction statements: <Cmd>{`kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' | grep -A12 'transform/redact_sensitive_data:'`}</Cmd>
 5. Note the time in UTC, then open <LabLink to="flags" path="/feature">the flag screen</LabLink> and switch `emitRawPii` on. The load generator places orders all the time; wait two minutes.
 6. In <LabLink to="grafana" path="/explore">Grafana Explore</LabLink>, pick the data source `tempo`, set the time range to the last 15 minutes and run this TraceQL query: <Query lang="traceql">{`{ resource.service.name = "checkout" && span.user.hash != nil } | select(span.user.hash, span.demo.payment.card_number)`}</Query> With Table Format set to Spans under Search Options, the order spans show `user.hash` and a card number that starts with `****-****-****-` as columns.

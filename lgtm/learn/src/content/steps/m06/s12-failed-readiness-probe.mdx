@@ -90,7 +90,7 @@ The shop's chart gives cart a gRPC readiness probe every 10 seconds with `failur
 <Do>
 1. On <LabLink to="prometheus" path="/query">the query page</LabLink>, list the shop pods that are not Ready. On a healthy shop the result is empty: <Query lang="promql">{`kube_pod_status_ready{namespace="shop", condition="true"} == 0`}</Query>
 2. Open the <LabLink to="flags" path="/feature">flag screen</LabLink>, find `failedReadinessProbe`, and set it to `on`. Note the time. The flag takes more than a minute to show everywhere.
-3. After a minute, in WSL: <Cmd>kubectl -n shop get pods -l app.kubernetes.io/name=cart</Cmd> READY is `0/1`, STATUS `Running`, and RESTARTS has not changed.
+3. After a minute, in WSL: <Cmd>{`kubectl -n shop get pods -l app.kubernetes.io/name=cart`}</Cmd> READY is `0/1`, STATUS `Running`, and RESTARTS has not changed.
 4. Run the query of action 1 again: the cart pod is there. Then find which pod's readiness probe fails, from the kubelet's counters: <Query lang="promql">{`sum by (pod) (rate(prober_probe_total{namespace="shop", probe_type="Readiness", result="failed"}[2m])) > 0`}</Query> About 0.1 per second: one failure every 10 seconds.
 5. See the Service lose the pod: <Cmd>{`kubectl -n shop get endpointslices -l kubernetes.io/service-name=cart -o jsonpath='{.items[*].endpoints[*].conditions}'`}</Cmd> `ready` is `false`.
 6. Read the events in <LabLink to="grafana" path="/explore">Explore</LabLink>, data source `loki`: <Query lang="logql">{`{job="integrations/kubernetes/eventhandler", namespace="shop", reason="Unhealthy"}`}</Query> The message says `Readiness probe failed: service unhealthy (responded with "NOT_SERVING")`. Without Grafana, `kubectl -n shop get events` shows the same while it is less than an hour old.

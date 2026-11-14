@@ -72,116 +72,126 @@ A chart of your own is a few files: metadata, defaults, a helper for names and l
 <Do>
 1. Make a folder for the chart in your WSL home:
    <Cmd>{`mkdir -p ~/m01/greeter/templates && cd ~/m01`}</Cmd>
-2. Write `Chart.yaml` and `values.yaml`:
-   <Cmd>{`cat > greeter/Chart.yaml <<'EOF'
-apiVersion: v2
-name: greeter
-description: A small chart written in module m01.
-type: application
-version: 0.1.0
-appVersion: "6.17.0"
-EOF
-cat > greeter/values.yaml <<'EOF'
-# The text the web page shows. The chart stores it in upper case.
-greeting: hello, helm
+2. Save the chart's metadata as `greeter/Chart.yaml`:
 
-replicaCount: 1
+   ```yaml
+   apiVersion: v2
+   name: greeter
+   description: A small chart written in module m01.
+   type: application
+   version: 0.1.0
+   appVersion: "6.17.0"
+   ```
 
-image:
-  repository: ghcr.io/stefanprodan/podinfo
-  # Empty means the chart's appVersion.
-  tag: ""
+   Save its default values as `greeter/values.yaml`:
 
-# One ConfigMap key per colour: color-0, color-1, ...
-colors:
-  - "#34577c"
-  - "#2f6f4f"
+   ```yaml
+   # The text the web page shows. The chart stores it in upper case.
+   greeting: hello, helm
 
-# Extra labels for the Deployment. Leave empty for none.
-extraLabels:
-  team: learners
+   replicaCount: 1
 
-debug: false
+   image:
+     repository: ghcr.io/stefanprodan/podinfo
+     # Empty means the chart's appVersion.
+     tag: ""
 
-resources:
-  requests:
-    cpu: 10m
-    memory: 32Mi
-  limits:
-    memory: 64Mi
-EOF`}</Cmd>
-3. Write the helpers:
-   <Cmd>{`cat > greeter/templates/_helpers.tpl <<'EOF'
-{{- define "greeter.fullname" -}}
-{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
+   # One ConfigMap key per colour: color-0, color-1, ...
+   colors:
+     - "#34577c"
+     - "#2f6f4f"
 
-{{- define "greeter.labels" -}}
-app.kubernetes.io/name: {{ .Chart.Name }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
-{{- end -}}
-EOF`}</Cmd>
-4. Write the ConfigMap template:
-   <Cmd>{`cat > greeter/templates/configmap.yaml <<'EOF'
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "greeter.fullname" . }}
-  labels:
-    {{- include "greeter.labels" . | nindent 4 }}
-data:
-  greeting: {{ .Values.greeting | upper | quote }}
-  {{- if .Values.debug }}
-  logLevel: debug
-  {{- end }}
-  {{- range $i, $color := .Values.colors }}
-  color-{{ $i }}: {{ $color | quote }}
-  {{- end }}
-EOF`}</Cmd>
-5. Write the Deployment template and the notes:
-   <Cmd>{`cat > greeter/templates/deployment.yaml <<'EOF'
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "greeter.fullname" . }}
-  labels:
-    {{- include "greeter.labels" . | nindent 4 }}
-    {{- with .Values.extraLabels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: {{ .Chart.Name }}
-      app.kubernetes.io/instance: {{ .Release.Name }}
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: {{ .Chart.Name }}
-        app.kubernetes.io/instance: {{ .Release.Name }}
-    spec:
-      containers:
-        - name: web
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          ports:
-            - containerPort: 9898
-          env:
-            - name: PODINFO_UI_MESSAGE
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "greeter.fullname" . }}
-                  key: greeting
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-EOF
-cat > greeter/templates/NOTES.txt <<'EOF'
-The greeting of {{ .Release.Name }} is stored in the ConfigMap {{ include "greeter.fullname" . }}.
-Read it with:
-  kubectl -n {{ .Release.Namespace }} get configmap {{ include "greeter.fullname" . }} -o jsonpath='{.data.greeting}'
-EOF`}</Cmd>
+   # Extra labels for the Deployment. Leave empty for none.
+   extraLabels:
+     team: learners
+
+   debug: false
+
+   resources:
+     requests:
+       cpu: 10m
+       memory: 32Mi
+     limits:
+       memory: 64Mi
+   ```
+3. Save the helpers as `greeter/templates/_helpers.tpl`:
+
+   ```text
+   {{- define "greeter.fullname" -}}
+   {{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+   {{- end -}}
+
+   {{- define "greeter.labels" -}}
+   app.kubernetes.io/name: {{ .Chart.Name }}
+   app.kubernetes.io/instance: {{ .Release.Name }}
+   app.kubernetes.io/managed-by: {{ .Release.Service }}
+   helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
+   {{- end -}}
+   ```
+4. Save the ConfigMap template as `greeter/templates/configmap.yaml`:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: {{ include "greeter.fullname" . }}
+     labels:
+       {{- include "greeter.labels" . | nindent 4 }}
+   data:
+     greeting: {{ .Values.greeting | upper | quote }}
+     {{- if .Values.debug }}
+     logLevel: debug
+     {{- end }}
+     {{- range $i, $color := .Values.colors }}
+     color-{{ $i }}: {{ $color | quote }}
+     {{- end }}
+   ```
+5. Save the Deployment template as `greeter/templates/deployment.yaml`:
+
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: {{ include "greeter.fullname" . }}
+     labels:
+       {{- include "greeter.labels" . | nindent 4 }}
+       {{- with .Values.extraLabels }}
+       {{- toYaml . | nindent 4 }}
+       {{- end }}
+   spec:
+     replicas: {{ .Values.replicaCount }}
+     selector:
+       matchLabels:
+         app.kubernetes.io/name: {{ .Chart.Name }}
+         app.kubernetes.io/instance: {{ .Release.Name }}
+     template:
+       metadata:
+         labels:
+           app.kubernetes.io/name: {{ .Chart.Name }}
+           app.kubernetes.io/instance: {{ .Release.Name }}
+       spec:
+         containers:
+           - name: web
+             image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+             ports:
+               - containerPort: 9898
+             env:
+               - name: PODINFO_UI_MESSAGE
+                 valueFrom:
+                   configMapKeyRef:
+                     name: {{ include "greeter.fullname" . }}
+                     key: greeting
+             resources:
+               {{- toYaml .Values.resources | nindent 12 }}
+   ```
+
+   Save the notes as `greeter/templates/NOTES.txt`:
+
+   ```text
+   The greeting of {{ .Release.Name }} is stored in the ConfigMap {{ include "greeter.fullname" . }}.
+   Read it with:
+     kubectl -n {{ .Release.Namespace }} get configmap {{ include "greeter.fullname" . }} -o jsonpath='{.data.greeting}'
+   ```
 6. Lint the chart and render it, once as it is and once with debug on:
    <Cmd>{`helm lint ./greeter
 helm template m01-hello ./greeter -n learn-m01

@@ -89,7 +89,7 @@ Explore is for questions, dashboards are for questions you ask again. Use an ins
 
 <Do>
 1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>. In the data source picker at the top left, choose **Prometheus**.
-2. Switch the query editor from **Builder** to **Code** and type this query: <Query lang="promql">count(kube_node_info)</Query>
+2. Switch the query editor from **Builder** to **Code** and type this query: <Query lang="promql">{`count(kube_node_info)`}</Query>
 3. Click **Run query**, the blue button at the top right. With the default type **Both**, Explore shows a **Graph** with one flat line and, under **Raw**, the current value.
 4. Open **Options** under the query and set **Type** to **Instant**. Run the query again. The graph goes away, and **Raw** holds one number: the nodes in the cluster.
 5. Set **Type** to **Range** and the time picker to **Last 24 hours**. The line stays flat if no node joined or left today.

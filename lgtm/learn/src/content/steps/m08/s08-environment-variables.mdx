@@ -89,9 +89,9 @@ The shop's chart sets the same kind of variables on every service: `OTEL_SERVICE
 
 <Do>
 1. In `lgtm/lab/workshop`, read `lab.env` and `solutions/04-metrics/workshop.env`. `lab.env` sets `OTEL_RESOURCE_ATTRIBUTES=service.namespace=workshop,deployment.environment.name=learner-pc`.
-2. Set one resource attribute of your own, as if you only wanted to add a version. In PowerShell: <Cmd>{`$env:OTEL_RESOURCE_ATTRIBUTES = "service.version=0.8.0"`}</Cmd> In bash: <Cmd>export OTEL_RESOURCE_ATTRIBUTES=service.version=0.8.0</Cmd>
-3. Start the metrics solution in the same terminal. The settings it prints show `OTEL_RESOURCE_ATTRIBUTES=service.version=0.8.0` and nothing else in that variable. <Cmd>python run.py solutions/04-metrics</Cmd>
-4. In a second terminal, make 20 seconds of traffic, then wait 15 seconds: <Cmd>python load.py --rate 5 --duration 20</Cmd>
+2. Set one resource attribute of your own, as if you only wanted to add a version. In PowerShell: <Cmd>{`$env:OTEL_RESOURCE_ATTRIBUTES = "service.version=0.8.0"`}</Cmd> In bash: <Cmd>{`export OTEL_RESOURCE_ATTRIBUTES=service.version=0.8.0`}</Cmd>
+3. Start the metrics solution in the same terminal. The settings it prints show `OTEL_RESOURCE_ATTRIBUTES=service.version=0.8.0` and nothing else in that variable. <Cmd>{`python run.py solutions/04-metrics`}</Cmd>
+4. In a second terminal, make 20 seconds of traffic, then wait 15 seconds: <Cmd>{`python load.py --rate 5 --duration 20`}</Cmd>
 5. In <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `mimir`, compare the series from step 4 with the new ones: <Query lang="promql">{`count by (job, service_namespace, service_version) (workshop_checkouts_total{service_name="workshop"})`}</Query> The new series have `service_version="0.8.0"`, but their namespace is no longer `workshop`.
 6. Paste the `job` label of the series with `service_version="0.8.0"` in the check below.
 7. Stop the service with Ctrl+C and remove your variable: `Remove-Item Env:OTEL_RESOURCE_ATTRIBUTES` in PowerShell, `unset OTEL_RESOURCE_ATTRIBUTES` in bash. To add a version for real, write the whole list: `service.namespace=workshop,deployment.environment.name=learner-pc,service.version=0.8.0`.

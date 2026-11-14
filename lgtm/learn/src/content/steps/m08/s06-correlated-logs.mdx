@@ -75,9 +75,9 @@ Do not put `trace_id` inside the braces of a Loki query: it is structured metada
 </Trap>
 
 <Do>
-1. In a terminal in `lgtm/lab/workshop`, see what the logs solution adds: <Cmd>git diff --no-index solutions/04-metrics/app.py solutions/05-logs/app.py</Cmd> <Cmd>git diff --no-index solutions/04-metrics/workshop.env solutions/05-logs/workshop.env</Cmd> <Cmd>git diff --no-index solutions/04-metrics/requirements.txt solutions/05-logs/requirements.txt</Cmd>
-2. Start it and wait for `Running on http://127.0.0.1:8000`. The startup lines now show `trace_id=0 span_id=0`: they were written outside any span. <Cmd>python run.py solutions/05-logs</Cmd>
-3. In a second terminal, make one slow computation, then 20 seconds of traffic. The first call takes about a second and logs a warning; the traffic declines some checkouts on purpose. <Cmd>curl http://127.0.0.1:8000/compute?n=36</Cmd> <Cmd>python load.py --rate 5 --duration 20</Cmd>
+1. In a terminal in `lgtm/lab/workshop`, see what the logs solution adds: <Cmd>{`git diff --no-index solutions/04-metrics/app.py solutions/05-logs/app.py`}</Cmd> <Cmd>{`git diff --no-index solutions/04-metrics/workshop.env solutions/05-logs/workshop.env`}</Cmd> <Cmd>{`git diff --no-index solutions/04-metrics/requirements.txt solutions/05-logs/requirements.txt`}</Cmd>
+2. Start it and wait for `Running on http://127.0.0.1:8000`. The startup lines now show `trace_id=0 span_id=0`: they were written outside any span. <Cmd>{`python run.py solutions/05-logs`}</Cmd>
+3. In a second terminal, make one slow computation, then 20 seconds of traffic. The first call takes about a second and logs a warning; the traffic declines some checkouts on purpose. <Cmd>{`curl http://127.0.0.1:8000/compute?n=36`}</Cmd> <Cmd>{`python load.py --rate 5 --duration 20`}</Cmd>
 4. In the service's terminal, find the line `slow compute: n=36 took ...` and note its `trace_id`.
 5. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, choose the data source `loki`, set the time range to the last 15 minutes, and run: <Query lang="logql">{`{service_name="workshop"} |= "slow compute"`}</Query> Expand the line. Its fields include `trace_id` with the value from your terminal, `severity_text` WARN and `workshop_compute_n` 36.
 6. Click the link next to `trace_id`. Tempo opens the trace with the spans `GET /compute` and `fibonacci`.
