@@ -102,8 +102,8 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
   3. A flag is on for at most 15 minutes. Switch it off, read the API to see that it is off, and write both times in UTC into your log.
   4. Then keep off the flags for ten minutes, so that the next card finds a quiet shop.
   5. The owner studies in the same lab. A flag is never left on when your turn ends or when you wait for an answer.
-- Cards L7 and L8 may apply their changes while you work: a rolling restart of calico-node (a few seconds without network on each node in turn), Loki's pods one after another, and one restart of Prometheus (about a minute without fresh cluster metrics). A single failed request in those minutes is not a finding; try it again. L8 also gives Loki query limits; its proposal is that one query may read 500 MB at most, run one minute and span 49 hours, and `/config` on Loki's address shows what is in force. Keep your log queries short, as before.
-- If a new pod stays in ContainerCreating with `connection is unauthorized`, Calico's token has run out after a sleep of the PC: tell the planner, change nothing.
+- Cards L7 and L8 were applied on 2026-11-14 before this wave started: the lab runs Calico 3.31.7, and Loki has query limits (one query may read 500 MiB at most, run one minute and span 49 hours; a wider one is refused at once with HTTP 400, and `/config` on Loki's address shows what is in force). Keep your log queries short, as before. Mimir's cardinality API answers for tenant `lab`.
+- If a new pod stays in ContainerCreating with `connection is unauthorized`, Calico's token has run out after a very long sleep of the PC: tell the planner, change nothing (`make calico-renew` is the owner's).
 - Host ports, all on 127.0.0.1: C12 uses 8097, C13 8098, C14 8100 for the site. Port-forwards: C12 18100 to 18109, C13 18110 to 18119, C14 18120 to 18129.
 
 ## Pull request text
