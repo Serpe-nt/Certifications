@@ -75,7 +75,7 @@ WSL in this lab logs in with fish. The commands are written for bash, so type `b
 make collections
 make inventory
 make ping`}</Cmd>
-3. Build the cluster and keep a log. It takes 15 to 30 minutes and ends with a PLAY RECAP where every host has `failed=0` and `unreachable=0`:
+3. Build the cluster and keep a log. It takes 5 to 30 minutes and ends with a PLAY RECAP where every host has `failed=0` and `unreachable=0`:
    <Cmd>{`make cluster 2>&1 | tee ~/lgtm-cluster-first-run.log`}</Cmd>
 4. Run the read-only health check. It checks HAProxy, the DNS name and all five nodes:
    <Cmd>{`make cluster-check`}</Cmd>

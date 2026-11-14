@@ -12,7 +12,7 @@ terms:
   - term: Hyper-V
     def: The hypervisor built into Windows Pro; it runs the lab's virtual machines.
   - term: Load balancer VM
-    def: The lab's lb machine; it spreads API and web traffic over the cluster nodes.
+    def: The lab's lb machine; it sends API traffic to the control-plane node and spreads web traffic over the workers.
   - term: Stacked etcd
     def: etcd running on the control-plane nodes themselves, one member per node.
   - term: Tenant
@@ -41,7 +41,7 @@ The VMs sit on a private Hyper-V network, 10.10.0.0/24, and reach the internet t
   <Stat label="Workers: worker1 to worker4" value="4" amount={4} max={4} hot />
 </Figures>
 
-master1 runs etcd on itself, as a single member. Kubernetes calls etcd on the control-plane nodes stacked etcd. A production cluster runs at least three control-plane nodes with one etcd member each, so it keeps working when one of them is lost. This lab runs one and gives the memory to the workers; step 6 shows what that costs. All your workloads run on the four workers, and each worker has a second disk for volumes.
+master1 runs etcd on itself, as a single member. Kubernetes calls etcd on the control-plane nodes stacked etcd. A highly available cluster runs at least three control-plane nodes with one etcd member each, so it keeps working when one of them is lost. This lab runs one and gives the memory to the workers; step 6 shows what that costs. All your workloads run on the four workers, and each worker has a second disk for volumes.
 
 ## Four layers, four commands
 

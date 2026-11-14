@@ -81,7 +81,7 @@ A series with the value 1 whose labels hold facts about a target is called an in
 
 ## Set operators: and, or, unless
 
-`and`, `or` and `unless` work on whole series and ignore values. `a and b` keeps the series of `a` that have a partner in `b`, `a or b` adds the series of `b` that `a` lacks, and `a unless b` keeps the series of `a` that have no partner in `b`. They take `on` and `ignoring` too. In the lab, `kube_node_role` exists only for the three control-plane nodes, so this returns the kubelets of the four workers:
+`and`, `or` and `unless` work on whole series and ignore values. `a and b` keeps the series of `a` that have a partner in `b`, `a or b` adds the series of `b` that `a` lacks, and `a unless b` keeps the series of `a` that have no partner in `b`. They take `on` and `ignoring` too. In the lab, `kube_node_role` exists only for the control-plane node, so this returns the kubelets of the four workers:
 
 <Query lang="promql">{`up{job="kubelet", metrics_path="/metrics"} unless on (node) kube_node_role`}</Query>
 

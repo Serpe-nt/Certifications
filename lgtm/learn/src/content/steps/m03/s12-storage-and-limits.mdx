@@ -85,7 +85,7 @@ Local storage is not clustered and not replicated. If the disk or the node is lo
 High availability comes from running two or more identical servers that scrape the same targets; Alertmanager drops the duplicate alerts. For a view across many servers, federation lets one Prometheus scrape selected series from others, and for long-term, durable storage Prometheus sends its data to a remote system, which is step 13. Recall from step 1 that Prometheus is also the wrong tool when every single value must be exact, as in billing.
 
 <InLab>
-The lab's Prometheus keeps 1 day or 3 GiB, whichever comes first, on a 4 GiB Longhorn volume, and holds about 150,000 series in its head block. See <LabLink to="prometheus" path="/tsdb-status">the TSDB status page</LabLink> for the series counts by metric name.
+The lab's Prometheus keeps 1 day or 3 GiB, whichever comes first, on a 4 GiB Longhorn volume, and holds about 110,000 series in its head block. See <LabLink to="prometheus" path="/tsdb-status">the TSDB status page</LabLink> for the series counts by metric name.
 </InLab>
 
 <Trap>

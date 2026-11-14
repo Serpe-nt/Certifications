@@ -49,7 +49,7 @@ Every node reaches the API and the lab's names through `lb`, so `lb` must come u
 
 ## What a slow start looks like
 
-For the first minutes after a start, some pods show `Unknown` or restart while their dependencies come back. With the whole lab installed, the record in `acceptance-lab.md` shows every pod Ready about eight minutes after the reboot, with nothing done by hand. Wait before you act; look at a pod only if it is still down ten minutes after the nodes are `Ready`.
+For the first minutes after a start, some pods show `Unknown` or restart while their dependencies come back. On the earlier, larger version of the lab, with seven nodes and the whole stack installed, the record in `acceptance-lab.md` shows every pod Ready about eight minutes after a restart, with nothing done by hand. This lab has no such record yet. Wait before you act; look at a pod only if it is still down ten minutes after the nodes are `Ready`.
 
 <Trap>
 Do not restart the Windows host with the VMs still running and assume they come back. They shut down cleanly, but they stay off until you run `start` in an elevated PowerShell.
@@ -86,9 +86,9 @@ Why does `start` bring up master1 before the four workers?
 
   A worker boots on its own. It needs the API only to register and run pods.
 
-- master1 carries the API and etcd, which the workers must reach to register
+- master1 runs the API server, which the workers' kubelets must reach to register
 
-  master1 brings back the API and etcd, so the workers find a working API.
+  The kubelets register with the API server on master1; only the API server talks to etcd.
 
 - master1 holds the Longhorn disks the workers mount
 

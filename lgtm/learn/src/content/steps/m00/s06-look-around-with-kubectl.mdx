@@ -27,6 +27,9 @@ sources:
   - title: Options for highly available topology (Kubernetes)
     url: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/
     checked: 2026-11-13
+  - title: etcd FAQ
+    url: https://etcd.io/docs/v3.6/faq/
+    checked: 2026-11-14
   - title: Command line tool (kubectl)
     url: https://kubernetes.io/docs/reference/kubectl/
     checked: 2026-11-12
@@ -59,7 +62,7 @@ kubeadm starts the control plane as static pods: the kubelet on the master runs 
   <Stat label="kube-proxy pods, one per node" value="5" amount={5} max={5} />
 </Figures>
 
-Production clusters run more than one etcd member. The etcd cluster fails when a majority of its members is lost, and the Kubernetes guide to operating etcd asks for an odd number of members. With three, losing one leaves two of three, still a majority, so Kubernetes asks for at least three stacked control-plane nodes in a highly available cluster. This lab runs one, to give its memory to the workers. While master1 restarts, the API server is away: kubectl and Helm wait, and pods that already run keep serving. `lgtm/lab/docs/cluster.md`, section "One control-plane node", shows how to add masters back.
+Production clusters run more than one etcd member. etcd accepts a change only when a majority of its members, the quorum, agree on it, and the Kubernetes guide to operating etcd asks for an odd number of members. With three, losing one leaves two of three, still a majority, so Kubernetes asks for at least three stacked control-plane nodes in a highly available cluster. This lab runs one, to give its memory to the workers. While master1 restarts, the API server is away: kubectl and Helm wait, and pods that already run keep serving. `lgtm/lab/docs/cluster.md`, section "One control-plane node", shows how to add masters back.
 
 <InLab>
 At this point the cluster holds only Kubernetes itself and Calico, in `kube-system`, `calico-system` and `tigera-operator`. Everything else comes in module m01.
@@ -109,7 +112,7 @@ Five nodes are `Ready`, the endpoint is the `lb` name, and master1 runs the `etc
 
   cluster-info prints the API address. It says nothing about the etcd leader.
 
-- The cluster has only one control-plane node
+- The lab's endpoint name resolves to 10.10.0.11
 
-  The address shows where kubectl connects, not how many masters exist.
+  cluster-endpoint.k8s.local resolves to lb, 10.10.0.5, and cluster-info would print the name itself.
 </Question>
