@@ -21,7 +21,7 @@ sources:
   - title: Grafana Mimir HTTP API, cardinality endpoints
     url: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
     checked: 2026-11-14
-  - title: Grafana Mimir configuration parameters, cardinality_analysis_enabled
+  - title: Grafana Mimir configuration parameters, cardinality_analysis_enabled and lookback_delta
     url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
     checked: 2026-11-14
   - title: About Grafana Mimir runtime configuration
@@ -81,8 +81,8 @@ With `count_method=inmemory`, two calls of the cardinality API a minute apart ca
 2. List the five metrics with the most active series: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/label_values --data-urlencode 'label_names[]=__name__' --data-urlencode 'count_method=active' --data-urlencode 'limit=5'; echo`}</Cmd> `series_count_total` is the tenant's active series. One histogram from Tempo's span metrics is first, with about five times the series of the next.
 3. Count the values of three labels of that metric, with the top three values of each: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/label_values --data-urlencode 'selector=traces_spanmetrics_latency_bucket' --data-urlencode 'label_names[]=span_name' --data-urlencode 'label_names[]=service_name' --data-urlencode 'label_names[]=le' --data-urlencode 'count_method=active' --data-urlencode 'limit=3'; echo`}</Cmd> The bucket label `le` has 13 values, `span_name` has the most, and `frontend` is the service with the most series.
 4. List the active series of one service and count them: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/active_series --data-urlencode 'selector=traces_spanmetrics_latency_bucket{service_name="checkout"}' | grep -o '"__name__"' | wc -l`}</Cmd> A little over a hundred series for checkout alone.
-5. Now the same with PromQL, as you would on a tenant without the API. Define the query helper of step 7 again if this is a new shell, and find the five biggest metrics: <Cmd>{`q() { curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $1" http://10.10.0.5/prometheus/api/v1/query --data-urlencode "query=$2"; echo; }`}</Cmd> <Cmd>{`q lab 'topk(5, count by (__name__) ({__name__=~".+"}))'`}</Cmd> The same metric is first, with the same count.
-6. Count the values of each of its labels with PromQL: <Cmd>{`for l in le span_name service_name span_kind status_code; do printf '%s ' $l; q lab "count(count by ($l) (traces_spanmetrics_latency_bucket))"; done`}</Cmd> The counts for `le`, `span_name` and `service_name` are those of action 3.
+5. Now the same with PromQL, as you would on a tenant without the API. Define the query helper of step 7 again if this is a new shell, and find the five biggest metrics: <Cmd>{`q() { curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $1" http://10.10.0.5/prometheus/api/v1/query --data-urlencode "query=$2"; echo; }`}</Cmd> <Cmd>{`q lab 'topk(5, count by (__name__) ({__name__=~".+"}))'`}</Cmd> The same metric is first, with a few series fewer than in action 2: PromQL counts the series with a sample in the last 5 minutes (`lookback_delta`), the API's active method those of the last 20.
+6. Count the values of each of its labels with PromQL: <Cmd>{`for l in le span_name service_name span_kind status_code; do printf '%s ' $l; q lab "count(count by ($l) (traces_spanmetrics_latency_bucket))"; done`}</Cmd> The counts for `le`, `span_name` and `service_name` are those of action 3, or one or two lower for the same reason.
 7. Paste the metric name from action 2 in the check below.
 </Do>
 
