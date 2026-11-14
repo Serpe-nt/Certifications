@@ -198,8 +198,8 @@ An `output` block with no list for a signal drops that signal: by default the li
        }
    ```
 
-2. Apply it and restart the Alloy: <Cmd>kubectl apply -f m10-config.yaml</Cmd> <Cmd>kubectl -n learn-m10 rollout restart deploy/m10-alloy</Cmd> <Cmd>kubectl -n learn-m10 rollout status deploy/m10-alloy</Cmd>
-3. Check that the receiver listens: <Cmd>kubectl -n learn-m10 logs deploy/m10-alloy | grep 'Starting GRPC server'</Cmd> The line names `otelcol.receiver.otlp.default` and port 4317.
+2. Apply it and restart the Alloy: <Cmd>{`kubectl apply -f m10-config.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout restart deploy/m10-alloy`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout status deploy/m10-alloy`}</Cmd>
+3. Check that the receiver listens: <Cmd>{`kubectl -n learn-m10 logs deploy/m10-alloy | grep 'Starting GRPC server'`}</Cmd> The line names `otelcol.receiver.otlp.default` and port 4317.
 4. Save this Job as `m10-spans.yaml`. It runs telemetrygen, the trace generator of module m09, against your Alloy's Service, and sends five traces:
 
    ```yaml
@@ -228,7 +228,7 @@ An `output` block with no list for a signal drops that signal: by default the li
                limits: { cpu: 100m, memory: 64Mi }
    ```
 
-5. Run it and wait for it to finish: <Cmd>kubectl apply -f m10-spans.yaml</Cmd> <Cmd>kubectl -n learn-m10 wait --for=condition=complete job/m10-spans --timeout=90s</Cmd>
+5. Run it and wait for it to finish: <Cmd>{`kubectl apply -f m10-spans.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m10 wait --for=condition=complete job/m10-spans --timeout=90s`}</Cmd>
 6. Ask Tempo for your traces, in your tenant. The search covers the last 15 minutes: <Cmd>{`curl -s -G -H 'Host: tempo.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/api/search --data-urlencode 'q={resource.service.name="m10-practice"}' --data-urlencode "start=$(( $(date +%s) - 900 ))" --data-urlencode "end=$(date +%s)"`}</Cmd> Five traces, each with `rootServiceName` `m10-practice`. If the list is empty, wait half a minute and ask again.
 7. Paste the value of `rootTraceName` in the check below.
 </Do>

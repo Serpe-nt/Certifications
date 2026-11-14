@@ -88,11 +88,11 @@ Healthy does not mean busy. A component that nothing sends to still loads and re
 
 <Do>
 1. If `alloy-logs.alloy` from step 2 is gone, save it again: <Cmd>{`kubectl -n alloy get configmap k8s-monitoring-alloy-logs -o jsonpath='{.data.config\\.alloy}' > alloy-logs.alloy`}</Cmd>
-2. Print every argument that references another component: <Cmd>grep -n -E 'targets *=|path_targets *=|forward_to *=|logs_destinations *=' alloy-logs.alloy</Cmd>
+2. Print every argument that references another component: <Cmd>{`grep -n -E 'targets *=|path_targets *=|forward_to *=|logs_destinations *=' alloy-logs.alloy`}</Cmd>
 3. Start at line 16 and follow the chain. For each line, say which component it is in, and which component and export it reads. Lines 16, 141 and 145 pull targets; lines 147 and 197 push log lines.
-4. Find where the argument of line 197 gets its value: <Cmd>grep -n -A2 'logs_destinations = \[' alloy-logs.alloy</Cmd> That is the end of the pipeline.
+4. Find where the argument of line 197 gets its value: <Cmd>{`grep -n -A2 'logs_destinations = \\[' alloy-logs.alloy`}</Cmd> That is the end of the pipeline.
 5. Paste the reference that `loki.source.file` uses in `forward_to`, without the brackets, in the check below.
-6. Delete the file: <Cmd>rm alloy-logs.alloy</Cmd>
+6. Delete the file: <Cmd>{`rm alloy-logs.alloy`}</Cmd>
 </Do>
 
 <Done>

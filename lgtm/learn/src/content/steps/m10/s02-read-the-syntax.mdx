@@ -92,9 +92,9 @@ Single quotes do not make a string in Alloy. A label or a value in `'...'` is a 
 <Do>
 1. In WSL, with `KUBECONFIG` pointing at the lab, save the log collector's configuration to a file: <Cmd>{`kubectl -n alloy get configmap k8s-monitoring-alloy-logs -o jsonpath='{.data.config\\.alloy}' > alloy-logs.alloy`}</Cmd> The backslash keeps the dot in `config.alloy` from being read as a path separator.
 2. List every block that has a label, with its line number: <Cmd>{`grep -n -E '^ *[a-z_.]+ "[a-z_]+" \\{' alloy-logs.alloy`}</Cmd> The indented ones sit inside the `declare` block. Find the line where the custom component is used.
-3. Read the discovery block: <Cmd>grep -n -A6 'discovery.kubernetes "pods"' alloy-logs.alloy</Cmd> Name each part of line 11: the attribute, the string constant, the operator and the function call.
-4. Find where that environment variable comes from. The DaemonSet sets it from a field of the pod: <Cmd>kubectl -n alloy get daemonset k8s-monitoring-alloy-logs -o yaml | grep -n -A4 'name: HOSTNAME'</Cmd> Its value is `spec.nodeName`, the node the pod runs on. So each Alloy pod asks the API server only for the pods of its own node.
-5. List the other expressions of the file: <Cmd>grep -n 'sys.env\|convert.nonsensitive\|argument\.' alloy-logs.alloy</Cmd> You see a function that reads the environment, a function that unwraps a secret, and a reference to the custom component's argument.
+3. Read the discovery block: <Cmd>{`grep -n -A6 'discovery.kubernetes "pods"' alloy-logs.alloy`}</Cmd> Name each part of line 11: the attribute, the string constant, the operator and the function call.
+4. Find where that environment variable comes from. The DaemonSet sets it from a field of the pod: <Cmd>{`kubectl -n alloy get daemonset k8s-monitoring-alloy-logs -o yaml | grep -n -A4 'name: HOSTNAME'`}</Cmd> Its value is `spec.nodeName`, the node the pod runs on. So each Alloy pod asks the API server only for the pods of its own node.
+5. List the other expressions of the file: <Cmd>{`grep -n 'sys.env\\|convert.nonsensitive\\|argument\\.' alloy-logs.alloy`}</Cmd> You see a function that reads the environment, a function that unwraps a secret, and a reference to the custom component's argument.
 6. Paste the name of the environment variable from action 3 in the check below.
 </Do>
 

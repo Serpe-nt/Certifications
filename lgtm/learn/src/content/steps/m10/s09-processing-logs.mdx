@@ -227,13 +227,13 @@ Order matters. A `stage.labels` or `stage.drop` that reads `level` must come aft
        }
    ```
 
-2. Apply it and restart the Alloy, then start the port-forward again: <Cmd>kubectl apply -f m10-config.yaml</Cmd> <Cmd>kubectl -n learn-m10 rollout restart deploy/m10-alloy</Cmd> <Cmd>kubectl -n learn-m10 rollout status deploy/m10-alloy</Cmd> <Cmd>kubectl -n learn-m10 port-forward deploy/m10-alloy 18101:12345</Cmd>
+2. Apply it and restart the Alloy, then start the port-forward again: <Cmd>{`kubectl apply -f m10-config.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout restart deploy/m10-alloy`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout status deploy/m10-alloy`}</Cmd> <Cmd>{`kubectl -n learn-m10 port-forward deploy/m10-alloy 18101:12345`}</Cmd>
 3. Open http://localhost:18101, click **View** on `loki.process.app`, then **Live debugging**. Each line shows up as `[IN]`, and, unless it was dropped, as `[OUT]` right after.
 4. Compare an `[IN]` and its `[OUT]`: the `[OUT]` line has a `level` label, no `pod` label, and `structured_metadata` with `pod` and `uri`. Type `readyz` in **Filter**: those lines appear only as `[IN]`.
 5. Ask Loki for the labels of your new streams, from the last minute: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/loki/api/v1/series --data-urlencode 'match[]={namespace="learn-m10", level=~".+"}' --data-urlencode 'start='$(( $(date +%s) - 60 ))`}</Cmd> Compare them with the stream of step 5: `level` is new, and one label is gone.
 6. Count the lines per `uri` in the last two minutes. `uri` is structured metadata, so LogQL reads it like a label after the stream selector: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=sum by (uri) (count_over_time({namespace="learn-m10", level="debug"}[2m]))'`}</Cmd> `/` and `/status/404` from the traffic container, and `/metrics` from your own scrape. No `/readyz`.
 7. Read the drop counter from Mimir: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=loki_process_dropped_lines_total'`}</Cmd> One series, with `reason="probe"`.
-8. Paste the name of the label that disappeared in action 5 in the check below. Then stop the port-forward and delete the practice namespace, which ends the module's practice Alloy: <Cmd>kubectl delete namespace learn-m10</Cmd>
+8. Paste the name of the label that disappeared in action 5 in the check below. Then stop the port-forward and delete the practice namespace, which ends the module's practice Alloy: <Cmd>{`kubectl delete namespace learn-m10`}</Cmd>
 </Do>
 
 <Done>

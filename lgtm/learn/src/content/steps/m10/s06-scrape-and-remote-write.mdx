@@ -183,8 +183,8 @@ The `job` label of a scraped series is the component's name unless the target or
        }
    ```
 
-2. Apply it and restart the Alloy. It reads its file at start, and a changed ConfigMap reaches the pod's volume only after a delay: <Cmd>kubectl apply -f m10-config.yaml</Cmd> <Cmd>kubectl -n learn-m10 rollout restart deploy/m10-alloy</Cmd> <Cmd>kubectl -n learn-m10 rollout status deploy/m10-alloy</Cmd>
-3. Start the port-forward again (the old pod is gone): <Cmd>kubectl -n learn-m10 port-forward deploy/m10-alloy 18101:12345</Cmd> Open http://localhost:18101, then **Graph**: the two pipelines share one `discovery.kubernetes`.
+2. Apply it and restart the Alloy. It reads its file at start, and a changed ConfigMap reaches the pod's volume only after a delay: <Cmd>{`kubectl apply -f m10-config.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout restart deploy/m10-alloy`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout status deploy/m10-alloy`}</Cmd>
+3. Start the port-forward again (the old pod is gone): <Cmd>{`kubectl -n learn-m10 port-forward deploy/m10-alloy 18101:12345`}</Cmd> Open http://localhost:18101, then **Graph**: the two pipelines share one `discovery.kubernetes`.
 4. Open `prometheus.scrape.app`, then **Live debugging**. Samples scroll past, each with `job="prometheus.scrape.app"`. Type `http_requests_total` in **Filter** to see podinfo's request counter.
 5. After half a minute, ask Mimir for `up` in your tenant: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=up'`}</Cmd> Two series, one per target, each with `instance`, `job`, `namespace`, `pod` and `cluster`. For a few minutes after a restart you can see more: the last sample of a pod that is gone stays visible in an instant query for a while.
 6. See podinfo's own traffic: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=sum by (status) (rate(http_requests_total{pod=~"m10-app.*"}[2m]))'`}</Cmd> Two results: status 200 and status 404, from the two calls the traffic container makes.

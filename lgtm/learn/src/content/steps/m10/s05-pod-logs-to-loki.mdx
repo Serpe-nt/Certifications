@@ -87,7 +87,7 @@ The practice app is podinfo 6.17.0, the small Go web app of module m01, started 
 </Trap>
 
 <Do>
-1. In WSL, with `KUBECONFIG` pointing at the lab, create the practice namespace: <Cmd>kubectl create namespace learn-m10</Cmd>
+1. In WSL, with `KUBECONFIG` pointing at the lab, create the practice namespace: <Cmd>{`kubectl create namespace learn-m10`}</Cmd>
 2. Save the practice app as `m10-app.yaml` and apply it:
 
    ```yaml
@@ -129,7 +129,7 @@ The practice app is podinfo 6.17.0, the small Go web app of module m01, started 
                limits: { cpu: 20m, memory: 16Mi }
    ```
 
-   <Cmd>kubectl apply -f m10-app.yaml</Cmd>
+   <Cmd>{`kubectl apply -f m10-app.yaml`}</Cmd>
 3. Save the Alloy's configuration as `m10-config.yaml`. Steps 6, 7 and 9 replace this file with a longer one:
 
    ```yaml
@@ -276,9 +276,9 @@ The practice app is podinfo 6.17.0, the small Go web app of module m01, started 
          targetPort: 4317
    ```
 
-   <Cmd>kubectl apply -f m10-config.yaml -f m10-alloy.yaml</Cmd> <Cmd>kubectl -n learn-m10 rollout status deploy/m10-alloy</Cmd>
-5. Read the Alloy's log: <Cmd>kubectl -n learn-m10 logs deploy/m10-alloy | grep -E 'tailer running|opened log stream'</Cmd> One tailer, for `learn-m10/m10-app-...:podinfo`. The `traffic` container was dropped by the keep rule.
-6. In a second terminal, forward a port to your Alloy: <Cmd>kubectl -n learn-m10 port-forward deploy/m10-alloy 18101:12345</Cmd> Open http://localhost:18101 and click **View** on `discovery.relabel.app_logs`. Under Exports, `output` holds one target: the podinfo container, with the `__meta_kubernetes_*` labels and your three new ones, `container`, `namespace` and `pod`.
+   <Cmd>{`kubectl apply -f m10-config.yaml -f m10-alloy.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout status deploy/m10-alloy`}</Cmd>
+5. Read the Alloy's log: <Cmd>{`kubectl -n learn-m10 logs deploy/m10-alloy | grep -E 'tailer running|opened log stream'`}</Cmd> One tailer, for `learn-m10/m10-app-...:podinfo`. The `traffic` container was dropped by the keep rule.
+6. In a second terminal, forward a port to your Alloy: <Cmd>{`kubectl -n learn-m10 port-forward deploy/m10-alloy 18101:12345`}</Cmd> Open http://localhost:18101 and click **View** on `discovery.relabel.app_logs`. Under Exports, `output` holds one target: the podinfo container, with the `__meta_kubernetes_*` labels and your three new ones, `container`, `namespace` and `pod`.
 7. Ask Loki which streams your tenant holds. The `Host` header picks Loki behind the lab's gateway, the `X-Scope-OrgID` header picks the tenant: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/loki/api/v1/series --data-urlencode 'match[]={namespace="learn-m10"}' --data-urlencode 'start='$(( $(date +%s) - 300 ))`}</Cmd> One stream. Besides your three labels and `cluster`, it carries `job` and `instance`, which `loki.source.kubernetes` added itself, and `service_name`, which Loki added.
 8. Paste the value of `job` in the check below. Keep the namespace and the port-forward: steps 6 to 9 extend this Alloy.
 </Do>

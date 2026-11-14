@@ -80,7 +80,7 @@ Each DaemonSet pod has its own screen and sees only its own node. If a file is m
 </Trap>
 
 <Do>
-1. In a second WSL terminal, forward a port to one pod of the log collector, and leave it running: <Cmd>kubectl -n alloy port-forward daemonset/k8s-monitoring-alloy-logs 18100:12345</Cmd>
+1. In a second WSL terminal, forward a port to one pod of the log collector, and leave it running: <Cmd>{`kubectl -n alloy port-forward daemonset/k8s-monitoring-alloy-logs 18100:12345`}</Cmd>
 2. Open http://localhost:18100 in your browser. The home page lists four components, all Healthy.
 3. Click **Graph** in the top bar. Find the box for the custom component and the five components inside it, and follow the edges from `pod_logs_via_loki.feature` to `loki.write.loki`.
 4. Back on the home page, click **View** on `remote.kubernetes.secret.loki`. Read its health message, and see that the key `tenantId` of its `data` export shows as `(secret)`.

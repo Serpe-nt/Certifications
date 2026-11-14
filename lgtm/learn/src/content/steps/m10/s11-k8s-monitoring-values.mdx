@@ -79,9 +79,9 @@ A change to `collectors.*.presets` or resources changes the pods, not the config
 </Trap>
 
 <Do>
-1. In the repository, from `lgtm/lab`, read the values: <Cmd>grep -v '^ *#' helm/k8s-monitoring/values.yaml | grep -v '^$'</Cmd>
-2. List the Alloy custom resources the chart created: <Cmd>kubectl -n alloy get alloy</Cmd> One per collector.
-3. Read what the presets of `alloy-logs` became: <Cmd>kubectl -n alloy get alloy k8s-monitoring-alloy-logs -o yaml | grep -n -A8 -E '^    mounts:|^  controller:'</Cmd> The mounts `varlog` and `dockercontainers`, the controller type `daemonset`, the toleration.
+1. In the repository, from `lgtm/lab`, read the values: <Cmd>{`grep -v '^ *#' helm/k8s-monitoring/values.yaml | grep -v '^$'`}</Cmd>
+2. List the Alloy custom resources the chart created: <Cmd>{`kubectl -n alloy get alloy`}</Cmd> One per collector.
+3. Read what the presets of `alloy-logs` became: <Cmd>{`kubectl -n alloy get alloy k8s-monitoring-alloy-logs -o yaml | grep -n -A8 -E '^    mounts:|^  controller:'`}</Cmd> The mounts `varlog` and `dockercontainers`, the controller type `daemonset`, the toleration.
 4. Follow the mounts to the DaemonSet the operator built: <Cmd>{`kubectl -n alloy get daemonset k8s-monitoring-alloy-logs -o jsonpath='{range .spec.template.spec.volumes[*]}{.name}{" "}{.hostPath.path}{"\\n"}{end}'`}</Cmd>
 5. Find what `excludeNamespaces` and `cluster.name` became in the configuration: <Cmd>{`kubectl -n alloy get configmap k8s-monitoring-alloy-logs -o jsonpath='{.data.config\\.alloy}' | grep -n -B1 -A2 'regex = "shop"\\|"cluster" ='`}</Cmd>
 6. Find what `clusterEvents` became in the other collector: <Cmd>{`kubectl -n alloy get configmap k8s-monitoring-alloy-singleton -o jsonpath='{.data.config\\.alloy}' | grep -n -A3 'loki.source.kubernetes_events "'`}</Cmd>

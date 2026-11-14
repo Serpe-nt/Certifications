@@ -136,7 +136,7 @@ The lab's Alloy pods run with `--stability.level=generally-available`. The k8s-m
 5. Read `m09-config.alloy`. Find the `output` blocks that chain the components, the batch processor's two added settings, and the transform's `context`.
 6. Validate it, again in a short-lived pod: <Cmd>{`kubectl -n learn-m10 run m10-convert --rm -i --quiet --restart=Never --image=docker.io/grafana/alloy:v1.21.3 --command -- sh -c 'cat > /tmp/c.alloy && alloy validate /tmp/c.alloy' < m09-config.alloy`}</Cmd> Two errors: `unknown context` on the transform, and a component at stability level `experimental`. Paste that component's name in the check below.
 7. Fix the transform and validate with the stability level that allows the debug exporter: <Cmd>{`sed -i 's/context    = ""/context    = "resource"/; s/set(resource.attributes/set(attributes/' m09-config.alloy`}</Cmd> <Cmd>{`kubectl -n learn-m10 run m10-convert --rm -i --quiet --restart=Never --image=docker.io/grafana/alloy:v1.21.3 --command -- sh -c 'cat > /tmp/c.alloy && alloy validate --stability.level=experimental /tmp/c.alloy && echo valid' < m09-config.alloy`}</Cmd> It prints `valid`.
-8. Delete the two files: <Cmd>rm m09-config.yaml m09-config.alloy</Cmd>
+8. Delete the two files: <Cmd>{`rm m09-config.yaml m09-config.alloy`}</Cmd>
 </Do>
 
 <Done>
