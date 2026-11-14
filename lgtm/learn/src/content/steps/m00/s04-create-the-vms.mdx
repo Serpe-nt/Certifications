@@ -10,8 +10,8 @@ tags: [lab-setup]
 check:
   kind: exact
   prompt: How many rows of lab-vms.ps1 status show State Running and SSH open?
-  answer: "8"
-outcome: You can create, start and check the eight lab VMs from one file, and say what the script changed on your PC.
+  answer: "6"
+outcome: You can create, start and check the six lab VMs from one file, and say what the script changed on your PC.
 terms:
   - term: Cloud image
     def: A ready-made Ubuntu disk image that sets itself up on first boot.
@@ -24,7 +24,7 @@ terms:
 ---
 
 <Problem>
-Eight VMs by hand means eight disks, eight network cards, eight addresses, eight users with an SSH key, and one typo somewhere that costs an evening. You also want to tear it all down and build it again the same way next month.
+Six VMs by hand means six disks, six network cards, six addresses, six users with an SSH key, and one typo somewhere that costs an evening. You also want to tear it all down and build it again the same way next month.
 </Problem>
 
 <Idea>
@@ -36,14 +36,14 @@ One file, `lgtm/lab/vm/nodes.yml`, lists every machine: name, address, CPUs, mem
 `nodes.yml` holds the network (10.10.0.0/24, gateway 10.10.0.1), the SSH user and key, the Ubuntu image with its SHA-256, and one entry per machine. The script reads it to build the VMs, and Ansible reads it later to build its inventory. To change a size or add a worker, you change this file and run both again.
 
 <Figures caption="Memory per VM in nodes.yml" unit="GB">
-  <Stat label="lb" value="2" amount={2} max={6} />
-  <Stat label="Each control-plane node" value="4" amount={4} max={6} />
-  <Stat label="Each worker" value="6" amount={6} max={6} hot />
+  <Stat label="lb" value="2" amount={2} max={8} />
+  <Stat label="The control-plane node" value="4" amount={4} max={8} />
+  <Stat label="Each worker" value="8" amount={8} max={8} hot />
 </Figures>
 
 ## What create builds on your PC
 
-`create` makes a Hyper-V internal switch `lgtm-lab`, gives Windows the address 10.10.0.1 on it, and adds a NAT so the VMs reach the internet. It downloads the Ubuntu 24.04 cloud image once, checks its SHA-256, and converts it to a Hyper-V disk. Then it builds the eight VMs. With `-ConfigureDns`, it also tells Windows to ask the lab's DNS on 10.10.0.5 for every name under `.k8s.local`.
+`create` makes a Hyper-V internal switch `lgtm-lab`, gives Windows the address 10.10.0.1 on it, and adds a NAT so the VMs reach the internet. It downloads the Ubuntu 24.04 cloud image once, checks its SHA-256, and converts it to a Hyper-V disk. Then it builds the six VMs. With `-ConfigureDns`, it also tells Windows to ask the lab's DNS on 10.10.0.5 for every name under `.k8s.local`.
 
 Every VM carries the note `lgtm-lab`. `destroy` removes only what has that note or what `create` recorded, so it cannot delete a VM of another project. `create` keeps what already exists, so you can run it again after an error.
 
@@ -64,7 +64,7 @@ Hyper-V needs an elevated PowerShell for `create`, `start`, `stop`, `destroy` an
 2. In a normal PowerShell, go from the repository folder to the script folder and print the plan. Nothing changes yet:
    <Cmd>{`cd lgtm\\lab\\vm\\hyperv
 powershell -NoProfile -ExecutionPolicy Bypass -File .\\lab-vms.ps1 plan -ConfigureDns`}</Cmd>
-   Check the table of eight VMs and that no line starts with `WARNING:`.
+   Check the table of six VMs and that no line starts with `WARNING:`.
 3. Open PowerShell as administrator in the same folder and create everything:
    <Cmd>{`powershell -NoProfile -ExecutionPolicy Bypass -File .\\lab-vms.ps1 create -ConfigureDns`}</Cmd>
    It ends with `Create finished. Next: lab-vms.ps1 start`.
@@ -76,7 +76,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\\lab-vms.ps1 plan -Configu
 </Do>
 
 <Done>
-`status` shows lb, master1 to master3 and worker1 to worker4, each `Running` with SSH `open`.
+`status` shows lb, master1 and worker1 to worker4, each `Running` with SSH `open`.
 </Done>
 
 <Trap practice>

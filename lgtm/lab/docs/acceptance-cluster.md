@@ -81,7 +81,7 @@ Wait 2 minutes for the first boot (cloud-init sets the hostname, user, key and a
 powershell -NoProfile -ExecutionPolicy Bypass -File .\lab-vms.ps1 status
 ```
 
-- [ ] Expect 8 rows with State `Running` and SSH `open`.
+- [ ] Expect 6 rows with State `Running` and SSH `open`.
 - If a VM shows SSH `closed` after 5 minutes, open its console in Hyper-V Manager (Connect):
   - "No operating system was loaded" or a Secure Boot message: turn Secure Boot off for that VM
     and start it again:

@@ -15,7 +15,7 @@ check:
   options:
     - An empty result
     - One series with the value 1 and the label job="node-exporter"
-    - Seven series with the value 0
+    - Five series with the value 0
     - An error, because absent() needs a range vector
   answer: 0
 outcome: You can detect a series that is missing, count how often a value changed or a counter restarted, and measure and project the trend of a gauge.

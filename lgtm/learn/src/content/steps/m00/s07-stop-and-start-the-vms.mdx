@@ -29,16 +29,16 @@ The lab uses a large part of your PC's memory, and you will not study every even
 </Problem>
 
 <Idea>
-The script stops and starts the VMs in a fixed order. Stop shuts the guests down cleanly, workers first and `lb` last. Start runs the other way: `lb` first, then the masters, then the workers. After a start the cluster heals itself; you wait and check.
+The script stops and starts the VMs in a fixed order. Stop shuts the guests down cleanly, workers first and `lb` last. Start runs the other way: `lb` first, then master1, then the workers. After a start the cluster heals itself; you wait and check.
 </Idea>
 
 ## Why the order matters
 
-Every node reaches the API and the lab's names through `lb`, so `lb` must come up first. The three masters come next, so etcd gets back its majority quickly. The workers come last, when there is an API to register with. On stop, the order is reversed, so the masters keep the API up while the workers shut down.
+Every node reaches the API and the lab's names through `lb`, so `lb` must come up first. master1 comes next, with etcd and the API server. With a single member, etcd's quorum is that member alone, so the API accepts changes as soon as master1 is up. The workers come last, when there is an API to register with. On stop, the order is reversed, so master1 keeps the API up while the workers shut down.
 
 <Timeline caption="Start, from the script to a healthy cluster">
   <Event at="1" title="lb">HAProxy and the lab DNS answer again.</Event>
-  <Event at="2" title="master1 to master3">The API servers start and etcd regains its majority.</Event>
+  <Event at="2" title="master1">etcd and the API server start.</Event>
   <Event at="3" title="worker1 to worker4">The kubelets register and pods start again.</Event>
   <Event at="+3 min" title="Check">make cluster-check passes.</Event>
 </Timeline>
@@ -49,14 +49,14 @@ Every node reaches the API and the lab's names through `lb`, so `lb` must come u
 
 ## What a slow start looks like
 
-For the first minutes after a start, some pods show `Unknown` or restart while their dependencies come back. With the whole lab installed, the record in `acceptance-lab.md` shows every pod Ready about eight minutes after the reboot, with nothing done by hand. Wait before you act; look at a pod only if it is still down ten minutes after the nodes are `Ready`.
+For the first minutes after a start, some pods show `Unknown` or restart while their dependencies come back. On the earlier, larger version of the lab, with seven nodes and the whole stack installed, the record in `acceptance-lab.md` shows every pod Ready about eight minutes after a restart, with nothing done by hand. This lab has no such record yet. Wait before you act; look at a pod only if it is still down ten minutes after the nodes are `Ready`.
 
 <Trap>
 Do not restart the Windows host with the VMs still running and assume they come back. They shut down cleanly, but they stay off until you run `start` in an elevated PowerShell.
 </Trap>
 
 <Remember>
-Stop: workers, masters, lb. Start: lb, masters, workers. Then wait a few minutes and check.
+Stop: workers, master1, lb. Start: lb, master1, workers. Then wait a few minutes and check.
 </Remember>
 
 <Do>
@@ -72,25 +72,25 @@ Stop: workers, masters, lb. Start: lb, masters, workers. Then wait a few minutes
 </Do>
 
 <Done>
-`make cluster-check` passes again, with seven nodes `Ready`.
+`make cluster-check` passes again, with five nodes `Ready`.
 </Done>
 
 <Question id="q-m00-s07" answer="c">
-Why does `start` bring up the three masters before the four workers?
+Why does `start` bring up master1 before the four workers?
 
-- The workers need more memory, so they start once the masters have finished
+- The workers need more memory, so they start once master1 has finished
 
   Memory is reserved per VM when it starts. The order is about what each node needs to talk to.
 
-- Workers cannot boot without a master on the same Hyper-V switch
+- Workers cannot boot without master1 on the same Hyper-V switch
 
   A worker boots on its own. It needs the API only to register and run pods.
 
-- The masters carry the API and etcd, which the workers must reach to register
+- master1 runs the API server, which the workers' kubelets must reach to register
 
-  The masters bring back the API and etcd's majority, so the workers find a working API.
+  The kubelets register with the API server on master1; only the API server talks to etcd.
 
-- The masters hold the Longhorn disks the workers mount
+- master1 holds the Longhorn disks the workers mount
 
-  The Longhorn disks are on the workers. The masters run the control plane.
+  The Longhorn disks are on the workers. master1 runs the control plane.
 </Question>

@@ -12,7 +12,7 @@ terms:
   - term: Hyper-V
     def: The hypervisor built into Windows Pro; it runs the lab's virtual machines.
   - term: Load balancer VM
-    def: The lab's lb machine; it spreads API and web traffic over the cluster nodes.
+    def: The lab's lb machine; it sends API traffic to the control-plane node and spreads web traffic over the workers.
   - term: Stacked etcd
     def: etcd running on the control-plane nodes themselves, one member per node.
   - term: Tenant
@@ -20,7 +20,7 @@ terms:
 sources:
   - title: Options for highly available topology (Kubernetes)
     url: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/
-    checked: 2026-11-12
+    checked: 2026-11-13
 ---
 
 <Problem>
@@ -28,20 +28,20 @@ Later steps say things like "open Grafana", "query the tenant lab" or "the Colle
 </Problem>
 
 <Idea>
-The lab is four layers, each built by one command. Hyper-V on your PC runs eight VMs, Ansible turns seven of them into a Kubernetes cluster, Helm installs a platform on it, and Helm then installs the LGTM stack and a demo shop. Each product lives in a namespace of its own.
+The lab is four layers, each built by one command. Hyper-V on your PC runs six VMs, Ansible turns five of them into a Kubernetes cluster, Helm installs a platform on it, and Helm then installs the LGTM stack and a demo shop. Each product lives in a namespace of its own.
 </Idea>
 
-## Eight machines on a private network
+## Six machines on a private network
 
-The VMs sit on a private Hyper-V network, 10.10.0.0/24, and reach the internet through your PC. One small VM called `lb` is not part of Kubernetes. It runs HAProxy, which sends API traffic to the three control-plane nodes and web traffic to the workers, and dnsmasq, which answers names under `k8s.local`.
+The VMs sit on a private Hyper-V network, 10.10.0.0/24, and reach the internet through your PC. One small VM called `lb` is not part of Kubernetes. It runs HAProxy, which sends API traffic to the control-plane node and web traffic to the workers, and dnsmasq, which answers names under `k8s.local`.
 
 <Figures caption="The machines" unit="Count">
   <Stat label="lb: HAProxy and DNS" value="1" amount={1} max={4} />
-  <Stat label="Control plane: master1 to master3" value="3" amount={3} max={4} />
+  <Stat label="Control plane: master1" value="1" amount={1} max={4} />
   <Stat label="Workers: worker1 to worker4" value="4" amount={4} max={4} hot />
 </Figures>
 
-The three control-plane nodes run etcd on themselves, one member each. Kubernetes calls this stacked etcd. With three members the cluster keeps working when one control-plane node is lost. All your workloads run on the four workers, and each worker has a second disk for volumes.
+master1 runs etcd on itself, as a single member. Kubernetes calls etcd on the control-plane nodes stacked etcd. A highly available cluster runs at least three control-plane nodes with one etcd member each, so it keeps working when one of them is lost. This lab runs one and gives the memory to the workers; step 6 shows what that costs. All your workloads run on the four workers, and each worker has a second disk for volumes.
 
 ## Four layers, four commands
 
@@ -50,8 +50,8 @@ You build the lab from the bottom up, and each layer has its own command. You cr
 <Layers caption="The lab, from the top down">
   <Layer title="make lab" hot>Mimir, Loki, Tempo, Grafana, the Collector, Alloy, Prometheus, the shop.</Layer>
   <Layer title="make platform">Storage, an S3 store, a web gateway, Kafka, certificates, metrics-server.</Layer>
-  <Layer title="make cluster">Kubernetes 1.35 with Calico on seven VMs, and HAProxy and DNS on lb.</Layer>
-  <Layer title="lab-vms.ps1 create">Eight Hyper-V VMs on 10.10.0.0/24.</Layer>
+  <Layer title="make cluster">Kubernetes 1.35 with Calico on five VMs, and HAProxy and DNS on lb.</Layer>
+  <Layer title="lab-vms.ps1 create">Six Hyper-V VMs on 10.10.0.0/24.</Layer>
 </Layers>
 
 This module builds the bottom two layers. Module m01 teaches Helm, then installs the top two with it.
@@ -71,7 +71,7 @@ Mimir, Loki and Tempo keep the data of different users apart as tenants. The sho
 </InLab>
 
 <Trap>
-The `lb` VM is not a Kubernetes node, so `kubectl get nodes` lists seven nodes, not eight. It still matters: if `lb` is down, kubectl and the browser lose the cluster.
+The `lb` VM is not a Kubernetes node, so `kubectl get nodes` lists five nodes, not six. It still matters: if `lb` is down, kubectl and the browser lose the cluster.
 </Trap>
 
 <Remember>
@@ -79,7 +79,7 @@ VMs, cluster, platform, stack: four layers, built in that order, one command eac
 </Remember>
 
 <Question id="q-m00-s03" answer="a">
-The `lb` VM is stopped, and the seven Kubernetes nodes still run. What stops working from your PC?
+The `lb` VM is stopped, and the five Kubernetes nodes still run. What stops working from your PC?
 
 - kubectl and the browser, because both reach the cluster through lb
 
@@ -95,5 +95,5 @@ The `lb` VM is stopped, and the seven Kubernetes nodes still run. What stops wor
 
 - etcd, because lb holds one etcd member
 
-  etcd runs on the three control-plane nodes, not on lb.
+  etcd runs on the control-plane node, master1, not on lb.
 </Question>

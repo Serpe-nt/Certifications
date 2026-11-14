@@ -12,7 +12,7 @@ tags: [promql-over-time]
 check:
   kind: exact
   prompt: What does the query of action 4 return on a healthy lab?
-  answers: ["7"]
+  answers: ["5"]
 outcome: You can apply an _over_time function to the result of a rate or an aggregation with a subquery, choose its range and resolution, and say when a recording rule is the better tool.
 terms:
   - term: Subquery
@@ -87,7 +87,7 @@ You turned an aggregated rate into a range vector with a subquery, took its maxi
 </Done>
 
 <Trap practice>
-If action 4 returns seven rows of 1, you wrote `min_over_time(up{job="node-exporter"}[1h])`. That is each target's own lowest value, not a count of healthy targets. `count(...)` must sit inside the subquery.
+If action 4 returns five rows of 1, you wrote `min_over_time(up{job="node-exporter"}[1h])`. That is each target's own lowest value, not a count of healthy targets. `count(...)` must sit inside the subquery.
 </Trap>
 
 <Remember>

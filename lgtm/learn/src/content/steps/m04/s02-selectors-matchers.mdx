@@ -33,7 +33,7 @@ sources:
 ---
 
 <Problem>
-The lab's Prometheus scrapes 39 targets. You want the Prometheus server and its operator, but not Alertmanager. Typing every job name works today and breaks the day someone adds a target. You need a way to say "these jobs, but not those" in one selector.
+The lab's Prometheus scrapes 29 targets. You want the Prometheus server and its operator, but not Alertmanager. Typing every job name works today and breaks the day someone adds a target. You need a way to say "these jobs, but not those" in one selector.
 </Problem>
 
 <Idea>
@@ -49,7 +49,7 @@ Inside the braces, each matcher compares one label with a string:
 - `=~` selects series whose label matches a regular expression.
 - `!~` selects series whose label does not match it.
 
-Matchers are joined by commas, and a series must pass all of them. `up{job="kubelet", metrics_path!="/metrics"}` keeps the kubelet targets that are not the plain `/metrics` path, which in the lab are the `/metrics/cadvisor` and `/metrics/probes` targets of the seven nodes.
+Matchers are joined by commas, and a series must pass all of them. `up{job="kubelet", metrics_path!="/metrics"}` keeps the kubelet targets that are not the plain `/metrics` path, which in the lab are the `/metrics/cadvisor` and `/metrics/probes` targets of the five nodes.
 
 You may even put two matchers on the same label. `up{job=~"prom-.*", job!~".*manager"}` keeps the jobs that start with `prom-` and drops the one that ends with `manager`.
 
@@ -66,7 +66,7 @@ Alternatives are written with a bar: `job=~"coredns|apiserver"`. To match a lite
 
 ## Empty values and missing labels
 
-A label that a series does not have counts as a label with an empty value. A matcher that accepts the empty string therefore also selects series that lack the label. In the lab, `up{pod=""}` returns 24 series: the API servers and the kubelets, which have no `pod` label.
+A label that a series does not have counts as a label with an empty value. A matcher that accepts the empty string therefore also selects series that lack the label. In the lab, `up{pod=""}` returns 16 series: the API server and the kubelets, which have no `pod` label.
 
 This rule also explains why a selector cannot consist only of matchers that accept the empty string. `{job=~".*"}` would match every series in the database, so Prometheus refuses it with "vector selector must contain at least one non-empty matcher". `{job=~".+"}` is accepted, because it needs a value.
 
@@ -86,10 +86,10 @@ A regular expression without `.*` matches less than you expect. `job=~"prom"` do
 1. Open <LabLink to="prometheus" path="/query">the query page</LabLink> on the Table tab.
 2. Select with a regular expression: <Query lang="promql">{`up{job=~"prom-.*"}`}</Query> Five rows come back: two from Prometheus, two from Alertmanager and one from the operator.
 3. Remove `-.*` so the matcher reads `job=~"prom"` and run it again. The result is empty: the expression must match the whole value.
-4. Narrow the kubelet targets with a negative matcher: <Query lang="promql">{`up{job="kubelet", metrics_path!="/metrics"}`}</Query> You get 14 rows, two per node.
+4. Narrow the kubelet targets with a negative matcher: <Query lang="promql">{`up{job="kubelet", metrics_path!="/metrics"}`}</Query> You get 10 rows, two per node.
 5. Put two matchers on the same label: <Query lang="promql">{`up{job=~"prom-.*", job!~".*manager"}`}</Query> Count the rows.
 6. Select by metric name with a regular expression: <Query lang="promql">{`{__name__=~"node_memory_.*_bytes", instance="10.10.0.30:9100"}`}</Query> Every row is a different memory gauge of worker1.
-7. Try the selector that Prometheus refuses: <Query lang="promql">{`{job=~".*"}`}</Query> Read the error. Then count what the accepted form selects, instead of listing it: <Query lang="promql">{`count({job=~".+"})`}</Query> The number is well over a hundred thousand series, which is why you never run such a selector bare.
+7. Try the selector that Prometheus refuses: <Query lang="promql">{`{job=~".*"}`}</Query> Read the error. Then count what the accepted form selects, instead of listing it: <Query lang="promql">{`count({job=~".+"})`}</Query> The number is over a hundred thousand series, which is why you never run such a selector bare.
 8. Paste the number of rows from action 5 in the check below.
 </Do>
 

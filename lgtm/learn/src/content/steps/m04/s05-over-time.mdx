@@ -63,7 +63,7 @@ The two families answer different questions, and the names tell you which is whi
 
 <Compare caption="Two directions to aggregate">
   <Col title="max(node_load1)">Across series, at one moment. One value: the busiest node now.</Col>
-  <Col title="max_over_time(node_load1[1h])" hot>Along time, per series. Seven values: each node's peak in the hour.</Col>
+  <Col title="max_over_time(node_load1[1h])" hot>Along time, per series. Five values: each node's peak in the hour.</Col>
 </Compare>
 
 You can combine them. `max(max_over_time(node_load1[1h]))` is the highest load any node had in the hour. When this step was written, that gave 4.16 in the lab, while `max(node_load1)` at the same moment was 1.35.
@@ -85,7 +85,7 @@ The kubelet target for `/metrics/cadvisor` is scraped every 10 seconds in the la
 2. Find its peak in the last hour: <Query lang="promql">{`max_over_time(node_load1{instance="10.10.0.30:9100"}[1h])`}</Query> Then change `max_over_time` to `avg_over_time` and compare the two values.
 3. Ask for the 95th percentile of the same hour: <Query lang="promql">{`quantile_over_time(0.95, node_load1{instance="10.10.0.30:9100"}[1h])`}</Query> It lies between the average and the peak.
 4. Compare the two directions. Run `max(node_load1)`, then <Query lang="promql">{`max(max_over_time(node_load1[1h]))`}</Query> The second is the highest load of any node during the hour.
-5. Count the samples of the cadvisor targets in five minutes: <Query lang="promql">{`count_over_time(up{job="kubelet", metrics_path="/metrics/cadvisor"}[5m])`}</Query> Seven rows, one per node.
+5. Count the samples of the cadvisor targets in five minutes: <Query lang="promql">{`count_over_time(up{job="kubelet", metrics_path="/metrics/cadvisor"}[5m])`}</Query> Five rows, one per node.
 6. Run the same count for the node exporters, with `up{job="node-exporter"}[5m]`. Each row shows 10.
 7. Paste the count from action 5 in the check below.
 </Do>

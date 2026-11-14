@@ -477,7 +477,7 @@
       why: "A down target still has up at 0; here the job does not exist."
     - text: "kubeScheduler.enabled is false in the chart's values"
       why: "With the switch off, the chart creates neither the ServiceMonitor nor the scheduler's alert rules."
-    - text: "The scheduler has crashed on all three masters"
+    - text: "The scheduler has crashed on every master"
       why: "Without a ServiceMonitor there is no job, healthy scheduler or not."
     - text: "Prometheus may not read the scheduler's metrics"
       why: "A permission error leaves a target that is down, not a missing job."

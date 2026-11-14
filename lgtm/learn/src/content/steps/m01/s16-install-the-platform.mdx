@@ -51,13 +51,13 @@ Each values file explains its choices in comments. Three releases set things you
 - metrics-server (`helm/platform/metrics-server/values.yaml`): `--kubelet-insecure-tls`, because the kubelets of a kubeadm cluster serve self-signed certificates. A lab simplification, not a production setting.
 
 <Figures caption="What the platform reserves on the four workers" unit="Total requests">
-  <Stat label="CPU, millicores" value="2310m" amount={2310} max={16000} note="of 16 vCPU" />
-  <Stat label="Memory, GiB" value="4.55 GiB" amount={4.55} max={22.75} hot note="of 22.75 GiB allocatable" />
+  <Stat label="CPU, millicores" value="2300m" amount={2300} max={16000} note="of 16 vCPU" />
+  <Stat label="Memory, GiB" value="5.4 GiB" amount={5.4} max={30.6} hot note="of 30.6 GiB allocatable" />
 </Figures>
 
 ## One command, in order
 
-`make platform` runs `ansible/playbooks/platform.yml`. It first moves CoreDNS and the Calico controllers off the masters, then installs the add-ons in order. It downloads the pinned Helm, kubectl and two other tools into `lgtm/lab/.bin` as well. The first run on the owner's cluster took about 13 minutes; a second run changes nothing.
+`make platform` runs `ansible/playbooks/platform.yml`. It first moves CoreDNS and the Calico controllers off the control-plane node, then installs the add-ons in order. It downloads the pinned Helm, kubectl and two other tools into `lgtm/lab/.bin` as well. The first run on the owner's cluster took about 11 minutes; a second run changes nothing.
 
 ## Checking with Helm
 
@@ -81,7 +81,7 @@ Read the values, run `make platform`, then check with `helm list -A`, `helm get 
 less helm/platform/longhorn/values.yaml
 less helm/platform/rustfs/values.yaml
 less helm/platform/metrics-server/values.yaml`}</Cmd>
-2. Install the platform. It takes about 15 minutes and ends with a PLAY RECAP showing `failed=0`:
+2. Install the platform. It takes 10 to 15 minutes and ends with a PLAY RECAP showing `failed=0`:
    <Cmd>{`make platform`}</Cmd>
 3. List the releases and compare the chart versions with `versions.yml`:
    <Cmd>{`helm list -A`}</Cmd>
