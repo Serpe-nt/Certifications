@@ -39,6 +39,14 @@ Two cards follow the rebuild: W1 (`cards/w8-w1-new-shape-and-checks.md`) correct
 
 The new lab shape also changes lesson text and check answers: m00 (five steps, with the checks "8 VMs" and "3 etcd pods"), m04 (step 11's check and a few lines), m05 (step 2's check), m06 (a few lines and one question).
 
+## State on 2026-11-14
+
+- The lab was rebuilt on 2026-11-13 as version 3 and accepted (pull requests 67 and 70). A day later: five nodes Ready, every pod ready, node memory 55 to 66%.
+- The object store: RustFS 1.0.5 has not restarted since the rebuild; its resident memory went 69, 128, 139, 142 MiB and levelled off, where 1.0.4 reached 1.5 GiB in about four hours. The PC slept part of that day, so it is fewer running hours than a full day; look once more after wave 8.
+- The gateway's Kafka scrape: no error since the shop's Kafka came up. The workshop service stops on Ctrl+C on Windows (seen by card W2).
+- Card W2 is merged (pull request 72): no row in the logs of m07, m08 and m09 is unverified. Card W1 (pull request 71) is in its second round: an independent check found seven old-lab numbers left in m01, m03 and m04.
+- The fault flags cannot be read from the ConfigMap `shop/shop-flags`, which only holds the defaults; the planner's earlier checks that way proved nothing. The flag screen's API shows the real state.
+
 ## Decisions not taken yet
 
 - Native histograms: the lab's Prometheus scrapes classic histograms only; one setting turns native ones on (`prometheus.prometheusSpec.scrapeNativeHistograms`). Module m04 step 8 is a concept step until then.

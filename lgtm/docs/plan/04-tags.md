@@ -2,7 +2,7 @@
 
 A tag names one topic. Steps teach tags, questions carry them, and the site uses them to send a learner from a missed question back to the steps that teach it and to build weak-spot practice. `npm run check:content` fails a module pool question whose tag no step teaches.
 
-Owned by the planner. Version 3 (2026-11-13): four tags added for m07 to m09 (wave 7). Version 2 (2026-11-12): tags for m04 to m06 added for wave 6. Version 1 (2026-11-11) was built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
+Owned by the planner. Version 4 (2026-11-14): tags for m10 to m12 (wave 8). Version 3 (2026-11-13): four tags added for m07 to m09 (wave 7). Version 2 (2026-11-12): tags for m04 to m06 added for wave 6. Version 1 (2026-11-11) was built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
 
 ## Rules
 
@@ -173,6 +173,59 @@ No quiz, so no question carries these; steps still need a tag.
 | `otel-schemas` | 14 | 3 |
 | `collector-opamp` | 15 | 0 |
 
+## m10 Grafana Alloy
+
+| Tag | Steps | Also | Mock |
+|---|---|---|---|
+| `alloy-why` | 1 |  | 0 |
+| `alloy-syntax` | 2 |  | 0 |
+| `alloy-components` | 3 |  | 0 |
+| `alloy-debugging` | 4 |  | 0 |
+| `alloy-logs` | 5, 9 |  | 0 |
+| `alloy-metrics` | 6 |  | 0 |
+| `alloy-otlp` | 7 |  | 0 |
+| `alloy-convert` | 8 |  | 0 |
+| `alloy-clustering` | 10 |  | 0 |
+| `k8s-monitoring-chart` | 11 | home is m06 step 7 | 0 |
+| `alloy-or-collector` | 12 |  | 0 |
+
+## m11 Mimir
+
+| Tag | Steps | Also | Mock |
+|---|---|---|---|
+| `mimir-why` | 1 |  | 0 |
+| `mimir-write-path` | 2 |  | 0 |
+| `mimir-read-path` | 3 |  | 0 |
+| `mimir-storage` | 4 |  | 0 |
+| `mimir-components` | 5 |  | 0 |
+| `mimir-ingest` | 6 | carries `prom-remote-write` too | 0 |
+| `mimir-tenants` | 7 |  | 0 |
+| `mimir-limits` | 8 |  | 0 |
+| `mimir-cardinality` | 9 | carries `cardinality` too | 0 |
+| `mimir-rules` | 10 |  | 0 |
+| `mimir-alertmanager` | 11 |  | 0 |
+| `mimir-exemplars-histograms` | 12 |  | 0 |
+| `mimir-replication` | 13 |  | 0 |
+| `mimir-classic-architecture` | 14 |  | 0 |
+
+## m12 Loki
+
+| Tag | Steps | Also | Mock |
+|---|---|---|---|
+| `loki-idea` | 1 |  | 0 |
+| `loki-labels` | 2, 12 | step 12 carries `cardinality` too | 0 |
+| `loki-ingest` | 3 |  | 0 |
+| `logql-selectors` | 4 |  | 0 |
+| `logql-parsers` | 5 |  | 0 |
+| `logql-formatting` | 6 |  | 0 |
+| `logql-metrics` | 7 |  | 0 |
+| `loki-architecture` | 8, 9 |  | 0 |
+| `loki-storage` | 10 |  | 0 |
+| `loki-retention` | 11 |  | 0 |
+| `loki-rules` | 13 |  | 0 |
+| `loki-drilldown` | 14 |  | 0 |
+| `loki-query-performance` | 15 |  | 0 |
+
 ## m15 Alerting, SLOs and on-call
 
 | Tag | Steps | Mock (PCA) |
@@ -184,4 +237,4 @@ No quiz, so no question carries these; steps still need a tag.
 
 ## Modules without tags yet
 
-m10 to m14, m16 to m18. The planner adds their tags when their cards are written; no mock question depends on them.
+m13, m14, m16 to m18. The planner adds their tags when their cards are written; no mock question depends on them.
