@@ -68,7 +68,7 @@ Once you know what the consumer receives, look at the service that wrote it. Its
 </Compare>
 
 <InLab>
-The gateway runs two pods, and each sends its own series of `kafka_consumer_group_lag_sum_ratio`; take the `max`. fraud-detection also sends `kafka_consumer_records_lag` from its Java agent, which only covers the batch it last fetched.
+The gateway runs two pods, and each sends its own series of `kafka_consumer_group_lag_sum_ratio`; take the `max`. fraud-detection also sends `kafka_consumer_records_lag` from its Java agent; in this lab's run it jumped between 9 and 445 from one minute to the next while the group's lag climbed steadily.
 </InLab>
 
 <Trap>
@@ -87,7 +87,7 @@ A growing lag does not mean the consumer is broken. It may handle messages at it
 </Do>
 
 <Done>
-The first order after the flag reached fraud-detection 101 times, checkout logged that it wrote 100 extra messages for it, and fraud-detection waited one second before each one. The flood and the slow consumer together made the lag grow.
+Each order placed after the flag reached fraud-detection many times over, checkout logged that it wrote extra messages for it, and fraud-detection waited one second before each one. The flood and the slow consumer together made the lag grow.
 </Done>
 
 <Trap practice>
@@ -111,7 +111,7 @@ A consumer group's lag grows. In the consumer's logs, each order ID appears once
 
 - Each message is handled more slowly than before
 
-  The same messages, one per order, arrive at a normal rate, but each line comes later than before.
+  Each order still arrives once, so there are no copies, but each line comes later than before.
 
 - The consumer group has no members left in it
 

@@ -294,7 +294,7 @@
     - text: The server received the request and failed while handling it
       why: Then the server's span would be in the trace with its own error. Here the server sent nothing.
     - text: The request was refused because its credentials were wrong
-      why: That is code 16, UNAUTHENTICATED, and the server would have answered.
+      why: That is code 16, UNAUTHENTICATED, which is about missing or wrong credentials.
     - text: The client could not reach a working server for the call
       why: UNAVAILABLE means the service could not be reached or was not serving, often a transient condition.
     - text: The server ran out of memory and returned an error

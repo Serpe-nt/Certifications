@@ -78,7 +78,7 @@ A correlation whose results field the source data does not have is saved without
 5. Click **Add transformation**. Choose the type **Regular expression**. As **Field**, type `labels`. As **Expression**, type `"service_name":"([^"]+)"`. As **Map value**, type `service_name`. Click **Add**.
 6. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, pick `loki`, last 15 minutes, and run: <Query lang="logql">{`{service_name="payment"}`}</Query> Expand one line. Under **Links**, `trace_id` now has two links: **Open trace** and **m14 errors of this service**. Click the second one. Tempo opens in a split pane with your query, filled with `payment`.
 7. Copy the TraceQL query from the Tempo pane for the check below.
-8. Delete your correlation: open **Administration** > **Plugins and data** > **Correlations**, click the delete icon at the end of the row `m14 errors of this service`, and confirm. The list is empty again.
+8. Delete your correlation: open **Administration** > **Plugins and data** > **Correlations**, click the delete icon at the end of the row `m14 errors of this service`, then **Delete**. The list is empty again.
 </Do>
 
 <Done>
