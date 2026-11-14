@@ -1,0 +1,114 @@
+---
+id: m15-s01
+title: What deserves a page
+kind: concept
+minutes: 14
+order: 1
+exam:
+  - cert: pca
+    domain: P5
+    competency: "Alerting basics (when, what, and why)"
+tags: [alert-design]
+outcome: You can tell an alert that should wake a person from one that should be a ticket or nothing, and say why, using the lab's own rules as examples.
+terms:
+  - term: Page
+    def: A notification that interrupts a person at once, day or night, because something needs a human now.
+  - term: Symptom
+    def: What users feel, such as failed or slow requests. One symptom can have many causes.
+  - term: Cause
+    def: A reason a symptom might happen, such as a full disk or a busy CPU. It may or may not hurt users.
+  - term: Dead man's switch
+    def: An alert that always fires, so that its silence tells you the alerting pipeline itself is broken.
+sources:
+  - title: Alerting (Prometheus practices)
+    url: https://prometheus.io/docs/practices/alerting/
+    checked: 2026-11-14
+  - title: Monitoring distributed systems (Google SRE book)
+    url: https://sre.google/sre-book/monitoring-distributed-systems/
+    checked: 2026-11-14
+  - title: Watchdog runbook (kube-prometheus)
+    url: https://runbooks.prometheus-operator.dev/runbooks/general/watchdog/
+    checked: 2026-11-14
+  - title: CPUThrottlingHigh runbook (kube-prometheus)
+    url: https://runbooks.prometheus-operator.dev/runbooks/kubernetes/cputhrottlinghigh/
+    checked: 2026-11-14
+---
+
+<Problem>
+The lab's Prometheus loads 135 alerting rules from kube-prometheus-stack. Imagine all of them sent to your phone. A pod in a practice namespace is throttled, a node has busy conntrack tables, a quota is nearly full. By the second week you mute the channel, and the night checkout breaks, nobody looks.
+</Problem>
+
+The rules can stay. What the team needs is a clear rule about which of them may interrupt a person.
+
+<Idea>
+Page on symptoms that users feel, such as failed or slow requests, and keep the list short. Causes, such as a busy CPU or a full disk, go to dashboards, tickets or nowhere, unless they are certain to hurt users soon. Every page must ask for a human decision that cannot wait.
+</Idea>
+
+## Symptoms first, causes on the dashboard
+
+A symptom is what users see: checkout fails, the page loads slowly. A cause is one reason it might happen: a payment service down, a database lock, a node out of memory. One symptom has many possible causes, and many causes never become a symptom at all.
+
+The Prometheus guidelines sum it up in four parts: keep alerting simple, alert on symptoms, have good dashboards to find the cause, and avoid pages where there is nothing to do. For a service that answers requests, that means paging on error rate and latency as high up in the stack as possible. If a database three layers down is slow but users are fine, there is no page.
+
+The same symptom can be a cause for another team. Slow database reads are the database team's symptom, and the web team's cause. Each team pages on what its own users feel.
+
+## Four questions before a rule may page
+
+The Google SRE book gives a test for every page. Read it as four questions:
+
+- Is it urgent: does it need someone now, or could it wait until morning?
+- Is it actionable: can the person do something about it?
+- Does it need thought, or only a robotic response that a script could do?
+- Is it new, or the same problem the team has seen many times?
+
+A rule that fails the test is not deleted. It becomes a ticket for working hours, a dashboard panel, or an automated fix. Some causes still deserve a page: a disk that will be full in two hours is certain and soon. That is why the lab's own `LabVolumeFillingUp` exists: the lab's Kafka volumes once filled with nobody told.
+
+<Compare caption="Where an alert goes">
+  <Col title="Page" hot>Users are hurt now or very soon, and a person must act.</Col>
+  <Col title="Ticket">Real, but it can wait for working hours.</Col>
+  <Col title="Dashboard only">Useful to find a cause once a page has fired.</Col>
+</Compare>
+
+## Two rules to keep and two to mute
+
+The lab's rules are good material, because they come from a real project and every team that installs the chart meets them.
+
+Keep `KubeAPIErrorBudgetBurn`. It fires when the Kubernetes API server returns errors fast enough to eat its error budget, read from the requests that clients make. That is a symptom: every `kubectl` and every controller feels it. Steps 9 and 10 build the same kind of alert for checkout.
+
+Keep `Watchdog`. Its expression is `vector(1)`: it always fires. Routed to an outside service that expects it every few minutes, it is a dead man's switch: when it stops arriving, the alerting pipeline itself is broken. The lab routes it to a receiver that sends nothing.
+
+Mute `CPUThrottlingHigh`, or keep it off the pager. It fires when a container is throttled in more than 25% of its CPU periods over 15 minutes, with severity `info`. Throttling is a cause; users only feel it if latency rises, and the latency alert catches that. While this module was written, it went pending for the practice webhook of step 3, a pod that does almost nothing.
+
+Mute `KubeCPUOvercommit` as a page. It fires when the pods' CPU requests could not fit on the cluster after a node is lost. That is real capacity planning, and it belongs in a ticket: nothing breaks tonight because of it.
+
+<InLab>
+In the lab, the Prometheus in namespace `prom` holds 16 groups with 135 alerting rules. Run `count(ALERTS)` on its query page to see how many are pending or firing right now; on a quiet lab it is only a few, among them `Watchdog`.
+</InLab>
+
+<Trap>
+A cause-based alert can look safer, because it fires earlier. In practice it fires often without any user harm, and people learn to ignore it. Page on the symptom, and put the causes on the dashboard the page links to.
+</Trap>
+
+<Remember>
+Page only on what users feel and a person must act on now. Causes go to dashboards and tickets, unless they are certain and imminent.
+</Remember>
+
+<Question id="q-m15-s01" answer="c">
+A team wants a page when any pod in its namespace uses more than 80% of its memory limit. Users have never noticed when this happens. What do the alerting guidelines suggest?
+
+- Keep the page, because memory use warns before an out-of-memory kill
+
+  It is a cause that has never hurt users. Paging on it trains people to ignore pages.
+
+- Lower the threshold to 60%, so the team gets more warning
+
+  An earlier threshold makes the same cause fire more often, with no user harm either.
+
+- Page on the users' symptom, errors and latency, and keep memory on the dashboard
+
+  Paging on symptoms catches every cause that hurts users. The memory graph helps to find the cause once a page has fired.
+
+- Delete the memory data, because it is not worth storing
+
+  The data is useful for finding causes. Only the page is the problem.
+</Question>

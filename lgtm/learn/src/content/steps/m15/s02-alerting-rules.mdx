@@ -1,0 +1,156 @@
+---
+id: m15-s02
+title: Prometheus alerting rules
+kind: lab
+minutes: 25
+order: 2
+exam:
+  - cert: pca
+    domain: P5
+    competency: Configuring Alerting rules
+tags: [alert-rules]
+check:
+  kind: exact
+  prompt: What value did the alert M15DeploymentUnavailable show on the Alerts page in action 5?
+  answers: ["1"]
+outcome: You can write an alerting rule with expr, for, labels and annotations, load it as a PrometheusRule, and follow its alert from inactive through pending to firing and back.
+terms:
+  - term: Alerting rule
+    def: A PromQL expression with a name. Every series the expression returns becomes an active alert.
+  - term: Pending
+    def: The state of an alert whose expression is true but has not been true for the whole for duration yet.
+  - term: Firing
+    def: The state of an alert that has been true for its for duration. Only firing alerts are sent on.
+  - term: PrometheusRule
+    def: The Prometheus Operator's resource that holds rule groups; the operator loads it into Prometheus.
+  - term: Annotation
+    def: Extra text on an alert, such as a summary or a runbook link. It is not used to tell alerts apart.
+sources:
+  - title: Alerting rules (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+    checked: 2026-11-14
+  - title: Template examples (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/template_examples/
+    checked: 2026-11-14
+  - title: Alerting with the Prometheus Operator
+    url: https://prometheus-operator.dev/docs/developer/alerting/
+    checked: 2026-11-14
+  - title: promtool (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/command-line/promtool/
+    checked: 2026-11-14
+---
+
+<Problem>
+A Deployment in your namespace has been short of replicas since lunch. Nobody looked, because nothing told them. You know the PromQL that shows the gap; what you need is Prometheus asking that question every 30 seconds and saying something when the answer stays bad.
+</Problem>
+
+<Idea>
+An alerting rule is a PromQL expression with a name. Prometheus runs it at every evaluation, and each series it returns is an active alert with that series' labels. The `for` clause makes the alert wait in pending until the expression has been true long enough; then it fires and goes to the Alertmanager.
+</Idea>
+
+## A rule is a query that should return nothing
+
+An alerting rule sits in a rule group, next to recording rules, in the same file format as module m04 step 12. It has four main fields:
+
+- `alert`: the name, by custom in CamelCase.
+- `expr`: the PromQL expression. When things are fine, it returns no series at all.
+- `for`: how long the expression must stay true before the alert fires.
+- `labels` and `annotations`: labels are added to the alert and can be used for routing; annotations carry text for the person who reads it.
+
+The expression is usually a comparison, such as `... > 0`. In PromQL a comparison drops the series where it is false, so a healthy system returns an empty result, and every series left is one alert. The value of the alert is the value of that series, after the comparison.
+
+## From inactive to firing, and back
+
+A rule with no result is inactive. When a series appears, Prometheus marks that alert pending and checks it again at every evaluation. If it is still there after the `for` duration, the alert fires. A rule without `for` fires at its first evaluation.
+
+When the series disappears, the alert is resolved at once. The newer clause `keep_firing_for` keeps it firing for a while after the condition ended, which helps when a metric has short gaps. For each pending and firing alert, Prometheus also writes a series `ALERTS{alertname, alertstate, ...}` with the value 1, which you can query and graph.
+
+<Timeline caption="One alert with for: 2m">
+  <Event at="0:00" title="Inactive">The expression returns nothing.</Event>
+  <Event at="0:30" title="Pending">A series appears; Prometheus starts counting.</Event>
+  <Event at="2:30" title="Firing">The series is still there after 2 minutes; the alert goes to the Alertmanager.</Event>
+  <Event at="later" title="Resolved">The series is gone; the Alertmanager is told the alert ended.</Event>
+</Timeline>
+
+## Templates in labels and annotations
+
+Annotations and label values can use templates. `{{ $labels.deployment }}` inserts a label of the alert, and `{{ $value }}` its value. The template is filled in at every evaluation, so the text always matches the alert it belongs to. Functions such as `humanizePercentage` format the number, as the lab's `LabVolumeFillingUp` does.
+
+Keep changing numbers out of labels. A label is part of what makes an alert unique, so a label that holds the value would make a new alert at every change. Numbers belong in annotations.
+
+## Rules on Kubernetes: the PrometheusRule
+
+With the Prometheus Operator you do not edit a rule file on the server. You create a `PrometheusRule` resource, which holds the same groups under `spec`. The operator collects every PrometheusRule that its Prometheus selects, writes them into rule files, and Prometheus reloads them. Outside Kubernetes, `promtool check rules FILE` checks a rule file before it is loaded.
+
+<InLab>
+The lab's Prometheus selects every PrometheusRule in every namespace (its `ruleSelector` and `ruleNamespaceSelector` are empty). So a rule you create in `learn-m15` is loaded within about a minute, and its alerts go to the lab's Alertmanager in `prom`, whose only receiver sends nothing.
+</InLab>
+
+<Trap>
+`for` does not delay the end of an alert. One evaluation without the series resolves it. If a metric has gaps, `keep_firing_for` is the clause meant for that, not a longer `for`.
+</Trap>
+
+<Do>
+1. Create the practice namespace of this module: <Cmd>{`kubectl create namespace learn-m15`}</Cmd>
+2. Save this as `m15-rule.yaml`. The rule compares the replicas each Deployment in `learn-m15` wants with the replicas that are available; the difference is the value of the alert.
+
+   ```yaml
+   apiVersion: monitoring.coreos.com/v1
+   kind: PrometheusRule
+   metadata:
+     name: m15-practice
+     namespace: learn-m15
+   spec:
+     groups:
+       - name: m15-practice
+         rules:
+           - alert: M15DeploymentUnavailable
+             expr: |
+               kube_deployment_spec_replicas{namespace="learn-m15"}
+                 - kube_deployment_status_replicas_available{namespace="learn-m15"}
+                 > 0
+             for: 2m
+             labels:
+               severity: ticket
+             annotations:
+               summary: "Deployment {{ $labels.deployment }} has {{ $value }} fewer available replicas than it wants."
+   ```
+3. Apply it: <Cmd>{`kubectl apply -f m15-rule.yaml`}</Cmd> Then open <LabLink to="prometheus" path="/rules">Rule health</LabLink> and wait until the group `m15-practice` appears, about a minute.
+4. Break a Deployment on purpose. The image tag does not exist, so the pod never starts: <Cmd>{`kubectl -n learn-m15 create deployment broken --image=busybox:no-such-tag`}</Cmd>
+5. Open <LabLink to="prometheus" path="/alerts">Alerts</LabLink> and find `M15DeploymentUnavailable`. Within a minute it is pending, with the labels of the Deployment `broken` and a value. Expand it and read the value.
+6. Wait two more minutes and reload: the alert is firing. Query it as a series on <LabLink to="prometheus" path="/query">the query page</LabLink>: <Query lang="promql">{`ALERTS{alertname="M15DeploymentUnavailable"}`}</Query> Then open <LabLink to="alertmanager" path="/">the lab's Alertmanager</LabLink>: the alert is there, with the summary filled in.
+7. Repair the cause by deleting the Deployment: <Cmd>{`kubectl -n learn-m15 delete deployment broken`}</Cmd> At the next evaluation the alert is gone from the Alerts page.
+8. Remove the rule: <Cmd>{`kubectl -n learn-m15 delete prometheusrule m15-practice`}</Cmd> Keep the namespace; the next steps use it. Paste the value from action 5 in the check below.
+</Do>
+
+<Done>
+Your rule was loaded from your namespace, its alert went from pending to firing after two minutes, reached the lab's Alertmanager, and resolved when the Deployment was gone.
+</Done>
+
+<Trap practice>
+For about two minutes the lab's own rules `KubeDeploymentReplicasMismatch` and `KubePodNotReady` go pending for the same Deployment. They wait 15 minutes before they fire, so they stay pending here. That is the next lesson in small form: one fault, several rules.
+</Trap>
+
+<Remember>
+An alert is a series returned by a rule's expression. `for` decides how long it stays pending, labels identify and route it, annotations explain it, and `ALERTS` records its state.
+</Remember>
+
+<Question id="q-m15-s02" answer="a">
+A rule has `expr: node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.1` and `for: 15m`. A disk drops to 8% free for 10 minutes, then a cleanup job frees it. What happened to the alert?
+
+- It was pending for 10 minutes and never fired
+
+  The expression was true for 10 minutes only, less than the 15 minutes of for, so the alert left pending without firing.
+
+- It fired after 10 minutes, because the threshold was crossed
+
+  Crossing the threshold starts pending. It would fire only after 15 minutes of true results.
+
+- It fired and stayed firing for 15 minutes after the cleanup
+
+  for delays firing, not resolving. keep_firing_for would keep it firing after the cleanup.
+
+- Nothing happened, because the expression divides two series
+
+  A division of two series is a normal expression; the comparison after it decides which series are returned.
+</Question>

@@ -1,0 +1,605 @@
+# Quiz pool for module m15, Alerting, SLOs and on-call. Mapped to PCA domains P5 and P1. Every fact
+# is checked against the source given on the question; the log is lgtm/docs/verification/m15.md.
+
+# alert-design
+- id: q-m15-001
+  tags: [ alert-design ]
+  exam: { cert: pca, domain: P5, competency: "Alerting basics (when, what, and why)" }
+  q: A web shop team may keep one paging alert for checkout. Which one follows the Prometheus alerting guidelines?
+  options:
+    - text: Checkout's share of failed requests at the frontend
+      why: It is a symptom users feel, measured as high up in the stack as possible. Every cause that hurts users shows up in it.
+    - text: The CPU use of the checkout pods above 90% for ten minutes
+      why: Busy CPU is a cause. Users may never notice it, so it pages without a reason to act.
+    - text: The payment database's replication lag above five seconds
+      why: A cause further down the stack. If it fails orders, the error ratio of checkout pages anyway.
+    - text: Any restart of a checkout container, counted per pod
+      why: A single restart rarely hurts users; Kubernetes replaces the pod. It is a dashboard or ticket item.
+  answer: [ 0 ]
+  source: https://prometheus.io/docs/practices/alerting/
+
+- id: q-m15-002
+  tags: [ alert-design ]
+  exam: { cert: pca, domain: P5, competency: "Alerting basics (when, what, and why)" }
+  q: The rule <code>Watchdog</code> has the expression <code>vector(1)</code> and fires all the time. Why would a team keep it?
+  options:
+    - text: It tests the alert rules' syntax once a minute
+      why: Prometheus checks the syntax when it loads the rules. Watchdog does not test other rules.
+    - text: It keeps the Alertmanager's memory warm so that real alerts are faster
+      why: The Alertmanager needs no warm-up. The alert exists for its absence to be noticed.
+    - text: Its absence tells an outside service that alerting broke
+      why: Routed to a dead man's switch, its absence pages through another path when Prometheus or the Alertmanager stops.
+    - text: It makes sure every receiver gets at least one message a day
+      why: Its runbook says it should go to an integration that notices when it stops, not to every receiver.
+  answer: [ 2 ]
+  source: https://runbooks.prometheus-operator.dev/runbooks/general/watchdog/
+
+- id: q-m15-003
+  tags: [ alert-design ]
+  exam: { cert: pca, domain: P5, competency: "Alerting basics (when, what, and why)" }
+  q: A disk grows steadily and will be full in about three days. Users feel nothing yet. Following the SRE book's questions for a page, where does this alert belong?
+  options:
+    - text: A page now, because a full disk will be an outage
+      why: It is real, but nothing needs a human tonight. Paging on it wakes someone for work that fits the next working day.
+    - text: Nowhere, because users do not feel it yet
+      why: Capacity problems need a person before they become an outage; the guidelines keep them as alerts.
+    - text: A page only when the disk is 100% full
+      why: Then users are already hurt. The point of a capacity alert is to act before that.
+    - text: A ticket, worked on during the next working day
+      why: Three days leave time for a planned fix. If the disk would fill tonight, the same cause becomes urgent and may page.
+  answer: [ 3 ]
+  source: https://sre.google/sre-book/monitoring-distributed-systems/
+
+# alert-rules
+- id: q-m15-004
+  tags: [ alert-rules ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: 'A rule has <code>expr: up{job="api"} == 0</code> and no <code>for</code>. Rules are evaluated every minute. A target is down for 20 seconds between two evaluations and up at both. What happens?'
+  options:
+    - text: The alert fires once, because a rule without for fires at once
+      why: It fires at the first evaluation that sees a result. No evaluation saw the target down.
+    - text: Nothing, since no evaluation saw a result
+      why: Rules are evaluated at fixed times. A gap that falls between two evaluations leaves no trace in the rule.
+    - text: The alert is pending for 20 seconds, then resolved
+      why: Pending, too, needs an evaluation that returns the series; none did.
+    - text: The alert fires at the next evaluation with the value 0
+      why: At the next evaluation up is 1 again, so up == 0 returns nothing.
+  answer: [ 1 ]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+
+- id: q-m15-005
+  tags: [ alert-rules ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: 'A rule has <code>expr: sum by (service) (rate(errors_total[5m])) / sum by (service) (rate(requests_total[5m])) > 0.05</code>. Three services are above 5% and two below. How many alerts does the rule produce?'
+  options:
+    - text: Three, one per series the rule returns
+      why: Each series left after the comparison is one alert with that series' labels.
+    - text: One, because one rule makes one alert
+      why: A rule makes one alert per returned series; one rule can watch many services.
+    - text: Five, one per service, firing or not
+      why: The two services below 5% are dropped by the comparison and make no alert.
+    - text: Two, the services below the threshold
+      why: A comparison keeps the series where it is true, here the three above 5%.
+  answer: [ 0 ]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+
+- id: q-m15-006
+  tags: [ alert-rules ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: 'A rule adds <code>labels: {current: "{{ $value }}"}</code> so that the value appears in routing. The value changes at every evaluation. What happens?'
+  options:
+    - text: The value is shown in the notification, as intended
+      why: It would be shown, but the changing label also makes every evaluation a different alert.
+    - text: Prometheus refuses the rule, because labels cannot be templated
+      why: Label values can be templated; the rule loads.
+    - text: The label is ignored, because only annotations are sent
+      why: Labels are sent with the alert and are part of what identifies it.
+    - text: Every value makes a new alert, so alerts flap
+      why: Labels identify an alert. A label that changes gives a new label set each evaluation; numbers belong in annotations.
+  answer: [ 3 ]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+
+- id: q-m15-007
+  tags: [ alert-rules ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: A team creates a PrometheusRule in its namespace <code>team-a</code>. The Prometheus resource has <code>ruleSelector</code> set but no <code>ruleNamespaceSelector</code>, and lives in <code>monitoring</code>. The rule never appears in Prometheus. Why?
+  options:
+    - text: PrometheusRules are cluster-wide, so the namespace must be removed
+      why: PrometheusRule is a namespaced resource; the selectors decide which namespaces count.
+    - text: By default it only finds rules in its own namespace
+      why: By default the operator looks for PrometheusRules in the namespace of the Prometheus resource. An empty dict would select all namespaces.
+    - text: The operator loads rules only after a restart of Prometheus
+      why: The operator writes rule files and Prometheus reloads them without a restart.
+    - text: The rule needs the annotation prometheus.io/scrape
+      why: That annotation is a convention for scrape discovery, not for rules.
+  answer: [ 1 ]
+  source: https://prometheus-operator.dev/docs/developer/alerting/
+
+- id: q-m15-008
+  tags: [ alert-rules, slo-burn-rate ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: 'An alert has <code>expr: errors:ratio_rate1h > 0.0144 and errors:ratio_rate5m > 0.0144</code>. The 1-hour ratio is 0.03 and the 5-minute ratio 0.08. What is the value of the alert?'
+  options:
+    - text: 0.08, the larger of the two ratios
+      why: and does not pick the larger value; it keeps the left side.
+    - text: 1, because a comparison returns true
+      why: Without the bool modifier, a comparison keeps the value of the series, not 1.
+    - text: 0.03, the value of the left side of and
+      why: and returns the left side's series where the right side also has one, with the left side's value.
+    - text: 0.0144, the threshold used
+      why: The threshold is a scalar the series is compared with; it is not the result.
+  answer: [ 2 ]
+  source: https://prometheus.io/docs/prometheus/latest/querying/operators/
+
+# alert-alertmanager
+- id: q-m15-009
+  tags: [ alert-alertmanager ]
+  exam: { cert: pca, domain: P5, competency: Understand and Use Alertmanager }
+  q: 'The route has <code>receiver: default</code> and two children: first <code>matchers: [team="db"]</code> to <code>db-chat</code>, then <code>matchers: [severity="page"]</code> to <code>pager</code>. Neither sets continue. Where does an alert with <code>team="db", severity="page"</code> go?'
+  options:
+    - text: To db-chat and pager, because both match
+      why: Without continue, the walk stops at the first matching child.
+    - text: To default, because the alert matches more than one child
+      why: Matching several children is normal; the first one takes the alert.
+    - text: To pager, because a page is more urgent
+      why: The tree has no notion of urgency; the order of the children decides.
+    - text: To db-chat only, the first matching child
+      why: The alert stops at the first child whose matchers match. continue true on that child would let it reach pager too.
+  answer: [ 3 ]
+  source: https://prometheus.io/docs/alerting/latest/configuration/#route
+
+- id: q-m15-010
+  tags: [ alert-alertmanager ]
+  exam: { cert: pca, domain: P5, competency: Understand and Use Alertmanager }
+  q: 'An inhibition rule has <code>source_matchers: [alertname="ClusterDown"]</code>, <code>target_matchers: [severity="warning"]</code> and <code>equal: [cluster]</code>. ClusterDown fires for <code>cluster="eu"</code>. A warning arrives for <code>cluster="us"</code>. What happens to the warning?'
+  options:
+    - text: It is sent, because its cluster label differs
+      why: Inhibition needs the same values for the labels in equal. us is not eu, so nothing mutes it.
+    - text: It is muted, because any ClusterDown mutes every warning
+      why: The equal list limits the muting to alerts of the same cluster.
+    - text: It is muted until ClusterDown resolves, then sent twice
+      why: It is not muted at all here, and a muted alert is not sent twice later.
+    - text: It is dropped, because inhibited alerts are deleted
+      why: Inhibited alerts stay active and only leave notifications; this one is not even inhibited.
+  answer: [ 0 ]
+  source: https://prometheus.io/docs/alerting/latest/configuration/#inhibit_rule
+
+- id: q-m15-011
+  tags: [ alert-alertmanager ]
+  exam: { cert: pca, domain: P5, competency: Understand and Use Alertmanager }
+  q: A group holds two firing alerts and one resolved alert. What is <code>.Status</code> in its notification template?
+  options:
+    - text: resolved, because the last change was a resolve
+      why: Status is not about the last change; it is firing while any alert of the group fires.
+    - text: firing, because one or more alerts fire
+      why: The template reference defines Status as firing if at least one alert is firing, otherwise resolved.
+    - text: mixed, because the alerts disagree
+      why: There is no such value. Use .Alerts.Firing and .Alerts.Resolved to tell them apart.
+    - text: Empty, because Status exists only on each alert
+      why: Status exists on the group data and on each alert.
+  answer: [ 1 ]
+  source: https://prometheus.io/docs/alerting/latest/notifications/
+
+- id: q-m15-012
+  tags: [ alert-alertmanager ]
+  exam: { cert: pca, domain: P5, competency: Understand and Use Alertmanager }
+  q: A team switches from a webhook receiver to an email receiver with no other change. People stop getting a message when an incident ends. Why?
+  options:
+    - text: Email cannot carry resolved alerts
+      why: Email can send them; it is only a default that changed.
+    - text: The routing tree drops resolved alerts for email
+      why: Routing does not depend on the integration or on the status.
+    - text: send_resolved defaults to false for email receivers
+      why: The defaults differ by integration. Set send_resolved true on the email config to get resolve messages.
+    - text: Resolved alerts need a separate receiver
+      why: The same receiver sends both, when send_resolved is on.
+  answer: [ 2 ]
+  source: https://prometheus.io/docs/alerting/latest/configuration/#email_config
+
+- id: q-m15-013
+  tags: [ alert-alertmanager ]
+  exam: { cert: pca, domain: P5, competency: Understand and Use Alertmanager }
+  q: 'A route sets <code>group_by: [''...'']</code>. 30 alerts with different instances arrive at once. How many notifications does the route send?'
+  options:
+    - text: One, because ... groups everything together
+      why: The special value does the opposite; it groups by all labels.
+    - text: None, because ... is not a valid label name
+      why: It is the documented special value, accepted by the configuration.
+    - text: One per alertname, which is the default grouping
+      why: A route groups only by the labels it lists; nothing adds alertname by default.
+    - text: Thirty, because each label set forms its own group
+      why: With '...' each distinct label set is its own group, which in effect turns grouping off.
+  answer: [ 3 ]
+  source: https://prometheus.io/docs/alerting/latest/configuration/#route
+
+- id: q-m15-014
+  tags: [ alert-alertmanager ]
+  exam: { cert: pca, domain: P5, competency: Understand and Use Alertmanager }
+  q: You change a notification template and want to see its output before any alert uses it. Which command does that without sending anything?
+  options:
+    - text: amtool template render with the template file
+      why: It renders a template with example data, so syntax errors and the shape show at once.
+    - text: amtool alert add with a test alert and a test label
+      why: That sends a real alert through the routing tree and its receivers.
+    - text: promtool check rules on the template file
+      why: promtool checks Prometheus rule files, not Alertmanager templates.
+    - text: amtool silence add for the test alert
+      why: A silence mutes alerts; it renders nothing.
+  answer: [ 0 ]
+  source: https://github.com/prometheus/alertmanager/blob/v0.34.2/README.md
+
+# alert-grafana-managed
+- id: q-m15-015
+  tags: [ alert-grafana-managed ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: A Grafana-managed rule queries a metric that stops being written, and the query returns nothing. With the default settings, what state does the alert reach after its pending period?
+  options:
+    - text: Normal, because no series means no breach
+      why: That is a choice you can set, but it is not the default.
+    - text: Alerting, because missing data is treated as a breach
+      why: Alerting on no data is an option, not the default.
+    - text: No Data, and a DatasourceNoData alert is created
+      why: By default an empty result goes to the No Data state, which Grafana-managed rules have and data-source-managed rules lack.
+    - text: Error, because the query failed
+      why: The query ran without error; it just returned nothing. Error is for failed or timed-out queries.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/grafana/v13.3/alerting/fundamentals/alert-rule-evaluation/nodata-and-error-states/
+
+- id: q-m15-016
+  tags: [ alert-grafana-managed ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: An alert rule lives in Mimir's ruler and appears in Grafana's alert list. Someone creates a silence for it in Grafana's own Alertmanager. What happens to its notifications?
+  options:
+    - text: They stop, because Grafana shows the rule
+      why: Showing a rule is not routing it. Its notifications go through the Alertmanager the ruler sends to.
+    - text: They continue, through Mimir's Alertmanager
+      why: A data-source-managed rule notifies through the data source's Alertmanager; a silence must be set there.
+    - text: They stop, because Grafana copies its silences to every Alertmanager
+      why: Each Alertmanager has its own silences; Grafana does not copy them.
+    - text: The rule turns into a Grafana-managed rule
+      why: A silence does not move a rule. Converting rules is a separate import.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/grafana/v13.3/alerting/set-up/configure-alertmanager/
+
+- id: q-m15-017
+  tags: [ alert-grafana-managed ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: Which of these does Grafana's comparison list for Grafana-managed rules but not for data-source-managed ones?
+  options:
+    - text: Recording rules that write new series
+      why: The comparison lists recording rules for both types.
+    - text: Labels and annotations on alerts
+      why: Both rule types carry labels and annotations; they come from the Prometheus model.
+    - text: Evaluation that scales out with the data source
+      why: That is listed for data-source-managed rules, which run in the data source.
+    - text: Several data sources and expressions in one rule
+      why: Grafana-managed rules can mix data sources and transform the results with expressions; the others cannot.
+  answer: [ 3 ]
+  source: https://grafana.com/docs/grafana/v13.3/alerting/alerting-rules/create-data-source-managed-rule/
+
+- id: q-m15-018
+  tags: [ alert-grafana-managed ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: A Grafana-managed rule has the label <code>team=web</code>, and a child policy routes <code>team=web</code> to <code>web-chat</code>. Yet the alert goes to <code>ops-email</code>. In the rule, the notification setting names <code>ops-email</code> as its contact point. Why?
+  options:
+    - text: Choosing a contact point in the rule skips the tree
+      why: The simple mode of the rule form routes to the chosen contact point. Use notification policies to let the tree decide.
+    - text: The child policy is wrong, because labels cannot be routed in Grafana
+      why: Notification policies route by labels; that is their purpose.
+    - text: Contact points always win over labels in the default policy
+      why: The default policy is not involved; the rule bypassed the tree.
+    - text: The label is only applied after the first notification
+      why: Labels are part of the alert from the first evaluation.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/alerting/fundamentals/
+
+# alert-logs-traces
+- id: q-m15-019
+  tags: [ alert-logs-traces ]
+  exam: { cert: none }
+  q: Traces are sampled at 10% in the Collector before they reach Tempo, and Tempo's metrics-generator writes span metrics. What do the span metrics count?
+  options:
+    - text: Every request, because the generator reads the services' own counters
+      why: The generator reads spans, not counters; it counts what arrives.
+    - text: Only the 10% of spans that were sampled
+      why: Span metrics count the spans that reach Tempo. Sampling before Tempo samples the metrics too, which is why the docs ask where to generate them.
+    - text: Every request, because sampling happens after span metrics
+      why: Here the Collector samples before Tempo, so Tempo never sees the dropped spans.
+    - text: Nothing, because span metrics need unsampled traces
+      why: They work on whatever spans arrive; the numbers are just smaller.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/span-metrics/
+
+- id: q-m15-020
+  tags: [ alert-logs-traces ]
+  exam: { cert: none }
+  q: A Loki alerting rule counts error lines over 30 minutes, evaluated every minute, on a stream that writes 2 GB an hour. Why is it costly, compared with a metric rule?
+  options:
+    - text: Loki stores every result of the rule as a new stream
+      why: An alerting rule produces alert states, not streams.
+    - text: Loki must index every word of the stream to run it
+      why: Loki indexes labels, not words; the cost comes from reading lines.
+    - text: Each evaluation reads 30 minutes of lines again
+      why: A LogQL metric query reads and filters lines at query time, every minute; a metric rule reads a few samples instead.
+    - text: The rule is sent to Mimir for evaluation
+      why: Loki's own ruler evaluates LogQL rules.
+  answer: [ 2 ]
+  source: https://grafana.com/docs/loki/v3.7.x/alert/
+
+# slo
+- id: q-m15-021
+  tags: [ slo ]
+  exam: { cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs" }
+  q: 'Which query is an availability SLI written the way the SRE workbook advises, as good events over valid events?'
+  options:
+    - text: <code>sum(rate(requests_total{code!~"5.."}[1h])) / sum(rate(requests_total[1h]))</code>
+      why: Good events, requests without a 5xx code, divided by all valid requests, both summed before the division.
+    - text: <code>sum(rate(requests_total{code=~"5.."}[1h]))</code>
+      why: A rate of failures is a count per second, not a ratio; it changes with traffic.
+    - text: <code>avg(up{job="api"})</code>
+      why: Whether a target is scraped says little about whether users' requests succeed.
+    - text: <code>histogram_quantile(0.99, sum by (le) (rate(request_duration_seconds_bucket[1h])))</code>
+      why: A percentile is a latency measure, and not a ratio of good to valid events.
+  answer: [ 0 ]
+  source: https://sre.google/workbook/implementing-slos/
+
+- id: q-m15-022
+  tags: [ slo ]
+  exam: { cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs" }
+  q: A team can measure success at the load balancer today, or add browser instrumentation in three months. Its first SLI should be which, by the workbook's advice?
+  options:
+    - text: Neither, until both can be compared
+      why: The workbook advises starting with what is cheap and available, and improving later.
+    - text: The browser, because only it sees the user's real experience
+      why: It is closer to the user, but for a first SLI the workbook prefers the option that needs the least new work.
+    - text: Both at once, averaged
+      why: Two implementations of one SLI are not averaged; each has its own coverage and cost.
+    - text: The load balancer, which needs no new work
+      why: For a first SLI, choose what needs the least engineering work; refine the implementation later.
+  answer: [ 3 ]
+  source: https://sre.google/workbook/implementing-slos/
+
+- id: q-m15-023
+  tags: [ slo ]
+  exam: { cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs" }
+  q: Checkout gets about 200 orders an hour. Its SLO is 99.9% of orders placed over a rolling 30 days. About how many failed orders does the budget allow in that window?
+  options:
+    - text: About 14
+      why: That is 0.01% of the orders, ten times too few.
+    - text: About 1,440
+      why: That would be a 99% SLO.
+    - text: About 144
+      why: 200 × 24 × 30 = 144,000 orders, and 0.1% of them is 144.
+    - text: About 200
+      why: That is the orders of one hour, not the budget.
+  answer: [ 2 ]
+  source: https://sre.google/workbook/alerting-on-slos/
+
+# slo-burn-rate
+- id: q-m15-024
+  tags: [ slo-burn-rate ]
+  exam: { cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs" }
+  q: An SLO alert for a 30-day window uses a burn rate of 14.4 over one hour. How much of the error budget has been spent when it fires?
+  options:
+    - text: 14.4% of the budget
+      why: The burn rate is a speed, not a share; 14.4 for one hour of 720 spends 2%.
+    - text: 2% of the budget
+      why: One hour is 1/720 of 30 days; 14.4 × 1/720 = 0.02.
+    - text: The whole budget, in 14.4 hours
+      why: At 14.4 the budget would last 720 / 14.4 = 50 hours; the alert fires long before.
+    - text: 0.1%, the budget ratio of a 99.9% SLO
+      why: The budget ratio is part of the threshold, not the share of the budget spent.
+  answer: [ 1 ]
+  source: https://sre.google/workbook/alerting-on-slos/
+
+- id: q-m15-025
+  tags: [ slo-burn-rate ]
+  exam: { cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs" }
+  q: A service has a 99.5% SLO over 30 days. What threshold on the 1-hour error ratio pages at 2% of the budget, as the workbook proposes?
+  options:
+    - text: 1.44%, as for every SLO
+      why: 1.44% is 14.4 × 0.1%, the value for a 99.9% SLO only.
+    - text: 2%, the share of the budget
+      why: The share of the budget gives the burn rate; it is not the error ratio itself.
+    - text: 0.5%, the budget ratio
+      why: An error ratio of 0.5% is a burn rate of 1, which spends 2% in about 14 hours, not in one.
+    - text: 7.2%, that is 14.4 times 0.5%
+      why: Threshold = burn rate × (1 − SLO) = 14.4 × 0.005 = 0.072.
+  answer: [ 3 ]
+  source: https://sre.google/workbook/alerting-on-slos/
+
+- id: q-m15-026
+  tags: [ slo-burn-rate ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: Why does the workbook pair the 1-hour burn-rate condition with a 5-minute window of the same threshold?
+  options:
+    - text: So the alert stops a few minutes after the fault ends
+      why: The short window drops below the threshold soon after the fix, so the reset time is minutes, not most of an hour.
+    - text: So the alert fires faster than the 1-hour window allows
+      why: Both windows must be over the threshold, so the short one cannot make it fire sooner.
+    - text: So small blips of a few seconds page at once
+      why: Blips do not move the 1-hour window enough; the pair is not about blips.
+    - text: So the alert also covers the 6-hour condition
+      why: The 6-hour condition has its own short window, 30 minutes.
+  answer: [ 0 ]
+  source: https://sre.google/workbook/alerting-on-slos/
+
+- id: q-m15-027
+  tags: [ slo-burn-rate ]
+  exam: { cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs" }
+  q: Checkout gets about 200 orders an hour and has a 99.9% SLO. The 1-hour condition pages above an error ratio of 1.44%. How many failed orders in one hour are enough to cross it?
+  options:
+    - text: One, because every failure spends budget
+      why: One of 200 is 0.5%, a burn rate of 5, below the 14.4 that pages.
+    - text: Three, because three of 200 is 1.5%
+      why: 1.44% of 200 is 2.88, so the third failure crosses it; low traffic makes single failures loud.
+    - text: Fifteen, because the burn rate must reach 14.4 failures
+      why: The burn rate is a ratio of rates, not a count of failures.
+    - text: Two hundred, because the whole hour must fail
+      why: The threshold is 1.44% of the orders, far below all of them.
+  answer: [ 1 ]
+  source: https://sre.google/workbook/alerting-on-slos/
+
+- id: q-m15-028
+  tags: [ slo-burn-rate ]
+  exam: { cert: pca, domain: P1, competency: "Basics of SLOs, SLAs, and SLIs" }
+  q: The workbook's starting points include 10% of the budget in three days at burn rate 1. What should that condition send?
+  options:
+    - text: A page, like the faster conditions
+      why: The workbook marks this one as a ticket; the slow loss leaves time for working hours.
+    - text: Nothing, because burn rate 1 is the normal speed
+      why: Spending 10% in three days still threatens the budget; the workbook keeps it as a ticket.
+    - text: A ticket for working hours
+      why: The workbook pages on 2% in one hour and 5% in six hours, and opens a ticket for 10% in three days.
+    - text: A silence for three days
+      why: A silence would hide the condition, not report it.
+  answer: [ 2 ]
+  source: https://sre.google/workbook/alerting-on-slos/
+
+# slo-recording-rules
+- id: q-m15-029
+  tags: [ slo-recording-rules ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: A recording rule stores the 30-minute error ratio of checkout, summed over all its labels. Which name follows the level:metric:operations pattern?
+  options:
+    - text: <code>checkout_errors_ratio_30m</code>
+      why: Without colons nothing tells the reader that the series is recorded, or what level it has.
+    - text: <code>ratio_rate30m:checkout_errors:sum_by_service</code>
+      why: The order is level, then metric, then operations.
+    - text: <code>checkout:errors_total:increase30m</code>
+      why: _total is dropped after a rate, and the guidelines record rates, not increases.
+    - text: <code>slo:checkout_errors:ratio_rate30m</code>
+      why: The level names what is left, the metric what is counted, and ratio_rate30m the operation.
+  answer: [ 3 ]
+  source: https://prometheus.io/docs/practices/rules/
+
+- id: q-m15-030
+  tags: [ slo-recording-rules ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: In Mimir with ingest storage, a rule group holds four recording rules and, after them, two alerts that read the recorded series. The alerts take far longer to evaluate than the recording rules. Why?
+  options:
+    - text: Alerting rules are evaluated by a slower engine than recording rules
+      why: Both use the same query engine; the difference is the read mode.
+    - text: They ask for strong read consistency and wait for ingesters
+      why: The ruler adds the header for rules that depend on earlier rules of the same group, and each ingester waits until it has consumed what was written before.
+    - text: Alerts must wait for the Alertmanager to answer before the group moves on
+      why: Sending alerts does not block the evaluation of the group.
+    - text: The recorded series are read from object storage
+      why: Fresh series are in the ingesters; the wait is for them to catch up.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+
+# alert-fatigue
+- id: q-m15-031
+  tags: [ alert-fatigue ]
+  exam: { cert: pca, domain: P5, competency: "Alerting basics (when, what, and why)" }
+  q: An on-call team gets five paging incidents a shift on average. What does the SRE workbook's target say?
+  options:
+    - text: It is fine, as long as each incident is short
+      why: Short pages still interrupt; the target counts incidents, not their length.
+    - text: Add more people to the rotation until each gets fewer pages
+      why: That spreads the noise; the target asks to reduce the load itself.
+    - text: Too high, since the target is two incidents at most
+      why: The workbook targets at most two incidents per shift, so there is time to follow each one up.
+    - text: The load is too low to keep the team trained
+      why: The workbook sets a ceiling, not a floor; five is above it.
+  answer: [ 2 ]
+  source: https://sre.google/workbook/on-call/
+
+- id: q-m15-032
+  tags: [ alert-fatigue ]
+  exam: { cert: pca, domain: P5, competency: "Alerting basics (when, what, and why)" }
+  q: An alert paged 40 times in three months, and the on-call notes show that nobody did anything each time. What do Grafana's best practices suggest?
+  options:
+    - text: Remove or tune it, because it led to no action
+      why: Regular reviews should remove alerts that do not lead to action and tune those that fire too often.
+    - text: Keep it, because it fired correctly every time
+      why: A correct alert that needs no action is still noise for the person woken by it.
+    - text: Send it to two people, so that someone always notices it
+      why: Doubling the recipients doubles the noise.
+    - text: Raise all thresholds of the team by half
+      why: That cuts real pages too. Fix the rule that leads to no action.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/alerting/best-practices/
+
+# alert-runbooks
+- id: q-m15-033
+  tags: [ alert-runbooks ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: You want a Grafana-managed alert to show its state on the panel that graphs its query, and the notification to link to that panel. What do you set on the rule?
+  options:
+    - text: A label panel with the panel's title
+      why: Labels identify and route alerts; Grafana links panels through two annotations.
+    - text: The annotations __dashboardUid__ and __panelId__
+      why: Both annotations link the rule to one panel; the panel then shows the alert state, and notifications link to it.
+    - text: The panel's query copied into the summary
+      why: The summary is text for people; it links nothing.
+    - text: The annotation runbook_url with the dashboard's address
+      why: That gives a link, but the panel does not show the alert's state from it.
+  answer: [ 1 ]
+  source: https://grafana.com/docs/grafana/v13.3/alerting/alerting-rules/link-alert-rules-to-panels/
+
+- id: q-m15-034
+  tags: [ alert-runbooks ]
+  exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
+  q: 'Which annotations follow the common pattern for a paging alert?'
+  options:
+    - text: <code>summary</code>, <code>description</code> and <code>runbook_url</code>
+      why: These are the annotations Grafana names for responders, and Prometheus fills $value and $labels into them.
+    - text: <code>severity</code>, <code>team</code> and <code>value</code>, all as annotations
+      why: Severity and team route alerts, so they belong in labels; a value annotation alone tells nothing.
+    - text: <code>runbook_url</code> only, because the runbook says everything
+      why: The page should say what is broken and how bad before anyone opens a link.
+    - text: The whole runbook text in the alert's name
+      why: The name is a label value that identifies the alert; text belongs in annotations.
+  answer: [ 0 ]
+  source: https://grafana.com/docs/grafana/v13.3/alerting/fundamentals/alert-rules/annotation-label/
+
+- id: q-m15-035
+  tags: [ slo, alert-runbooks ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: 'A Stat panel should show how much of a 99.9% SLO''s 30-day error budget is left. Which query fits?'
+  options:
+    - text: <code>sum(increase(errors_total[30d]))</code>
+      why: It counts errors, but without the requests it cannot say how much of the budget they used.
+    - text: <code>1 - sum(rate(errors_total[5m])) / sum(rate(requests_total[5m]))</code>
+      why: That is the success ratio of the last five minutes, not the budget of 30 days.
+    - text: <code>1 - (sum(increase(errors_total[30d])) / sum(increase(requests_total[30d]))) / 0.001</code>
+      why: The 30-day error ratio divided by the budget ratio is the share spent; one minus it is the share left.
+    - text: <code>avg_over_time(errors:ratio_rate5m[30d]) / 0.001</code>
+      why: Averaging 5-minute ratios weighs quiet and busy hours alike, and this gives the share spent, not left.
+  answer: [ 2 ]
+  source: https://sre.google/workbook/alerting-on-slos/
+
+- id: q-m15-036
+  tags: [ alert-runbooks ]
+  exam: { cert: pca, domain: P5, competency: Dashboarding basics }
+  q: The page's runbook link opens a dashboard. What should that dashboard show first, by the Prometheus alerting guidelines?
+  options:
+    - text: Every metric of the service, so nothing is missed
+      why: A wall of panels slows the search for the cause.
+    - text: Only the graph of the alert's own query
+      why: The responder already knows the symptom; the dashboard should help find the cause.
+    - text: The list of every alert rule in the cluster
+      why: That is a configuration view, not help with this incident.
+    - text: The symptom and the components that could cause it
+      why: The guidelines ask alerts to link to consoles that make it easy to figure out which component is at fault.
+  answer: [ 3 ]
+  source: https://prometheus.io/docs/practices/alerting/
+
+# alert-drill
+- id: q-m15-037
+  tags: [ alert-drill ]
+  exam: { cert: none }
+  q: 'You are paged: checkout fails 35% of orders. A trace shows the error on the payment service. Rolling payment back to yesterday''s version is safe and takes two minutes; the root cause is unknown. What comes first?'
+  options:
+    - text: Find the root cause in the code before changing anything
+      why: Users keep failing while you read code. Stop the harm first, then investigate.
+    - text: Roll payment back, then look for the cause
+      why: Mitigation comes first on call; with orders failing, a safe two-minute rollback buys time for the investigation.
+    - text: Silence the alert so the team can work in peace
+      why: A silence hides the symptom; the orders still fail.
+    - text: Raise the SLO alert's threshold so it stops firing
+      why: The alert is right; changing it hides a real outage.
+  answer: [ 1 ]
+  source: https://sre.google/workbook/incident-response/

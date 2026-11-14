@@ -1,0 +1,106 @@
+---
+id: m15-s11
+title: Recording rules for SLOs
+kind: lab
+minutes: 18
+order: 11
+exam:
+  - cert: pca
+    domain: P5
+    competency: Configuring Alerting rules
+tags: [slo-recording-rules, promql-recording-rules]
+check:
+  kind: exact
+  prompt: Which recorded series does the 6h alert read for its short window? Paste its name.
+  answers: ["learn_m15:checkout_errors:ratio_rate30m"]
+outcome: You can lay out the recording rules an SLO alert needs, read their cost in Mimir's ruler, and explain why the alerts in the same group take longer to evaluate.
+terms:
+  - term: Strong read consistency
+    def: A query mode of Mimir with ingest storage in which ingesters first read everything written to Kafka before they answer.
+  - term: Rule group evaluation
+    def: One run of all rules of a group, in order, at the same evaluation time.
+sources:
+  - title: Recording rules (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
+    checked: 2026-11-14
+  - title: Recording rules, naming (Prometheus practices)
+    url: https://prometheus.io/docs/practices/rules/
+    checked: 2026-11-14
+  - title: Alerting on SLOs (Google SRE workbook)
+    url: https://sre.google/workbook/alerting-on-slos/
+    checked: 2026-11-14
+  - title: About ingest storage architecture (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-14
+---
+
+<Problem>
+A platform team runs SLO alerts for 60 services, each with four windows. Written as raw queries, the 6-hour and 3-day windows read every span counter of every service once a minute, and the SLO dashboards read them again on every refresh. The rules work in a demo and slow the metrics store down in production.
+</Problem>
+
+<Idea>
+Record each window's error ratio once per evaluation, under a name of its own, and let the alerts and dashboards read the recorded series. One recording rule per window per SLO, aggregated as two sums, is the shape the SRE workbook's own examples use.
+</Idea>
+
+## One recorded ratio per window
+
+The workbook writes its alerts against series such as `job:slo_errors_per_request:ratio_rate1h`, and computes them with recording rules: the sum of the error rate divided by the sum of the request rate. Your group of step 10 does the same for four windows: `ratio_rate5m`, `ratio_rate30m`, `ratio_rate1h` and `ratio_rate6h`. The two alerts only compare four small series with thresholds.
+
+The names follow `level:metric:operations` from module m04 step 12. The level `learn_m15` says that this is the module's own series, with no labels left; the metric `checkout_errors` names what is counted; the operation `ratio_rate5m` says how.
+
+<Layers caption="The rule group checkout-slo, top to bottom">
+  <Layer title="ratio_rate5m, ratio_rate30m">Short windows, read by the two alerts.</Layer>
+  <Layer title="ratio_rate1h, ratio_rate6h">Long windows, read by the alerts and by dashboards.</Layer>
+  <Layer title="CheckoutErrorBudgetBurn" hot>Two alerts, 1h with 5m and 6h with 30m.</Layer>
+</Layers>
+
+## Order inside a group
+
+The rules of a group run one after another at the same evaluation time, so an alert later in the group reads what the recording rules above it just wrote. In Mimir with ingest storage, a fresh sample first goes through Kafka; to read it, the ruler marks queries that depend on earlier rules of the same group for strong read consistency. Each ingester then waits until it has consumed everything written before the query. That is why, in the lab, each alert of the group takes about 2 seconds while each recording rule takes about 0.05.
+
+## Ratios stay ratios of sums
+
+A recorded ratio cannot be averaged into a longer window. The average of 288 five-minute ratios is not the 1-day ratio, because quiet five minutes weigh as much as busy ones. For each window you want, record the ratio of the two sums over that window, as the group does.
+
+<InLab>
+The span metrics of checkout are only two series for `PlaceOrder`, so in the lab a raw 6-hour query answers in a few hundredths of a second, as fast as the recorded one. The cost shows at scale. What the lab does show is the evaluation time of each rule, in the ruler's API.
+</InLab>
+
+<Trap>
+A recorded series starts when its rule is loaded. A dashboard switched to `learn_m15:checkout_errors:ratio_rate6h` shows nothing before the moment of step 10, although the raw query would show the past.
+</Trap>
+
+<Do>
+1. List the recorded series in <LabLink to="grafana" path="/explore">Explore</LabLink>, data source Mimir, **Code**: <Query lang="promql">{`{__name__=~"learn_m15:.*"}`}</Query> Four series, one per window, with no labels but the name.
+2. Read the evaluation time of each rule and of the whole group, in seconds: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/rules | grep -oE '"name":"[^"]*"|"evaluationTime":[0-9.e-]*'`}</Cmd> The four recording rules take a few hundredths of a second each, the two alerts about two seconds each, and the last line is the group.
+3. Graph the recorded 1-hour ratio and its raw query together over the last 3 hours. Run each in its own query row: <Query lang="promql">{`learn_m15:checkout_errors:ratio_rate1h`}</Query> <Query lang="promql">{`(sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[1h])) or vector(0)) / sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[1h]))`}</Query> The two lines lie on each other from the moment the rule was loaded; before it, only the raw query has data.
+4. In the file of step 10, find the series the second alert compares with `6 * 0.001` in its short window, and paste its name in the check below.
+</Do>
+
+<Done>
+You read the four recorded series, the cost of each rule, and saw that the recorded line starts only when its rule did.
+</Done>
+
+<Remember>
+One recording rule per window per SLO, each a ratio of two sums, named `level:metric:operations`. Alerts and dashboards read the recorded series; dependent rules in one Mimir group wait for strong consistency.
+</Remember>
+
+<Question id="q-m15-s11" answer="b">
+A team records `slo:errors:ratio_rate5m` and builds a 30-day budget panel as `avg_over_time(slo:errors:ratio_rate5m[30d])`. Traffic is ten times higher by day than by night. What is wrong with the panel?
+
+- Nothing, because the average of the 5-minute ratios is the 30-day ratio
+
+  That holds only if every 5 minutes carry the same traffic, which is not the case here.
+
+- Night ratios weigh as much as day ratios, so the result is not the 30-day error ratio
+
+  Averaging ratios ignores how many requests each one covers. Record the 30-day ratio as a ratio of sums instead.
+
+- avg_over_time cannot read a recorded series
+
+  Recorded series are ordinary series; every function can read them.
+
+- The panel shows the burn rate, not the error ratio
+
+  The average of an error ratio is still an error ratio, only a wrongly weighted one.
+</Question>

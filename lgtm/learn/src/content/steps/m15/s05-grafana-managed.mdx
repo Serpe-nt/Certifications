@@ -1,0 +1,127 @@
+---
+id: m15-s05
+title: "Grafana-managed alerts: rule, contact point, policy"
+kind: lab
+minutes: 30
+order: 5
+exam:
+  - cert: pca
+    domain: P5
+    competency: Configuring Alerting rules
+tags: [alert-grafana-managed]
+check:
+  kind: exact
+  prompt: The default notification policy groups by two labels. Paste the one that is not alertname.
+  answers: ["grafana_folder"]
+outcome: You can build a Grafana-managed alert rule, a contact point and a nested notification policy, follow one alert from the rule to a notification, and remove all three.
+terms:
+  - term: Grafana-managed rule
+    def: An alert rule stored and evaluated by Grafana itself; it can query any data source that supports alerting.
+  - term: Contact point
+    def: Grafana's name for a receiver; it holds one or more integrations such as email or a webhook.
+  - term: Notification policy
+    def: A node of Grafana's routing tree; it matches alerts by labels and names a contact point and timings.
+  - term: Evaluation group
+    def: A set of Grafana-managed rules in one folder that are evaluated together at one interval.
+  - term: Pending period
+    def: Grafana's version of for; how long a condition must hold before the alert fires.
+sources:
+  - title: Introduction to Grafana Alerting
+    url: https://grafana.com/docs/grafana/v13.3/alerting/fundamentals/
+    checked: 2026-11-14
+  - title: Configure Grafana-managed alert rules
+    url: https://grafana.com/docs/grafana/v13.3/alerting/alerting-rules/create-grafana-managed-rule/
+    checked: 2026-11-14
+  - title: Alert rule evaluation
+    url: https://grafana.com/docs/grafana/v13.3/alerting/fundamentals/alert-rule-evaluation/
+    checked: 2026-11-14
+  - title: Notification policies
+    url: https://grafana.com/docs/grafana/v13.3/alerting/fundamentals/notifications/notification-policies/
+    checked: 2026-11-14
+  - title: Webhook notifier
+    url: https://grafana.com/docs/grafana/v13.3/alerting/configure-notifications/manage-contact-points/integrations/webhook-notifier/
+    checked: 2026-11-14
+  - title: No Data and Error states
+    url: https://grafana.com/docs/grafana/v13.3/alerting/fundamentals/alert-rule-evaluation/nodata-and-error-states/
+    checked: 2026-11-14
+---
+
+<Problem>
+Your team's dashboards read from Mimir, Loki and Tempo, and the product manager wants an alert when checkout gets fewer orders than usual. There is no Prometheus in that path to hold a rule file, and the people who will own the alert know Grafana, not YAML.
+</Problem>
+
+<Idea>
+Grafana has an alerting system of its own, built on the Prometheus model. A Grafana-managed rule runs a query on any data source that supports alerting, a notification policy tree routes its alerts by labels, and a contact point sends them. The parts map one to one onto steps 2 to 4.
+</Idea>
+
+## The same model, other names
+
+Grafana evaluates the rule itself, every interval of its evaluation group. Each series the query returns is an alert instance; the condition decides which of them breach. A pending period plays the part of `for`, and "keep firing for" the part of `keep_firing_for`.
+
+Grafana's states are Normal, Pending, Alerting and Recovering, plus two that only Grafana-managed rules have: No Data, when the query returns nothing, and Error, when the query fails. Both are handled by settings on the rule, so an alert on a metric that disappears does not go quiet without anyone noticing.
+
+<Compare caption="Prometheus words and Grafana words">
+  <Col title="Prometheus and Alertmanager">Alerting rule, for, receiver, routing tree, firing.</Col>
+  <Col title="Grafana" hot>Alert rule, pending period, contact point, notification policy, Alerting.</Col>
+</Compare>
+
+## Routing by labels, again
+
+Notifications go through Grafana's own built-in Alertmanager. Its tree starts at the default notification policy, which matches every alert, as the top-level route of step 3 does. Child policies match labels and may set their own contact point, grouping and timings; what they do not set, they inherit.
+
+A rule can skip the tree and name a contact point directly. That is the simple mode of the rule form. For a team, the tree is the better habit: rules carry labels such as `team` or `severity`, and the policy decides who hears about them.
+
+## What you build in the lab
+
+You build one of each and remove them afterwards. A contact point `m15-webhook` points at the practice webhook of step 3, now under the path `/grafana`. A child policy under the default one matches the label `m15=practice`. The rule `m15 checkout traffic low`, in the folder `Learn m15`, counts orders per minute from the span metrics and breaches below 10. The lab's shop places only about 3 orders a minute, so the alert fires: a threshold copied from another system is wrong for this one, and the preview shows it before you save.
+
+<InLab>
+The lab's Grafana runs alerting at its defaults: its default policy sends to a contact point named `empty`, groups by `grafana_folder` and `alertname`, and waits 30 seconds, 5 minutes and 4 hours. You add a child under it; you do not change the default policy itself.
+</InLab>
+
+<Trap>
+A Grafana-managed alert does not go to the Prometheus stack's Alertmanager in `prom`, and a Prometheus alert does not go to Grafana's contact points. Each rule type has its own notification path, unless someone connects them.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/alerting/notifications/receivers/new">a new contact point</LabLink> (Alerting, Contact points, Create contact point). Name it `m15-webhook`, choose the integration **Webhook**, and set the URL to `http://webhook.learn-m15.svc:8080/grafana`.
+2. Click **Test**, then **Send test notification**. Check that it arrived: <Cmd>{`kubectl -n learn-m15 logs deploy/webhook --tail=1`}</Cmd> The line reads `/grafana firing 1 alert(s): TestAlert`. Then click **Save contact point**.
+3. Open <LabLink to="grafana" path="/alerting/routes">Notification policies</LabLink>. Read the default policy: who it delivers to and what it groups by. Click **Add route** on it. Add the matcher `m15` `=` `practice`, choose the contact point `m15-webhook`, and click **Add route** in the dialog.
+4. Open <LabLink to="grafana" path="/alerting/new/alerting">a new alert rule</LabLink>. Name it `m15 checkout traffic low`. Leave the data source on Mimir, switch the query to **Code**, and enter: <Query lang="promql">{`sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[5m])) * 60`}</Query> Set the alert condition to **Is below** `10`, and click **Preview alert rule condition**: the value is about 3 and the state Firing.
+5. Under **Add folder and labels**, click **New folder** and create `Learn m15`. Click **Add labels** and add `m15` = `practice`. Under **Set evaluation behavior**, click **New evaluation group**, name it `m15-practice` with the interval `1m`, and keep the pending period at 1m.
+6. Under **Configure notifications**, turn on **Advanced options** and click **Preview routing**: it shows the alert delivered to `m15-webhook`. Add the summary `Checkout takes {{ $values.A }} orders a minute, fewer than 10.` and click **Save**.
+7. About two minutes later (one evaluation, the pending period, then 30 seconds of grouping), read the webhook's log again: <Cmd>{`kubectl -n learn-m15 logs deploy/webhook --tail=1`}</Cmd> The line names your rule.
+8. Clean up in this order: on the rule's page, delete the rule; in Notification policies, delete your route; in Contact points, delete `m15-webhook`; in Dashboards, delete the folder `Learn m15`. Paste the second grouping label of the default policy in the check below.
+</Do>
+
+<Done>
+One Grafana-managed alert went from your rule through your nested policy to your contact point and the practice webhook, and all three are gone again.
+</Done>
+
+<Trap practice>
+A contact point that is still used by a policy cannot be deleted, and a folder that still holds a rule should be emptied first. Delete in the order of action 8: rule, route, contact point, folder.
+</Trap>
+
+<Remember>
+Grafana-managed alerting is the Prometheus model inside Grafana: rules with a pending period, a policy tree that routes by labels, contact points that send. It runs beside the Prometheus stack's Alertmanager, not through it.
+</Remember>
+
+<Question id="q-m15-s05" answer="b">
+A Grafana-managed rule has the label `team=db`. The default policy sends to `ops-email`, and its only child policy matches `team=web` and sends to `web-chat`. Where does the alert go?
+
+- To web-chat, because a child policy always wins over the default one
+
+  A child policy wins only when its matchers match. team=web does not match team=db.
+
+- To ops-email, through the default policy
+
+  No child matches, so the default policy, which matches every alert, handles it with its own contact point.
+
+- Nowhere, because no policy names team=db
+
+  The default policy catches every alert that no child matches. No alert is dropped by the tree.
+
+- To both, because Grafana sends every alert to every contact point
+
+  An alert goes where the matching policy sends it. Two places only with Continue matching siblings.
+</Question>

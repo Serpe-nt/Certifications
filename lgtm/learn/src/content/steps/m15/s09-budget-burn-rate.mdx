@@ -1,0 +1,98 @@
+---
+id: m15-s09
+title: Error budget and burn rate
+kind: concept
+minutes: 15
+order: 9
+exam:
+  - cert: pca
+    domain: P1
+    competency: "Basics of SLOs, SLAs, and SLIs"
+tags: [slo-burn-rate]
+outcome: You can work out a burn rate from an error ratio and an SLO, say how long a budget lasts at that rate, and turn "2% of the budget in an hour" into an alert threshold.
+terms:
+  - term: Error budget
+    def: The share of events an SLO allows to fail in its compliance period; 100% minus the SLO.
+  - term: Burn rate
+    def: How fast the budget is spent, relative to a rate that would spend exactly all of it in the compliance period.
+  - term: Detection time
+    def: How long an alert takes to fire after a problem starts.
+  - term: Reset time
+    def: How long an alert keeps firing after the problem has ended.
+sources:
+  - title: Alerting on SLOs (Google SRE workbook)
+    url: https://sre.google/workbook/alerting-on-slos/
+    checked: 2026-11-14
+  - title: Implementing SLOs (Google SRE workbook)
+    url: https://sre.google/workbook/implementing-slos/
+    checked: 2026-11-14
+---
+
+<Problem>
+Checkout's error ratio is 0.5% this hour. Is that a page? The SLO allows 0.1%, so it is five times too high, but only for an hour so far. Without a way to compare "how bad" with "how much budget is left", the team argues about thresholds instead of fixing orders.
+</Problem>
+
+<Idea>
+The burn rate is the error ratio divided by the budget ratio. A burn rate of 1 spends the whole budget in exactly one compliance period; a burn rate of 10 spends it ten times faster. An alert on burn rate asks "how much of the month's budget did this hour cost?", which is the question the team cares about.
+</Idea>
+
+## From error ratio to burn rate
+
+With a 99.9% SLO, the budget ratio is 0.1%. An error ratio of 0.1% is a burn rate of 1; 0.5% is 5; 100% is 1,000. The budget lasts the compliance period divided by the burn rate: 30 days at burn rate 1, 6 days at 5, and 43 minutes at 1,000.
+
+<Figures caption="A 99.9% SLO over 30 days: how long the budget lasts" unit="Days">
+  <Stat label="Burn rate 1 (0.1% errors)" value="30 days" amount={30} max={30} />
+  <Stat label="Burn rate 2 (0.2%)" value="15 days" amount={15} max={30} />
+  <Stat label="Burn rate 10 (1%)" value="3 days" amount={3} max={30} />
+  <Stat label="Burn rate 1,000 (100%)" value="43 minutes" amount={0.03} max={30} hot note="A total outage." />
+</Figures>
+
+## From budget share to threshold
+
+Turn it around to build an alert. Decide which share of the budget is worth a page if spent within one window. The workbook proposes 2% of a 30-day budget in one hour. One hour is 1/720 of 30 days, so spending 2% in it means a burn rate of 0.02 × 720 = 14.4. The alert compares the error ratio of the last hour with 14.4 × 0.1% = 1.44%.
+
+The same arithmetic gives the other two windows the workbook proposes: 5% in 6 hours is a burn rate of 6, and 10% in 3 days is a burn rate of 1. The first two are pages, the third a ticket.
+
+<Compare caption="The workbook's three windows for a 30-day SLO">
+  <Col title="Page" hot>2% of the budget in 1 hour: burn rate 14.4.</Col>
+  <Col title="Page">5% in 6 hours: burn rate 6.</Col>
+  <Col title="Ticket">10% in 3 days: burn rate 1.</Col>
+</Compare>
+
+## Detection time and reset time
+
+The workbook judges an alert by four things: precision (how many alerts were real), recall (how many real problems alerted), detection time and reset time. For an alert on the 1-hour burn rate, the time to fire is the budget ratio divided by the error ratio, times the window, times the burn rate. A total outage at 99.9% gives 0.001 / 1 × 60 minutes × 14.4, about 52 seconds. An error ratio of 1.44% takes the full hour.
+
+The reset time is the weak side. After a 10-minute total outage, the 1-hour error ratio stays above 1.44% for the rest of the hour, so the alert keeps firing long after the fix. Step 10 solves that with a second, shorter window.
+
+<InLab>
+Checkout in the lab places about 200 orders an hour. One failed order in an hour is an error ratio of about 0.5%, a burn rate of 5: no page. Three failed orders in an hour, about 1.5%, cross the 14.4 threshold. The workbook warns that low traffic makes single failures loud; this lab is such a service.
+</InLab>
+
+<Trap>
+A burn rate is not an error count. 100 errors can be a burn rate of 0.1 on a busy service and 1,000 on a quiet one. Always divide by the valid events of the same window.
+</Trap>
+
+<Remember>
+Burn rate = error ratio / (1 − SLO). Threshold = burn rate × (1 − SLO). For 30 days: 14.4 over 1 hour, 6 over 6 hours, 1 over 3 days.
+</Remember>
+
+<Question id="q-m15-s09" answer="a">
+A service has a 99.5% SLO over 30 days. Its error ratio over the last hour is 2%. What is its burn rate, and how long would the budget last at that rate?
+
+- Burn rate 4, so the budget lasts about 7.5 days
+
+  The budget ratio is 0.5%; 2% / 0.5% = 4, and 30 days / 4 = 7.5 days.
+
+- Burn rate 2, so the budget lasts 15 days
+
+  That divides by 1% instead of the budget ratio of 0.5%.
+
+- Burn rate 20, so the budget lasts 1.5 days
+
+  That would be the burn rate for a 99.9% SLO, whose budget ratio is 0.1%.
+
+- Burn rate 0.25, so the budget lasts 120 days
+
+  The division is upside down: the error ratio goes on top.
+</Question>

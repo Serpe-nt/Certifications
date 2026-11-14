@@ -1,0 +1,164 @@
+---
+id: m15-s04
+title: Receivers and notification templates
+kind: lab
+minutes: 25
+order: 4
+exam:
+  - cert: pca
+    domain: P5
+    competency: Understand and Use Alertmanager
+tags: [alert-alertmanager]
+check:
+  kind: exact
+  prompt: Paste the text the pager received in action 6, without the quotes.
+  answers: ["[FIRING] CheckoutErrors on checkout: 1 firing, 0 resolved"]
+outcome: You can configure a receiver, write a notification template with define and template, render it with amtool, and read what the receiver gets.
+terms:
+  - term: Receiver
+    def: A named destination in the Alertmanager configuration, with one or more integrations such as email, Slack or a webhook.
+  - term: Integration
+    def: One way of sending a notification inside a receiver, for example email_configs or webhook_configs.
+  - term: Notification template
+    def: A Go template that turns the data of one alert group into the text of a notification.
+  - term: send_resolved
+    def: A receiver setting that decides whether a notification is also sent when the alerts of a group end.
+sources:
+  - title: Alertmanager configuration (v0.34.2)
+    url: https://github.com/prometheus/alertmanager/blob/v0.34.2/docs/configuration.md
+    checked: 2026-11-14
+  - title: Notification template reference (v0.34.2)
+    url: https://github.com/prometheus/alertmanager/blob/v0.34.2/docs/notifications.md
+    checked: 2026-11-14
+  - title: Notification template examples (Prometheus)
+    url: https://prometheus.io/docs/alerting/latest/notification_examples/
+    checked: 2026-11-14
+  - title: Alertmanager README, amtool (v0.34.2)
+    url: https://github.com/prometheus/alertmanager/blob/v0.34.2/README.md
+    checked: 2026-11-14
+---
+
+<Problem>
+The page reads: "[FIRING:3] CheckoutSlow checkout (ticket)". It is 3 a.m. Which three pods? Since when? Which dashboard? The person on call opens a laptop to find out what the phone could have said in one line.
+</Problem>
+
+<Idea>
+A receiver names where a notification goes and through which integrations. A notification template decides what it says. Templates are Go templates over the data of one alert group: its status, its labels and annotations, and the list of its alerts.
+</Idea>
+
+## A receiver holds integrations
+
+A receiver has a name and one or more lists such as `email_configs`, `slack_configs`, `pagerduty_configs` or `webhook_configs`. One receiver can notify by several integrations at once. Routes point at receivers by name, so the routing tree of step 3 does not change when a team moves from email to a chat tool.
+
+Each integration has its own settings, among them `send_resolved`. It is true by default for the webhook, PagerDuty and most others, and false for email, Slack and WeChat. Whether a resolved message helps depends on the people who read it.
+
+The webhook is the generic one: the Alertmanager posts the whole group as JSON, and any program can read it. That is what the practice webhook of step 3 does.
+
+## What a template sees
+
+Every notification is built from one alert group. The template sees it as data:
+
+- `.Status`: `firing` if at least one alert fires, otherwise `resolved`.
+- `.GroupLabels`: the labels in `group_by`; `.CommonLabels` and `.CommonAnnotations`: those shared by every alert of the group.
+- `.Alerts`: the list of alerts, each with `.Labels`, `.Annotations`, `.StartsAt` and more; `.Alerts.Firing` and `.Alerts.Resolved` filter it.
+- `.ExternalURL`: a link back to the Alertmanager.
+
+A template file defines named templates with `{{ define "name" }}...{{ end }}`, and a receiver uses one with `{{ template "name" . }}`. The configuration lists the template files under `templates`. The Alertmanager also ships default templates, which every integration uses until you set its text yourself.
+
+<Layers caption="From an alert group to a message">
+  <Layer title="Alert group">Status, group labels, common labels, alerts.</Layer>
+  <Layer title="Template">define "m15.text": what to say about the group.</Layer>
+  <Layer title="Integration">Fills its text field with the template.</Layer>
+  <Layer title="Message" hot>One line on the phone.</Layer>
+</Layers>
+
+## Test a template before the pager does
+
+`amtool template render` renders a template with example data, without sending anything. It finds syntax errors and shows the shape of the result. `amtool check-config` checks the whole configuration, templates included. Both run inside the Alertmanager's own image.
+
+The webhook has a newer option, `payload`, that replaces its JSON body with fields you fill from templates. The reference warns that the Alertmanager does not check the result, which must still be valid JSON. The practice uses it to send one line of text, as a chat integration would.
+
+<InLab>
+The practice Alertmanager in `learn-m15` reads its configuration from the ConfigMap `alertmanager`. You change the ConfigMap and restart the Deployment. The silence of step 3 is lost with the restart, because the practice keeps its state in the pod's own `/tmp`.
+</InLab>
+
+<Trap>
+Alertmanager templates are not Prometheus templates. `{{ $labels.x }}` and `{{ $value }}` belong in the rule's annotations; in the Alertmanager the same label is `{{ .CommonLabels.x }}` or one alert's `{{ .Labels.x }}`.
+</Trap>
+
+<Do>
+1. Save this as `m15-alertmanager-v2.yaml`. It is the ConfigMap of step 3 with a template file `m15.tmpl`, a `templates` list, and a `payload` for the pager.
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: alertmanager
+     namespace: learn-m15
+   data:
+     m15.tmpl: |
+       {{ define "m15.text" }}[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} on {{ .CommonLabels.service }}: {{ len .Alerts.Firing }} firing, {{ len .Alerts.Resolved }} resolved{{ end }}
+     alertmanager.yml: |
+       templates:
+         - /etc/alertmanager/*.tmpl
+       route:
+         receiver: team-tickets
+         group_by: [alertname, service]
+         group_wait: 10s
+         group_interval: 1m
+         repeat_interval: 4h
+         routes:
+           - receiver: on-call-pager
+             matchers: ['severity="page"']
+       inhibit_rules:
+         - source_matchers: ['alertname="CheckoutDown"']
+           target_matchers: ['severity="ticket"']
+           equal: [service]
+       receivers:
+         - name: team-tickets
+           webhook_configs:
+             - url: http://webhook.learn-m15.svc:8080/tickets
+         - name: on-call-pager
+           webhook_configs:
+             - url: http://webhook.learn-m15.svc:8080/pager
+               payload:
+                 text: '{{ template "m15.text" . }}'
+   ```
+2. Apply it and restart the Alertmanager so it reads the new files: <Cmd>{`kubectl apply -f m15-alertmanager-v2.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m15 rollout restart deploy/alertmanager`}</Cmd> <Cmd>{`kubectl -n learn-m15 rollout status deploy/alertmanager --timeout=120s`}</Cmd>
+3. Check the configuration: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool check-config /etc/alertmanager/alertmanager.yml`}</Cmd> It lists `1 templates` and ends with `SUCCESS`.
+4. Render the template with amtool's example data: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool template render --template.glob='/etc/alertmanager/*.tmpl' --template.text='{{ template "m15.text" . }}'`}</Cmd> The labels are empty, because the example data has none; the shape is what you check.
+5. Send a page alert: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool alert add alertname=CheckoutErrors service=checkout severity=page --alertmanager.url=http://localhost:9093`}</Cmd>
+6. After about 15 seconds, read the last lines of the webhook's log: <Cmd>{`kubectl -n learn-m15 logs deploy/webhook --tail=3`}</Cmd> The pager line now holds your text instead of the alert list. Paste the text in the check below.
+</Do>
+
+<Done>
+The pager's receiver sent one line built from your template, and the tickets receiver still sends the full JSON.
+</Done>
+
+<Trap practice>
+Keep the single quotes around `'{{ template "m15.text" . }}'` in the file. Without them, YAML reads the opening brace as the start of a map, and `amtool check-config` fails before the Alertmanager ever sees the template.
+</Trap>
+
+<Remember>
+Routes choose a receiver, a receiver holds integrations, and templates decide the text. Render a template with `amtool template render` before it reaches anyone.
+</Remember>
+
+<Question id="q-m15-s04" answer="b">
+A receiver uses `{{ .CommonLabels.instance }}` in its message. A group holds three alerts from three different instances. What does the message show for it?
+
+- The three instances, separated by commas
+
+  CommonLabels holds only labels with the same value on every alert. It does not join values.
+
+- Nothing, because instance is not common to all three alerts
+
+  The three alerts differ in instance, so it is not in CommonLabels. Range over .Alerts to list each one.
+
+- The instance of the first alert in the group
+
+  CommonLabels is not taken from one alert; it is the shared part of all of them.
+
+- A template error that stops the notification
+
+  A missing key in a map gives an empty value in Go templates; the message is still sent.
+</Question>

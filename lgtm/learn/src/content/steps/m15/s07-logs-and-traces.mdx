@@ -1,0 +1,110 @@
+---
+id: m15-s07
+title: Alerts on logs and on traces
+kind: lab
+minutes: 18
+order: 7
+exam:
+  - cert: none
+tags: [alert-logs-traces]
+check:
+  kind: exact
+  prompt: How many metric names starting with traces_spanmetrics does tenant lab hold?
+  answers: ["5"]
+outcome: You can say what an alert on logs or on traces can see that a metric alert cannot, what it costs, and how the lab turns traces into series an alert can read.
+terms:
+  - term: Span metrics
+    def: Request counts and duration histograms that Tempo's metrics-generator computes from spans and writes to a metrics store.
+  - term: Metrics-generator
+    def: The Tempo component that reads spans and writes metrics derived from them, by remote write.
+  - term: Event alert
+    def: An alert on a single occurrence, such as one log line that must never appear, rather than on a rate.
+sources:
+  - title: Alerting and recording rules (Loki)
+    url: https://grafana.com/docs/loki/v3.7.x/alert/
+    checked: 2026-11-14
+  - title: Metrics-generator (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-generator/
+    checked: 2026-11-14
+  - title: TraceQL metrics queries (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/
+    checked: 2026-11-14
+  - title: Configure data source-managed alert rules (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/alerting/alerting-rules/create-data-source-managed-rule/
+    checked: 2026-11-14
+---
+
+<Problem>
+Checkout's error ratio jumps, and the page fires. The metric says how many orders fail, not why. The reason is in a payment log line, "Payment request failed. Invalid token.", and in the error status of one span in each failing trace. Could the alert have started from either of them?
+</Problem>
+
+<Idea>
+Logs and traces can feed alerts too, but through a metric. A log alert runs a LogQL metric query in Loki's ruler; a trace alert reads metrics that Tempo derives from spans. They see text and request paths that no metric holds, and they cost more per evaluation or more series.
+</Idea>
+
+## Alerts on logs see text and one-off events
+
+Module m12 step 13 loaded a LogQL rule into Loki's ruler. Two kinds of alert suit logs best. Event alerts, where one line matters: a leaked credential, a "disk corrupt", a payment provider's "account suspended". And alerts on sources with too many values to be labels, such as errors per customer, because LogQL extracts the value at query time and never stores it as a series.
+
+The cost is paid at every evaluation. A metric rule reads a few series; a log rule reads every line of its streams in its window, each minute. Keep the stream selector narrow and the window short, and record what a dashboard needs with a recording rule.
+
+## Alerts on traces go through span metrics
+
+Tempo's metrics-generator reads the spans from Kafka and runs processors over them. The span metrics processor counts spans and records their durations for each combination of service, span name, span kind and status, plus the dimensions you add. It writes the result to Mimir by remote write. Those series are RED for every traced service, without one line of metrics code in the services.
+
+Trace alerts are then ordinary metric alerts on those series. That is what steps 8 to 11 build for checkout. TraceQL metrics, such as `{ resource.service.name = "checkout" && status = error } | rate()`, can ask new questions of the spans, by any attribute, but they are queries, not stored series.
+
+<Flow caption="From a span to an alert">
+  <Stage title="Span" kicker="Tempo">checkout's PlaceOrder ends with status error.</Stage>
+  <Stage title="Span metrics" kicker="metrics-generator">The error counter for that span name goes up.</Stage>
+  <Stage title="Mimir" kicker="tenant lab">traces_spanmetrics_calls_total stores it.</Stage>
+  <Stage title="Rule" kicker="ruler">The error ratio crosses a threshold.</Stage>
+</Flow>
+
+## What they cost
+
+Every new span metric dimension multiplies series, as every label does. Span metrics also count only what reaches Tempo: if traces are sampled before Tempo, the counts are sampled too. Log rules cost reads, span metrics cost series; pick the one whose cost fits the question.
+
+<InLab>
+The lab's metrics-generator runs the `service-graphs` and `span-metrics` processors for every tenant, adds `service.namespace` as a dimension and `service_name` as a copy of the service. In the lab's Grafana 13.3 the Tempo data source is not offered for alert rules (its `alerting` flag is false), so alerts on traces use the span metrics in Mimir.
+</InLab>
+
+<Trap>
+A rule on raw logs, such as `{service_name="payment"} |= "failed"`, is accepted by the ruler but cannot fire: an alert needs a number. Wrap it in `count_over_time` or `rate` and compare it with a threshold.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source Loki, switch to **Code**, set the range to the last 1 hour, and run: <Query lang="logql">{`sum by (detected_level) (count_over_time({service_name="payment"} |= "Payment request failed" [5m]))`}</Query> Lines appear only if a payment fault ran in the last hour; empty is a fine answer too. This is the expression a log alert would compare with a threshold.
+2. Switch to the data source Tempo, choose the **TraceQL** query type, and run: <Query lang="traceql">{`{ resource.service.name = "checkout" && status = error } | rate()`}</Query> The graph shows checkout's error spans per second, computed from the stored spans.
+3. Switch to the data source Mimir and list the span metrics: <Query lang="promql">{`count by (__name__) ({__name__=~"traces_spanmetrics.*"})`}</Query> Read how many names there are and how many series each has.
+4. Run checkout's error ratio from span metrics, the series that steps 8 to 11 alert on: <Query lang="promql">{`sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder", status_code="STATUS_CODE_ERROR"}[1h])) / sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[1h]))`}</Query> Empty means no error in the last hour.
+5. Paste the number of span metric names from action 3 in the check below.
+</Do>
+
+<Done>
+You ran the expression a log alert would use, the same errors as a TraceQL metrics query, and the span metrics that a trace alert reads in Mimir.
+</Done>
+
+<Remember>
+Log alerts see text and one-off events and pay with reads at each evaluation. Trace alerts read span metrics, which give RED for every traced service and pay with series.
+</Remember>
+
+<Question id="q-m15-s07" answer="c">
+Security wants a page the first time any service logs the line "AWS secret key found in request". The services have no metric for it. What fits best?
+
+- A span metrics alert on the error status of the request
+
+  The line is not an error status; the request may succeed while it leaks the key.
+
+- A recording rule in Loki that keeps the count as a series
+
+  A recording rule stores a series but sends no alert by itself.
+
+- A Loki alerting rule with count_over_time on that line, greater than 0
+
+  An event alert on a log line is what log alerts suit best: one occurrence fires it.
+
+- A Prometheus alert on the log volume of each service
+
+  More log lines in general say nothing about this one line.
+</Question>

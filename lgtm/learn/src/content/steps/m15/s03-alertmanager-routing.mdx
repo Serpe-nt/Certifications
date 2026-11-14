@@ -1,0 +1,266 @@
+---
+id: m15-s03
+title: "Alertmanager: routing, grouping, inhibition, silences"
+kind: lab
+minutes: 30
+order: 3
+exam:
+  - cert: pca
+    domain: P5
+    competency: Understand and Use Alertmanager
+tags: [alert-alertmanager]
+check:
+  kind: exact
+  prompt: How many alerts did the first notification to /tickets carry in action 5?
+  answers: ["2"]
+outcome: You can read and write an Alertmanager routing tree, and predict which receiver gets an alert, which alerts are sent together, and which are muted by an inhibition or a silence.
+terms:
+  - term: Alertmanager
+    def: The service that receives alerts from Prometheus and turns them into notifications, grouped, routed and muted by its configuration.
+  - term: Routing tree
+    def: The tree of routes in the Alertmanager configuration. An alert walks down it by label matchers to find its receiver.
+  - term: Grouping
+    def: Sending alerts that share the labels in group_by together, in one notification.
+  - term: Inhibition
+    def: A rule that mutes target alerts while a source alert with the same values of chosen labels is firing.
+  - term: Silence
+    def: A mute for alerts that match a set of matchers, for a fixed time, set by a person.
+  - term: amtool
+    def: The command-line tool that ships with the Alertmanager, for alerts, silences and the configuration.
+sources:
+  - title: Alertmanager (concepts)
+    url: https://prometheus.io/docs/alerting/latest/alertmanager/
+    checked: 2026-11-14
+  - title: Alertmanager configuration
+    url: https://prometheus.io/docs/alerting/latest/configuration/
+    checked: 2026-11-14
+  - title: Alertmanager README, amtool (v0.34.2)
+    url: https://github.com/prometheus/alertmanager/blob/v0.34.2/README.md
+    checked: 2026-11-14
+---
+
+<Problem>
+The database loses its network for two minutes. Within seconds, 40 checkout pods each fire `CheckoutSlow`, the checkout service fires `CheckoutDown`, and the database fires its own alert. Sent one by one, that is 42 messages on one phone, and the one that names the real problem is somewhere in the middle.
+</Problem>
+
+Prometheus decides that something is wrong. A second program decides who hears about it, and how often.
+
+<Idea>
+The Alertmanager receives alerts and turns them into notifications. A routing tree picks the receiver by labels, grouping puts alerts that belong together into one message, inhibition mutes alerts that another alert already explains, and silences mute alerts by hand for a fixed time.
+</Idea>
+
+## The routing tree picks the receiver
+
+The configuration has one top-level `route`, which matches every alert and names a default receiver. Under it are child routes, each with `matchers` such as `severity="page"`. An alert walks down the tree and stops at the first child that matches; if no child matches, the parent handles it. With `continue: true` on a route, the alert goes on to the next sibling as well, which is how one alert reaches two teams.
+
+A child route inherits what it does not set itself: the receiver, `group_by` and the three timers below.
+
+## Grouping turns many alerts into one message
+
+`group_by` names the labels that make a group. Alerts with the same values of those labels are sent together. With `group_by: [alertname, service]`, the 40 `CheckoutSlow` alerts are one group and one notification that lists all 40 pods.
+
+Three timers decide when a group is sent:
+
+- `group_wait`, 30 seconds by default: how long to wait after the first alert of a new group, so that its neighbours arrive and go into the same message.
+- `group_interval`, 5 minutes: how long to wait before sending an update when alerts join or leave a group that was already sent.
+- `repeat_interval`, 4 hours: how long before a notification that did not change is sent again.
+
+<Flow caption="One alert through the Alertmanager">
+  <Stage title="Route" kicker="matchers">The first matching child route gives the receiver.</Stage>
+  <Stage title="Group" kicker="group_by">Alerts with the same labels wait together.</Stage>
+  <Stage title="Mute" kicker="inhibit, silence">Muted alerts are left out of the message.</Stage>
+  <Stage title="Notify" kicker="receiver">One message per group.</Stage>
+</Flow>
+
+## Inhibition and silences mute what is explained
+
+An inhibition rule has source matchers, target matchers and an `equal` list. While a source alert fires, target alerts are muted if they have the same values for the labels in `equal`. In the scene above, `CheckoutDown` as source, `severity="ticket"` as target and `equal: [service]` mute the 40 slow-pod alerts of checkout, and only of checkout.
+
+A silence does the same by hand: a set of matchers, a start, an end, an author and a comment. It is for planned work and for an alert someone is already handling. It is set on the Alertmanager's web page, with `amtool silence add`, or through the API, and it ends by itself.
+
+Muted alerts are still active in the Alertmanager. They only leave the notifications, and the web page and `amtool` show them as suppressed.
+
+<InLab>
+The lab's Alertmanager in `prom` belongs to a Helm release, so you do not change it. This step runs a practice Alertmanager of your own in `learn-m15`, version 0.34.2 like the lab's, from a ConfigMap, with a small webhook pod as its only receiver. The webhook prints one line per notification: the path, the status, and the names of the alerts in it.
+</InLab>
+
+<Trap>
+Routes stop at the first match. An alert with `team="db"` and `severity="page"` that should reach both the database team and the pager reaches only the first matching sibling, unless that route has `continue: true`.
+</Trap>
+
+<Do>
+1. Save this as `m15-webhook.yaml`: a ConfigMap with a short Python program, a Deployment that runs it, and a Service.
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: webhook
+     namespace: learn-m15
+   data:
+     webhook.py: |
+       import http.server, json
+       class Hook(http.server.BaseHTTPRequestHandler):
+           def do_POST(self):
+               body = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode()
+               try:
+                   msg = json.loads(body)
+                   names = [a["labels"].get("alertname", "") for a in msg["alerts"]]
+                   print(self.path, msg["status"], len(names), "alert(s):", " ".join(names), flush=True)
+               except (ValueError, KeyError, TypeError):
+                   print(self.path, body, flush=True)
+               self.send_response(200)
+               self.end_headers()
+           def log_message(self, *args):
+               pass
+       http.server.HTTPServer(("", 8080), Hook).serve_forever()
+   ---
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: webhook
+     namespace: learn-m15
+   spec:
+     replicas: 1
+     selector:
+       matchLabels: { app: webhook }
+     template:
+       metadata:
+         labels: { app: webhook }
+       spec:
+         containers:
+           - name: webhook
+             image: docker.io/library/python:3.14.7-alpine3.24
+             command: [python, -u, /app/webhook.py]
+             ports:
+               - containerPort: 8080
+             volumeMounts:
+               - { name: app, mountPath: /app }
+             resources:
+               requests: { cpu: 10m, memory: 32Mi }
+               limits: { cpu: 100m, memory: 64Mi }
+         volumes:
+           - name: app
+             configMap: { name: webhook }
+   ---
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: webhook
+     namespace: learn-m15
+   spec:
+     selector: { app: webhook }
+     ports:
+       - port: 8080
+   ```
+2. Save this as `m15-alertmanager.yaml`. The routing tree sends `severity="page"` to the pager path and everything else to the tickets path, groups by `alertname` and `service`, and lets `CheckoutDown` mute the ticket alerts of the same service.
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: alertmanager
+     namespace: learn-m15
+   data:
+     alertmanager.yml: |
+       route:
+         receiver: team-tickets
+         group_by: [alertname, service]
+         group_wait: 10s
+         group_interval: 1m
+         repeat_interval: 4h
+         routes:
+           - receiver: on-call-pager
+             matchers: ['severity="page"']
+       inhibit_rules:
+         - source_matchers: ['alertname="CheckoutDown"']
+           target_matchers: ['severity="ticket"']
+           equal: [service]
+       receivers:
+         - name: team-tickets
+           webhook_configs:
+             - url: http://webhook.learn-m15.svc:8080/tickets
+         - name: on-call-pager
+           webhook_configs:
+             - url: http://webhook.learn-m15.svc:8080/pager
+   ---
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: alertmanager
+     namespace: learn-m15
+   spec:
+     replicas: 1
+     selector:
+       matchLabels: { app: alertmanager }
+     template:
+       metadata:
+         labels: { app: alertmanager }
+       spec:
+         containers:
+           - name: alertmanager
+             image: quay.io/prometheus/alertmanager:v0.34.2
+             args:
+               - --config.file=/etc/alertmanager/alertmanager.yml
+               - --storage.path=/tmp/alertmanager
+               - --cluster.listen-address=
+             ports:
+               - containerPort: 9093
+             volumeMounts:
+               - { name: config, mountPath: /etc/alertmanager }
+             resources:
+               requests: { cpu: 10m, memory: 32Mi }
+               limits: { cpu: 100m, memory: 128Mi }
+         volumes:
+           - name: config
+             configMap: { name: alertmanager }
+   ---
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: alertmanager
+     namespace: learn-m15
+   spec:
+     selector: { app: alertmanager }
+     ports:
+       - port: 9093
+   ```
+3. Apply both files and wait for the two pods: <Cmd>{`kubectl apply -f m15-webhook.yaml -f m15-alertmanager.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m15 rollout status deploy/webhook deploy/alertmanager --timeout=180s`}</Cmd>
+4. Print the routing tree, then ask which receiver an alert with `severity=page` would get: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool config routes --alertmanager.url=http://localhost:9093`}</Cmd> <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool config routes test --config.file=/etc/alertmanager/alertmanager.yml severity=page service=checkout`}</Cmd> The second command answers `on-call-pager`.
+5. Send three alerts: two `CheckoutSlow` from two pods, and one `CheckoutErrors` for the pager. Then, after about 15 seconds, read the webhook's log: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool alert add alertname=CheckoutSlow service=checkout severity=ticket instance=pod-a --alertmanager.url=http://localhost:9093`}</Cmd> <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool alert add alertname=CheckoutSlow service=checkout severity=ticket instance=pod-b --alertmanager.url=http://localhost:9093`}</Cmd> <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool alert add alertname=CheckoutErrors service=checkout severity=page --alertmanager.url=http://localhost:9093`}</Cmd> <Cmd>{`kubectl -n learn-m15 logs deploy/webhook`}</Cmd> One line for `/tickets`, one for `/pager`.
+6. Fire `CheckoutDown`, send a third slow pod, and list the alerts the inhibition mutes: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool alert add alertname=CheckoutDown service=checkout severity=page --alertmanager.url=http://localhost:9093`}</Cmd> <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool alert add alertname=CheckoutSlow service=checkout severity=ticket instance=pod-c --alertmanager.url=http://localhost:9093`}</Cmd> <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool alert query --inhibited --alertmanager.url=http://localhost:9093`}</Cmd> All three `CheckoutSlow` alerts show the state `suppressed`.
+7. Silence `CheckoutErrors` for 30 minutes and list the silence: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool silence add alertname=CheckoutErrors --duration=30m --author=learner --comment=practice --alertmanager.url=http://localhost:9093`}</Cmd> <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool silence query --alertmanager.url=http://localhost:9093`}</Cmd>
+8. Wait six minutes and read the webhook's log again. Paste the number of alerts in the first `/tickets` line in the check below.
+</Do>
+
+<Done>
+Your practice Alertmanager sent two slow pods as one message, routed the error to the pager path, muted the slow pods while `CheckoutDown` fired, and sent nothing about the silenced alert.
+</Done>
+
+<Trap practice>
+`amtool alert add` sends an alert without an end time, so the Alertmanager ends it after `resolve_timeout`, 5 minutes by default. That is why the log of action 8 shows `resolved` lines, and none for the silenced `CheckoutErrors`: muted alerts are left out of notifications, the resolved ones too.
+</Trap>
+
+<Remember>
+Routes pick the receiver, `group_by` and the three timers decide what goes into one message and when, inhibition mutes what another alert explains, and a silence mutes by hand until it ends.
+</Remember>
+
+<Question id="q-m15-s03" answer="d">
+A route has `group_by: [alertname]`. Alerts `DiskFull` for host `a` and for host `b` arrive one second apart, then `DiskFull` for host `c` arrives two minutes after the first notification was sent. With the default timers, how many notifications are sent in the first ten minutes?
+
+- Three, one per host, because each alert has its own instance label
+
+  The group is made by alertname only, so the three hosts share one group.
+
+- One, because a group is sent only once until repeat_interval
+
+  A group is sent again when its content changes, after group_interval.
+
+- One with all three hosts, because group_wait waits for the third
+
+  group_wait is 30 seconds by default; host c arrives long after it.
+
+- Two: hosts a and b after group_wait, then an update with c after group_interval
+
+  The first message waits group_wait for a and b; the change to the group is sent when group_interval, 5 minutes, has passed.
+</Question>
