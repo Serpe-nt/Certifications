@@ -1,0 +1,582 @@
+# Module m10 Grafana Alloy: quiz pool. Card C9, 2026-11-14.
+# Sources: the Grafana Alloy v1.21 documentation (read as Markdown from the grafana/alloy
+# repository at tag v1.21.3), the Loki and Grafana Agent pages on grafana.com, and the
+# k8s-monitoring chart 4.6.0 documentation, fetched on 2026-11-14. Behaviour marked "lab"
+# in the log was run with grafana/alloy:v1.21.3 on the lab. The log is
+# lgtm/docs/verification/m10.md. The mock pools have no question on Alloy.
+
+- id: q-m10-001
+  tags: [alloy-why]
+  exam: {cert: none}
+  q: "A cluster still runs Grafana Agent in Flow mode. Which statement about it is true today?"
+  options:
+    - text: "It reached end of life on November 1, 2025 and gets no fixes"
+      why: "Static mode, Flow mode and the Agent Operator all reached end of life on that date."
+    - text: "Flow mode is supported until 2027, as Alloy came from it"
+      why: "No variant of Grafana Agent kept support; long-term support ended on October 31, 2025."
+    - text: "Only Static mode ended; Flow mode was renamed and lives on"
+      why: "The end of life covers all three variants, Flow mode included."
+    - text: "It keeps working with Loki 3.7 but not with Mimir 3"
+      why: "The problem is that it is no longer maintained, not a backend version."
+  answer: [0]
+  source: https://grafana.com/docs/agent/latest/
+
+- id: q-m10-002
+  tags: [alloy-why, alloy-convert]
+  exam: {cert: none}
+  q: "You inherit four collector configurations: Promtail, Grafana Agent Static, Prometheus and an OpenTelemetry Collector. Which of them can <code>alloy convert</code> read?"
+  options:
+    - text: "Only the Promtail and Grafana Agent files, the products Alloy replaces"
+      why: "The converter also reads Prometheus and Collector files."
+    - text: "All four; each one has its own --source-format value"
+      why: "The formats are promtail, static, prometheus and otelcol."
+    - text: "Only the Collector file, because Alloy is a Collector distribution"
+      why: "Being a Collector distribution does not limit the converter to Collector files."
+    - text: "None; a configuration must be rewritten by hand for Alloy"
+      why: "Alloy ships a converter for exactly these formats."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/reference/cli/convert/
+
+- id: q-m10-003
+  tags: [alloy-why]
+  exam: {cert: none}
+  q: "A team only scrapes a few Prometheus exporters and forwards the samples with remote write. It has no logs, traces or profiles to collect. What does Grafana's own Alloy documentation suggest?"
+  options:
+    - text: "Alloy, because it is the only supported remote write client"
+      why: "Prometheus itself and Prometheus Agent can remote-write as well."
+    - text: "The OTel Engine, because it is the lightest part of Alloy"
+      why: "The OTel Engine is for Collector pipelines, not a lighter scraper."
+    - text: "Prometheus Agent may be the simpler tool for this"
+      why: "The page on when Alloy is not the right choice names exactly this case."
+    - text: "Alloy with clustering, so the scrapes are never lost"
+      why: "Clustering spreads a large load; a few exporters do not need it."
+  answer: [2]
+  source: https://grafana.com/docs/alloy/v1.21/introduction/why-alloy/
+
+- id: q-m10-004
+  tags: [alloy-syntax]
+  exam: {cert: none}
+  q: 'Alloy refuses this line: <code>local.file "api-key" { filename = "/etc/key" }</code>. What is wrong?'
+  options:
+    - text: "local.file needs a second label for the secret"
+      why: "A block has at most one label; local.file needs none extra."
+    - text: "The attribute must be written filename: instead of filename ="
+      why: "Alloy attributes use the equals sign."
+    - text: "The path must be in single quotes because it is a literal"
+      why: "Single quotes are a syntax error in Alloy; strings use double quotes."
+    - text: "A label must be an identifier, and hyphens are not allowed"
+      why: "Labels use letters, digits and underscores; Alloy reports that it expected a valid identifier."
+  answer: [3]
+  source: https://grafana.com/docs/alloy/v1.21/get-started/syntax/
+
+- id: q-m10-005
+  tags: [alloy-syntax]
+  exam: {cert: none}
+  q: 'A DaemonSet pod runs Alloy with <code>field = "spec.nodeName=" + sys.env("NODE")</code>, but the pod has no environment variable NODE. What does the expression give?'
+  options:
+    - text: "Alloy stops at load time with an unknown variable error"
+      why: "sys.env does not fail for a missing variable."
+    - text: '"spec.nodeName=" and nothing after it'
+      why: "sys.env returns an empty string when the variable does not exist."
+    - text: "The node name, which Alloy fills in by itself"
+      why: "Alloy does not guess a value; the lab's chart sets the variable from spec.nodeName."
+    - text: "The literal text NODE after the equals sign"
+      why: "sys.env reads the environment; it does not return its argument."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/reference/stdlib/sys/
+
+- id: q-m10-006
+  tags: [alloy-syntax]
+  exam: {cert: none}
+  q: "In one Alloy file, loki.write is defined at the top and the loki.source.file that sends to it is at the very bottom. What happens?"
+  options:
+    - text: "Alloy fails: a reference must point to a block above it"
+      why: "Order is not part of the syntax; references can point anywhere in the file."
+    - text: "The source starts first and drops lines until the writer is up"
+      why: "Alloy evaluates a component only after the components it references."
+    - text: "Nothing special; Alloy works out the order from the references"
+      why: "The order of blocks does not matter, because Alloy evaluates dependencies first."
+    - text: "The two components run in separate pipelines and never connect"
+      why: "A reference connects components whatever their position in the file."
+  answer: [2]
+  source: https://grafana.com/docs/alloy/v1.21/get-started/syntax/
+
+- id: q-m10-007
+  tags: [alloy-syntax, alloy-components]
+  exam: {cert: none}
+  q: 'A file holds <code>declare "app_logs" { argument "dest" { } ... }</code> and later <code>app_logs "team_a" { dest = [loki.write.main.receiver] }</code>. What is app_logs?'
+  options:
+    - text: "A module that Alloy downloads from a Git repository"
+      why: "Modules from Git use import.git; declare defines a component in the file itself."
+    - text: "A built-in component that the k8s-monitoring chart installs"
+      why: "The chart writes declare blocks; it does not add built-in components."
+    - text: "A comment block that Alloy ignores at run time"
+      why: "Comments use // or /* */; declare creates a usable component."
+    - text: "A custom component; dest is the input its users set"
+      why: "declare defines a custom component, and argument defines the inputs its users must set."
+  answer: [3]
+  source: https://grafana.com/docs/alloy/v1.21/get-started/components/custom-components/
+
+- id: q-m10-008
+  tags: [alloy-components]
+  exam: {cert: none}
+  q: 'Which pair connects a file reader to a processor correctly?'
+  options:
+    - text: '<code>loki.source.file "a" { forward_to = [loki.process.b.receiver] }</code>'
+      why: "The sender lists the receiver export of the component it pushes lines to."
+    - text: '<code>loki.process "b" { targets = loki.source.file.a.output }</code>'
+      why: "loki.process has no targets argument, and log lines are pushed, not pulled."
+    - text: '<code>loki.source.file "a" { forward_to = loki.process.b }</code>'
+      why: "A reference needs an export name, and forward_to takes a list."
+    - text: '<code>loki.process "b" { input = [loki.source.file.a.receiver] }</code>'
+      why: "A source exports no receiver; only the component that accepts data does."
+  answer: [0]
+  source: https://grafana.com/docs/alloy/v1.21/get-started/expressions/referencing_exports/
+
+- id: q-m10-009
+  tags: [alloy-components]
+  exam: {cert: none}
+  q: "You change a discovery.relabel rule to a regex Alloy cannot compile and reload the configuration. What do the targets of the scraper after it do?"
+  options:
+    - text: "They drop to zero until the regex is fixed"
+      why: "Alloy does not clear the exports of a component that failed to evaluate."
+    - text: "They stay: the relabel turns unhealthy but keeps its last exports"
+      why: "A component that fails to evaluate keeps its last valid configuration, so the scraper still gets targets."
+    - text: "Alloy exits, and the pod restarts until the file is fixed"
+      why: "One failed component does not stop Alloy; the controller isolates it."
+    - text: "The scraper is marked unhealthy too, because it references the relabel"
+      why: "A component's health is independent of the health of the components it references."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/get-started/components/component-controller/
+
+- id: q-m10-010
+  tags: [alloy-components]
+  exam: {cert: none}
+  q: 'Why is <code>local.file "a" { filename = local.file.b.content }</code> together with <code>local.file "b" { filename = local.file.a.content }</code> refused?'
+  options:
+    - text: "local.file cannot take its file name from an expression of any kind"
+      why: "Arguments can be expressions; the problem is the loop."
+    - text: "Two local.file components cannot exist in one file"
+      why: "Different labels make two instances of the same component valid."
+    - text: "The references form a cycle, which the graph does not allow"
+      why: "The component controller builds a directed acyclic graph, so circular references are invalid."
+    - text: "content is not an export of local.file"
+      why: "local.file exports content; the references themselves are well formed."
+  answer: [2]
+  source: https://grafana.com/docs/alloy/v1.21/get-started/components/component-controller/
+
+- id: q-m10-011
+  tags: [alloy-debugging]
+  exam: {cert: none}
+  q: "Pod logs from one node are missing. On that node's Alloy screen, where do you look first to see whether the log file was found and how far it was read?"
+  options:
+    - text: "The home page, in the health column of the custom component's row"
+      why: "Health says whether a component evaluated, not which files it follows."
+    - text: "The Clustering page, in the list of peers"
+      why: "That page lists cluster nodes; it says nothing about files."
+    - text: "The Graph page, on the edge into loki.write"
+      why: "The graph shows the wiring and, with live debugging, rates; not individual files."
+    - text: "The debug info of loki.source.file: each file and its offset"
+      why: "Its debug info lists the path, labels, whether the reader runs and the read offset."
+  answer: [3]
+  source: https://grafana.com/docs/alloy/v1.21/troubleshoot/debug/
+
+- id: q-m10-012
+  tags: [alloy-debugging]
+  exam: {cert: none}
+  q: "You add <code>livedebugging { enabled = true }</code> to a production Alloy. What does the documentation advise you to think about?"
+  options:
+    - text: "The UI then shows telemetry, so secure the HTTP server with TLS"
+      why: "Live debugging can show sensitive data; the page advises TLS in the http block."
+    - text: "Live debugging doubles the amount of data sent to every backend"
+      why: "It streams data to the UI only; what is sent to backends does not change."
+    - text: "It needs the experimental stability level before Alloy will start"
+      why: "The livedebugging block works at the default stability level, as in the practice Alloy."
+    - text: "It disables clustering while it is on"
+      why: "Nothing ties live debugging to clustering."
+  answer: [0]
+  source: https://grafana.com/docs/alloy/v1.21/reference/config-blocks/livedebugging/
+
+- id: q-m10-013
+  tags: [alloy-debugging]
+  exam: {cert: none}
+  q: 'On a component page, the export data of <code>remote.kubernetes.secret "db"</code> shows its key password as (secret). Why?'
+  options:
+    - text: "The pod lacks RBAC to read the Secret"
+      why: "Without access the component would be unhealthy; (secret) means the value was read."
+    - text: "The UI shows values of the secret type as (secret)"
+      why: "Secret values are hidden in the UI on purpose."
+    - text: "The Secret is empty, and (secret) is a placeholder"
+      why: "An empty value would not be shown as (secret)."
+    - text: "Live debugging is off, so values are hidden"
+      why: "Component pages show evaluated values without live debugging; only secrets are masked."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/troubleshoot/debug/
+
+- id: q-m10-014
+  tags: [alloy-logs]
+  exam: {cert: none}
+  q: "An Alloy Deployment uses loki.source.kubernetes to follow pods in its namespace. Its log shows a forbidden error when it opens the log stream. Which permission is missing?"
+  options:
+    - text: "get on nodes, to find out where each pod is running"
+      why: "The component reads logs through the API server, not from the node."
+    - text: "A hostPath mount of /var/log/pods"
+      why: "loki.source.kubernetes needs no access to the node's file system."
+    - text: "get on pods/log, the subresource that serves logs"
+      why: "Logs come from the pods/log subresource of the API, which needs its own permission."
+    - text: "create on events, so Alloy can report the read"
+      why: "Reading logs creates no events."
+  answer: [2]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.source.kubernetes/
+
+- id: q-m10-015
+  tags: [alloy-logs]
+  exam: {cert: none}
+  q: 'A multi-tenant Loki answers no org id to pushes from <code>loki.write "out" { endpoint { url = "http://loki-gateway/loki/api/v1/push" } }</code>. What fixes it?'
+  options:
+    - text: "Add a label named tenant to external_labels on the writer"
+      why: "A label is part of the data; Loki reads the tenant from a header."
+    - text: "Set tenant_id in the endpoint block"
+      why: "Without tenant_id, loki.write sends no X-Scope-OrgID header."
+    - text: "Use the OTLP path /otlp instead of the push API"
+      why: "Every Loki API needs the tenant header in multi-tenant mode."
+    - text: "Add a stage.tenant block inside the loki.write component"
+      why: "stage.tenant is a stage of loki.process, not a block of loki.write."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.write/
+
+- id: q-m10-016
+  tags: [alloy-logs]
+  exam: {cert: none}
+  q: 'A pod has two containers, app with one port named http and sidecar with no ports. How many targets does <code>discovery.kubernetes "p" { role = "pod" }</code> give for it?'
+  options:
+    - text: "One, for the pod as a whole"
+      why: "The pod role exposes containers, not whole pods."
+    - text: "One, only for the container that declares a port"
+      why: "A container without ports still gets a port-free target."
+    - text: "Two: one per declared port and one port-free target"
+      why: "The pod role makes a target per declared port and a port-free one per container without ports."
+    - text: "Three: one per container plus an extra one for the pod IP"
+      why: "There is no extra target for the pod itself."
+  answer: [2]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/discovery/discovery.kubernetes/
+
+- id: q-m10-017
+  tags: [alloy-logs]
+  exam: {cert: none}
+  q: 'After <code>stage.json { expressions = { level = "" } }</code>, a loki.process has <code>stage.drop { source = "level" value = "debug" }</code> and <code>stage.drop { expression = "healthz" }</code>. Which lines are dropped?'
+  options:
+    - text: "Only lines that are debug and also mention healthz"
+      why: "Conditions in one block are joined with AND; separate blocks act one after the other."
+    - text: "Debug lines, and lines that mention healthz"
+      why: "Each stage.drop drops on its own, so two blocks act as OR."
+    - text: "None; two drop stages cancel each other out"
+      why: "Stages do not cancel; each runs in turn on the lines still left."
+    - text: "Only the first matching line of each kind"
+      why: "A drop stage applies to every line that matches."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.process/
+
+- id: q-m10-018
+  tags: [alloy-logs]
+  exam: {cert: none}
+  q: 'The stream label pod comes from discovery. A loki.process adds <code>stage.structured_metadata { values = { pod = "" } }</code>. What happens to pod?'
+  options:
+    - text: "It stays a label and is also copied to structured metadata"
+      why: "A label added to structured metadata is removed from the label set."
+    - text: "Nothing, because the stage reads only values parsed from JSON"
+      why: "The lab's own collector moves its pod label exactly this way."
+    - text: "Loki refuses the line because a key cannot be both"
+      why: "The stage moves the key, so it is never both."
+    - text: "It leaves the label set and is stored as structured metadata"
+      why: "Labels added to structured metadata are removed from the label map."
+  answer: [3]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.process/
+
+- id: q-m10-019
+  tags: [alloy-logs]
+  exam: {cert: none}
+  q: 'Lines look like {"lvl":"warn","msg":"slow"}. Which stage pair gives each line the label level with the value warn?'
+  options:
+    - text: '<code>stage.json { expressions = { level = "lvl" } }</code>, then <code>stage.labels { values = { level = "" } }</code>'
+      why: "The JSON stage extracts lvl under the name level; the labels stage then reads level from the map."
+    - text: '<code>stage.labels { values = { level = "" } }</code>, then <code>stage.json { expressions = { level = "lvl" } }</code>'
+      why: "The labels stage runs first and finds nothing in the map."
+    - text: '<code>stage.json { expressions = { lvl = "" } }</code>, then <code>stage.labels { values = { level = "" } }</code>'
+      why: "The map then holds lvl, and the labels stage looks for level."
+    - text: '<code>stage.static_labels { values = { level = "lvl" } }</code>'
+      why: "static_labels sets the fixed text lvl, not the field's value."
+  answer: [0]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.process/
+
+- id: q-m10-020
+  tags: [alloy-metrics]
+  exam: {cert: none}
+  q: 'With <code>prometheus.scrape "pods" { targets = discovery.relabel.k.output  forward_to = [prometheus.remote_write.m.receiver] }</code> and nothing else set, how often is each target scraped?'
+  options:
+    - text: "Every 15 seconds, as in most examples"
+      why: "15 seconds is common in examples; Alloy's default is longer."
+    - text: "Every 30 seconds, half the scrape timeout"
+      why: "The default timeout is 10 seconds, and the interval does not derive from it."
+    - text: "Once, at start, until the targets change"
+      why: "A scrape repeats on its interval."
+    - text: "Every 60 seconds, the default scrape_interval"
+      why: "scrape_interval defaults to 60s in prometheus.scrape."
+  answer: [3]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/prometheus/prometheus.scrape/
+
+- id: q-m10-021
+  tags: [alloy-metrics]
+  exam: {cert: none}
+  q: 'After a restart, dashboards that filter on job="api" show nothing. The file now has <code>prometheus.scrape "api_v2"</code> where it had <code>prometheus.scrape "api"</code>, with no job_name. What changed?'
+  options:
+    - text: "The job label is now prometheus.scrape.api_v2"
+      why: "Without job_name or a job label on the target, the job is the component's name."
+    - text: "Nothing in the data; the label of a block is not stored anywhere"
+      why: "The block label is part of the component's name, which becomes the job label."
+    - text: "The series moved to a new tenant named after the label"
+      why: "The tenant comes from the remote write header, not the scrape label."
+    - text: "The scrape stopped, because labels must not contain digits"
+      why: "Digits are allowed in a label as long as it does not start with one."
+  answer: [0]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/prometheus/prometheus.scrape/
+
+- id: q-m10-022
+  tags: [alloy-metrics]
+  exam: {cert: none}
+  q: "Mimir is unreachable for three minutes. What keeps the samples Alloy scraped in that time?"
+  options:
+    - text: "prometheus.scrape, which holds the last scrape of each target"
+      why: "The scraper forwards samples at once; it has no buffer of its own."
+    - text: "Mimir's distributors, which queue the pushes they refused"
+      why: "A server that cannot be reached queues nothing."
+    - text: "The write-ahead log of prometheus.remote_write"
+      why: "The WAL buffers unsent metrics during network problems."
+    - text: "Kafka, because Mimir 3 ingests through it"
+      why: "Kafka sits behind Mimir's distributors, after the push succeeds."
+  answer: [2]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/prometheus/prometheus.remote_write/
+
+- id: q-m10-023
+  tags: [alloy-metrics, alloy-clustering]
+  exam: {cert: none}
+  q: "A central Alloy scrapes 400,000 active series and runs as a Deployment with no volume. What does Grafana's deployment page recommend for this workload?"
+  options:
+    - text: "A DaemonSet, so each node scrapes its own pods"
+      why: "A host daemon is for node-level data; application metrics suit central collection."
+    - text: "A StatefulSet, so each pod keeps a volume for its WAL"
+      why: "Persistent pod identities let volumes for the WAL follow the right pod."
+    - text: "A sidecar next to each application"
+      why: "Sidecars are for short-lived or unreachable workloads."
+    - text: "Horizontal scaling at once, because one replica tops out at 100,000 series"
+      why: "The page suggests looking at horizontal scaling around one million series."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/set-up/deploy/
+
+- id: q-m10-024
+  tags: [alloy-otlp]
+  exam: {cert: none}
+  q: 'Which pipeline sends traces from an OTLP receiver through a batch processor to an exporter?'
+  options:
+    - text: '<code>otelcol.processor.batch "b" { input = otelcol.receiver.otlp.r.output }</code>'
+      why: "Data is pushed: the receiver must name the processor, not the other way round."
+    - text: '<code>service { pipelines { traces = [r, b, e] } }</code>'
+      why: "That is the Collector's model; Alloy has no service block."
+    - text: '<code>otelcol.receiver.otlp "r" { output { traces = [otelcol.processor.batch.b.input] } }</code> and the batch names the exporter the same way'
+      why: "Each otelcol component lists the next component's input in its output block."
+    - text: '<code>otelcol.receiver.otlp "r" { forward_to = [otelcol.exporter.otlp.e.receiver] }</code>'
+      why: "otelcol components use output blocks and input exports, not forward_to and receiver."
+  answer: [2]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.receiver.otlp/
+
+- id: q-m10-025
+  tags: [alloy-otlp]
+  exam: {cert: none}
+  q: 'An SDK sends logs and traces to <code>otelcol.receiver.otlp "r" { grpc { } output { traces = [otelcol.exporter.otlp.t.input] } }</code>. What happens to the logs?'
+  options:
+    - text: "They are sent to the same exporter as the traces"
+      why: "Only the traces list names the exporter."
+    - text: "The receiver refuses to start without a logs list"
+      why: "Every list of the output block is optional."
+    - text: "They are buffered until a logs list is added"
+      why: "Nothing buffers data that has no consumer."
+    - text: "They are dropped: the logs list is empty"
+      why: "By default telemetry with no consumer in the output block is dropped."
+  answer: [3]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.receiver.otlp/
+
+- id: q-m10-026
+  tags: [alloy-otlp]
+  exam: {cert: none}
+  q: 'An <code>otelcol.exporter.otlp</code> sends to a Tempo distributor on port 4317 that serves plain gRPC without TLS. Nothing arrives. Which setting is missing in its client block?'
+  options:
+    - text: '<code>tls { insecure = true }</code>'
+      why: "If the server does not support TLS, the insecure argument must be set to true."
+    - text: '<code>tls { insecure_skip_verify = true }</code>'
+      why: "That still uses TLS and only skips checking the certificate."
+    - text: '<code>compression = "none"</code> in the client block'
+      why: "Compression does not decide whether the connection uses TLS."
+    - text: '<code>protocol = "http"</code> on the exporter'
+      why: "otelcol.exporter.otlp speaks gRPC; HTTP has its own exporter."
+  answer: [0]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.exporter.otlp/
+
+- id: q-m10-027
+  tags: [alloy-convert]
+  exam: {cert: none}
+  q: "alloy convert stops on a Collector file with: 'processors' unknown type: \"resource\". What does that tell you?"
+  options:
+    - text: "The Collector file has a YAML syntax error in the resource block"
+      why: "The YAML was read; the type is what Alloy does not know."
+    - text: "Running the command again with --bypass-errors will fix it"
+      why: "This is a critical error; Alloy cannot load the file as a configuration it knows."
+    - text: "Alloy has no such processor; replace it with transform first"
+      why: "Only components Alloy wraps can be converted; the transform processor can set the attribute instead."
+    - text: "The converter needs --source-format=static for that processor"
+      why: "static is for Grafana Agent Static files, not Collector processors."
+  answer: [2]
+  source: https://grafana.com/docs/alloy/v1.21/set-up/migrate/from-otelcol/
+
+- id: q-m10-028
+  tags: [alloy-convert]
+  exam: {cert: none}
+  q: "A converted file contains <code>otelcol.processor.batch \"default\" { timeout = \"2s\"  send_batch_size = 8192 }</code>, though the Collector file only set timeout. Why did send_batch_size appear?"
+  options:
+    - text: "The converter copies every default of the Collector into the output"
+      why: "Defaults that match Alloy's are left out of the output."
+    - text: "8192 was a hidden value in the Collector file's comments"
+      why: "Comments are not read as settings."
+    - text: "Alloy needs every argument of a component to be written out"
+      why: "Most arguments are optional and left out of converted files."
+    - text: "Defaults that differ from Alloy's are written out"
+      why: "The converter adds a non-provided default when it does not match Alloy's own."
+  answer: [3]
+  source: https://grafana.com/docs/alloy/v1.21/reference/cli/convert/
+
+- id: q-m10-029
+  tags: [alloy-convert]
+  exam: {cert: none}
+  q: "You converted a file and alloy validate passes with --stability.level=experimental. Production runs Alloy with its default flags. What do you still check?"
+  options:
+    - text: "Nothing; validation passed"
+      why: "It passed at a lower stability level than production allows."
+    - text: "Validate again with production's stability level"
+      why: "Components below generally-available fail at the default level, so validate with the real flags."
+    - text: "That alloy fmt has formatted the file the same way"
+      why: "Formatting does not change what is allowed to run."
+    - text: "That every component in the file has a different label"
+      why: "Validation already checks for name conflicts."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/reference/cli/validate/
+
+- id: q-m10-030
+  tags: [alloy-clustering]
+  exam: {cert: none}
+  q: 'Three Alloy replicas run with --cluster.enabled and the same <code>prometheus.scrape "app"</code>, which has no clustering block. How often is each target scraped?'
+  options:
+    - text: "Three times per interval, once by each replica"
+      why: "Without a clustering block in the component, every replica scrapes every target."
+    - text: "Once per interval, by the replica that owns each target"
+      why: "Only components with clustering { enabled = true } share their targets."
+    - text: "Once per interval, by the oldest replica only"
+      why: "Clustering has no leader that does the work."
+    - text: "Never, because the flag and the block disagree"
+      why: "The scrape runs normally; it just does not share."
+  answer: [0]
+  source: https://grafana.com/docs/alloy/v1.21/get-started/clustering/
+
+- id: q-m10-031
+  tags: [alloy-clustering]
+  exam: {cert: none}
+  q: "A clustered scrape runs on four replicas. One replica is removed. What happens to the targets?"
+  options:
+    - text: "Every target is reassigned, and all replicas start over"
+      why: "Consistent hashing moves only the targets of the node that left."
+    - text: "The removed replica's targets stay unscraped until it returns"
+      why: "The remaining replicas pick up those targets."
+    - text: "The others take over its share; about 1/N of targets move"
+      why: "Consistent hashing redistributes only about 1/N of the targets when the cluster size changes."
+    - text: "A leader replica assigns them after a vote"
+      why: "Each node works out ownership locally; nothing is voted on or sent."
+  answer: [2]
+  source: https://grafana.com/docs/alloy/v1.21/get-started/clustering/
+
+- id: q-m10-032
+  tags: [alloy-clustering]
+  exam: {cert: none}
+  q: "A team sets --cluster.wait-for-size=6 on an Alloy StatefulSet of six replicas with a disruption budget that allows one pod down. What goes wrong in a rolling update?"
+  options:
+    - text: "Nothing at all; the update simply waits until all six pods are ready"
+      why: "A rolling update takes pods down one at a time, so the cluster drops below six."
+    - text: "Five is below the minimum, so cluster components stop working"
+      why: "Below the minimum size, instances stop processing traffic in cluster-enabled components."
+    - text: "Kubernetes refuses the update because of the flag"
+      why: "Kubernetes does not read Alloy's flags."
+    - text: "The replicas form two clusters of three"
+      why: "The flag sets a minimum size; it does not split a cluster."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/get-started/clustering/
+
+- id: q-m10-033
+  tags: [k8s-monitoring-chart]
+  exam: {cert: none}
+  q: "In the k8s-monitoring chart, a collector has the presets daemonset and filesystem-log-reader. Which object changes if you remove filesystem-log-reader?"
+  options:
+    - text: "The Alloy configuration loses its loki.source.file component"
+      why: "Presets do not write configuration; the Pod Logs feature does."
+    - text: "The Loki destination stops receiving logs from other collectors"
+      why: "A collector's presets do not affect other collectors."
+    - text: "The custom resource and DaemonSet lose the /var/log mounts"
+      why: "The preset sets alloy.mounts.varlog and dockercontainers, which become hostPath volumes."
+    - text: "The DaemonSet becomes a Deployment with one replica"
+      why: "That is what the singleton preset does; daemonset stays."
+  answer: [2]
+  source: https://github.com/grafana/k8s-monitoring-helm/blob/k8s-monitoring-4.6.0/charts/k8s-monitoring/docs/collectors/presets/filesystem-log-reader.md
+
+- id: q-m10-034
+  tags: [k8s-monitoring-chart, alloy-components]
+  exam: {cert: none}
+  q: "The lab's values set destinations.loki.tenantId to lab. How does that value reach the loki.write component of each collector?"
+  options:
+    - text: "As tenant_id = \"lab\" written straight into every collector's file"
+      why: "The chart puts it in a Secret and reads it back with a component."
+    - text: "Through a Secret read by remote.kubernetes.secret"
+      why: "The lab's file reads tenantId from the Secret loki-k8s-monitoring and passes it to tenant_id."
+    - text: "As an environment variable that sys.env reads"
+      why: "The lab's file has no sys.env for the tenant."
+    - text: "As an external label named tenant on every line"
+      why: "Labels do not select a tenant; the X-Scope-OrgID header does."
+  answer: [1]
+  source: https://grafana.com/docs/alloy/v1.21/reference/components/remote/remote.kubernetes.secret/
+
+- id: q-m10-035
+  tags: [alloy-or-collector]
+  exam: {cert: none}
+  q: "A team wants the Alloy binary to run its existing Collector YAML on the upstream Collector runtime, with no translation into Alloy components. What does Alloy 1.21 offer, and with what status?"
+  options:
+    - text: "alloy run --config.format=otelcol, which reads the YAML at start"
+      why: "That flag converts the file at load time into Alloy components; it is not the Collector runtime."
+    - text: "alloy convert, run at every start"
+      why: "Converting is the opposite of running the YAML as it is."
+    - text: "Nothing; Alloy reads only its own syntax"
+      why: "Alloy embeds the Collector runtime for this case."
+    - text: "alloy otel, the OTel Engine, a public preview feature"
+      why: "The OTel Engine runs Collector YAML directly and is in public preview."
+  answer: [3]
+  source: https://grafana.com/docs/alloy/v1.21/introduction/otel_alloy/
+
+- id: q-m10-036
+  tags: [alloy-or-collector]
+  exam: {cert: none}
+  q: "Which need points most clearly to Alloy's Default Engine rather than to the OpenTelemetry Collector?"
+  options:
+    - text: "Scraping exporters and tailing pod logs, with a UI to debug"
+      why: "Pull-based scrapes, Loki pipelines and the UI are the Default Engine's strengths."
+    - text: "Receiving OTLP from SDKs and exporting it to a non-Grafana backend"
+      why: "That is an OpenTelemetry-native pipeline, where the Collector fits well."
+    - text: "Keeping the configuration the OTCA exam teaches"
+      why: "The exam covers the Collector's YAML, which favours the Collector."
+    - text: "Reusing two years of Collector YAML without changes"
+      why: "Unchanged Collector YAML points to the Collector or the OTel Engine."
+  answer: [0]
+  source: https://grafana.com/docs/alloy/v1.21/introduction/otel_alloy/

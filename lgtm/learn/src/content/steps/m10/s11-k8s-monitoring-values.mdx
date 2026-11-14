@@ -1,0 +1,117 @@
+---
+id: m10-s11
+title: The k8s-monitoring chart values, revisited
+kind: lab
+minutes: 20
+order: 11
+exam:
+  - cert: none
+tags: [k8s-monitoring-chart]
+check:
+  kind: exact
+  prompt: Paste the host path that the log collector's DaemonSet mounts as the volume named varlog.
+  answers: ["/var/log", "/var/log/"]
+outcome: You can trace each value of the lab's k8s-monitoring values file to the Alloy components, Kubernetes objects and settings it produces, and predict what a change of value will change.
+terms:
+  - term: Alloy custom resource
+    def: An object of kind Alloy that the chart creates per collector; the Alloy Operator turns it into a workload.
+  - term: Destination
+    def: A named backend in the chart's values; it becomes a write component and its settings in each collector's file.
+sources:
+  - title: k8s-monitoring chart README, 4.6.0 (GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/k8s-monitoring-4.6.0/charts/k8s-monitoring/README.md
+    checked: 2026-11-14
+  - title: Daemonset preset (k8s-monitoring 4.6.0, GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/k8s-monitoring-4.6.0/charts/k8s-monitoring/docs/collectors/presets/daemonset.md
+    checked: 2026-11-14
+  - title: Filesystem log reader preset (k8s-monitoring 4.6.0, GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/k8s-monitoring-4.6.0/charts/k8s-monitoring/docs/collectors/presets/filesystem-log-reader.md
+    checked: 2026-11-14
+  - title: Singleton preset (k8s-monitoring 4.6.0, GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/k8s-monitoring-4.6.0/charts/k8s-monitoring/docs/collectors/presets/singleton.md
+    checked: 2026-11-14
+  - title: Feature Pod Logs via Loki (k8s-monitoring 4.6.0, GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/k8s-monitoring-4.6.0/charts/k8s-monitoring/charts/feature-pod-logs-via-loki/README.md
+    checked: 2026-11-14
+  - title: Feature Cluster Events (k8s-monitoring 4.6.0, GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/k8s-monitoring-4.6.0/charts/k8s-monitoring/charts/feature-cluster-events/README.md
+    checked: 2026-11-14
+  - title: loki.source.kubernetes_events (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.source.kubernetes_events/
+    checked: 2026-11-14
+---
+
+<Problem>
+Someone asks you to stop collecting logs from one more namespace and to add a label to every log line. In module m06 you learned which part of the k8s-monitoring values file to touch. Now you are asked a sharper question: after `helm upgrade`, which lines of the running Alloy configuration will be different?
+</Problem>
+
+You can now read the configuration the chart writes, so you can check every value against what it produces.
+
+<Idea>
+Every value of the k8s-monitoring chart ends up in one of two places: in the Alloy configuration of a collector, as components and arguments, or in the Kubernetes objects that run it, through an Alloy custom resource. A feature becomes a custom component, a destination becomes a write component, and a preset becomes workload settings.
+</Idea>
+
+## Features become custom components
+
+`podLogsViaLoki` becomes `declare "pod_logs_via_loki"` and one use of it, `pod_logs_via_loki "feature"`, in the configuration of the collector it names, `alloy-logs`. Its `excludeNamespaces: [shop]` becomes one relabel rule in `discovery.relabel "filtered_pods"`: `source_labels = ["namespace"]`, `regex = "shop"`, `action = "drop"`. `clusterEvents` becomes `declare "cluster_events"` in `alloy-singleton`, built around `loki.source.kubernetes_events` with the job name `integrations/kubernetes/eventhandler`.
+
+## Destinations become writers
+
+The destination `loki` (type `loki`, a URL, `tenantId: lab`) becomes `loki.write "loki"` in every collector that sends to it. The chart puts the tenant into a Secret, `loki-k8s-monitoring`, and the configuration reads it back with `remote.kubernetes.secret "loki"` and `convert.nonsensitive`. It also adds `otelcol.exporter.loki "loki"`, so that OTLP logs could reach the same writer. `cluster.name: lgtm-lab` becomes two external labels on that writer, `cluster` and `k8s_cluster_name`.
+
+<Flow caption="From one value to the running pod">
+  <Stage title="values.yaml" kicker="You write">podLogsViaLoki, destinations, collectors</Stage>
+  <Stage title="ConfigMap" kicker="Chart renders">config.alloy with components</Stage>
+  <Stage title="Alloy resource" kicker="Chart renders">kind Alloy: controller type, mounts, resources</Stage>
+  <Stage title="Workload" kicker="Operator builds">DaemonSet or Deployment with the ConfigMap mounted</Stage>
+</Flow>
+
+## Presets become workload settings
+
+A collector's presets never reach the Alloy configuration. They fill its Alloy custom resource, `kind: Alloy`, from which the Alloy Operator builds the workload. `daemonset` sets `controller.type: daemonset` and a toleration for every `NoSchedule` taint, which is why the lab's log collector also runs on the control-plane node. `filesystem-log-reader` sets `alloy.mounts.varlog` and `alloy.mounts.dockercontainers`, which become two `hostPath` volumes. `singleton` sets a Deployment with one replica. The collector's `alloy.resources` become the container's requests and limits.
+
+<InLab>
+The values file is `lgtm/lab/helm/k8s-monitoring/values.yaml`. `selfReporting: false` is why no usage report component appears in either configuration, and the chart gives the Alloy pods the annotation `k8s.grafana.com/logs.job: integrations/alloy`, which a relabel rule turns into their own logs' `job` label.
+</InLab>
+
+<Trap>
+A change to `collectors.*.presets` or resources changes the pods, not the configuration; a change to a feature or a destination changes the configuration, not the pods. Look in the right place when you check an upgrade.
+</Trap>
+
+<Do>
+1. In the repository, from `lgtm/lab`, read the values: <Cmd>grep -v '^ *#' helm/k8s-monitoring/values.yaml | grep -v '^$'</Cmd>
+2. List the Alloy custom resources the chart created: <Cmd>kubectl -n alloy get alloy</Cmd> One per collector.
+3. Read what the presets of `alloy-logs` became: <Cmd>kubectl -n alloy get alloy k8s-monitoring-alloy-logs -o yaml | grep -n -A8 -E '^    mounts:|^  controller:'</Cmd> The mounts `varlog` and `dockercontainers`, the controller type `daemonset`, the toleration.
+4. Follow the mounts to the DaemonSet the operator built: <Cmd>{`kubectl -n alloy get daemonset k8s-monitoring-alloy-logs -o jsonpath='{range .spec.template.spec.volumes[*]}{.name}{" "}{.hostPath.path}{"\\n"}{end}'`}</Cmd>
+5. Find what `excludeNamespaces` and `cluster.name` became in the configuration: <Cmd>{`kubectl -n alloy get configmap k8s-monitoring-alloy-logs -o jsonpath='{.data.config\\.alloy}' | grep -n -B1 -A2 'regex = "shop"\\|"cluster" ='`}</Cmd>
+6. Find what `clusterEvents` became in the other collector: <Cmd>{`kubectl -n alloy get configmap k8s-monitoring-alloy-singleton -o jsonpath='{.data.config\\.alloy}' | grep -n -A3 'loki.source.kubernetes_events "'`}</Cmd>
+7. Paste the host path of the volume `varlog` from action 4 in the check below.
+</Do>
+
+<Done>
+You traced a feature, a destination, the cluster name and two presets from the values file to the components and the workload settings they produce.
+</Done>
+
+<Remember>
+Features and destinations write the configuration; presets and resources shape the pods. The Alloy custom resource sits between the chart and the workload.
+</Remember>
+
+<Question id="q-m10-s11" answer="c">
+You add `kube-system` to `podLogsViaLoki.excludeNamespaces` and run `helm upgrade`. Where does the change show up?
+
+- In the Alloy custom resource, as a new pod annotation
+
+  The custom resource holds workload settings from presets. Excluded namespaces are part of the collection logic.
+
+- In the DaemonSet, as a narrower `hostPath` mount
+
+  The mounts come from the filesystem-log-reader preset and do not change with the namespace list.
+
+- In the `alloy-logs` configuration, as a drop rule in `discovery.relabel`
+
+  The exclusion becomes a relabel rule with action drop on the namespace label.
+
+- In Loki, as a per-tenant setting that rejects those streams
+
+  The chart does not change Loki. The lines are never collected in the first place.
+</Question>

@@ -1,0 +1,263 @@
+---
+id: m10-s07
+title: Receive OTLP with the otelcol components
+kind: lab
+minutes: 25
+order: 7
+exam:
+  - cert: none
+tags: [alloy-otlp]
+check:
+  kind: exact
+  prompt: Paste the name of the root span of the traces your Alloy delivered to Tempo.
+  answers: ["lets-go"]
+outcome: You can build an OTLP pipeline in Alloy from otelcol components, name the Collector component each one wraps, and send traces to Tempo under your own tenant.
+terms:
+  - term: otelcol components
+    def: Alloy components that wrap OpenTelemetry Collector receivers, processors, exporters and connectors.
+  - term: output block
+    def: The block of an otelcol component that lists, per signal, where its data goes next.
+  - term: input
+    def: The export of an otelcol processor or exporter that other otelcol components send data to.
+sources:
+  - title: otelcol.receiver.otlp (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.receiver.otlp/
+    checked: 2026-11-14
+  - title: otelcol.processor.batch (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.processor.batch/
+    checked: 2026-11-14
+  - title: otelcol.exporter.otlp (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.exporter.otlp/
+    checked: 2026-11-14
+  - title: Collect OpenTelemetry data (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/collect/opentelemetry-data/
+    checked: 2026-11-14
+  - title: Grafana Alloy v1.21.0 release notes (GitHub)
+    url: https://github.com/grafana/alloy/releases/tag/v1.21.0
+    checked: 2026-11-14
+---
+
+<Problem>
+A service is instrumented with an OpenTelemetry SDK and sends OTLP. In module m09 you would put a Collector in front of it. The team you work with runs only Alloy and does not want a second kind of collector in the cluster for traces.
+</Problem>
+
+Alloy contains the Collector's own components for OTLP. You connect them the Alloy way, by references, instead of with a `service` section.
+
+<Idea>
+Each `otelcol.*` component wraps one Collector component: `otelcol.receiver.otlp` is the OTLP receiver, `otelcol.processor.batch` the batch processor, `otelcol.exporter.otlp` the OTLP exporter over gRPC. Each one sends its data on through an `output` block that lists the `input` export of the next component, one list per signal.
+</Idea>
+
+## The same components, wired differently
+
+In the Collector, components are declared in one place and wired in `service.pipelines`, a separate list per signal. In Alloy, the wiring is inside each component. The receiver's `output` block says `traces = [otelcol.processor.batch.default.input]`; the processor's `output` names the exporter's `input`. A receiver that should also pass on metrics adds `metrics = [...]` to the same block. The behaviour of each piece, its settings and its defaults come from the Collector code it wraps. Alloy 1.21 bundles Collector v0.162.0.
+
+<Compare caption="One traces pipeline, two ways to write it">
+  <Col title="Collector (m09)">receivers, processors, exporters declared by ID; wired in service.pipelines.traces.</Col>
+  <Col title="Alloy" hot>Each component names the next one's input in its own output block.</Col>
+</Compare>
+
+## Three components, three Collector names
+
+`otelcol.receiver.otlp` wraps the Collector's `otlp` receiver. Here it listens for gRPC on `0.0.0.0:4317`, which is also Alloy's default for it. `otelcol.processor.batch` wraps the `batch` processor and groups spans before export. `otelcol.exporter.otlp` wraps the Collector's OTLP exporter for gRPC. Its `client` block holds the endpoint, the headers and the TLS settings.
+
+## Tenant and TLS on the exporter
+
+Tempo reads the tenant from the same `X-Scope-OrgID` header as Loki and Mimir, so the exporter sets it in `headers`. The lab's Tempo distributor listens in plain text, and the exporter's documentation says a server without TLS needs `insecure = true` in the `tls` block. Against a real backend on the internet, you would leave TLS on.
+
+<InLab>
+The lab's collector gateway from module m09 does the same job for the shop, with the exporter `otlp_grpc/tempo` and tenant `lab`. Your Alloy sends to the same Tempo distributor, `tempo-distributor.tempo.svc:4317`, as tenant `learn-m10`.
+</InLab>
+
+<Trap>
+An `output` block with no list for a signal drops that signal: by default the lists are empty and the data is discarded. A receiver whose `output` names only `traces` throws away any metrics or logs it receives.
+</Trap>
+
+<Do>
+1. Replace `m10-config.yaml` with this version. The logs and metrics pipelines are unchanged; the three `otelcol` components at the end are new:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m10-alloy
+     namespace: learn-m10
+   data:
+     config.alloy: |
+       livedebugging {
+         enabled = true
+       }
+
+       discovery.kubernetes "pods" {
+         role = "pod"
+         namespaces {
+           names = ["learn-m10"]
+         }
+       }
+
+       discovery.relabel "app_logs" {
+         targets = discovery.kubernetes.pods.targets
+
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_name"]
+           regex         = "podinfo"
+           action        = "keep"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_namespace"]
+           target_label  = "namespace"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_name"]
+           target_label  = "pod"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_name"]
+           target_label  = "container"
+         }
+       }
+
+       loki.source.kubernetes "app" {
+         targets    = discovery.relabel.app_logs.output
+         forward_to = [loki.write.practice.receiver]
+       }
+
+       loki.write "practice" {
+         endpoint {
+           url       = "http://loki-gateway.loki.svc/loki/api/v1/push"
+           tenant_id = "learn-m10"
+         }
+         external_labels = {
+           cluster = "lgtm-lab",
+         }
+       }
+
+       discovery.relabel "app_metrics" {
+         targets = discovery.kubernetes.pods.targets
+
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_port_name"]
+           regex         = "http"
+           action        = "keep"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_namespace"]
+           target_label  = "namespace"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_name"]
+           target_label  = "pod"
+         }
+       }
+
+       prometheus.scrape "app" {
+         targets         = discovery.relabel.app_metrics.output
+         scrape_interval = "15s"
+         forward_to      = [prometheus.remote_write.practice.receiver]
+       }
+
+       prometheus.remote_write "practice" {
+         endpoint {
+           url     = "http://mimir-gateway.mimir.svc/api/v1/push"
+           headers = {
+             "X-Scope-OrgID" = "learn-m10",
+           }
+         }
+         external_labels = {
+           cluster = "lgtm-lab",
+         }
+       }
+
+       otelcol.receiver.otlp "default" {
+         grpc {
+           endpoint = "0.0.0.0:4317"
+         }
+         output {
+           traces = [otelcol.processor.batch.default.input]
+         }
+       }
+
+       otelcol.processor.batch "default" {
+         output {
+           traces = [otelcol.exporter.otlp.tempo.input]
+         }
+       }
+
+       otelcol.exporter.otlp "tempo" {
+         client {
+           endpoint = "tempo-distributor.tempo.svc:4317"
+           headers  = {
+             "X-Scope-OrgID" = "learn-m10",
+           }
+           tls {
+             insecure = true
+           }
+         }
+       }
+   ```
+
+2. Apply it and restart the Alloy: <Cmd>kubectl apply -f m10-config.yaml</Cmd> <Cmd>kubectl -n learn-m10 rollout restart deploy/m10-alloy</Cmd> <Cmd>kubectl -n learn-m10 rollout status deploy/m10-alloy</Cmd>
+3. Check that the receiver listens: <Cmd>kubectl -n learn-m10 logs deploy/m10-alloy | grep 'Starting GRPC server'</Cmd> The line names `otelcol.receiver.otlp.default` and port 4317.
+4. Save this Job as `m10-spans.yaml`. It runs telemetrygen, the trace generator of module m09, against your Alloy's Service, and sends five traces:
+
+   ```yaml
+   apiVersion: batch/v1
+   kind: Job
+   metadata:
+     name: m10-spans
+     namespace: learn-m10
+   spec:
+     backoffLimit: 0
+     ttlSecondsAfterFinished: 600
+     template:
+       spec:
+         restartPolicy: Never
+         containers:
+           - name: telemetrygen
+             image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.165.0
+             args:
+               - traces
+               - --otlp-endpoint=m10-alloy.learn-m10.svc:4317
+               - --otlp-insecure
+               - --traces=5
+               - --service=m10-practice
+             resources:
+               requests: { cpu: 10m, memory: 16Mi }
+               limits: { cpu: 100m, memory: 64Mi }
+   ```
+
+5. Run it and wait for it to finish: <Cmd>kubectl apply -f m10-spans.yaml</Cmd> <Cmd>kubectl -n learn-m10 wait --for=condition=complete job/m10-spans --timeout=90s</Cmd>
+6. Ask Tempo for your traces, in your tenant. The search covers the last 15 minutes: <Cmd>{`curl -s -G -H 'Host: tempo.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/api/search --data-urlencode 'q={resource.service.name="m10-practice"}' --data-urlencode "start=$(( $(date +%s) - 900 ))" --data-urlencode "end=$(date +%s)"`}</Cmd> Five traces, each with `rootServiceName` `m10-practice`. If the list is empty, wait half a minute and ask again.
+7. Paste the value of `rootTraceName` in the check below.
+</Do>
+
+<Done>
+Five traces from telemetrygen went through `otelcol.receiver.otlp`, `otelcol.processor.batch` and `otelcol.exporter.otlp` into Tempo's tenant `learn-m10`.
+</Done>
+
+<Trap practice>
+If telemetrygen fails with a connection error, the Service has no ready endpoint: check that the Alloy pod is Running and that the receiver's endpoint is `0.0.0.0:4317`, not `localhost:4317`, which other pods cannot reach.
+</Trap>
+
+<Remember>
+`otelcol.*` components are Collector components with Alloy wiring: each `output` block names the next `input`, one list per signal, and an empty list drops that signal.
+</Remember>
+
+<Question id="q-m10-s07" answer="c">
+In an Alloy file, `otelcol.receiver.otlp "in"` has `output { traces = [otelcol.exporter.otlp.tempo.input] }`. An SDK sends it traces and metrics. What happens to the metrics?
+
+- They go to the same exporter, which sends every signal it receives
+
+  Only the traces list names the exporter. The metrics have no list of their own.
+
+- Alloy refuses to load the file until metrics are routed too
+
+  All lists of the output block are optional, so the file loads.
+
+- The receiver drops them, because its metrics list is empty
+
+  Signals with no consumers in the output block are discarded.
+
+- They are kept in memory until a metrics list is added
+
+  Nothing buffers them; data with nowhere to go is dropped.
+</Question>

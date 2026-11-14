@@ -1,0 +1,119 @@
+---
+id: m10-s01
+title: Why Alloy, and what it replaced
+kind: concept
+minutes: 10
+order: 1
+exam:
+  - cert: none
+tags: [alloy-why]
+outcome: You can say what Grafana Alloy is, which collectors it replaced and when they reached end of life, and what it shares with the OpenTelemetry Collector.
+terms:
+  - term: Grafana Alloy
+    def: Grafana's telemetry collector, a distribution of the OpenTelemetry Collector with built-in Prometheus and Loki pipelines.
+  - term: Promtail
+    def: Loki's old log agent. End of life since March 2, 2026; its code now lives in Alloy.
+  - term: Grafana Agent
+    def: Grafana's older collector, in Static, Flow and Operator variants. End of life since November 1, 2025.
+  - term: End of life (EOL)
+    def: The date after which a product gets no fixes, no security updates and no support.
+sources:
+  - title: Introduction to Grafana Alloy (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/introduction/
+    checked: 2026-11-14
+  - title: Why Grafana Alloy (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/introduction/why-alloy/
+    checked: 2026-11-14
+  - title: Promtail agent (Loki)
+    url: https://grafana.com/docs/loki/latest/send-data/promtail/
+    checked: 2026-11-14
+  - title: Loki 3.7 release notes
+    url: https://grafana.com/docs/loki/latest/release-notes/v3-7/
+    checked: 2026-11-14
+  - title: Loki 3.6 release notes
+    url: https://grafana.com/docs/loki/latest/release-notes/v3-6/
+    checked: 2026-11-14
+  - title: Grafana Agent
+    url: https://grafana.com/docs/agent/latest/
+    checked: 2026-11-14
+  - title: Migrate to Alloy (Loki)
+    url: https://grafana.com/docs/loki/latest/setup/migrate/migrate-to-alloy/
+    checked: 2026-11-14
+  - title: alloy convert (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/convert/
+    checked: 2026-11-14
+---
+
+<Problem>
+You join a team and find three collectors on every node: Promtail for logs, Grafana Agent for metrics, and an OpenTelemetry Collector for traces. Each has its own configuration language and its own failures. Two of them get no security fixes any more. Your first ticket says "replace them".
+</Problem>
+
+The replacement Grafana points to is one collector for every signal. Before you read its configuration, you need to know what it is and why the older tools are gone.
+
+<Idea>
+Grafana Alloy is Grafana's telemetry collector. It is a distribution of the OpenTelemetry Collector with built-in Prometheus pipelines and native support for Loki, so one Alloy can collect metrics, logs, traces and profiles. It took over from Promtail and Grafana Agent, which have both reached end of life.
+</Idea>
+
+## One collector for every signal
+
+Grafana tells the usual story. A team starts with Prometheus scraping node exporter. Later it wants traces, and Prometheus does not handle traces, so it adds an OpenTelemetry Collector. Then a log agent, then something for profiles. Each tool has its own configuration syntax, its own way to deploy and upgrade, and its own failure modes.
+
+Alloy puts all of that in one process with one configuration language. It scrapes Prometheus endpoints, tails log files, receives OTLP, and sends to Mimir, Loki, Tempo, Pyroscope or any Prometheus or OpenTelemetry backend. It has a built-in web screen to debug its pipelines, which step 4 opens.
+
+## What happened to Promtail and Grafana Agent
+
+Promtail was Loki's log agent. Loki 3.0 deprecated it and its code was merged into Alloy. Commercial support ended on February 28, 2026, it reached end of life on March 2, 2026, and Loki 3.7.3 removed it. The Lambda client `lambda-promtail` is not part of that removal.
+
+Grafana Agent came in three variants: Static mode, Flow mode and the Agent Operator. Alloy took its place as Grafana's distribution of the OpenTelemetry Collector, and the Agent kept long-term support until October 31, 2025. All three variants reached end of life on November 1, 2025.
+
+<Timeline caption="How the older Grafana collectors ended">
+  <Event at="Loki 3.0" title="Promtail deprecated">Its code is merged into Alloy.</Event>
+  <Event at="Oct 31, 2025" title="Agent support ends">Last day of long-term support for Grafana Agent.</Event>
+  <Event at="Nov 1, 2025" title="Agent end of life">Static, Flow and Operator get no more fixes.</Event>
+  <Event at="Feb 28, 2026" title="Promtail support ends">Commercial support stops.</Event>
+  <Event at="Mar 2, 2026" title="Promtail end of life">No updates; Loki 3.7.3 removes it.</Event>
+</Timeline>
+
+Both migrations have a tool. `alloy convert` reads a Promtail, Grafana Agent Static, Prometheus or OpenTelemetry Collector configuration and writes an Alloy configuration from it. Step 8 runs it on a Collector file from module m09.
+
+## What Alloy shares with the Collector, and what it adds
+
+Because Alloy is a Collector distribution, its OpenTelemetry components are the Collector's own code. A component such as `otelcol.receiver.otlp` wraps the Collector's OTLP receiver, so receivers, processors and exporters behave as module m09 taught. What Alloy adds is its own configuration language, in which you connect components by name, and components for the Prometheus and Loki worlds: service discovery, scraping, remote write, log tailing and log processing.
+
+<Compare caption="Three collectors you will meet in real clusters">
+  <Col title="Promtail">Logs to Loki only. End of life since March 2, 2026.</Col>
+  <Col title="Grafana Agent">Metrics, logs, traces and profiles, in three variants. End of life since November 1, 2025.</Col>
+  <Col title="Grafana Alloy" hot>Metrics, logs, traces and profiles, in one configuration language.</Col>
+</Compare>
+
+<InLab>
+The lab runs Alloy v1.21.3 through the k8s-monitoring chart in the namespace `alloy`: a DaemonSet `k8s-monitoring-alloy-logs` that tails pod log files on each node, and one replica `k8s-monitoring-alloy-singleton` that watches Kubernetes events.
+</InLab>
+
+<Trap>
+A Promtail or Grafana Agent tutorial still works as a guide to ideas, but its configuration does not run in Alloy as written. Convert it with `alloy convert`, then read the result before you use it.
+</Trap>
+
+<Remember>
+Alloy is Grafana's OpenTelemetry Collector distribution with Prometheus and Loki built in. Promtail and Grafana Agent are end of life, and `alloy convert` moves their configurations over.
+</Remember>
+
+<Question id="q-m10-s01" answer="b">
+A cluster you inherit still runs Promtail to ship pod logs to Loki. What is the main reason to replace it with Alloy now?
+
+- Loki 3.7 rejects every push that comes from Promtail
+
+  Loki's push API still accepts log streams; what was removed in 3.7.3 is Promtail itself, not the API it uses.
+
+- Promtail is end of life and gets no more fixes or support
+
+  Promtail reached end of life on March 2, 2026, and Grafana develops new log collection features only in Alloy.
+
+- Alloy is the only collector that can read Kubernetes pod log files
+
+  The OpenTelemetry Collector's filelog receiver and other agents can read the same files.
+
+- Promtail cannot run on Kubernetes 1.35 nodes
+
+  Nothing ties Promtail to a Kubernetes version. Its problem is that it is no longer maintained.
+</Question>

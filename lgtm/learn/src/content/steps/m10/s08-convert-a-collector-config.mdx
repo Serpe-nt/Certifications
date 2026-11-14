@@ -1,0 +1,169 @@
+---
+id: m10-s08
+title: Convert a Collector configuration to Alloy
+kind: lab
+minutes: 25
+order: 8
+exam:
+  - cert: none
+tags: [alloy-convert]
+check:
+  kind: exact
+  prompt: Paste the name of the component that alloy validate refuses because of its stability level.
+  answers: ["otelcol.exporter.debug"]
+outcome: You can convert a Collector configuration with alloy convert, read its report, and find and fix what the conversion got wrong before you run the result.
+terms:
+  - term: alloy convert
+    def: The Alloy command that turns a Collector, Prometheus, Promtail or Grafana Agent Static configuration into Alloy syntax.
+  - term: Conversion report
+    def: The list of info, warning and error lines alloy convert writes about what it did and what it could not do.
+  - term: alloy validate
+    def: The Alloy command that checks a configuration file without running it.
+  - term: Stability level
+    def: Experimental, public preview or generally available; Alloy refuses anything below the level its flag allows.
+sources:
+  - title: alloy convert (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/convert/
+    checked: 2026-11-14
+  - title: alloy validate (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/validate/
+    checked: 2026-11-14
+  - title: Migrate from OpenTelemetry Collector to Grafana Alloy (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/set-up/migrate/from-otelcol/
+    checked: 2026-11-14
+  - title: alloy run, permitted stability levels (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/run/
+    checked: 2026-11-14
+  - title: otelcol.exporter.debug (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.exporter.debug/
+    checked: 2026-11-14
+  - title: otelcol.processor.transform (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/otelcol/otelcol.processor.transform/
+    checked: 2026-11-14
+---
+
+<Problem>
+Your team decides to run Alloy everywhere. The first thing to move is a small Collector pipeline from module m09: a memory limiter, a filter, an attribute that marks the environment, a deleted IP address and a batch. Rewriting it by hand is slow and easy to get wrong, so you reach for the converter. It stops at the third processor.
+</Problem>
+
+A converter can only map what exists on both sides. Reading what it says, and checking what it writes, is part of the job.
+
+<Idea>
+`alloy convert --source-format=otelcol` reads a Collector file and writes the same pipeline as `otelcol.*` components, joined by `output` blocks. It is a public preview feature and works on a best-effort basis: a Collector component without an Alloy wrapper stops it, and its output can still fail `alloy validate`. Convert, read the report, validate, and fix by hand.
+</Idea>
+
+## What converts and what does not
+
+The converter supports the Collector components that Alloy wraps as `otelcol.*`. The `resource` processor is not among them in Alloy 1.21, and a file that uses it fails with a critical error that `--bypass-errors` cannot skip: the file cannot even be read as a Collector configuration Alloy knows. The way out is a component Alloy does have. The `transform` processor can set a resource attribute too, so you swap `resource/env` for `transform/env` before converting.
+
+## How names and defaults come out
+
+Each Collector ID becomes a component label. In this file every label starts with `default`, followed by the part of the ID after the slash, with dashes turned into underscores: `filter/drop-child` becomes `otelcol.processor.filter.default_drop_child`, and `batch` becomes `otelcol.processor.batch.default`. The report lists every one of these mappings. Settings that equal Alloy's defaults are left out, and defaults that differ between the two products are written in. So `error_mode: ignore` disappears, and the batch processor gains `send_batch_size = 8192` and `send_batch_max_size = 0`.
+
+<Flow caption="From Collector file to a running Alloy">
+  <Stage title="Convert" kicker="alloy convert">Stops on components Alloy does not have.</Stage>
+  <Stage title="Report" kicker="--report">Lists each mapping and each warning.</Stage>
+  <Stage title="Validate" kicker="alloy validate">Finds many faults, such as unknown values and stability levels.</Stage>
+  <Stage title="Fix by hand" kicker="Then run">Edit, validate again, deploy.</Stage>
+</Flow>
+
+## Two faults that validation finds
+
+The converted file still has two faults. `alloy validate` checks syntax, components, names and arguments without running anything, so it catches both, though it cannot catch every fault that would only show at run time. The transform statement was written in the Collector's short form, without a context, and the converter wrote `context = ""`, which Alloy rejects as an unknown context. Give it `context = "resource"` and drop the `resource.` prefix from the path. The `debug` exporter becomes `otelcol.exporter.debug`, which is experimental in Alloy. Alloy runs only generally available components unless `--stability.level` allows lower ones, so `alloy validate` and `alloy run` both refuse it with the default flag.
+
+<InLab>
+The lab's Alloys run with `--stability.level=generally-available`, set by the k8s-monitoring chart. An experimental component in their configuration would stop them from loading it.
+</InLab>
+
+<Trap>
+"A configuration file was generated successfully" means the converter finished, not that Alloy will run the file. Always run `alloy validate` with the same `--stability.level` you will run with.
+</Trap>
+
+<Do>
+1. Save the Collector configuration of module m09 step 5 as `m09-config.yaml`:
+
+   ```yaml
+   receivers:
+     otlp:
+       protocols:
+         grpc:
+           endpoint: localhost:4317
+   processors:
+     memory_limiter:
+       check_interval: 1s
+       limit_percentage: 80
+       spike_limit_percentage: 20
+     filter/drop-child:
+       error_mode: ignore
+       trace_conditions:
+         - 'span.name == "okey-dokey-0"'
+     resource/env:
+       attributes:
+         - key: deployment.environment.name
+           value: learn
+           action: upsert
+     attributes/drop-ip:
+       actions:
+         - key: network.peer.address
+           action: delete
+     batch:
+       timeout: 2s
+   exporters:
+     debug:
+       verbosity: detailed
+   service:
+     pipelines:
+       traces:
+         receivers: [otlp]
+         processors: [memory_limiter, filter/drop-child, resource/env, attributes/drop-ip, batch]
+         exporters: [debug]
+   ```
+
+2. Convert it with the Alloy image the lab pins, in a pod that is removed when it ends. The file goes in on standard input, which the `-` stands for: <Cmd>{`kubectl -n learn-m10 run m10-convert --rm -i --quiet --restart=Never --image=docker.io/grafana/alloy:v1.21.3 -- convert --source-format=otelcol - < m09-config.yaml`}</Cmd> It fails: `'processors' unknown type: "resource"`, followed by the list of processor types Alloy knows.
+3. Replace the `resource/env` processor with a transform. Edit `m09-config.yaml` so that the block reads as below, and in the pipeline write `transform/env` instead of `resource/env`:
+
+   ```yaml
+     transform/env:
+       error_mode: ignore
+       trace_statements:
+         - set(resource.attributes["deployment.environment.name"], "learn")
+   ```
+
+4. Convert again, first only the report, then the file: <Cmd>{`kubectl -n learn-m10 run m10-convert --rm -i --quiet --restart=Never --image=docker.io/grafana/alloy:v1.21.3 -- convert --source-format=otelcol --report=/dev/stdout --output=/dev/null - < m09-config.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m10 run m10-convert --rm -i --quiet --restart=Never --image=docker.io/grafana/alloy:v1.21.3 -- convert --source-format=otelcol - < m09-config.yaml > m09-config.alloy`}</Cmd> The report maps each Collector ID to its component, for example `processor/filter/drop-child` to `otelcol.processor.filter.default_drop_child`.
+5. Read `m09-config.alloy`. Find the `output` blocks that chain the components, the batch processor's two added settings, and the transform's `context`.
+6. Validate it, again in a short-lived pod: <Cmd>{`kubectl -n learn-m10 run m10-convert --rm -i --quiet --restart=Never --image=docker.io/grafana/alloy:v1.21.3 --command -- sh -c 'cat > /tmp/c.alloy && alloy validate /tmp/c.alloy' < m09-config.alloy`}</Cmd> Two errors: `unknown context` on the transform, and a component at stability level `experimental`. Paste that component's name in the check below.
+7. Fix the transform and validate with the stability level that allows the debug exporter: <Cmd>{`sed -i 's/context    = ""/context    = "resource"/; s/set(resource.attributes/set(attributes/' m09-config.alloy`}</Cmd> <Cmd>{`kubectl -n learn-m10 run m10-convert --rm -i --quiet --restart=Never --image=docker.io/grafana/alloy:v1.21.3 --command -- sh -c 'cat > /tmp/c.alloy && alloy validate --stability.level=experimental /tmp/c.alloy && echo valid' < m09-config.alloy`}</Cmd> It prints `valid`.
+8. Delete the two files: <Cmd>rm m09-config.yaml m09-config.alloy</Cmd>
+</Do>
+
+<Done>
+The converter stopped on a processor Alloy does not have, converted the file once you replaced it, and `alloy validate` found the two faults the conversion left. After the fix the file validates.
+</Done>
+
+<Trap practice>
+Keep the `-` at the end of the convert command and the `<` before the file name. Without them the command waits for input from your terminal.
+</Trap>
+
+<Remember>
+Convert, read the report, validate with your real stability level, then fix by hand. A Collector component with no `otelcol.*` wrapper has to be replaced before conversion.
+</Remember>
+
+<Question id="q-m10-s08" answer="d">
+`alloy convert` prints "A configuration file was generated successfully" for a Collector file whose only exporter is `debug`. You start Alloy with its default flags and it refuses the file. Why?
+
+- The converter forgot to add a `service` block with the pipelines
+
+  Alloy has no service block; the converter wires components with output blocks.
+
+- Converted files must be signed before Alloy loads them
+
+  Alloy has no signing step for configuration files.
+
+- The `debug` exporter cannot be converted, so the file is empty
+
+  The converter maps it to `otelcol.exporter.debug`; the file is not empty.
+
+- `otelcol.exporter.debug` is experimental, and Alloy runs only generally available components by default
+
+  The default `--stability.level` is generally-available, so experimental components are refused.
+</Question>
