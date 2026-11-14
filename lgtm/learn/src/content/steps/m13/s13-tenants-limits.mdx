@@ -1,0 +1,159 @@
+---
+id: m13-s13
+title: Tenants and limits
+kind: lab
+minutes: 25
+order: 13
+exam:
+  - cert: none
+tags: [tempo-tenants-limits]
+check:
+  kind: exact
+  prompt: Paste the reason label of the discarded spans that action 5 shows for learn-m13.
+  answers: ["trace_too_large"]
+outcome: You can read the limits Tempo applies to a tenant, tell the limits a distributor enforces at once from those enforced later, and find a refused trace in Tempo's own metrics when the sender heard 200.
+terms:
+  - term: Override
+    def: A per-tenant setting, such as an ingestion rate or the largest trace, set for all tenants under defaults or for one tenant by name.
+  - term: max_bytes_per_trace
+    def: The largest size one trace may have. This lab keeps Tempo's default of 5,000,000 bytes.
+  - term: RATE_LIMITED
+    def: The error a distributor returns when a tenant sends more bytes per second than its ingestion limit allows.
+  - term: tempo_discarded_spans_total
+    def: The counter of spans Tempo threw away, per tenant and reason, on the component that threw them away.
+sources:
+  - title: Distributor, validation and rate limiting
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/distributor/
+    checked: 2026-11-14
+  - title: Distributor refusing spans (troubleshooting)
+    url: https://grafana.com/docs/tempo/v3.1.x/troubleshooting/send-traces/max-trace-limit-reached/
+    checked: 2026-11-14
+  - title: Enable multitenancy (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/operations/manage-advanced-systems/multitenancy/
+    checked: 2026-11-14
+  - title: Tempo configuration, overrides
+    url: https://grafana.com/docs/tempo/v3.1.x/configuration/
+    checked: 2026-11-14
+  - title: Introduction, traces are never complete (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/introduction/
+    checked: 2026-11-14
+---
+
+<Problem>
+A batch job wraps a whole night of work in one trace and attaches every record it processed to its spans. Its exporter logs `200` for every batch, yet the trace never appears in Tempo. Nothing in the job's logs says why, and the team suspects the network.
+</Problem>
+
+<Idea>
+Tempo applies limits per tenant, as overrides. The only per-tenant limit the distributor refuses on is the ingestion rate, with its burst, and it refuses an excess at once. Other limits, such as the size of one trace, are applied later by the live-stores and block-builders, after the sender has already heard `200`; the only record of the refusal is Tempo's own metrics.
+</Idea>
+
+## A tenant is a header
+
+Every request to a Tempo with multi-tenancy on carries `X-Scope-OrgID`. The tenant name keeps the data apart all the way: in Kafka, in the live-stores, in the blocks under a folder of that name, and in the metrics-generator's series. A tenant needs no setup: on this lab, the first write as `learn-m13` in step 3 was enough. Tempo can also query several tenants at once: the query frontend's `multi_tenant_queries_enabled` is true on this lab, and a header such as `lab|learn-m13` reads both.
+
+## Overrides: one file, defaults and exceptions
+
+Per-tenant limits live in overrides. The block `overrides.defaults` applies to every tenant; a runtime file can set other values for a named tenant and is reloaded without a restart. The lab's Tempo runs with the defaults below and no tenant of its own in the runtime file, so `learn-m13` gets exactly what `lab` gets. The status page `/status/overrides/TENANT` shows the overrides a tenant receives; on this lab it also prints `Source of runtime overrides: default overrides`.
+
+<Compare caption="Overrides every tenant gets on this lab, and who enforces them">
+  <Col title="Distributor">`rate_limit_bytes` 30,000,000 bytes a second and `burst_size_bytes` 30,000,000, per distributor pod (local strategy).</Col>
+  <Col title="Live-store and block-builder" hot>`max_bytes_per_trace` 5,000,000 bytes. `max_traces_per_user` 10,000 traces in memory, per live-store.</Col>
+</Compare>
+
+The lab also keeps the distributor's `max_attribute_bytes` at 2,048: a longer attribute key or value is cut to that size before it is stored, and `tempo_distributor_attributes_truncated_total` counts it. Nothing is refused for that.
+
+## Refused at once, or refused later
+
+The ingestion rate, with its burst, is the only per-tenant limit a distributor refuses on while the sender waits. It also drops spans with an invalid trace or span ID and cuts long attributes, but those are not tenant limits. A tenant that sends more than its rate gets an error, `RATE_LIMITED`, and the distributor counts the spans in `tempo_discarded_spans_total` with a reason. A sender that sees it can retry later.
+
+The size of a trace cannot be judged by a distributor, because a trace arrives in pieces, possibly hours apart. So the live-store and the block-builder add up each trace's size as they read it from Kafka, and drop the spans that would take it past `max_bytes_per_trace`. By then Kafka has the spans and the distributor has answered `200`. The refusal shows only in `tempo_discarded_spans_total{reason="trace_too_large"}` on those pods, and in a trace that is missing or cut short. That is what happened to the batch job of the story.
+
+<InLab>
+The lab's overrides are under `overrides.defaults` in `lgtm/lab/helm/tempo/values.yaml` for the metrics-generator processors; the ingestion and trace limits are Tempo's own defaults, which the running configuration lists.
+</InLab>
+
+<Trap>
+A `200` from a Tempo distributor means Kafka has the spans. It does not mean the trace will be stored: limits checked downstream can still drop it.
+</Trap>
+
+<Do>
+1. In WSL (bash), read the overrides every tenant gets: <Cmd>{`curl -s -H 'Host: tempo.lab.k8s.local' http://10.10.0.5/status/runtime_config`}</Cmd> Under `defaults` find `rate_limit_bytes`, `max_traces_per_user` and `max_bytes_per_trace`. `overrides: {}` means no tenant has values of its own.
+2. Save this as `m13-big.yaml`. The pod builds one trace of three spans, each with 1,000 attributes of 2,000 characters, about 6 MB in all, and posts it once as `learn-m13`:
+
+   ```yaml
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: big
+     namespace: learn-m13
+   spec:
+     restartPolicy: Never
+     containers:
+       - name: big
+         image: curlimages/curl:8.23.0
+         command: [/bin/sh, -c]
+         args:
+           - |
+             v=$(head -c 2000 /dev/zero | tr '\0' x)
+             t=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
+             s=$(date +%s)
+             {
+               printf '{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"m13-big"}}]},"scopeSpans":[{"spans":['
+               for n in 1 2 3; do
+                 [ $n = 1 ] || printf ','
+                 printf '{"traceId":"%s","spanId":"200000000000000%s","name":"big-%s","kind":1,"startTimeUnixNano":"%s000000000","endTimeUnixNano":"%s100000000","attributes":[' $t $n $n $s $s
+                 i=0
+                 while [ $i -lt 1000 ]; do
+                   [ $i = 0 ] || printf ','
+                   printf '{"key":"a%s","value":{"stringValue":"%s"}}' $i $v
+                   i=$((i+1))
+                 done
+                 printf ']}'
+               done
+               printf ']}]}]}'
+             } > /tmp/big.json
+             echo "trace $t, $(wc -c < /tmp/big.json) bytes"
+             curl -s -w ' HTTP %{http_code}\n' -H 'X-Scope-OrgID: learn-m13' \
+               -H 'Content-Type: application/json' --data @/tmp/big.json \
+               http://tempo-distributor.tempo.svc:4318/v1/traces
+         resources:
+           requests: { cpu: 50m, memory: 32Mi }
+           limits: { cpu: 500m, memory: 64Mi }
+   ```
+3. Run it and read what the distributor answered: <Cmd>{`kubectl apply -f m13-big.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m13 wait --for=jsonpath='{.status.phase}'=Succeeded pod/big --timeout=120s`}</Cmd> <Cmd>{`kubectl -n learn-m13 logs big`}</Cmd> The trace ID, a size of about 6.1 million bytes, and `{"partialSuccess":{}} HTTP 200`: no refusal.
+4. Wait half a minute, then look for the trace. Replace TRACEID with the ID from the log: <Cmd>{`curl -s -H 'Host: tempo.lab.k8s.local' -H 'X-Scope-OrgID: learn-m13' http://10.10.0.5/api/v2/traces/TRACEID; echo`}</Cmd> The trace is empty.
+5. Find the refusal on the live-stores: <Cmd>{`for p in tempo-live-store-0 tempo-live-store-1; do kubectl get --raw /api/v1/namespaces/tempo/pods/$p:3200/proxy/metrics | grep '^tempo_discarded_spans_total' | sed "s/^/$p /"; done`}</Cmd> One live-store, the owner of the trace's partition, counted 3 spans of `learn-m13` with a reason. After its next cycle, within five minutes, a block-builder counts the same. Paste the reason in the check below.
+6. Clean up the module's namespace, with the writer pod of step 3: <Cmd>{`kubectl delete namespace learn-m13`}</Cmd>
+</Do>
+
+<Done>
+The distributor accepted a 6 MB trace with `200`, and the live-store and block-builder dropped it as `trace_too_large`. The trace never became readable, and the practice namespace is gone.
+</Done>
+
+<Trap practice>
+Do not raise the size or send the pod in a loop to "see more": one trace over the limit shows the whole behaviour. The counters on the pods are cumulative, so a value higher than 3 means someone ran this before you.
+</Trap>
+
+<Remember>
+Of the tenant limits, the distributor refuses only by rate. Trace size is judged downstream, after a `200`; look for `tempo_discarded_spans_total` on live-stores and block-builders.
+</Remember>
+
+<Question id="q-m13-s13" answer="c">
+A tenant's exporter shows no errors, but its largest traces never appear in Tempo, while small ones do. Where do you look first?
+
+- The distributor's logs for `RATE_LIMITED`
+
+  A rate refusal would have reached the exporter as an error. Here the exporter saw none.
+
+- The query frontend's search limit for the tenant
+
+  A search limit cuts the number of results, not which traces exist. A lookup by ID would still find them.
+
+- `tempo_discarded_spans_total` with the reason `trace_too_large` on live-stores and block-builders
+
+  The trace size limit is applied downstream of the distributor, after the exporter has its 200.
+
+- The Kafka topic's retention, which drops large records first
+
+  Kafka retention removes records by age or by partition size, not by the size of one trace.
+</Question>

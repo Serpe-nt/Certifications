@@ -1,0 +1,150 @@
+---
+id: m13-s02
+title: Tempo 3 as the lab runs it
+kind: lab
+minutes: 20
+order: 2
+exam:
+  - cert: none
+tags: [tempo-architecture]
+check:
+  kind: exact
+  prompt: Which Kafka partition does tempo-block-builder-1 read? Paste the value of the partition label from action 4.
+  answers: ["1"]
+outcome: You can name the component behind every pod of the namespace tempo, follow a span along the write path and a query along the read path, and read one metric of each component.
+terms:
+  - term: Distributor
+    def: The entry point of Tempo. It receives spans, checks the ingestion limits and writes them to Kafka by trace ID.
+  - term: Block-builder
+    def: Reads spans from Kafka in cycles, writes them as Parquet blocks to object storage, then commits its Kafka offset.
+  - term: Live-store
+    def: Reads the same Kafka partitions and keeps recent traces queryable in memory and on local disk until blocks exist.
+  - term: Query frontend
+    def: Receives every query, cuts it into jobs, hands them to queriers and merges the answers.
+  - term: Backend scheduler and worker
+    def: The pair that compacts blocks and deletes old ones; the scheduler hands out jobs, workers do them.
+  - term: Metrics-generator
+    def: An optional component that reads spans and writes metrics derived from them to a Prometheus-compatible store.
+sources:
+  - title: About the Tempo architecture
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/about-tempo-architecture/
+    checked: 2026-11-14
+  - title: Tempo architecture (introduction)
+    url: https://grafana.com/docs/tempo/v3.1.x/introduction/architecture/
+    checked: 2026-11-14
+  - title: Distributor
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/distributor/
+    checked: 2026-11-14
+  - title: Block-builder
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/block-builder/
+    checked: 2026-11-14
+  - title: Live-store
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/live-store/
+    checked: 2026-11-14
+  - title: Kafka (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/kafka/
+    checked: 2026-11-14
+  - title: Query frontend
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/query-frontend/
+    checked: 2026-11-14
+  - title: Querier
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/querier/
+    checked: 2026-11-14
+  - title: Compaction (backend scheduler and worker)
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/compaction/
+    checked: 2026-11-14
+  - title: Metrics-generator (component)
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/metrics-generator/
+    checked: 2026-11-14
+---
+
+<Problem>
+The namespace `tempo` has twelve pods. Most of their names end in a component you have not met in Tempo before: block-builder, live-store, backend-scheduler. Tutorials from before 2026 talk about ingesters and a compactor, and neither is here. Before you can debug a missing trace, you must know which pod handled it.
+</Problem>
+
+<Idea>
+Tempo 3 splits writing and reading. Distributors write spans to Kafka; block-builders turn them into blocks in object storage, while live-stores keep the last minutes queryable. Queries go through the query frontend to queriers, which read both the live-stores and the blocks.
+</Idea>
+
+## The write path
+
+A span enters at a distributor, over OTLP. The distributor checks the ingestion rate limit of the tenant, hashes the trace ID to pick a partition, and writes the spans to Kafka. It answers the sender only when Kafka has acknowledged the write, so a `200` means the spans are safe in Kafka. All spans of one trace go to the same partition.
+
+Three consumer groups read the topic, each at its own pace. The block-builders read in cycles: each cycle they collect what arrived, write it as Parquet blocks to object storage, and commit their Kafka offset. A trace whose spans arrive across two cycles ends up in two blocks; queries put it back together. The metrics-generator reads the same spans to make metrics, as step 8 shows.
+
+Kafka plays the same role here as for Mimir in module m11 step 2: a durable log between the component that receives data and the components that store it. Because Kafka keeps the data safe, Tempo writes each span once, with no copies across pods.
+
+<Flow caption="Write path in this lab">
+  <Stage title="Distributor" kicker="2 pods">OTLP in, ingestion limits, hash by trace ID.</Stage>
+  <Stage title="Kafka" kicker="topic tempo-traces">Two partitions, three consumer groups.</Stage>
+  <Stage title="Block-builder" kicker="2 pods">One partition each, Parquet blocks every cycle.</Stage>
+  <Stage title="Object store" kicker="bucket tempo-traces">Blocks for 48 hours.</Stage>
+</Flow>
+
+## The read path
+
+Between the moment Kafka has a span and the moment a block-builder has flushed it, only the live-stores can answer for it. A live-store reads its partition from Kafka, assembles traces in memory, and after a few idle seconds writes them to a local write-ahead log in Parquet, where they become searchable. It keeps them as local blocks for some minutes after that.
+
+A query reaches the query frontend first. The frontend cuts it into jobs by time and by data size, puts the jobs in a queue per tenant, and merges what comes back. Queriers do the jobs: for recent data they ask the live-store that owns each partition, and for older data they read blocks from object storage; when they look up a trace ID, bloom filters let them skip blocks that cannot hold it. In this lab the query frontend's setting `query_backend_after` is 15 minutes: a search over the last 15 minutes reads the live-stores, and older parts of the time range read the blocks.
+
+<Flow caption="Read path in this lab">
+  <Stage title="Query frontend" kicker="1 pod">Cuts a query into jobs per tenant.</Stage>
+  <Stage title="Querier" kicker="1 pod">Runs jobs on recent and stored data.</Stage>
+  <Stage title="Live-store and blocks" kicker="2 pods + bucket">Recent traces from memory, older ones from Parquet blocks.</Stage>
+</Flow>
+
+## The maintenance pair
+
+Block-builders write many small blocks. The backend scheduler, a single pod, creates jobs: compaction jobs that merge small blocks into larger ones, and retention jobs that delete blocks older than the retention period. Backend workers ask the scheduler for jobs and run them. Together they replace the compactor of Tempo 2, and step 10 looks at them closely. The last pod, `tempo-memcached`, is a cache that the queriers and the frontend use for bloom filters, Parquet footers and search results.
+
+All Tempo pods run the same image, `grafana/tempo:3.1.1`. The flag `-target` decides which component a process is, and each component serves its own metrics on `/metrics` at port 3200. Most names start with `tempo_` or `tempodb_`.
+
+<InLab>
+The chart's own nginx gateway is off in this lab: the address `tempo.lab.k8s.local` reaches the query frontend directly, and spans reach the distributor inside the cluster at `tempo-distributor.tempo.svc` on ports 4317 and 4318.
+</InLab>
+
+<Trap>
+A pod called live-store is not an ingester under a new name. In microservices mode it serves recent data and never writes the blocks that are kept; the block-builders do that.
+</Trap>
+
+<Do>
+1. In WSL (bash), list the pods with their component label: <Cmd>{`kubectl -n tempo get pods -L app.kubernetes.io/component`}</Cmd> You see 12 pods: two distributors, two block-builders, two live-stores, and one each of query-frontend, querier, backend-scheduler, backend-worker, metrics-generator and memcached.
+2. Show the role each pod was started with: <Cmd>{`kubectl -n tempo get pods -o custom-columns="NAME:.metadata.name,TARGET:.spec.containers[0].args[0],IMAGE:.spec.containers[0].image"`}</Cmd> Every pod but memcached runs `grafana/tempo:3.1.1` with its own `-target`.
+3. Define a helper that reads the metrics of one pod through the API server: <Cmd>{`t() { kubectl get --raw "/api/v1/namespaces/tempo/pods/$1:3200/proxy/metrics" | grep "^$2"; }`}</Cmd>
+4. Read which partition each block-builder reads, and how far behind it is: <Cmd>{`t tempo-block-builder-0 tempo_ingest_group_partition_lag`}</Cmd> <Cmd>{`t tempo-block-builder-1 tempo_ingest_group_partition_lag`}</Cmd> The `partition` label names the partition, and the value is how many records it is behind.
+5. Read the live-stores: <Cmd>{`t tempo-live-store-0 tempo_live_store_traces_created_total`}</Cmd> <Cmd>{`t tempo-live-store-1 tempo_ingest_group_partition_lag`}</Cmd> Tenant `lab` has created hundreds of thousands of traces since the pod started. Note the consumer group's name in the `group` label.
+6. Read the other components. Each command finds the first pod of its component: <Cmd>{`for c in distributor:tempo_distributor_spans_received_total query-frontend:tempo_query_frontend_queries_total backend-scheduler:tempo_backend_scheduler_jobs_completed_total backend-worker:tempodb_blocklist_length metrics-generator:tempo_metrics_generator_registry_active_series; do p=$(kubectl -n tempo get pods -l app.kubernetes.io/component=$(echo $c | cut -d: -f1) -o jsonpath='{.items[0].metadata.name}'); echo "== $p"; t $p $(echo $c | cut -d: -f2); done`}</Cmd> You see spans received per tenant, queries by type, compaction and retention jobs done per tenant, the number of blocks per tenant, and the series the metrics-generator keeps.
+7. Paste the partition number of `tempo-block-builder-1` from action 4 in the check below.
+</Do>
+
+<Done>
+You matched every pod to its component and read one metric from each. Each block-builder reads one of the two partitions of the topic `tempo-traces`.
+</Done>
+
+<Trap practice>
+The consumer group of the live-stores is called `tempo-live-store` on this lab, while Tempo's pages write `live-store`. If you search for a metric with a label value copied from the documentation and get nothing, read the label from the pod first.
+</Trap>
+
+<Remember>
+Distributor, Kafka, block-builder: the write path. Query frontend, querier, live-store and blocks: the read path. The backend scheduler and workers keep the blocks tidy.
+</Remember>
+
+<Question id="q-m13-s02" answer="a">
+A block-builder pod is stopped for ten minutes. What happens to a trace sent during those ten minutes?
+
+- Search still finds it through a live-store, and its block is written once the block-builder catches up
+
+  Live-stores read Kafka on their own, so recent data stays queryable. The block-builder resumes from its last committed offset.
+
+- The distributor refuses the spans until the block-builder is back
+
+  The distributor writes to Kafka and answers when Kafka has the data. It does not wait for any consumer.
+
+- The trace is lost, because no component wrote it to object storage
+
+  Kafka keeps the spans. The block-builder reads them from its committed offset when it starts again.
+
+- The live-store writes the block to object storage in place of the block-builder
+
+  In microservices mode only block-builders write the blocks that are kept. Live-stores only serve recent data.
+</Question>

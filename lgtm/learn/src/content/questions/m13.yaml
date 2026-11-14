@@ -1,0 +1,625 @@
+# Quiz pool for module m13, Tempo. Card C12, 2026-11-14. The module serves no exam (cert none).
+# Sources: the Grafana Tempo documentation for version 3.1 (grafana.com/docs/tempo/v3.1.x/) and
+# Grafana 13.3, fetched on 2026-11-14, and the lab runs logged in lgtm/docs/verification/m13.md.
+# No mock pool question carries these tags.
+
+# tempo-why
+- id: q-m13-001
+  tags: [tempo-why]
+  exam: { cert: none }
+  q: 'At 14:05 the p95 latency of checkout, cart and product-catalog rises together, and no log line shows an error. What tells you which service holds the extra time?'
+  options:
+    - text: 'The service whose latency panel rose by the most milliseconds'
+      why: 'A caller that waits for a slow dependency rises at least as much as the dependency, so the largest rise can be a victim.'
+    - text: 'One slow trace, read to the span that holds the time'
+      why: 'The waterfall shows which call held the time and which spans only waited for their children.'
+    - text: 'The request rate of each service in the same five minutes'
+      why: 'A rate says how many requests arrived, not where the time of one request was spent.'
+    - text: 'The error logs of all three services since 14:00'
+      why: 'A slow call often logs no error, and logs of separate processes do not show who waited for whom.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/introduction/telemetry/
+
+- id: q-m13-002
+  tags: [tempo-why]
+  exam: { cert: none }
+  q: 'A service sends one more span of a trace an hour after the other spans arrived. What does Tempo do with it?'
+  options:
+    - text: 'Refuses it, because the trace was closed when its root span ended'
+      why: 'Tempo never closes a trace. Spans of the same trace ID can arrive at any time.'
+    - text: 'Stores it as a new trace with a new trace ID'
+      why: 'Tempo keeps the span''s own trace ID. It does not invent IDs.'
+    - text: 'Stores it, and a lookup of the trace ID returns it with the others'
+      why: 'Tempo collects every span with the ID from wherever it was written and returns them together.'
+    - text: 'Stores it only if the first spans are still in a live-store'
+      why: 'Spans can be in different blocks; the query path puts them together at read time.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/introduction/
+
+# tempo-architecture
+- id: q-m13-003
+  tags: [tempo-architecture]
+  exam: { cert: none }
+  q: 'In Tempo 3 microservices mode, which component writes the blocks that are kept in object storage?'
+  options:
+    - text: 'The ingester, after it has cut a block from its memory'
+      why: 'Tempo 3 has no ingester. That component was removed in 3.0.'
+    - text: 'The live-store, once a trace has been idle for some seconds'
+      why: 'In microservices mode the live-store only serves recent data. It never writes the kept blocks.'
+    - text: 'The block-builder, at the end of each consumption cycle'
+      why: 'Block-builders read Kafka in cycles, write Parquet blocks and then commit their offsets.'
+    - text: 'The backend worker, which also compacts the blocks'
+      why: 'Backend workers compact and delete blocks that already exist. They do not build them from Kafka.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/block-builder/
+
+- id: q-m13-004
+  tags: [tempo-architecture, tempo-ingest]
+  exam: { cert: none }
+  q: 'A collector gets HTTP 200 from a Tempo 3 distributor in microservices mode. What has happened to the spans at that moment?'
+  options:
+    - text: 'A block-builder has written them to object storage'
+      why: 'The block-builder writes blocks later, at the end of its cycle. The answer does not wait for it.'
+    - text: 'Kafka has acknowledged them, so they are durable'
+      why: 'The distributor answers only after Kafka confirms the write, which makes the spans safe.'
+    - text: 'A live-store has made the trace searchable'
+      why: 'Live-stores read Kafka on their own schedule. The distributor does not wait for them.'
+    - text: 'Every limit of the tenant has been checked and passed'
+      why: 'Only the rate limit is checked at once. The trace size limit is applied later, downstream.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/distributor/
+
+- id: q-m13-005
+  tags: [tempo-architecture]
+  exam: { cert: none }
+  q: 'On this lab, <code>query_backend_after</code> is 15 minutes. You run <code>{ resource.service.name = "checkout" }</code> over the last 10 minutes. Where do the queriers read the spans?'
+  options:
+    - text: 'From the live-stores, which hold the recent traces'
+      why: 'Time ranges newer than query_backend_after are served by the live-stores.'
+    - text: 'From the blocks in object storage only'
+      why: 'Blocks are read for the part of a range older than query_backend_after.'
+    - text: 'From the Kafka topic, read directly by the queriers'
+      why: 'Queriers do not read Kafka. Live-stores and block-builders are its consumers.'
+    - text: 'From the metrics-generator, which keeps the last spans'
+      why: 'The metrics-generator writes metrics to Mimir. It does not answer trace searches.'
+  answer: [0]
+  source: https://grafana.com/docs/tempo/v3.1.x/operations/compaction/
+
+# tempo-ingest
+- id: q-m13-006
+  tags: [tempo-ingest]
+  exam: { cert: none }
+  q: 'A test pod sends spans to the lab''s distributor with <code>X-Scope-OrgID: learn-m13</code>. Why does Grafana''s Tempo data source never show them?'
+  options:
+    - text: 'Grafana hides services that have only one pod'
+      why: 'Grafana does not filter by pod count. The tenant decides what it can see.'
+    - text: 'The data source sends X-Scope-OrgID: lab with every query'
+      why: 'Each tenant is kept apart, and this data source only reads tenant lab.'
+    - text: 'Spans sent straight to a distributor skip the live-stores'
+      why: 'All spans go through Kafka to the live-stores, whatever sent them.'
+    - text: 'The tenant must first be created in the runtime overrides'
+      why: 'A tenant needs no setup. The first write with a new name creates it.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/operations/manage-advanced-systems/multitenancy/
+
+- id: q-m13-007
+  tags: [tempo-ingest]
+  exam: { cert: none }
+  q: 'You write an OTLP span by hand as JSON for <code>/v1/traces</code>. Which value is right for a server span''s fields?'
+  options:
+    - text: '<code>"traceId": "4bf92f3577b34da6a3ce929d0e0e4736"</code> and <code>"kind": 2</code>'
+      why: 'In OTLP JSON the trace ID is 32 hex characters and kind 2 means server.'
+    - text: '<code>"traceId": "4bf92f35-77b3-4da6-a3ce-929d0e0e4736"</code> and <code>"kind": 2</code>'
+      why: 'A trace ID is plain hex with no hyphens. The UUID form is not accepted.'
+    - text: '<code>"traceId": "4bf92f3577b34da6"</code> and <code>"kind": "server"</code>'
+      why: 'Sixteen hex characters is a span ID. A trace ID has 32.'
+    - text: '<code>"traceId": "4bf92f3577b34da6a3ce929d0e0e4736"</code> and <code>"kind": 3</code>'
+      why: 'Kind 3 is a client span. A server span is kind 2.'
+  answer: [0]
+  source: https://grafana.com/docs/tempo/v3.1.x/api_docs/pushing-spans-with-http/
+
+# tempo-find-trace
+- id: q-m13-008
+  tags: [tempo-find-trace]
+  exam: { cert: none }
+  q: 'During an incident you run <code>{ resource.service.name = "checkout" && status = error }</code> and get 20 traces. Are they the 20 newest?'
+  options:
+    - text: 'Yes, Tempo always sorts search results by start time'
+      why: 'Tempo stops when it has enough matches, so the results are the first found, not the newest.'
+    - text: 'Yes, because the default limit counts back from the end of the range'
+      why: 'The limit counts results as they come back from many jobs, in no fixed order.'
+    - text: 'No; add <code>with (most_recent=true)</code> to get the newest first'
+      why: 'The experimental hint makes Tempo search deeper and return the newest traces sorted by time.'
+    - text: 'No; raise the limit to 1,000 and sort the table by duration'
+      why: 'A bigger limit costs more and sorting by duration does not give the newest traces.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-009
+  tags: [tempo-find-trace]
+  exam: { cert: none }
+  q: 'In this lab, a checkout log line in Loki shows <code>trace_id</code> with an <b>Open trace</b> link. What makes that link?'
+  options:
+    - text: 'A derived field of the Loki data source'
+      why: 'The lab provisions a derived field named trace_id that turns the value into a link to Tempo.'
+    - text: 'An exemplar that Loki stores next to each log line'
+      why: 'Exemplars belong to metrics. Log lines carry the trace ID as structured metadata.'
+    - text: 'The trace to logs setting of the Tempo data source'
+      why: 'Trace to logs goes the other way, from a span to the logs around it.'
+    - text: 'A service graph edge between checkout and Loki'
+      why: 'Service graphs link services that call each other, not log lines to traces.'
+  answer: [0]
+  source: https://grafana.com/docs/grafana/v13.3/datasources/loki/configure/
+
+# traceql-basics
+- id: q-m13-010
+  tags: [traceql-basics]
+  exam: { cert: none }
+  q: 'On the lab, <code>{ resource.service.name =~ "check" }</code> returns no trace while checkout is busy. Why?'
+  options:
+    - text: 'Regular expressions only work on span attributes'
+      why: 'Regular expressions work on resource attributes too; <code>"check.*"</code> matches.'
+    - text: 'Its regular expressions are anchored at both ends'
+      why: 'Tempo treats every regular expression as anchored at both ends, so "check" only matches the exact word.'
+    - text: 'The service name is stored in lower case in another column'
+      why: 'The value is checkout, in lower case; case is not the problem.'
+    - text: 'The <code>=~</code> operator needs the value without quotes'
+      why: 'String values are always written in double quotes in TraceQL.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-011
+  tags: [traceql-basics]
+  exam: { cert: none }
+  q: 'The shop''s HTTP status codes are integers. What does <code>{ span.http.response.status_code = "500" }</code> return on the lab?'
+  options:
+    - text: 'Every span with status code 500, as with an integer'
+      why: 'TraceQL compares types strictly. A string does not equal the integer 500.'
+    - text: 'An error, because quotes are not allowed after the equals sign'
+      why: 'Quotes are allowed; the query is valid. It simply compares with a string.'
+    - text: 'No trace: a string never equals the integer 500'
+      why: 'Write the integer without quotes, <code>= 500</code>, to match the integer values.'
+    - text: 'Spans with a status code that starts with 5'
+      why: 'Equality compares the whole value. A prefix needs a regular expression on a string.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-012
+  tags: [traceql-basics]
+  exam: { cert: none }
+  q: 'You want traces that passed through both frontend and checkout. What does <code>{ resource.service.name = "frontend" && resource.service.name = "checkout" }</code> return?'
+  options:
+    - text: 'Traces that contain spans of both services'
+      why: 'Inside one pair of braces, all conditions must hold on the same span.'
+    - text: 'Traces that contain spans of either service'
+      why: 'That would need <code>||</code>. And even then, it would not require both.'
+    - text: 'An error, because a field cannot appear twice in a selector'
+      why: 'TraceQL accepts the query. It just cannot match anything.'
+    - text: 'No trace, because no single span belongs to two services'
+      why: 'Use two selectors, <code>{ ... frontend } && { ... checkout }</code>, to ask for both in one trace.'
+  answer: [3]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-013
+  tags: [traceql-basics]
+  exam: { cert: none }
+  q: 'Which spans does <code>{ duration > 2s }</code> return?'
+  options:
+    - text: 'All spans of traces that took longer than 2 seconds end to end'
+      why: 'That is <code>trace:duration</code>. The short form <code>duration</code> is the span''s own.'
+    - text: 'Spans that each took longer than 2 seconds from start to end'
+      why: 'The unscoped <code>duration</code> is an alias for <code>span:duration</code>.'
+    - text: 'Root spans only, because only they have a duration of the request'
+      why: 'Every span has a start and an end time, so every span has a duration.'
+    - text: 'Spans whose attribute <code>duration</code> is over 2 seconds'
+      why: 'An attribute needs a scope or at least a leading dot, as in <code>.duration</code>. Without them, duration is the intrinsic.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-014
+  tags: [traceql-basics]
+  exam: { cert: none }
+  q: 'Both <code>{ span.rpc.method = "GetProduct" }</code> and <code>{ .rpc.method = "GetProduct" }</code> find the same traces on the lab. Why does Tempo''s tuning guide prefer the first?'
+  options:
+    - text: 'The second form is deprecated and will stop working'
+      why: 'The guide calls it slower, not deprecated.'
+    - text: 'The second form only searches resource attributes'
+      why: 'A leading dot without a scope searches the span and the resource attributes, not only the resource.'
+    - text: 'The first form is case sensitive and the second is not'
+      why: 'Scope has nothing to do with case; both compare values exactly.'
+    - text: 'An unscoped name makes Tempo look in several scopes'
+      why: 'A scoped attribute lets Tempo read only the span attributes.'
+  answer: [3]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/tune-traceql-queries/
+
+- id: q-m13-015
+  tags: [traceql-basics]
+  exam: { cert: none }
+  q: 'What does <code>{ status = error } | select(span:statusMessage)</code> do?'
+  options:
+    - text: 'Error spans, each with its status message added'
+      why: 'select() adds the named fields to the matching spans without filtering further.'
+    - text: 'Returns only error spans that have a status message'
+      why: 'select() never filters; spans with an empty message stay in the result.'
+    - text: 'Groups the error spans by status message'
+      why: 'Grouping is done by <code>by()</code>, not by select().'
+    - text: 'Fails, because select() takes attributes and not intrinsics'
+      why: 'select() takes intrinsics such as span:statusMessage as well as attributes.'
+  answer: [0]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+# traceql-structural
+- id: q-m13-016
+  tags: [traceql-structural]
+  exam: { cert: none }
+  q: 'Which spans does <code>{ resource.service.name = "checkout" } >> { span:name = "astronomy-db" }</code> return?'
+  options:
+    - text: 'The checkout spans that have a database span below them'
+      why: 'Structural operators return the right side. To get the checkout spans, swap the sides and use <code><<</code>.'
+    - text: 'Database spans with a checkout span anywhere above'
+      why: 'The descendant operator returns spans of the right side with an ancestor that matches the left.'
+    - text: 'Both the checkout spans and the database spans'
+      why: 'Both sides come back only with the union form, <code>&>></code>.'
+    - text: 'Database spans whose direct parent is a checkout span'
+      why: 'That is the child operator, <code>></code>. The descendant operator accepts any depth.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-017
+  tags: [traceql-structural]
+  exam: { cert: none }
+  q: 'Checkout''s server span calls cart and product-catalog through an internal span. What does <code>{ resource.service.name = "checkout" && span:kind = server } > { resource.service.name = "product-catalog" }</code> return?'
+  options:
+    - text: 'Every product-catalog span below the checkout server span'
+      why: 'That is what <code>>></code> would return. <code>></code> needs a direct parent.'
+    - text: 'An error, because <code>></code> compares numbers'
+      why: 'Between two selectors, <code>></code> is the child operator.'
+    - text: 'Product-catalog spans with a sibling in checkout'
+      why: 'Siblings are matched by <code>~</code>, not by <code>></code>.'
+    - text: 'Nothing: product-catalog is not a direct child'
+      why: 'The child operator requires the left span as the direct parent, and an internal span sits between them.'
+  answer: [3]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-018
+  tags: [traceql-structural]
+  exam: { cert: none }
+  q: 'You want the failing endpoint span and also every failing span below it, in one result. Which query does that?'
+  options:
+    - text: '<code>{ span.http.route = "/api/checkout" && status = error } >> { status = error }</code>'
+      why: 'This returns only the failing spans below the route, not the route span itself.'
+    - text: '<code>{ span.http.route = "/api/checkout" && status = error } && { status = error }</code>'
+      why: 'This only asks that both exist in the trace, with no relation between them.'
+    - text: '<code>{ span.http.route = "/api/checkout" && status = error } &>> { status = error }</code>'
+      why: 'The union form of the descendant operator returns the matching spans of both sides.'
+    - text: '<code>{ status = error } >> { span.http.route = "/api/checkout" && status = error }</code>'
+      why: 'This returns route spans that sit below another error, the reverse of what you want.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-019
+  tags: [traceql-structural]
+  exam: { cert: none }
+  q: 'What does <code>{ status = error } | by(resource.service.name) | count() > 1</code> find?'
+  options:
+    - text: 'Services with more than one error across all traces in the range'
+      why: 'Pipelines work per trace. Counting across traces is a TraceQL metrics query.'
+    - text: 'Traces in which a single service has more than one error span'
+      why: 'by() groups each trace''s error spans per service, and count() keeps groups with more than one.'
+    - text: 'Traces in which more than one service has an error'
+      why: 'That would count services, not error spans per service.'
+    - text: 'A time series of errors per service'
+      why: 'A series needs a metrics function such as <code>rate()</code>, not count() in a pipeline.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-020
+  tags: [traceql-structural]
+  exam: { cert: none }
+  q: 'Tempo marks the operators <code>!>></code>, <code>!></code>, <code>!<<</code>, <code>!<</code> and <code>!~</code> as experimental. Why?'
+  options:
+    - text: 'They read the whole trace, so they are disabled by default'
+      why: 'They are available to every query. The documentation warns about their results, not their cost.'
+    - text: 'They only work on blocks written in vParquet3'
+      why: 'Tempo 3.1 no longer writes vParquet3. These operators are not tied to it.'
+    - text: 'They can sometimes return false positives'
+      why: 'The documentation says these negated operators may return spans that do not truly match.'
+    - text: 'They return the left side instead of the right side'
+      why: 'Like the other structural operators, they return the right side.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+# traceql-metrics
+- id: q-m13-021
+  tags: [traceql-metrics]
+  exam: { cert: none }
+  q: 'Which query gives one time series of requests per second for each service?'
+  options:
+    - text: '<code>{ span:kind = server } | by(resource.service.name) | count()</code>'
+      why: 'by() and count() work per trace and return traces, not series.'
+    - text: '<code>{ span:kind = server } | count() by (resource.service.name)</code>'
+      why: 'count() is a span set aggregate and does not take by() after it.'
+    - text: '<code>{ span:kind = server } | select(resource.service.name)</code>'
+      why: 'select() only adds fields to the matching spans of each trace.'
+    - text: '<code>{ span:kind = server } | rate() by (resource.service.name)</code>'
+      why: 'rate() turns matching spans into a per-second series, and by() splits it per service.'
+  answer: [3]
+  source: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/functions/
+
+- id: q-m13-022
+  tags: [traceql-metrics]
+  exam: { cert: none }
+  q: 'On this lab, you ask the API for <code>{ resource.service.name = "checkout" } | rate()</code> over the last 6 hours. What happens?'
+  options:
+    - text: 'Tempo answers with six hours of data from the blocks'
+      why: 'This lab caps metrics queries at 3 hours, so six hours are refused.'
+    - text: 'HTTP 400: the range is over the maximum of 3h0m0s'
+      why: 'The query frontend''s metrics max_duration is 3 hours on this lab.'
+    - text: 'Tempo answers only the last 15 minutes, from the live-stores'
+      why: 'Tempo does not shorten the range silently. It refuses it.'
+    - text: 'Tempo samples the spans so the query finishes in time'
+      why: 'Sampling happens only when a query asks for it with a hint.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/configure-traceql-metrics/
+
+- id: q-m13-023
+  tags: [traceql-metrics]
+  exam: { cert: none }
+  q: 'A Tempo 3.1 cluster runs the metrics-generator with only the span-metrics processor. Can it answer TraceQL metrics queries on the last 10 minutes?'
+  options:
+    - text: 'No, it needs the local-blocks processor in the metrics-generator'
+      why: 'Tempo 3.0 removed the local-blocks processor, and the docs say to remove it from the configuration.'
+    - text: 'No, TraceQL metrics read only the span metrics in Mimir'
+      why: 'TraceQL metrics read stored spans in Tempo, not series in Mimir.'
+    - text: 'Yes, but only after the block-builder has flushed the spans'
+      why: 'Recent spans are served by the live-stores, before any block exists.'
+    - text: 'Yes, the live-stores answer for recent spans, with no processor'
+      why: 'In Tempo 3 the live-store handles TraceQL metrics on recent data.'
+  answer: [3]
+  source: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-generator/
+
+# tempo-metrics-generator
+- id: q-m13-024
+  tags: [tempo-metrics-generator]
+  exam: { cert: none }
+  q: 'Which labels does Tempo''s span metrics processor add to every series by default?'
+  options:
+    - text: '<code>service</code>, <code>span_name</code>, <code>span_kind</code> and <code>status_code</code>'
+      why: 'These four are the default intrinsic dimensions of span metrics.'
+    - text: '<code>service</code>, <code>trace_id</code>, <code>span_name</code> and <code>status_code</code>'
+      why: 'A trace ID would make a series per request. It is an exemplar, not a label.'
+    - text: '<code>job</code>, <code>instance</code>, <code>span_name</code> and <code>status_message</code>'
+      why: 'job, instance and status_message are optional and need extra settings.'
+    - text: '<code>service_name</code>, <code>http_route</code>, <code>span_kind</code> and <code>status_code</code>'
+      why: 'service_name exists on this lab only through a mapping, and routes need a dimension.'
+  answer: [0]
+  source: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/span-metrics/span-metrics-metrics-generator/
+
+- id: q-m13-025
+  tags: [tempo-metrics-generator]
+  exam: { cert: none }
+  q: 'On the lab, <code>traces_spanmetrics_calls_total</code> had 126 series and the latency histogram 13 values of <code>le</code>. How many <code>traces_spanmetrics_latency_bucket</code> series is that?'
+  options:
+    - text: '126, one bucket series per label combination'
+      why: 'A histogram writes one series per bucket for every combination.'
+    - text: '139, the combinations plus the buckets'
+      why: 'Buckets multiply the combinations; they do not add to them.'
+    - text: '1,638, that is 126 combinations times 13 buckets'
+      why: '126 times 13 is 1,638, which is why the histogram is the largest metric of tenant lab.'
+    - text: '13, because the buckets are shared by all services'
+      why: 'Each combination of labels has its own set of buckets.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/span-metrics/span-metrics-metrics-generator/
+
+- id: q-m13-026
+  tags: [tempo-metrics-generator]
+  exam: { cert: none }
+  q: 'Product-catalog calls PostgreSQL, which sends no spans. How can PostgreSQL still appear in Tempo''s service graph?'
+  options:
+    - text: 'The collector creates fake server spans for every database'
+      why: 'Nothing creates spans for the database. The processor works from the client span.'
+    - text: 'A client span with db attributes becomes a database node'
+      why: 'A client span with db.system.name, db.name or similar attributes becomes an edge to a database node.'
+    - text: 'Grafana reads the database list from the Kubernetes API'
+      why: 'Grafana draws the service graph from the metrics Tempo writes.'
+    - text: 'It cannot, because an edge needs a client and a server span'
+      why: 'Database and virtual nodes are the exceptions the processor handles.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/service_graphs/
+
+# tempo-sampling
+- id: q-m13-027
+  tags: [tempo-sampling]
+  exam: { cert: none }
+  q: 'Every SDK of a system keeps 10% of traces with a head sampler, and Tempo''s metrics-generator makes span metrics. What do the span metrics show?'
+  options:
+    - text: 'The right request rate, because Tempo reads the sampling rate'
+      why: 'The generator counts only the spans it receives. It does not scale them.'
+    - text: 'No data, because sampled spans are not counted'
+      why: 'Kept spans are counted like any other.'
+    - text: 'Too many errors, because a sampler always keeps error traces'
+      why: 'A head sampler decides before the request runs, so it cannot prefer errors.'
+    - text: 'About one tenth of the real request rate'
+      why: 'Only one trace in ten reaches Tempo, so the counts are a tenth of the traffic.'
+  answer: [3]
+  source: https://grafana.com/docs/tempo/v3.1.x/set-up-for-tracing/instrument-send/set-up-collector/tail-sampling/
+
+- id: q-m13-028
+  tags: [tempo-sampling, traceql-metrics]
+  exam: { cert: none }
+  q: 'Traces were head-sampled at 15% by a probability sampler that records its probability. Which query estimates the real rate of checkout spans?'
+  options:
+    - text: '<code>{ resource.service.name = "checkout" } | rate() with(sample=true)</code>'
+      why: 'sample=true samples at query time to save work. It does not undo collection sampling.'
+    - text: '<code>{ resource.service.name = "checkout" } | rate() with(extrapolate=true)</code>'
+      why: 'The experimental hint scales each span by one over the sampling probability recorded on it.'
+    - text: '<code>{ resource.service.name = "checkout" } | rate() with(span_sample=0.15)</code>'
+      why: 'span_sample samples stored spans at query time to save work. It estimates the stored rate and cannot recover spans dropped at collection.'
+    - text: '<code>{ resource.service.name = "checkout" } | rate() * 0.15</code>'
+      why: 'Multiplying by 0.15 makes the rate smaller still. The real rate is larger than the stored one.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-queries/functions/
+
+# tempo-storage
+- id: q-m13-029
+  tags: [tempo-storage]
+  exam: { cert: none }
+  q: 'A block-builder crashes after writing <code>data.parquet</code> but before <code>meta.json</code>. What do queriers see?'
+  options:
+    - text: 'Nothing, since a block is invisible until meta.json exists'
+      why: 'Without meta.json the block is invisible, and the restarted block-builder writes it again.'
+    - text: 'A half-written block that returns errors until it is deleted'
+      why: 'The flush order keeps half-written blocks out of the read path.'
+    - text: 'The spans of the block, read straight from data.parquet'
+      why: 'Queriers use meta.json to find blocks. Without it, they do not read the data.'
+    - text: 'Two copies of the spans after the block-builder restarts'
+      why: 'Block IDs are deterministic, so the retry overwrites the same block.'
+  answer: [0]
+  source: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/block-builder/
+
+- id: q-m13-030
+  tags: [tempo-storage]
+  exam: { cert: none }
+  q: 'The backend workers compact tenant lab''s blocks every few minutes. What does that change about how long traces are kept?'
+  options:
+    - text: 'Traces are kept shorter, because merging drops old spans'
+      why: 'Compaction merges blocks without dropping data. Only retention deletes it.'
+    - text: 'Traces are kept longer, because a merged block gets a new date'
+      why: 'Retention looks at the age of the data, not at when the block was written.'
+    - text: 'Nothing: retention jobs still delete data older than 48 hours'
+      why: 'Compaction changes how many blocks hold the data. Retention removes it by age.'
+    - text: 'Traces are kept until the bucket is full'
+      why: 'Tempo deletes by age, with block_retention. It does not watch the bucket size.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/compaction/
+
+- id: q-m13-031
+  tags: [tempo-storage, traceql-basics]
+  exam: { cert: none }
+  q: 'Why does <code>{ span.http.response.status_code = 500 }</code> read far less data than fetching every trace in the range?'
+  options:
+    - text: 'Tempo keeps an index of every attribute value, like a search engine'
+      why: 'A block''s index maps trace IDs, not attribute values. The columns do the work.'
+    - text: 'The query frontend caches the answer of every query'
+      why: 'A results cache helps only for repeated queries, not for the first one.'
+    - text: 'Blocks are Parquet, so Tempo reads the columns the query needs'
+      why: 'Columnar storage lets Tempo read only the columns the query needs, not whole traces.'
+    - text: 'Status codes are stored in Mimir and joined at query time'
+      why: 'Span attributes stay in Tempo. Mimir holds only the metrics the generator writes.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/block-format/
+
+# tempo-drilldown
+- id: q-m13-032
+  tags: [tempo-drilldown]
+  exam: { cert: none }
+  q: 'Traces Drilldown shows normal durations for checkout requests, but the database is said to be slow. The app uses its default signal. What should you change first?'
+  options:
+    - text: 'The metric from Duration to Span rate'
+      why: 'A rate does not show slowness. The signal, not the metric, hides the database spans.'
+    - text: 'The data source from tempo to mimir'
+      why: 'Traces Drilldown works on a Tempo data source.'
+    - text: 'The percentile of the Breakdown from p90 to p50'
+      why: 'A lower percentile shows the typical span, which hides slowness further.'
+    - text: 'The signal from Root spans to All spans'
+      why: 'Root spans show only the first span of each trace. All spans includes the database calls.'
+  answer: [3]
+  source: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/traces/investigate/choose-red-metric/
+
+# traceql-investigation
+- id: q-m13-033
+  tags: [traceql-investigation, traceql-structural]
+  exam: { cert: none }
+  q: 'Product-catalog''s server spans take seconds. Which query shows which of their direct children waited?'
+  options:
+    - text: '<code>{ resource.service.name = "product-catalog" && span:kind = server && span:duration > 1s } > { span:duration > 1s }</code>'
+      why: 'The child operator returns the slow direct children of the slow server spans.'
+    - text: '<code>{ resource.service.name = "product-catalog" && span:kind = server && span:duration > 1s } < { span:duration > 1s }</code>'
+      why: 'The parent operator returns the parents of the slow server spans, the callers.'
+    - text: '<code>{ resource.service.name = "product-catalog" && span:duration > 1s } | count() > 1</code>'
+      why: 'This keeps traces with several slow spans but does not relate them.'
+    - text: '<code>{ resource.service.name = "product-catalog" } && { span:duration > 1s }</code>'
+      why: 'Two selectors without a structural operator do not relate the spans.'
+  answer: [0]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+# tempo-tenants-limits
+- id: q-m13-034
+  tags: [tempo-tenants-limits]
+  exam: { cert: none }
+  q: 'A tenant sends a 6 MB trace. On this lab, <code>max_bytes_per_trace</code> is 5,000,000 bytes. What does the sender see?'
+  options:
+    - text: 'HTTP 429 with RATE_LIMITED from the distributor'
+      why: 'RATE_LIMITED is about bytes per second. 6 MB is far under the rate limit.'
+    - text: 'HTTP 413, because the request body is too large to accept'
+      why: 'The distributor accepts the body; the limit is per trace and checked later.'
+    - text: 'HTTP 200; later the spans are dropped as trace_too_large'
+      why: 'The trace size limit is enforced downstream, after the distributor has answered.'
+    - text: 'HTTP 200, and Tempo stores the first 5 MB of the trace'
+      why: 'On the lab, the whole trace was dropped and could not be read at all.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/troubleshooting/send-traces/max-trace-limit-reached/
+
+- id: q-m13-035
+  tags: [tempo-tenants-limits]
+  exam: { cert: none }
+  q: 'You want one search over the tenants <code>lab</code> and <code>learn-m13</code> on this lab. Which header does that?'
+  options:
+    - text: '<code>X-Scope-OrgID: lab,learn-m13</code>'
+      why: 'Tempo separates tenants in a query with a pipe, not a comma.'
+    - text: '<code>X-Scope-OrgID: *</code>'
+      why: 'There is no wildcard for querying all tenants; * exists only as a key of the overrides. Name each tenant.'
+    - text: '<code>X-Scope-OrgID: lab|learn-m13</code>'
+      why: 'With multi-tenant queries enabled, a pipe-separated list reads several tenants at once.'
+    - text: 'Two headers, one per tenant, in the same request'
+      why: 'Tempo reads one header value and splits it at the pipe character.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/configuration/
+
+- id: q-m13-036
+  tags: [tempo-tenants-limits, tempo-architecture]
+  exam: { cert: none }
+  q: 'Which Tempo limit can make a sender see an error while it waits for the answer?'
+  options:
+    - text: '<code>max_bytes_per_trace</code>, the size of one trace'
+      why: 'Trace size is checked by live-stores and block-builders, after the answer.'
+    - text: '<code>max_traces_per_user</code>, the live traces per tenant'
+      why: 'Live traces are counted by the live-stores as they read Kafka, not by the distributor.'
+    - text: '<code>block_retention</code>, the age of the stored blocks'
+      why: 'Retention deletes old blocks. It never refuses a write.'
+    - text: '<code>rate_limit_bytes</code>, the ingestion rate per tenant'
+      why: 'The ingestion rate, with its burst, is the only per-tenant limit the distributor refuses on before it answers.'
+  answer: [3]
+  source: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/distributor/
+
+- id: q-m13-037
+  tags: [traceql-basics]
+  exam: { cert: none }
+  q: 'What does <code>{ trace:rootService = "load-generator" && span:duration > 1s }</code> return?'
+  options:
+    - text: 'Load generator spans that took longer than one second'
+      why: 'trace:rootService is a property of the whole trace, so the slow span can belong to any service.'
+    - text: 'Spans over one second in traces that the load generator started'
+      why: 'Both conditions hold on one span: the trace''s root service and the span''s own duration.'
+    - text: 'Traces started by the load generator that took over one second'
+      why: 'span:duration is the span''s own length. Whole traces need trace:duration.'
+    - text: 'An error, because a trace intrinsic cannot be mixed with a span intrinsic'
+      why: 'Trace intrinsics are the same on every span of a trace, so they combine with span fields.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+
+- id: q-m13-038
+  tags: [traceql-investigation, traceql-basics]
+  exam: { cert: none }
+  q: 'You want traces in which checkout''s own server span took more than 2 seconds. Which query finds exactly those?'
+  options:
+    - text: '<code>{ resource.service.name = "checkout" && span:kind = server && trace:duration > 2s }</code>'
+      why: 'trace:duration is the length of the whole trace, so a fast checkout span in a long trace matches.'
+    - text: '<code>{ span:duration > 2s } >> { resource.service.name = "checkout" }</code>'
+      why: 'This returns checkout spans below any slow span, without a limit on checkout''s own time.'
+    - text: '<code>{ resource.service.name = "checkout" && span:kind = server && span:duration > 2s }</code>'
+      why: 'All three conditions hold on checkout''s own server span.'
+    - text: '<code>{ span:name = "PlaceOrder" && span:duration > 2s }</code>'
+      why: 'The span is named oteldemo.CheckoutService/PlaceOrder, and equality needs the whole name.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/

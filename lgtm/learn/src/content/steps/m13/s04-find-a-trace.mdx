@@ -1,0 +1,108 @@
+---
+id: m13-s04
+title: "Find a trace three ways: by ID, by search, from a log line"
+kind: lab
+minutes: 20
+order: 4
+exam:
+  - cert: none
+tags: [tempo-find-trace]
+check:
+  kind: token
+  slot: span-m13-1
+  prompt: Paste the beacon.token of the slot span-m13-1, found with the Search form in action 2.
+outcome: You can open a trace in Grafana from its ID, find traces with the Search form and its filters, and jump to a trace from a log line that carries a trace ID.
+terms:
+  - term: Search form
+    def: The Search query type of the Tempo data source; fields for service, span name, status, duration and tags that Grafana turns into TraceQL.
+  - term: Derived field
+    def: A setting of the Loki data source that turns a value in a log line into a link, here from trace_id to Tempo.
+  - term: Trace by ID
+    def: A lookup of one trace by its 32 hex characters, which reads every block that might hold its spans.
+sources:
+  - title: TraceQL editor, query by trace ID (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/datasources/tempo/query-editor/traceql-editor/
+    checked: 2026-11-14
+  - title: Search traces with the query builder (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/datasources/tempo/query-editor/traceql-search/
+    checked: 2026-11-14
+  - title: Tempo HTTP API, query and search
+    url: https://grafana.com/docs/tempo/v3.1.x/api_docs/
+    checked: 2026-11-14
+  - title: Traces and telemetry (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/introduction/telemetry/
+    checked: 2026-11-14
+---
+
+<Problem>
+Three people ask for help in one morning. One pastes a trace ID from an error page. One says "checkout was slow around 10:40, no idea which request". One sends a log line that says `order placed` and nothing else useful. Each needs a different way into Tempo, and you should not have to think about which.
+</Problem>
+
+<Idea>
+A trace ID opens one trace directly. Without an ID, a search finds traces by what their spans contain: service, span name, status, duration and attributes. A log line written inside a span carries the trace ID, and Grafana turns it into a link to that trace.
+</Idea>
+
+## By ID
+
+A trace ID is 16 bytes written as 32 hex characters. In Explore, the data source `tempo` with the query type **TraceQL** accepts a bare trace ID in place of a query and opens the trace. Tempo then looks for every span with that ID: in the live-stores for recent data and in every block whose bloom filter says it may hold the ID. Without a time range, a lookup checks all blocks of the retention period, so on a large store it can read a lot to return one trace.
+
+## By search
+
+Most of the time there is no ID. The **Search** query type is a form: **Service Name**, **Span Name**, **Status**, **Duration** and **Tags**, each with an operator. Grafana writes TraceQL from the form; **Edit in TraceQL** shows the query it built, which is a good way to learn the language of steps 5 and 6. The search returns up to 20 traces by default and shows up to three matching spans of each. Tempo stops when it has enough results, so the 20 you see are not the 20 newest or the 20 slowest.
+
+Tempo's search results drop the leading zeros of a trace ID: on this lab a trace `0080f6f5...` was listed as `80f6f5...`, 30 characters long. Both forms open the same trace, but a text search for the short form in your logs finds nothing.
+
+## From a log line
+
+When a service writes a log line inside a span, the OpenTelemetry SDK puts the trace ID and span ID next to it. In this lab they reach Loki as the structured metadata `trace_id` and `span_id`. The Loki data source has a derived field named `trace_id` that turns the value into a link. In a log line's details, the **Links** section shows `trace_id` with an **Open trace** button, and the trace opens beside the logs.
+
+<Flow caption="Three ways in">
+  <Stage title="Trace ID" kicker="by ID">Pasted in the TraceQL field; one trace.</Stage>
+  <Stage title="Search form" kicker="by content">Service, span name, status, duration, tags.</Stage>
+  <Stage title="Log line" kicker="by link">trace_id in the details, Open trace.</Stage>
+</Flow>
+
+<InLab>
+Checkout logs `order placed` with the order's details as structured metadata, together with `trace_id` and `span_id`. The beacon's traces have one root `beacon.tick` and one child `beacon.slot` per slot each minute.
+</InLab>
+
+<Trap>
+An empty trace from a link is not always a broken link. The trace may be older than the 48 hours Tempo keeps, in another tenant, or dropped by a sampler before it reached Tempo.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, choose the data source `tempo`, the query type **Search** and the time range **Last 15 minutes**.
+2. Fill in the form: **Service Name** `=` `beacon`, **Span Name** `=` `beacon.slot`, and under **Tags** the scope `span`, the tag `beacon.slot`, `=` and the value `span-m13-1`. Run the query. Open one of the traces, expand the span `beacon.slot` and read its attribute `beacon.token`. Paste it in the check below.
+3. Click **Edit in TraceQL** and read the query Grafana built from your form.
+4. Copy the trace ID from the trace view's header. Switch the query type to **TraceQL**, paste only the ID into the query field and run it. The same trace opens.
+5. Go from a log line to its trace. Choose the data source `loki` and run <Query lang="logql">{`{service_name="checkout"} |= "order placed"`}</Query> Click a line, find `trace_id` under **Links** and click **Open trace**. The checkout trace that wrote the line opens beside it.
+6. In the trace, find the span of checkout whose span ID equals the line's `span_id`: the log line was written inside it.
+</Do>
+
+<Done>
+You found the beacon's trace with the Search form, opened a trace from its ID, and followed a checkout log line to the trace and the span that wrote it.
+</Done>
+
+<Trap practice>
+If the search returns nothing, check the time range first: the beacon writes each slot's trace once a minute, and **Last 5 minutes** is enough. A tag filter with the scope `resource` finds nothing here, because `beacon.slot` is a span attribute.
+</Trap>
+
+<Question id="q-m13-s04" answer="c">
+A colleague has a log line with `trace_id=4bf92f3577b34da6a3ce929d0e0e4736`. Opening it in Tempo with the time range **Last 15 minutes** shows nothing, but the line is from yesterday. What is the best next move?
+
+- Search for the service name with **Last 15 minutes** and scroll through the results
+
+  The trace is from yesterday, so a search over the last 15 minutes cannot contain it.
+
+- Ask the team to raise the search result limit from 20 to 100
+
+  The limit only changes how many matches come back, not whether yesterday's trace is in the time range.
+
+- Look the ID up with a time range around the time of the line, or without one
+
+  A lookup by ID with the right range, or none, reads the blocks that hold yesterday's spans.
+
+- Conclude that the trace was dropped by a sampler
+
+  The lookup did not cover yesterday yet, so nothing shows that the trace is missing.
+</Question>

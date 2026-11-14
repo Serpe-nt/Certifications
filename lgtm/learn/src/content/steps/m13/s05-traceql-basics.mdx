@@ -1,0 +1,114 @@
+---
+id: m13-s05
+title: "TraceQL: span sets, intrinsics and scopes"
+kind: drill
+minutes: 20
+order: 5
+exam:
+  - cert: none
+tags: [traceql-basics]
+check:
+  kind: token
+  slot: span-m13-2
+  prompt: Paste the beacon.token of the slot span-m13-2, found with the query of action 6.
+outcome: You can write a TraceQL span selector with intrinsics, scoped attributes and comparisons, and say why a query that looks right returns nothing.
+terms:
+  - term: Span set
+    def: The spans of one trace that match a selector in braces. A trace is in the result when its span set is not empty.
+  - term: Intrinsic
+    def: A field every span or trace has, written with a colon, such as span:duration, span:kind or trace:rootService.
+  - term: Attribute scope
+    def: The prefix before an attribute name, such as span., resource., event. or link., that says where Tempo looks for it.
+  - term: select()
+    def: A pipeline step that adds the named fields of each matching span to the result.
+sources:
+  - title: Construct a TraceQL query
+    url: https://grafana.com/docs/tempo/v3.1.x/traceql/construct-traceql-queries/
+    checked: 2026-11-14
+  - title: Tune TraceQL query performance
+    url: https://grafana.com/docs/tempo/v3.1.x/traceql/tune-traceql-queries/
+    checked: 2026-11-14
+  - title: TraceQL editor (Grafana)
+    url: https://grafana.com/docs/grafana/v13.3/datasources/tempo/query-editor/traceql-editor/
+    checked: 2026-11-14
+---
+
+<Problem>
+You want every checkout span that took longer than 50 ms. You write `{ service.name = "checkout" && duration > 50ms }`, and Tempo answers with a parse error. You try `{ resource.service.name =~ "check" }` to be safe, and it returns nothing although checkout is busy. Each mistake is small, and each one hides the traces you came for.
+</Problem>
+
+<Idea>
+A TraceQL query is evaluated on one trace at a time. Braces select the spans of that trace for which every condition inside is true. Fields with a colon are intrinsics that every span has; fields with a dot are attributes, and their scope says where to look. Types are compared strictly, and regular expressions must match the whole value.
+</Idea>
+
+## A selector works on one span
+
+`{ }` selects every span of every trace. Conditions inside the braces are joined with `&&` and `||`, and the whole expression is evaluated on one span at a time: `{ resource.service.name = "checkout" && span:kind = server }` finds checkout's server spans, not a trace that has some checkout span and some server span elsewhere. A trace is returned when at least one of its spans matches, and the result shows the matching spans, three per trace unless you ask for more.
+
+## Intrinsics and scopes
+
+Intrinsics are written with a colon. `span:name`, `span:kind`, `span:status`, `span:duration` and `span:statusMessage` describe one span. `trace:duration`, `trace:rootService` and `trace:rootName` describe the whole trace and are the same on all its spans. They are cheap to read, so filter on them when you can. The short forms `name`, `kind`, `status` and `duration` mean the span's own fields: `duration` is `span:duration`, never the trace's length.
+
+Attributes are written with a dot and start with their scope. `resource.service.name` is set once per process; `span.rpc.method` sits on one span; `event.exception.message` on a span event; `link.` on a span link; `instrumentation.` on the instrumentation scope. A wrong scope is a silent miss: in this lab `{ span.rpc.method = "GetProduct" }` finds product lookups, and `{ resource.rpc.method = "GetProduct" }` finds nothing, because no process has that attribute. A leading dot without a scope, `{ .rpc.method = "GetProduct" }`, looks in both the span and the resource attributes and works, but Tempo's tuning guide warns that it reads more.
+
+<Layers caption="Where a field lives">
+  <Layer title="trace:">Duration, root service, root span name; one value per trace.</Layer>
+  <Layer title="resource.">The process that sent the span: service.name, k8s.pod.name.</Layer>
+  <Layer title="span." hot>The operation: http.route, rpc.method, db.query.text.</Layer>
+  <Layer title="event. and link.">Things that happened inside a span, and links to other spans.</Layer>
+</Layers>
+
+## Comparisons are strict
+
+Values have types: strings in double quotes, integers, floats, durations such as `50ms`, the status values `ok`, `error` and `unset`, the kinds `server`, `client`, `producer`, `consumer`, `internal` and `unspecified`, and `nil` for "not set". An integer attribute does not match a string: on this lab `{ span.http.response.status_code = 200 }` finds spans and `{ span.http.response.status_code = "200" }` finds none.
+
+Regular expressions with `=~` and `!~` are anchored at both ends. `{ resource.service.name =~ "check" }` returned nothing on the lab; `"check.*"` returned checkout. Finally, `select()` after a pipe adds fields to each result span without filtering. It is how you read an attribute of the matching spans without opening each trace.
+
+<InLab>
+The shop's HTTP status codes are integers in `span.http.response.status_code`, gRPC methods are in `span.rpc.method`, and the database spans of product-catalog keep their SQL in `span.db.query.text`. The beacon puts both `beacon.slot` and `beacon.token` on its child span `beacon.slot`.
+</InLab>
+
+<Trap>
+A query that returns nothing is not proof that nothing happened. Check the scope, the type of the value and the anchoring of a regular expression before you trust an empty result.
+</Trap>
+
+<Remember>
+Braces match one span at a time. A colon for intrinsics, a dot and a scope for attributes; strict types; regular expressions match the whole value.
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, choose the data source `tempo`, the query type **TraceQL** and the time range **Last 15 minutes**.
+2. Find checkout's server spans: <Query lang="traceql">{`{ resource.service.name = "checkout" && span:kind = server }`}</Query> Each result is a load generator trace with one matching span.
+3. Try the wrong scope, then the right one: <Query lang="traceql">{`{ resource.rpc.method = "GetProduct" }`}</Query> <Query lang="traceql">{`{ span.rpc.method = "GetProduct" }`}</Query> The first finds no trace; the second finds product lookups.
+4. Try a type and an anchor: <Query lang="traceql">{`{ span.http.response.status_code = "200" }`}</Query> <Query lang="traceql">{`{ resource.service.name =~ "check" }`}</Query> Both return nothing. Change the first to `200` without quotes and the second to `"check.*"`, and both return traces.
+5. Use a trace intrinsic: <Query lang="traceql">{`{ trace:duration > 300ms }`}</Query> Look at the root service of the results: whole page loads of the browser and long checkouts.
+6. Read your token from the beacon's spans: <Query lang="traceql">{`{ span.beacon.slot = "span-m13-2" } | select(span.beacon.token)`}</Query> Each trace shows two matching spans. Only the child span has a `beacon.token`. Paste it in the check below.
+</Do>
+
+<Done>
+You saw a wrong scope, a string compared with an integer and an unanchored pattern each return nothing, and found the token with a scoped selector and `select()`.
+</Done>
+
+<Trap practice>
+If action 6 shows no token, the result table may show only the span names. Open the trace, or set the table format to **Spans** in the query options, to see the selected attribute.
+</Trap>
+
+<Question id="q-m13-s05" answer="b">
+Which query finds checkout server spans that took longer than 200 ms, as a scoped TraceQL query?
+
+- `{ service.name = "checkout" && trace:duration > 200ms && kind = server }`
+
+  `service.name` without a scope or a leading dot is a parse error, and `trace:duration` would be the length of the whole trace.
+
+- `{ resource.service.name = "checkout" && span:kind = server && span:duration > 200ms }`
+
+  All three conditions are on the same span, with the right scope and the span's own duration.
+
+- `{ resource.service.name = "checkout" } && { span:duration > 200ms }`
+
+  Two selectors can match two different spans, so any slow span in a checkout trace would do.
+
+- `{ span.service.name = "checkout" && span:kind = "server" && duration > 200ms }`
+
+  `service.name` is a resource attribute, and the kind is an enum: Tempo refuses a quoted string there as a type error.
+</Question>

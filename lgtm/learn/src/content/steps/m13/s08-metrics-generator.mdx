@@ -1,0 +1,112 @@
+---
+id: m13-s08
+title: "The metrics-generator: span metrics and service graphs"
+kind: lab
+minutes: 20
+order: 8
+exam:
+  - cert: none
+tags: [tempo-metrics-generator]
+check:
+  kind: exact
+  prompt: How many distinct values of le does traces_spanmetrics_latency_bucket have on this lab? Paste the number from action 3.
+  answers: ["13"]
+outcome: You can say which metrics Tempo's metrics-generator writes and with which labels, find them in Mimir, and explain why the latency histogram is the most expensive metric of tenant lab.
+terms:
+  - term: Span metrics
+    def: Request counts, durations and sizes the metrics-generator computes from every span, one series per combination of its dimensions.
+  - term: Service graph
+    def: Metrics of calls between pairs of services, built by matching a client span with the server span it called.
+  - term: Dimension
+    def: A label of a span metric. Four are built in; more can be added from span or resource attributes.
+sources:
+  - title: Use the metrics-generator to create metrics from spans
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/span-metrics/span-metrics-metrics-generator/
+    checked: 2026-11-14
+  - title: Service graphs (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/service_graphs/
+    checked: 2026-11-14
+  - title: Metrics-generator (component)
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/metrics-generator/
+    checked: 2026-11-14
+  - title: Metrics-generator cardinality (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/metrics-generator/cardinality/
+    checked: 2026-11-14
+  - title: Tempo configuration, metrics-generator
+    url: https://grafana.com/docs/tempo/v3.1.x/configuration/
+    checked: 2026-11-14
+---
+
+<Problem>
+Module m11 step 9 asked which metric costs tenant `lab` the most series in Mimir. The answer was not a metric any service of the shop exports: it was `traces_spanmetrics_latency_bucket`, written by Tempo. Nobody in the lab configured a histogram, and yet it is there, larger than anything else.
+</Problem>
+
+<Idea>
+The metrics-generator reads every span from Kafka and keeps request, error and duration metrics for each combination of service, span name, span kind and status code, plus the dimensions the lab adds. It also matches client and server spans into service graph metrics. It writes both to Mimir with remote write, under the tenant the spans came from.
+</Idea>
+
+## What span metrics count
+
+For every span it receives, the span metrics processor adds one to `traces_spanmetrics_calls_total`, adds the duration to the histogram `traces_spanmetrics_latency`, and adds the span's size to `traces_spanmetrics_size_total`. The labels are the span's `service`, `span_name`, `span_kind` and `status_code`, and any extra dimensions. Because the counter has a `status_code` label, an error rate is a ratio of two rates: the RED method from traces, with no line of metrics code in the services.
+
+This lab adds three things in `lgtm/lab/helm/tempo/values.yaml`. `service.namespace` is an extra dimension. A mapping copies `service.name` into a label `service_name`, so span metrics use the same label as every other signal of the lab. And external labels `cluster="lgtm-lab"` and `source="tempo"` mark where the series came from.
+
+## Why the histogram is the largest metric
+
+A histogram is one series per bucket for each label combination, plus `_sum` and `_count`. On the lab on 2026-11-14, `traces_spanmetrics_calls_total` had 126 series, one per combination of the labels. The running configuration has 12 bucket bounds, from 0.002 to 4.1 seconds, and the histogram adds `+Inf`, so it had 126 × 13 = 1,638 bucket series. The 12 bounds come from the default values of the chart `tempo-distributed` 3.27.0, which the lab uses as they are; Tempo's own default, on its configuration page, has 14 bounds, up to 16.384 seconds.
+
+<Figures caption="Span metric series in tenant lab, 2026-11-14" unit="series">
+  <Stat label="Latency buckets" value="1,638" amount={1638} max={1638} hot note="126 combinations times 13 buckets." />
+  <Stat label="Service graph client buckets" value="279" amount={279} max={1638} note="31 pairs times 9 buckets." />
+  <Stat label="Calls counter" value="126" amount={126} max={1638} note="One per label combination." />
+</Figures>
+
+Every dimension multiplies this. Add an attribute with 50 values as a dimension, and the 126 combinations can become thousands, each times 13. The span name is usually the largest driver: a name that contains an ID creates a new series for every request. The metrics-generator can be given limits on active series and on values per label; with a series limit, it folds the excess into an overflow series instead of dropping data. Both limits are off by default, and this lab sets neither.
+
+## Service graphs
+
+The service graphs processor waits up to 10 seconds for both halves of a call: a client span and the server span whose parent it is. Each matched pair counts in `traces_service_graph_request_total` with the labels `client` and `server`, and in the histograms `traces_service_graph_request_client_seconds` and `traces_service_graph_request_server_seconds`. Calls to a database or a service that sends no spans are matched by attributes such as `db.system.name`, so they still appear as a node. Grafana's service graph and node graph views draw these metrics.
+
+<InLab>
+The Tempo data source in Grafana points its service map at the data source `mimir`, and its trace to metrics links run `traces_spanmetrics_calls_total` and `traces_spanmetrics_latency_bucket` for the span's service. The remote write sends exemplars, so a point of a span metric can open a trace.
+</InLab>
+
+<Trap>
+Span metrics are not free because the services did not export them. Each dimension and each new span name multiplies the series Mimir stores.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `mimir` and run, as an instant query: <Query lang="promql">{`count by (__name__) ({__name__=~"traces_spanmetrics.+"})`}</Query> You see the counter, the histogram's buckets, sum and count, and the size counter.
+2. Look at one series to see its labels: <Query lang="promql">{`traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER"}`}</Query> Find `service`, `span_name`, `span_kind`, `status_code`, `service_namespace`, `service_name`, `cluster` and `source`.
+3. Count the buckets of the histogram: <Query lang="promql">{`count(count by (le) (traces_spanmetrics_latency_bucket))`}</Query> Paste the number in the check below.
+4. Turn span metrics into an error ratio for checkout: <Query lang="promql">{`sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[5m])) / sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_kind="SPAN_KIND_SERVER"}[5m]))`}</Query> On a quiet shop it is empty or near zero.
+5. List the service graph's edges into product-catalog: <Query lang="promql">{`sum by (client, server) (rate(traces_service_graph_request_total{server="product-catalog"}[5m]))`}</Query> Each series is one caller of product-catalog.
+</Do>
+
+<Done>
+You found the span metrics and service graph metrics that Tempo writes to tenant `lab`, read their labels, and counted the buckets that make the histogram the largest metric.
+</Done>
+
+<Trap practice>
+An empty result in action 4 is not an error: with no error spans in the window, the numerator has no series, and the division returns nothing.
+</Trap>
+
+<Question id="q-m13-s08" answer="b">
+A team adds the span attribute `customer.id`, with about 20,000 values, as a span metrics dimension. What happens to `traces_spanmetrics_latency_bucket`?
+
+- Nothing, because the metrics-generator only uses resource attributes as dimensions
+
+  Dimensions are searched in span and resource attributes, so a span attribute is used.
+
+- Its series multiply by up to 20,000, unless a series limit is set and folds the excess into overflow series
+
+  Each value of a dimension is a new label combination, and each combination has its own series for every bucket.
+
+- It gains one label but keeps the same number of series
+
+  A label with many values creates a series for each value; the number of series grows with it.
+
+- Tempo refuses spans that carry the attribute until the dimension is removed
+
+  The generator never refuses spans for this. It writes more series, up to a series limit if one is set.
+</Question>

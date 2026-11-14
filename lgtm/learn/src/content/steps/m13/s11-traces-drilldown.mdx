@@ -1,0 +1,114 @@
+---
+id: m13-s11
+title: Traces Drilldown
+kind: lab
+minutes: 15
+order: 11
+exam:
+  - cert: none
+tags: [tempo-drilldown]
+check:
+  kind: exact
+  prompt: With the Duration metric selected, which tab shows the structure of the slowest spans? Paste its name as the app shows it.
+  answers: ["Root cause latency"]
+outcome: You can use Grafana's Traces Drilldown to see rate, errors and duration of spans, break them down by an attribute, compare slow spans with the rest, and open a slow trace, without writing TraceQL.
+terms:
+  - term: Traces Drilldown
+    def: A Grafana app that shows RED metrics from traces and lets you filter, break down and compare them by clicking, built on TraceQL metrics.
+  - term: Root spans
+    def: The first span of each trace, the default signal in Traces Drilldown; All spans includes every span.
+  - term: Baseline and selection
+    def: In the Comparison tab, the spans you selected, such as the slowest, and all the others they are compared with.
+sources:
+  - title: Grafana Traces Drilldown
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/traces/
+    checked: 2026-11-14
+  - title: Access or install Traces Drilldown
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/traces/access/
+    checked: 2026-11-14
+  - title: Choose a RED metric (Traces Drilldown)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/traces/investigate/choose-red-metric/
+    checked: 2026-11-14
+  - title: Analyze tracing data (Traces Drilldown)
+    url: https://grafana.com/docs/grafana/v13.3/visualizations/simplified-exploration/traces/investigate/analyze-tracing-data/
+    checked: 2026-11-14
+  - title: Metrics from traces, TraceQL metrics (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/metrics-from-traces/
+    checked: 2026-11-14
+---
+
+<Problem>
+An on-call engineer who has never written TraceQL gets a page: "checkout feels slow". Steps 5 to 7 would have them write selectors, structural operators and a quantile query under pressure. They need a place to start that asks only for clicks, and still leads to the slow traces.
+</Problem>
+
+<Idea>
+Traces Drilldown is a Grafana app that draws rate, errors and duration for spans, split by any attribute, from TraceQL metrics queries it writes for you. You pick a metric, filter by clicking, compare the slow or failed spans with the rest, and open the traces behind them.
+</Idea>
+
+## Rate, errors, duration
+
+The app opens on three panels: **Span rate**, **Errors** and **Duration**, the last one as a heat map of span durations. A selector above them chooses the signal: **Root spans**, the default, looks at the first span of each trace, which is the request as the user saw it; **All spans** includes every span. Picking a metric changes the tabs below it. The **Breakdown** tab splits the metric by one attribute at a time, `resource.service.name` first; for duration it shows the 90th percentile per value. **Include** and **Exclude** on each panel add a filter.
+
+## Comparison: what the slow spans have in common
+
+The **Comparison** tab answers "what is different about the bad spans". With **Duration**, the selection is by default the spans slower than the 90th percentile, and the baseline is all the others. For every attribute value, the app measures how much more often it appears in the selection than in the baseline and lists the strongest first. A service, a span name or a pod that shows up at the top is where to look. With **Errors**, the selection is the failed spans.
+
+## Structure and the traces themselves
+
+The third tab shows aggregated structure, built from many traces at once: **Service structure** for rate, **Root cause errors** for errors and **Root cause latency** for duration, the chain of spans where the time or the error sits. With **Errors**, an **Exceptions** tab also groups the exception messages of the failed spans, with how often each occurred. The last tab lists traces: **Traces**, **Errored traces** or **Slow traces**. Each opens the trace view you know from Explore. A **Trace ID** field in the header opens one trace directly.
+
+<Flow caption="A click path to a slow trace">
+  <Stage title="Duration" kicker="metric">Heat map of span durations.</Stage>
+  <Stage title="Comparison" kicker="what differs">Attributes of the slowest spans.</Stage>
+  <Stage title="Root cause latency" kicker="where">The chain that holds the time.</Stage>
+  <Stage title="Slow traces" kicker="evidence">One trace to read.</Stage>
+</Flow>
+
+## What it needs
+
+Grafana 13.2 and later ship Traces Drilldown with no install; the lab runs Grafana 13.3.0 with the app at version 3.2.0. It needs a Tempo data source and a Tempo with TraceQL metrics, which Tempo 3 has, as step 7 showed. Its metric panels are TraceQL metrics queries, so they have the same limit: on this lab no metric panel can cover more than 3 hours. The lists of traces are searches, with the search limits.
+
+<InLab>
+In the main menu, **Drilldown** > **Traces** opens the app on the data source `tempo`, tenant `lab`. Practice tenants do not appear, because the data source always sends `lab`.
+</InLab>
+
+<Trap>
+Root spans are the default. A slow database call deep in a trace shows in the root span's duration only if the request waited for it; switch to **All spans** to see the database spans themselves.
+</Trap>
+
+<Do>
+1. Open <LabLink to="grafana" path="/a/grafana-exploretraces-app/explore">Traces Drilldown</LabLink> and set the time range to **Last 15 minutes**. With **Span rate** and **Breakdown**, read which root services have the most spans per second.
+2. Click **Include** on the panel of `load-generator`, so that only traces the load generator started remain.
+3. Select the **Duration** panel. Read the tab names under the metrics: they changed. Note the name of the tab that shows the structure of the slowest spans, and paste it in the check below.
+4. Open **Comparison** and read the attribute values most associated with the slowest root spans.
+5. Open **Slow traces** and open the slowest trace. Follow its time down to the deepest span that holds it, as step 1 described.
+6. Remove the filter, switch the signal from **Root spans** to **All spans** and look at **Breakdown** again: services that never start a trace, such as product-catalog and cart, now have panels of their own.
+</Do>
+
+<Done>
+You moved from a heat map of durations to the attributes of the slow spans, to their structure, and to one slow trace, without writing a query.
+</Done>
+
+<Trap practice>
+If the panels stay empty, check the data source selector at the top: it must be `tempo`. A time range longer than 3 hours makes the metric panels fail on this lab.
+</Trap>
+
+<Question id="q-m13-s11" answer="a">
+In Traces Drilldown with **Duration** selected, the **Comparison** tab lists `span.rpc.method = GetProduct` at the top. What does that tell you?
+
+- Among spans slower than the 90th percentile, GetProduct appears much more often than among the others
+
+  Comparison ranks attribute values by how much more common they are in the selection than in the baseline.
+
+- GetProduct is the most frequent method in the whole time range
+
+  Frequency alone does not rank high; the difference between slow and other spans does.
+
+- Every GetProduct call was slower than the 90th percentile
+
+  A high rank means a strong difference, not that every call of that method was slow.
+
+- GetProduct calls failed more often than other methods
+
+  That is what Comparison shows with the Errors metric. With Duration it compares slow spans with the rest.
+</Question>
