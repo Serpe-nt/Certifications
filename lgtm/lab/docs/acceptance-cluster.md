@@ -308,3 +308,26 @@ The lab's Prometheus, through the API server proxy:
 
 Version 2 of the lab had seven nodes, three etcd pods and three API servers behind HAProxy; with
 it `up` had more `kubelet`, `node-exporter` and `apiserver` series.
+
+## After a sleep (card L7)
+
+### Calico 3.31.7 on the running lab, 2026-11-14
+
+With the owner's go-ahead, worker L7 ran Calico's steps for an operator installation from WSL
+(`runbook.md`, "Upgrade Calico"; why: `lgtm/docs/adr/l7-calico-cni-token.md`). Times are UTC.
+
+| Step | Time | Result |
+|---|---|---|
+| Before | 18:06:48 | `installation default` at `v3.31.4`; every `tigerastatus` row `AVAILABLE True`; no pod outside `Running` or `Succeeded` |
+| `kubectl apply --server-side --force-conflicts -f .../v3.31.7/manifests/operator-crds.yaml` | 18:06:49 | `serverside-applied` |
+| `kubectl apply --server-side --force-conflicts -f .../v3.31.7/manifests/tigera-operator.yaml` | 18:06:51 | `serverside-applied`; operator image `quay.io/tigera/operator:v1.40.15` |
+| The operator replaces every Calico pod | 18:07 to 18:11:48 | calico-node one node at a time (one node not Ready at a time); `installation default` at `v3.31.7`; every `tigerastatus` row `AVAILABLE True`; the operator keeps its affinity off the control-plane node; no `FailedCreatePodSandBox` event |
+| `make calico-renew` | 18:11:58 to 18:15:05 | `daemon set "calico-node" successfully rolled out`, then `PASS` for master1 and worker1 to worker4; the operator kept the annotation `kubectl.kubernetes.io/restartedAt` (`2026-11-14T18:12:01Z`) |
+
+Every calico-node then ran `quay.io/calico/node:v3.31.7` and logged, as it started, the watch
+on its service account token and a new CNI token, for example on worker3:
+
+```
+2026-11-14 18:12:05.666 [INFO][64] cni-config-monitor/token_watch.go 240: Watching service account token directory for rotation
+2026-11-14 18:12:05.674 [INFO][64] cni-config-monitor/token_watch.go 483: Wrote updated CNI kubeconfig file.
+```
