@@ -1,0 +1,105 @@
+---
+id: m11-s02
+title: "The write path: distributors, Kafka and ingesters"
+kind: concept
+minutes: 15
+order: 2
+exam:
+  - cert: none
+tags: [mimir-write-path]
+outcome: You can follow a sample from the sender through the distributor and Kafka to an ingester, and say when the sender gets its answer and what happens when Kafka is down.
+terms:
+  - term: Distributor
+    def: The stateless entry point for writes; it validates samples, applies limits and shards series across Kafka partitions.
+  - term: Ingest storage
+    def: Mimir's architecture in which Kafka sits between the write path and the read path.
+  - term: Partition
+    def: One ordered log inside a Kafka topic; each series is written to exactly one.
+  - term: Ingester
+    def: The stateful component that consumes one partition and keeps recent samples in memory, in a WAL and in local blocks.
+  - term: Consumer group
+    def: Where Kafka keeps the offset up to which one reader has consumed a partition.
+sources:
+  - title: About ingest storage architecture (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-14
+  - title: Grafana Mimir distributor
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/distributor/
+    checked: 2026-11-14
+  - title: Grafana Mimir ingester
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/ingester/
+    checked: 2026-11-14
+  - title: Grafana Mimir hashing rings, series sharding in ingest storage
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/hash-ring/
+    checked: 2026-11-14
+  - title: Remote write tuning (Prometheus)
+    url: https://prometheus.io/docs/practices/remote_write/
+    checked: 2026-11-14
+---
+
+<Problem>
+On 2026-11-11 at 17:57 UTC the lab's Kafka filled its disks and stopped. Prometheus, the collector gateway and Tempo kept running. Yet Mimir stored no sample until Kafka came back the next day at 12:02, about 18 hours later. Why did a full Kafka stop every write to Mimir?
+</Problem>
+
+The answer is in the order of the write path. In Mimir 3, Kafka is not a side system: it is the place where a write counts as done.
+
+<Idea>
+A distributor receives each write, checks it and splits its series across the partitions of a Kafka topic. The sender gets its success answer only after Kafka has stored the records. Ingesters then read their partitions on their own time and make the samples queryable, usually within a second.
+</Idea>
+
+## The distributor checks and shards
+
+Prometheus remote write and OTLP both arrive at a distributor. The distributor is stateless. It validates every series: the label names and values must be well formed and within the tenant's limits, and no sample may lie too far in the future. It also applies the tenant's rate limits. Step 8 hits one of these checks on purpose.
+
+Then it shards. The distributor hashes each series and looks the hash up in the partitions ring, a shared table that maps hash ranges to Kafka partitions. Each series goes to exactly one partition, so the series of one request can end up in several partitions.
+
+## Kafka is where a write is done
+
+The distributor writes the records to the Kafka brokers and waits. Kafka stores them durably and, when the topic has replicas, copies them to other brokers. Only when Kafka confirms does the distributor answer the sender with success. The write path of the ingest storage architecture ends at Kafka: no ingester takes part in it.
+
+That answers the scene. With Kafka down, no distributor could finish a write, so every sender got errors. Prometheus retries failed sends from its WAL, but only for about two hours (module m03, step 13), so most of those 18 hours were lost for good.
+
+<Flow caption="One sample on the write path">
+  <Stage title="Sender" kicker="Remote write or OTLP">Prometheus or the collector sends a batch with a tenant header.</Stage>
+  <Stage title="Distributor" kicker="Check and shard">Validates, applies limits, picks one partition per series.</Stage>
+  <Stage title="Kafka" kicker="Write is done">Stores and replicates, then the sender gets its answer.</Stage>
+  <Stage title="Ingester" kicker="Read side">Consumes its partition and makes the samples queryable.</Stage>
+</Flow>
+
+## Ingesters consume their partition
+
+Each ingester owns one partition and reads it without pause. It appends the samples to an in-memory database per tenant and to a write-ahead log on its disk, the same idea as Prometheus's WAL. It stores the offset it has reached in its own Kafka consumer group.
+
+When an ingester restarts, it replays its WAL and then continues from the stored offset. Kafka still holds everything written while it was away, so the ingester catches up without a gap. Because the ingester reads after the write is confirmed, a new sample is not queryable at once. The documentation gives under one second as the normal delay.
+
+<InLab>
+The lab's distributors write to the topic `mimir-ingest`, which has 6 partitions with 3 replicas each. Three ingesters, `mimir-ingester-0` to `-2`, own partitions 0, 1 and 2; partitions 3 to 5 are spare and receive nothing until more ingesters join.
+</InLab>
+
+<Trap>
+A 200 from the distributor means Kafka has the sample, not that you can query it yet. A check that runs a query right after a write can miss the newest sample by a second.
+</Trap>
+
+<Remember>
+Distributors validate and shard; a write is done when Kafka has it. Ingesters read their partitions afterwards, so writes depend on Kafka and not on the ingesters.
+</Remember>
+
+<Question id="q-m11-s02" answer="b">
+All three ingesters of a Mimir 3 cluster with ingest storage are restarting at once. Kafka and the distributors are healthy. What do senders see?
+
+- Their writes fail until at least one ingester is back
+
+  That is how the classic architecture behaves. With ingest storage, ingesters are not on the write path.
+
+- Their writes succeed, because a write is done once Kafka has stored it
+
+  The distributor answers after Kafka confirms. The ingesters read the records later, from their stored offsets.
+
+- Their writes succeed, but the samples are lost
+
+  Kafka keeps the records, and each ingester continues from the offset in its consumer group.
+
+- Their writes are queued inside the distributors
+
+  Distributors only buffer briefly before writing to Kafka. Kafka is the durable queue.
+</Question>

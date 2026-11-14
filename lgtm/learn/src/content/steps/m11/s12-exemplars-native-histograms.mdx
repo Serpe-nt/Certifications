@@ -1,0 +1,122 @@
+---
+id: m11-s12
+title: Exemplars and native histograms
+kind: lab
+minutes: 20
+order: 12
+exam:
+  - cert: none
+tags: [mimir-exemplars-histograms]
+check:
+  kind: regex
+  prompt: Paste the trace ID you opened in Tempo in action 3 (32 hexadecimal characters).
+  pattern: "(?!0{32})[0-9a-fA-F]{32}"
+outcome: You can read the exemplars Mimir keeps for a tenant from its API, follow one to its trace, and say what Mimir would store if Prometheus sent native histograms.
+terms:
+  - term: Exemplar storage
+    def: Mimir's per-tenant, fixed-size in-memory buffer of exemplars, also written to the WAL.
+  - term: query_exemplars
+    def: The Prometheus-compatible API that returns the exemplars of the series a selector matches in a time range.
+  - term: Native histogram
+    def: A histogram stored as one series whose samples hold the count, the sum and all buckets.
+sources:
+  - title: About Grafana Mimir exemplars
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/use-exemplars/about-exemplars/
+    checked: 2026-11-14
+  - title: Store exemplars in Grafana Mimir
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/use-exemplars/store-exemplars/
+    checked: 2026-11-14
+  - title: Before you begin using exemplars with Grafana Mimir
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/use-exemplars/before-you-begin/
+    checked: 2026-11-14
+  - title: Configure native histograms (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configure-native-histograms-ingestion/
+    checked: 2026-11-14
+  - title: Send native histograms to Mimir
+    url: https://grafana.com/docs/mimir/v3.2.x/send/native-histograms/
+    checked: 2026-11-14
+  - title: Configure the OpenTelemetry Collector to write metrics into Mimir, format considerations
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configure-otel-collector/
+    checked: 2026-11-14
+  - title: Metrics data model, exemplars (OpenTelemetry specification)
+    url: https://opentelemetry.io/docs/specs/otel/metrics/data-model/
+    checked: 2026-11-14
+  - title: HTTP API, querying exemplars (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/api/
+    checked: 2026-11-14
+---
+
+<Problem>
+In module m02 you clicked a green diamond on a latency graph and landed in a trace. That diamond came from somewhere. When a team asks why their graphs have no diamonds, you need to know where Mimir keeps exemplars, which senders deliver them, and how to check with one request.
+</Problem>
+
+<Idea>
+Mimir keeps exemplars per tenant in a fixed-size buffer in the ingesters' memory, when the tenant's limit `max_global_exemplars_per_user` is above 0. The API `query_exemplars` returns them, and each carries a trace ID that Tempo can open. Native histograms are a separate switch: Mimir accepts them, but a sender must send them.
+</Idea>
+
+## Where exemplars live
+
+Exemplar storage in Mimir works like Prometheus's: a circular buffer of fixed size, in memory, for all series of a tenant, and new exemplars push out the oldest. The ingesters also write them to the WAL, so a restart keeps them. The size is the tenant limit `max_global_exemplars_per_user`, which is 0 by default, so exemplars are off until you set it. The documentation suggests starting at 100,000 and gives about 100 bytes per exemplar that holds only a trace ID.
+
+Senders must deliver them too. Prometheus needs `send_exemplars: true` in `remote_write`, and it only has exemplars to send when it runs with `--enable-feature=exemplar-storage`. Over OTLP, exemplars travel inside the data points.
+
+## Reading them back
+
+The query-frontend answers `/prometheus/api/v1/query_exemplars` with a selector, a start and an end, like Prometheus's API of the same name. Each answer lists series with their exemplars: the labels of the exemplar, such as a trace ID, plus its value and its time. Grafana uses the same API when you switch Exemplars on in a panel, and the data source maps a label name to a Tempo link.
+
+## Native histograms in Mimir
+
+A classic histogram arrives as one series per bucket plus `_sum` and `_count`, as module m04 showed. A native histogram arrives as one series whose samples hold all of that. Mimir accepts native histograms when `native_histograms_ingestion_enabled` is true, which is the default in this version, and it can cap the buckets per sample with `max_native_histogram_buckets`; the documentation recommends 160. Mimir converts OpenTelemetry exponential histograms into native ones, and it can also store a classic histogram in the native form with custom buckets, which needs no change in the code that measures.
+
+<Compare caption="One latency histogram with 13 buckets, per label set">
+  <Col title="Classic">15 series: 13 buckets with an le label, plus _sum and _count.</Col>
+  <Col title="Native" hot>1 series; each sample holds the count, the sum and the buckets.</Col>
+</Compare>
+
+<InLab>
+Tenant `lab` keeps up to 100,000 exemplars: `traceID` on Tempo's span metrics and `trace_id` with `span_id` on the shop's OTLP metrics, and the data source `mimir` links both to `tempo`. Tenant `prom` has none: Prometheus has `sendExemplars` on but runs without `exemplar-storage`. The lab's Prometheus scrapes classic histograms only, so no tenant holds a native histogram today; if it sent them, each would be one series in Mimir instead of one per bucket.
+</InLab>
+
+<Trap>
+Exemplars live in the ingesters, in a buffer that newer exemplars overwrite. An exemplar from last week is gone even though its metric is still in the blocks, so a diamond on an old graph is rare.
+</Trap>
+
+<Do>
+1. In WSL, ask Mimir for the exemplars of checkout's span latency in the last ten minutes, and show three trace IDs: <Cmd>E=$(date +%s)</Cmd> <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/query_exemplars --data-urlencode 'query=traces_spanmetrics_latency_bucket{service_name="checkout"}' --data-urlencode "start=$((E-600))" --data-urlencode "end=$E" | grep -o '"traceID":"[0-9a-f]*"' | head -3`}</Cmd>
+2. Count which trace label the tenant's exemplars use: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/query_exemplars --data-urlencode 'query={__name__=~".+"}' --data-urlencode "start=$((E-600))" --data-urlencode "end=$E" | grep -o '"\\(traceID\\|trace_id\\)"' | sort | uniq -c`}</Cmd> Tempo's span metrics bring `traceID`; the shop's own OTLP metrics bring `trace_id`.
+3. Copy one trace ID from action 1. In Grafana, open <LabLink to="grafana" path="/explore">Explore</LabLink>, pick the data source `tempo`, choose the query type TraceQL, paste the ID and run the query. The trace opens with checkout among its services.
+4. Now look for native histograms in both tenants: <Cmd>{`for t in lab prom; do curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $t" http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(histogram_count({__name__=~".+"}))'; echo; done`}</Cmd> Both results are empty: `histogram_count()` keeps only native histograms, and there are none.
+5. Paste the trace ID you opened in the check below.
+</Do>
+
+<Done>
+You read exemplars from Mimir's API, opened one of their traces in Tempo, and found that no tenant holds a native histogram.
+</Done>
+
+<Trap practice>
+If action 1 prints nothing, the window may hold no checkout requests yet; run `E=$(date +%s)` again and repeat. Tenant `prom` returns no exemplars at all, so stay on `lab`.
+</Trap>
+
+<Remember>
+Exemplars: a per-tenant limit above 0, a sender that sends them, and `query_exemplars` to read them. Native histograms: on in Mimir, but only a sender that sends them fills them.
+</Remember>
+
+<Question id="q-m11-s12" answer="a">
+A team's Grafana panel on Mimir shows no exemplars, although their application exports them and their Prometheus has `send_exemplars: true`. Mimir's limits are at their defaults. What is the first thing to fix?
+
+- Set `max_global_exemplars_per_user` above 0 for the tenant
+
+  Its default is 0, which keeps no exemplars at all. The documentation suggests starting at 100,000.
+
+- Switch on native histogram ingestion
+
+  Native histograms and exemplars are separate features. One does not enable the other.
+
+- Raise the tenant's series limit
+
+  Exemplars have their own limit. More series would not keep any exemplar.
+
+- Turn on the cardinality API
+
+  That API counts series per label. It plays no part in storing exemplars.
+</Question>

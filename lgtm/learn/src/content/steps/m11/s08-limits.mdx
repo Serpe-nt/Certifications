@@ -1,0 +1,118 @@
+---
+id: m11-s08
+title: "Limits and overrides: hit one on purpose"
+kind: lab
+minutes: 25
+order: 8
+exam:
+  - cert: none
+tags: [mimir-limits]
+check:
+  kind: exact
+  prompt: Action 5 shows a reason on an ingester for the sample of action 4. Paste that reason.
+  answers: ["sample-timestamp-too-old"]
+outcome: You can read a tenant's limits and overrides, trigger a limit on purpose, and tell a limit the sender sees from one that only Mimir's own metrics show.
+terms:
+  - term: Limit
+    def: A per-tenant ceiling, such as samples per second or labels per series, set in the limits block.
+  - term: Override
+    def: A per-tenant value in the runtime configuration that replaces the default limit for that tenant.
+  - term: Runtime configuration
+    def: A file Mimir reloads while running, every 10 seconds by default, mostly for per-tenant overrides.
+  - term: Discarded sample
+    def: A sample Mimir dropped because it broke a limit or a rule, counted in cortex_discarded_samples_total.
+sources:
+  - title: About Grafana Mimir runtime configuration
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/about-runtime-configuration/
+    checked: 2026-11-14
+  - title: Grafana Mimir distributor, validation and rate limiting
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/distributor/
+    checked: 2026-11-14
+  - title: Grafana Mimir runbooks, error catalog
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/mimir-runbooks/
+    checked: 2026-11-14
+  - title: Grafana Mimir configuration parameters, limits
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+    checked: 2026-11-14
+  - title: About ingest storage architecture (Mimir)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-14
+---
+
+<Problem>
+A service restarts after a night offline and flushes two hours of buffered metrics into Mimir. Every request gets `200 OK`. In the morning the graphs still have a two-hour hole, and no sender logged a single error. Somewhere a limit said no, and only Mimir knows.
+</Problem>
+
+<Idea>
+Every tenant runs under limits: defaults from the `limits` block, replaced per tenant by overrides in the runtime configuration. Some limits are checked by the distributor before Kafka, and the sender gets an error. Others are checked by the ingesters after Kafka has accepted the write, and then only Mimir's own metric `cortex_discarded_samples_total` shows them.
+</Idea>
+
+## Defaults and overrides
+
+The `limits` block of Mimir's configuration sets the default for every tenant. The runtime configuration file holds an `overrides` section with one entry per tenant that needs other values. Mimir reloads that file every 10 seconds by default, so an operator can raise one tenant's limit without a restart. A tenant without an entry inherits the defaults.
+
+## Limits the sender sees
+
+The distributor checks each series before it writes to Kafka. A series with more than 30 labels by default, a label name longer than 1,024 characters or a label value longer than 2,048 is invalid. So is a sample more than 10 minutes in the future, the creation grace period. The distributor drops the invalid series, writes the valid ones and answers with an error that names the first problem and an error ID such as `err-mimir-max-label-names-per-series`. Remote write gets HTTP 400. OTLP gets HTTP 200 with a partial-success body when only some data was invalid; when nothing was valid, the lab answered 400.
+
+The distributor also enforces a tenant's request rate and ingestion rate in samples per second. Above them it drops the request and answers 429. Mimir's documentation warns that Prometheus does not retry a 429 by default; `retry_on_http_429: true` in `remote_write` changes that.
+
+## Limits only Mimir sees
+
+With ingest storage, the write is done once Kafka has it. Checks that need the tenant's data happen later, in the ingester that consumes the record. An ingester rejects a sample more than one hour older than the newest sample of the tenant: `sample-timestamp-too-old`. It rejects a sample older than the last one of its series as out of order, unless an out-of-order window is set. The limit on series per tenant counts the ingesters' in-memory series, so the ingesters enforce it too.
+
+The sender heard `200` for all of these. The only traces are the ingesters' metric `cortex_discarded_samples_total`, with the tenant in the label `user` and the cause in `reason`, and the ingesters' logs. That explains the hole in the scene.
+
+<Compare caption="Where a limit is checked decides who hears about it">
+  <Col title="Distributor, before Kafka">Label count and length, future timestamps, request and ingestion rates. The sender gets 400 or 429.</Col>
+  <Col title="Ingester, after Kafka" hot>Too old, out of order, series per tenant. The sender got 200; only the ingesters' metrics and logs show the loss.</Col>
+</Compare>
+
+<InLab>
+The lab's `limits` block raises the defaults to 50,000 samples per second, a burst of 500,000 and 500,000 series per tenant, and keeps exemplars and native histograms on. The overrides give `prom` 300,000 series. `learn-m11` has no override, so it gets the `limits` block plus Mimir's built-in defaults: 30 labels per series and no out-of-order window.
+</InLab>
+
+<Trap>
+A green sender is not proof of stored data with ingest storage. When graphs have holes and the sender shows no errors, read `cortex_discarded_samples_total` on the ingesters before you blame the sender.
+</Trap>
+
+<Do>
+1. In WSL, read the lab's default limits and the overrides: <Cmd>{`kubectl -n mimir get configmap mimir-config -o jsonpath='{.data.mimir\\.yaml}' | sed -n '/^limits:/,/^[a-z]/p'`}</Cmd> <Cmd>{`kubectl -n mimir get configmap mimir-runtime -o jsonpath='{.data.runtime\\.yaml}'`}</Cmd>
+2. The label limits are Mimir's built-in defaults, so read them from a distributor's running configuration: <Cmd>{`D=$(kubectl -n mimir get pods -l app.kubernetes.io/component=distributor -o jsonpath='{.items[0].metadata.name}')`}</Cmd> <Cmd>{`kubectl get --raw /api/v1/namespaces/mimir/pods/$D:8080/proxy/config | grep -E '^\\s+(max_label_names_per_series|max_label_value_length|creation_grace_period|out_of_order_time_window):'`}</Cmd> You see 30 labels, 2,048 characters, 10 minutes and `0s`.
+3. Build one OTLP data point with 30 attributes of its own and send it as `learn-m11`: <Cmd>{`A=$(for i in $(seq -w 1 30); do printf '{"key":"l%s","value":{"stringValue":"x"}},' $i; done | sed 's/,$//')`}</Cmd> <Cmd>{`printf '{"resourceMetrics":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"writer"}}]},"scopeMetrics":[{"metrics":[{"name":"learn_m11_wide","gauge":{"dataPoints":[{"asDouble":1,"timeUnixNano":"%s","attributes":[%s]}]}}]}]}]}' "$(date +%s)000000000" "$A" > wide.json`}</Cmd> <Cmd>{`curl -s -i -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' -H 'Content-Type: application/json' --data @wide.json http://10.10.0.5/otlp/v1/metrics; echo`}</Cmd> The answer is `400 Bad Request`: 33 labels against a limit of 30, with the ID `err-mimir-max-label-names-per-series`. The 30 attributes became 30 labels, plus `__name__`, `job` and the promoted `service_name`.
+4. Now send one sample for your writer's series `n="0"`, but two hours in the past: <Cmd>{`printf '{"resourceMetrics":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"writer"}}]},"scopeMetrics":[{"metrics":[{"name":"learn_m11_heartbeat","gauge":{"dataPoints":[{"asDouble":0,"timeUnixNano":"%s","attributes":[{"key":"n","value":{"stringValue":"0"}}]}]}}]}]}]}' "$(( $(date +%s) - 7200 ))000000000" > old.json`}</Cmd> <Cmd>{`curl -s -i -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' -H 'Content-Type: application/json' --data @old.json http://10.10.0.5/otlp/v1/metrics; echo`}</Cmd> The answer is `200 OK` with an empty body.
+5. Read the discard counters of your tenant on every distributor and ingester: <Cmd>{`for p in $(kubectl -n mimir get pods -l 'app.kubernetes.io/component in (distributor,ingester)' -o name | cut -d/ -f2); do kubectl get --raw /api/v1/namespaces/mimir/pods/$p:8080/proxy/metrics | grep '^cortex_discarded_samples_total.*learn-m11' | sed "s/^/$p /"; done`}</Cmd> A distributor counted the series of action 3 under `max_label_names_per_series`. One ingester counted the sample of action 4 under another reason, although the sender heard `200`.
+6. Paste that ingester's reason in the check below.
+</Do>
+
+<Done>
+The distributor refused the wide series with a 400 and an error ID. The old sample got a 200, and an ingester dropped it later; only its metric shows the loss.
+</Done>
+
+<Trap practice>
+The sample of action 4 must belong to a series of your tenant that is receiving fresh data, so keep the writer pod of step 6 running. A tenant with no recent samples has nothing to compare the old timestamp with.
+</Trap>
+
+<Remember>
+Distributor limits answer the sender with 400 or 429. Ingester limits answer nobody: with ingest storage, read `cortex_discarded_samples_total` on the ingesters.
+</Remember>
+
+<Question id="q-m11-s08" answer="d">
+A Prometheus server's remote write to Mimir starts failing with HTTP 429 at the top of every hour, when a batch job runs. What does the 429 tell you?
+
+- An ingester rejected samples older than one hour
+
+  Ingesters check timestamps after Kafka has the write. The sender never sees their rejections as a status code.
+
+- Kafka is full and refuses records
+
+  A Kafka outage makes writes fail, but a rate limit is what answers with 429.
+
+- A label of the job's metrics is longer than allowed
+
+  Label checks fail with 400 and an error ID, not with 429.
+
+- The tenant exceeded its request rate or ingestion rate at the distributor
+
+  The distributor answers 429 when a tenant goes over its rate limits. Raise the tenant's override or smooth the job's output.
+</Question>
