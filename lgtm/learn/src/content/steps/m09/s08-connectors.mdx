@@ -130,7 +130,7 @@ Your traces pipeline fed a connector, and a metrics pipeline printed RED metrics
 </Done>
 
 <Trap practice>
-In a local run with these generated spans, the `calls` data points showed the value 0 while the duration histogram counted every span. Use this exercise for names and dimensions, and judge the values on real traffic.
+Do not judge the counter by its first flush. On the lab, the first flush after a restart printed `Value: 0` for both `calls` data points while the duration histogram already showed `Count: 7`. From the second flush on, `calls` matched the histogram's count (15, 22, 30), and both grew by 7 or 8 at each flush. Both are cumulative, so each flush repeats the total since the Collector started.
 </Trap>
 
 <Remember>

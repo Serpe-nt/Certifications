@@ -196,7 +196,7 @@ The debug exporter showed one span per trace, with a resource attribute the gene
 </Done>
 
 <Trap practice>
-A pod with two containers needs `-c collector` in `kubectl logs`. Without it, kubectl picks a container for you, and it may be the generator.
+A pod with two containers needs `-c collector` in `kubectl logs`. Without it, kubectl prints `Defaulted container "collector" out of: collector, generator` and shows the first container of the pod. That happens to be the right one here; in a pod that lists the generator first, you would read the generator's log.
 </Trap>
 
 <Remember>

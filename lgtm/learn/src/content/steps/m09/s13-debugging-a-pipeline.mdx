@@ -55,7 +55,7 @@ A Collector that does not start says why in its log. A Collector that starts but
 
 The Collector writes its own log to stderr. A configuration error stops it at startup with a line that starts with `Error: invalid configuration:` and names the path to the problem, such as `service::pipelines::traces: references exporter "debugg" which is not configured`. `otelcol-contrib validate --config=FILE` prints the same check without starting anything, so a pipeline in CI can run it before every rollout.
 
-On Kubernetes, a rolling update helps you here: the new pod fails, the old one keeps running. You see one pod in CrashLoopBackOff next to a healthy one, and the healthy one still runs the old configuration.
+On Kubernetes, a rolling update can protect you here, but only if the new pod is never counted as ready. A Deployment removes an old pod once a new one is ready, and a pod without a readiness probe is ready as soon as its containers start, which is before the Collector reads its configuration and exits. The lab gateway has a readiness probe on the `health_check` extension (port 13133), so a gateway pod that cannot start never becomes ready and the old pods keep serving. The practice Collector has no probe: you will see its old pod removed and the new one left in CrashLoopBackOff, with nothing running.
 
 ## It runs but does the wrong thing: look inside
 
@@ -76,7 +76,7 @@ The troubleshooting page adds a checklist for each hop: errors in the log, how d
 </Layers>
 
 <InLab>
-When this module was written, the gateway logged `Error scraping metrics` from `kafka_metrics` about four times a minute, with `lookup kafka on 10.96.0.10:53: no such host`. The shop's Kafka broker announces itself as `kafka:9092`, a short name that resolves only inside the namespace `shop`. The scraper's errored-points counter stayed at 0, so only the log showed it. Check with: <Cmd>{`kubectl -n otel logs deploy/otel-gateway --since=5m | grep -c 'Error scraping metrics'`}</Cmd>
+When this module was written, the gateway logged `Error scraping metrics` from `kafka_metrics` about four times a minute, with `lookup kafka on 10.96.0.10:53: no such host`. The shop's Kafka broker announced itself as `kafka:9092`, a short name that resolves only inside the namespace `shop`. The scraper's errored-points counter stayed at 0, so only the log showed it. The lab was fixed when it was rebuilt: the broker now announces `kafka.shop.svc:9092`, and the gateway sends `kafka_brokers` and `kafka_topic_partitions` to Mimir. This check counts the errors of the last five minutes in one gateway pod, and prints 0 on a healthy lab: <Cmd>{`kubectl -n otel logs deploy/otel-gateway --since=5m | grep -c 'Error scraping metrics'`}</Cmd>
 </InLab>
 
 <Trap>
@@ -119,7 +119,7 @@ data:
           receivers: [otlp]
           processors: [memory_limiter]
           exporters: [debugg]`}</Cmd>
-2. Apply it, restart, and list the pods: <Cmd>kubectl apply -f m09-config-s13.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 get pods</Cmd> After half a minute the new pod shows Error or CrashLoopBackOff; the old pod still runs.
+2. Apply it, restart, and list the pods: <Cmd>kubectl apply -f m09-config-s13.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 get pods</Cmd> After half a minute only the new pod is left, in Error or CrashLoopBackOff: the old pod was removed while the new one was briefly ready, so for now no Collector runs.
 3. Read the new pod's log: <Cmd>{`kubectl -n learn-m09 logs $(kubectl -n learn-m09 get pods -o name --sort-by=.metadata.creationTimestamp | tail -1) -c collector | tail -3`}</Cmd> Paste the path at the start of the error in the check below.
 4. Fix the first fault and roll out again: <Cmd>sed -i 's/debugg/debug/' m09-config-s13.yaml</Cmd> <Cmd>kubectl apply -f m09-config-s13.yaml</Cmd> <Cmd>kubectl -n learn-m09 rollout restart deploy/m09-collector</Cmd> <Cmd>kubectl -n learn-m09 rollout status deploy/m09-collector</Cmd>
 5. The Collector runs, but look at the spans: <Cmd>kubectl -n learn-m09 logs deploy/m09-collector -c collector --tail=20 | grep user</Cmd> `user.email` is still there. In a second terminal, forward the zPages port: <Cmd>kubectl -n learn-m09 port-forward deploy/m09-collector 18121:55679</Cmd> and open http://localhost:18121/debug/pipelinez. The traces pipeline runs `otlp`, `memory_limiter`, `debug`, and MutatesData is `false`: `transform/redact` is defined but not in the pipeline.
