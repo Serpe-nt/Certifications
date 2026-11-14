@@ -91,6 +91,21 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - What a learner copies must be what you tested (`03-content-contract.md`, "things the first modules ran into"). Every `<Cmd>` and `<Query>` is a template string, or the page shows typographic quotes and dashes. A file is a fenced code block under its list item, never a multi-line `<Cmd>`, or it loses its indentation. Card W3 (site port 8102) repairs the merged modules.
 - On 2026-11-14 at 12:50 UTC new pods stopped starting on three nodes: Calico's token for the CNI plugin had run out while the VMs were paused overnight. The planner restarted calico-node there at 13:13 UTC with the owner's word. If a new pod stays in ContainerCreating with `connection is unauthorized`, it is that again: tell the planner, change nothing. Card L7 (site port 8101, port-forwards 18130 to 18139) makes the lab survive a sleep.
 
+## Wave 9
+
+- Worktrees are cut from `main`. Everything in the notes of wave 8 still holds: the lab's version 3, practice namespaces and practice tenants, the cap on practice memory (1 GiB of requests per module, 0.5 GiB on one worker), the owner's go-ahead said in your own session, no password typed or read, the flag screen's API for the real state of a flag, and numbers read from the lab on the day.
+- What a learner copies must be what you tested. Every `<Cmd>` and `<Query>` is a template string; a file is a fenced code block under its list item. `npm run build` ends with `check:pages`, which compares every block on the built page with its source. Run your practice from the built page, not from your own files.
+- Where a page of the documentation and the lab disagree about what the software does, the lab decides. Wave 8 found three such statements (LogQL's `and` binds tighter than `or`; a colon in a JSON key becomes an underscore; a push at the stream limit is accepted in part). Say in the step what the software does and that the page reads otherwise, and log both.
+- **Fault flags: one at a time in the whole lab.** All three cards of this wave use them: C12 once (`productCatalogLockContention`), C13 five times (`paymentFailure`, `recommendationCacheFailure`, `kafkaQueueProblems`, `paymentUnreachable`, `productCatalogFailure`), C14 twice (`paymentFailure`, and one flag for its drill). A second fault would spoil the numbers of the first, so:
+  1. Before you switch a flag on, read the flag screen's API: every flag is off. Read the shop's state too (the error ratio and the p95 of checkout over the last five minutes) and compare it with the quiet state you recorded at the start of your session. If a flag is on or the shop is not quiet, wait five minutes and look again.
+  2. Switch your flag on. Thirty seconds later read the API again. If another flag is on as well, the card with the higher number gives way (C14 before C13, C13 before C12): it switches its own flag off and goes back to point 1.
+  3. A flag is on for at most 15 minutes. Switch it off, read the API to see that it is off, and write both times in UTC into your log.
+  4. Then keep off the flags for ten minutes, so that the next card finds a quiet shop.
+  5. The owner studies in the same lab. A flag is never left on when your turn ends or when you wait for an answer.
+- Cards L7 and L8 may apply their changes while you work: a rolling restart of calico-node (a few seconds without network on each node in turn), Loki's pods one after another, and one restart of Prometheus (about a minute without fresh cluster metrics). A single failed request in those minutes is not a finding; try it again. L8 also gives Loki query limits; its proposal is that one query may read 500 MB at most, run one minute and span 49 hours, and `/config` on Loki's address shows what is in force. Keep your log queries short, as before.
+- If a new pod stays in ContainerCreating with `connection is unauthorized`, Calico's token has run out after a sleep of the PC: tell the planner, change nothing.
+- Host ports, all on 127.0.0.1: C12 uses 8097, C13 8098, C14 8100 for the site. Port-forwards: C12 18100 to 18109, C13 18110 to 18119, C14 18120 to 18129.
+
 ## Pull request text
 
 - Title: `[lgtm <card id>] <what it delivers>`
@@ -132,8 +147,11 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 8 | `w8-c9-alloy.md` | C9 module m10 Grafana Alloy |
 | 8 | `w8-c10-mimir.md` | C10 module m11 Mimir |
 | 8 | `w8-c11-loki.md` | C11 module m12 Loki |
+| 9 | `w9-c12-tempo.md` | C12 module m13 Tempo |
+| 9 | `w9-c13-incident-debugging.md` | C13 module m14 Correlation and incident debugging |
+| 9 | `w9-c14-alerting-slo.md` | C14 module m15 Alerting, SLOs and on-call |
 | beside 8 | `w8-w3-files-keep-indentation.md` | W3 what a learner copies is what the lesson tested: 54 blocks in m01, m03 and m06 to m09 (lost indentation, typographic quotes and dashes), a test that compares every block on the built page with its source, a Copy button on fenced blocks |
 | after 8 | `w8-l8-query-limits-and-switches.md` | L8 Loki's query limits, Mimir's cardinality API for tenant `lab`, exemplar storage in Prometheus if a target exposes exemplars; m12 step 15 and m11 steps 9 and 12 follow |
 | beside 8 | `w8-l7-pods-start-after-sleep.md` | L7 new pods start after the PC has slept: Calico's CNI token, a command, a check, the runbook and m00 step 7 |
 
-Cards for wave 9 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
+Cards for wave 10 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
