@@ -59,6 +59,17 @@ loki:
     # attributes without making them stream labels.
     allow_structured_metadata: true
     volume_enabled: true
+    # Query limits (lgtm/docs/adr/l8-query-limits-and-switches.md). A query whose
+    # index statistics promise more than 500MB is refused before it reads a
+    # chunk; on 2026-11-12 one such query pushed the object store over its
+    # memory limit. Only filtered log queries and metric queries are checked.
+    max_query_bytes_read: 500MB
+    max_querier_bytes_read: 150MB
+    tsdb_max_query_parallelism: 16
+    max_query_parallelism: 8
+    # The lab keeps 48 hours; a longer range reads nothing more.
+    max_query_length: 49h
+    query_timeout: 1m
     otlp_config:
       resource_attributes:
         # Keep the default index labels (service_name, k8s_namespace_name, ...)

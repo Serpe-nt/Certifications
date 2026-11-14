@@ -2,14 +2,14 @@
 id: m12-s15
 title: "A slow query: find out why"
 kind: lab
-minutes: 22
+minutes: 25
 order: 15
 exam:
   - cert: none
 tags: [loki-query-performance]
 check:
   kind: exact
-  prompt: Paste the name of the per-tenant limit that caps the bytes one query may read, which is 0 (off) on this lab.
+  prompt: Paste the name of the per-tenant limit that refused the query of action 5.
   answers: ["max_query_bytes_read"]
 outcome: You can compare two queries for the same answer by the bytes and lines they processed, rewrite a costly one, and name the limits that stop a runaway query.
 terms:
@@ -20,7 +20,7 @@ terms:
   - term: Shard
     def: One of the parts a split is divided into by the amount of data it covers, planned from the TSDB index.
   - term: max_query_bytes_read
-    def: A per-tenant limit on the bytes one query may fetch; 0, the default, means no limit.
+    def: A per-tenant limit on the bytes one query may fetch; 0, the default, means no limit. This lab sets 500MB.
 sources:
   - title: Query best practices
     url: https://grafana.com/docs/loki/v3.7.x/query/bp-query/
@@ -65,15 +65,15 @@ The numbers make the rules of steps 4 and 5 visible. A selector that matches eve
 
 ## The limits that bound a query
 
-All but one are per-tenant limits; `max_concurrent` is a setting of each querier. The lab runs them at their defaults, apart from `query_timeout`:
+All but one are per-tenant limits; `max_concurrent` is a setting of each querier. Each comes with Loki's default and this lab's value:
 
-- `max_query_bytes_read`, 0 (no limit): the most bytes one query may fetch. It applies to log queries with a filter and to metric queries, with TSDB.
-- `max_querier_bytes_read`, 150GB: the same for each piece after splitting and sharding.
-- `tsdb_max_query_parallelism`, 128, and `max_query_parallelism`, 32: how many pieces of one query the frontend schedules at once.
-- `max_concurrent`, 4 per querier: how many pieces a querier runs at the same time. With two queriers, that is 8 pieces reading chunks from the object store at once.
-- `query_timeout`, 1 minute by default and 5 minutes on this lab, and `max_query_length`, 30 days and one hour: how long a query may run against the backends, and how long its time range may be.
+- `max_query_bytes_read`, default 0 (no limit), 500MB on this lab: the most bytes one query may fetch. It applies to log queries with a filter and to metric queries, with TSDB.
+- `max_querier_bytes_read`, default 150GB, 150MB on this lab: the same for each piece after splitting and sharding.
+- `tsdb_max_query_parallelism`, default 128, 16 on this lab, and `max_query_parallelism`, default 32, 8 on this lab: how many pieces of one query the frontend schedules at once.
+- `max_concurrent`, 4 per querier, the default on this lab too: how many pieces a querier runs at the same time. With two queriers, that is 8 pieces reading chunks from the object store at once.
+- `query_timeout`, 1 minute, also on this lab, and `max_query_length`, default 30 days and one hour, 49 hours on this lab: how long a query may run against the backends, and how long its time range may be.
 
-`max_query_bytes_read` would have stopped the story's query with an error instead of letting it read on. Lower parallelism would have spread its reads over time.
+Before it schedules a query, the query frontend asks the TSDB index how many bytes the query's streams hold in its time range. If that is more than `max_query_bytes_read`, Loki answers at once with HTTP status 400 and the message `the query would read too many bytes`, followed by the estimate and the limit, and no querier fetches a chunk. Loki reads `500MB` in its configuration as 500 MiB, so the message says `limit: 500 MiB`. The story's queries ran before this lab had the limit; now a query whose estimate is over 500 MiB fails in milliseconds instead of reading on. Lower parallelism spreads the reads of the queries that do pass over time.
 
 <Figures caption="Two queries for the same count, over 5 minutes on the lab" unit="Bytes processed">
   <Stat label="All namespaces, then json" value="5.5 MB" amount={5.5} max={5.5} note="17,308 lines processed." />
@@ -81,7 +81,7 @@ All but one are per-tenant limits; `max_concurrent` is a setting of each querier
 </Figures>
 
 <InLab>
-The lab's Loki runs with the default query limits, apart from `query_timeout` 5 minutes and `split_queries_by_interval` 15 minutes, which its chart sets. Nothing would stop a query from reading the whole bucket.
+Since 2026-11-14 the lab's Loki runs with query limits: `max_query_bytes_read` 500MB, `max_querier_bytes_read` 150MB, `tsdb_max_query_parallelism` 16, `max_query_parallelism` 8, `max_query_length` 49 hours (`/config` shows `2d1h`) and `query_timeout` 1 minute. `max_concurrent` stays at 4, and the chart sets `split_queries_by_interval` to 15 minutes. On that day, by the index, tenant `lab` held between 110 and 190 MB of log lines per hour across all services, so a filtered or metric query over every service for more than a few hours is refused.
 </InLab>
 
 <Trap>
@@ -96,15 +96,16 @@ Read the statistics, not the result. Narrow the selector, filter before parsing,
 1. In WSL, run the costly form of a question, over 5 minutes only: how many requests did the lab's gateway pass to Loki? <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=sum(count_over_time({namespace=~".+"} | json | _authority="loki.lab.k8s.local" [5m]))' | grep -o '"value":[^]]*]\\|"totalBytesProcessed":[0-9]*\\|"totalLinesProcessed":[0-9]*' | head -3`}</Cmd> Note the value and the two totals.
 2. Run the cheap form of the same question: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=sum(count_over_time({namespace="gateway", container="envoy"} |= "loki.lab.k8s.local" | json | _authority="loki.lab.k8s.local" [5m]))' | grep -o '"value":[^]]*]\\|"totalBytesProcessed":[0-9]*\\|"totalLinesProcessed":[0-9]*' | head -3`}</Cmd> The value is the same or close; the totals are several times smaller.
 3. Find both queries in the query frontend's log, in <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki` and the time range **Last 15 minutes**: <Query lang="logql">{`{namespace="loki", container="query-frontend"} |= "metrics.go" |= "_authority"`}</Query> Compare `total_bytes`, `total_lines` and `duration` of the two.
-4. Read the query limits the lab's Loki runs with: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/config | grep -E '^ +(max_query_bytes_read|max_querier_bytes_read|tsdb_max_query_parallelism|max_query_parallelism|max_concurrent|query_timeout|max_query_length):'`}</Cmd> Paste in the check the name of the limit that caps the bytes of one whole query.
+4. Read the query limits the lab's Loki runs with: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/config | grep -E '^ +(max_query_bytes_read|max_querier_bytes_read|tsdb_max_query_parallelism|max_query_parallelism|max_concurrent|query_timeout|max_query_length):'`}</Cmd> `max_query_length` shows as `2d1h`, which is 49 hours.
+5. Ask for something too wide on purpose, errors in every service's logs over the last 24 hours: <Cmd>{`curl -s -w ' (HTTP %{http_code})' -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=sum(count_over_time({service_name=~".+"} |= "error" [24h]))'; echo`}</Cmd> Loki answers within milliseconds with HTTP 400: the query would read too many bytes, with the estimate from the index and the limit. Paste in the check the name of the limit that refused it.
 </Do>
 
 <Done>
-The two queries gave the same count, the narrow one read a fraction of the bytes and lines, and you found the limit that would stop the wide one.
+The two queries gave the same count, the narrow one read a fraction of the bytes and lines, and a query that was too wide was refused before it read anything.
 </Done>
 
 <Trap practice>
-The first query reads every namespace's logs. Keep it at 5 minutes, as written: the same query over hours is the one from the story.
+The first query reads every namespace's logs. Keep it at 5 minutes, as written: the same query over hours is the one from the story. Run action 5 only after action 4 shows `max_query_bytes_read: 500MB`: without the limit, Loki would read a whole day of every service's logs. On a lab rebuilt only a few hours ago, the query is small enough to pass.
 </Trap>
 
 <Question id="q-m12-s15" answer="b">

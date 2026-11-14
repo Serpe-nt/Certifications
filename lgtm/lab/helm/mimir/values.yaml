@@ -88,6 +88,9 @@ runtimeConfig:
   overrides:
     lab:
       max_global_series_per_user: 500000
+      # The cardinality API (/prometheus/api/v1/cardinality/...), module m11
+      # step 9. Read again every 10 seconds, so no pod restarts.
+      cardinality_analysis_enabled: true
     prom:
       max_global_series_per_user: 300000
 
