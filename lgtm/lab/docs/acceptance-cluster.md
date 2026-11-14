@@ -331,3 +331,23 @@ on its service account token and a new CNI token, for example on worker3:
 2026-11-14 18:12:05.666 [INFO][64] cni-config-monitor/token_watch.go 240: Watching service account token directory for rotation
 2026-11-14 18:12:05.674 [INFO][64] cni-config-monitor/token_watch.go 483: Wrote updated CNI kubeconfig file.
 ```
+
+### Renewals while the lab runs, 2026-11-14
+
+Read at 20:05 UTC with the command in `runbook.md`, "After the PC has slept". Each renewal after
+the first is a pair of lines: `Projected service account token changed; refreshing CNI kubeconfig
+immediately` (kubelet has rotated calico-node's own token), then `Wrote updated CNI kubeconfig
+file.` a few milliseconds later. Times are UTC; the gap is from the line before.
+
+| Node | calico-node started (first token) | First renewal | Gap | Second renewal | Gap |
+|---|---|---|---|---|---|
+| master1 | 18:12:41 | 19:00:54 | 48 min 13 s | 19:49:35 | 48 min 41 s |
+| worker1 | 18:13:16 | 19:02:03 | 48 min 47 s | 19:50:37 | 48 min 34 s |
+| worker2 | 18:13:51 | 19:02:06 | 48 min 15 s | 19:50:49 | 48 min 43 s |
+| worker3 | 18:12:05 | 19:01:14 | 49 min 9 s | 19:49:13 | 47 min 59 s |
+| worker4 | 18:14:27 | 19:02:29 | 48 min 2 s | 19:51:15 | 48 min 46 s |
+
+Every gap is within about a minute of kubelet's rotation at 80% of the token's 3,607 seconds
+(48 minutes 6 seconds); kubelet checks the token on its own passes, so a late renewal is followed
+by a shorter gap. At 20:05 UTC there was no `FailedCreatePodSandBox`
+event in any namespace and no calico-node had restarted.
