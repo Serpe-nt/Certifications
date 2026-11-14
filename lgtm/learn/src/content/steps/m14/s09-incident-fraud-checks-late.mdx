@@ -1,0 +1,119 @@
+---
+id: m14-s09
+title: "Incident: fraud checks fall behind the orders"
+kind: lab
+minutes: 25
+order: 9
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [incident-queue-lag]
+flags: [kafkaQueueProblems]
+check:
+  kind: exact
+  prompt: Paste how many times fraud-detection consumed the first order that was placed after you switched the flag on.
+  answers: ["101"]
+outcome: You can read a consumer group's lag, use a log search with a LogQL count to tell a flood of messages from a slow consumer, and find the producer's side of it.
+terms:
+  - term: Consumer lag
+    def: How many messages of a topic a consumer group has not read yet. It grows when messages arrive faster than they are handled.
+  - term: Consumer group
+    def: The set of Kafka consumers that share the work of reading a topic. fraud-detection is the only member of its group.
+  - term: Producer
+    def: The service that writes messages to a topic. In the shop, checkout writes one message per order to orders.
+sources:
+  - title: Kafka metrics receiver, metrics (OpenTelemetry Collector contrib v0.165.0)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/receiver/kafkametricsreceiver/documentation.md
+    checked: 2026-11-14
+  - title: Metric queries, count_over_time and regexp (Grafana Loki)
+    url: https://grafana.com/docs/loki/latest/query/metric_queries/
+    checked: 2026-11-14
+  - title: Semantic conventions for messaging spans (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/
+    checked: 2026-11-14
+  - title: Effective troubleshooting (Google SRE book, chapter 12)
+    url: https://sre.google/sre-book/effective-troubleshooting/
+    checked: 2026-11-14
+---
+
+<Problem>
+The fraud team says new orders reach their checks minutes after they were placed, and the delay keeps growing. Checkout works, customers get their confirmation, and no service reports errors. Something between "order placed" and "order checked" is falling behind.
+</Problem>
+
+<Idea>
+A queue that falls behind has one of two causes: more messages arrive, or each one takes longer to handle. The lag metric shows that the queue grows, but not which of the two. A log search on the consumer, counted with LogQL, shows what it actually consumes and how fast.
+</Idea>
+
+## Lag is the symptom
+
+In the shop, checkout writes one message per order to the Kafka topic `orders`, and fraud-detection reads it as the only member of the consumer group `fraud-detection`. The lag of a group is the number of messages in the topic that the group has not read yet. The lab's collector gateway reads it from Kafka with its Kafka metrics receiver and sends it to Mimir as `kafka_consumer_group_lag_sum_ratio`, the lag summed over the partitions of a topic. A lag that stays at 0 means the consumer keeps up. A lag that grows means messages arrive faster than they are handled.
+
+## Two causes, one question
+
+The lag cannot tell a flood from a slow consumer, because both make the number grow. A rate of produced messages and a rate of handled messages would, if you had both. Logs often answer it faster. If the consumer logs one line per message, the line count per second is its speed, and the IDs in the lines show whether the messages are new or the same ones again.
+
+## Count with LogQL, not by eye
+
+Reading hundreds of lines does not show a pattern. A metric query does: `count_over_time` counts lines per stream over a range, and a `regexp` parser can lift a value out of the text, such as an order ID, into a label. Summed by that label, the result is a table of IDs with their counts. On a healthy shop each order appears once. Any other number is a fact the incident note can quote.
+
+## Find the other side
+
+Once you know what the consumer receives, look at the service that wrote it. Its log lines and its spans for the same minutes tell whether it wrote more than usual and why. The SRE book's advice applies: compare what you see with what the system is supposed to do, here one message per order.
+
+<Compare caption="What the lag alone cannot tell apart">
+  <Col title="More messages">The producer writes more per order. Each one is handled at normal speed.</Col>
+  <Col title="Slower consumer">The same number of messages, but each takes longer to handle.</Col>
+  <Col title="Both" hot>Possible too. The counts and the times in the logs tell you which.</Col>
+</Compare>
+
+<InLab>
+The gateway runs two pods, and each sends its own series of `kafka_consumer_group_lag_sum_ratio`; take the `max`. fraud-detection also sends `kafka_consumer_records_lag` from its Java agent, which only covers the batch it last fetched.
+</InLab>
+
+<Trap>
+A growing lag does not mean the consumer is broken. It may handle messages at its usual speed while the producer floods the topic. Look at both sides before you scale or restart the consumer.
+</Trap>
+
+<Do>
+1. Open the <LabLink to="flags" path="/feature">flag screen</LabLink>, set `kafkaQueueProblems` to `on`, and note the time. Wait two minutes.
+2. In <LabLink to="grafana" path="/explore">Explore</LabLink>, pick `mimir`, last 30 minutes, and graph the lag of the group: <Query lang="promql">{`max(kafka_consumer_group_lag_sum_ratio{group="fraud-detection"})`}</Query> It was 0 and now climbs by hundreds.
+3. Switch to `loki`, last 15 minutes, and search the consumer's lines: <Query lang="logql">{`{service_name="fraud-detection"} |= "Consumed record"`}</Query> Look at the logs volume and at the times and order IDs of the newest lines.
+4. Count the lines per order. Under **Options**, set **Type** to **Instant**, and run: <Query lang="logql">{`sum by (orderId) (count_over_time({service_name="fraud-detection"} |= "Consumed record" | regexp \`orderId: (?P\u003corderId>[0-9a-f-]+)\` [10m]))`}</Query> Most orders have 1. Find the orders with more.
+5. Read the consumer's other lines in the same minutes: <Query lang="logql">{`{service_name="fraud-detection"} != "Consumed record"`}</Query>
+6. Now the producer. Search checkout's lines about Kafka messages: <Query lang="logql">{`{service_name="checkout"} |= "messages"`}</Query>
+7. On the flag screen, set `kafkaQueueProblems` back to `off`, reload the page and check that it shows `off`. Note the time. Run the lag query of action 2 again a minute later: it is back at 0.
+8. Paste the count of the first order placed after you switched the flag on, from action 4, in the check below.
+</Do>
+
+<Done>
+The first order after the flag reached fraud-detection 101 times, checkout logged that it wrote 100 extra messages for it, and fraud-detection waited one second before each one. The flood and the slow consumer together made the lag grow.
+</Done>
+
+<Trap practice>
+The count of the newest order can still be rising while fraud-detection works through its copies; take the first order after your switch, which is finished. If action 4 returns a graph instead of a table, the query type is still Range.
+</Trap>
+
+<Remember>
+Lag says the queue grows. Counting the consumer's log lines per ID says whether it gets more messages or handles them slower, and the producer's own lines say why.
+</Remember>
+
+<Question id="q-m14-s09" answer="c">
+A consumer group's lag grows. In the consumer's logs, each order ID appears once, and the lines come every two seconds instead of ten times a second as yesterday. What does this point to?
+
+- The producer writes each message many times
+
+  Each order appears once, so the consumer does not receive copies.
+
+- The topic has lost messages
+
+  Lost messages would make the lag smaller, not larger.
+
+- The consumer handles each message more slowly than before
+
+  The same messages, one per order, arrive at a normal rate, but each line comes later than before.
+
+- The consumer group has no members left
+
+  A group with no members writes no lines at all. Here the consumer still works, only slowly.
+</Question>

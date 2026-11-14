@@ -365,3 +365,35 @@
       why: UNAVAILABLE with a refused connection is what callers see while nothing listens. It belongs in the impact, linked to the cause.
   answer: [3]
   source: https://grpc.io/docs/guides/status-codes/
+
+- id: q-m14-024
+  tags: [correlation-exemplars, correlation]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: You click <b>Query with Tempo</b> on an exemplar, but Tempo says the trace was not found. The exemplar is from five minutes ago. Which setting is most likely wrong?
+  options:
+    - text: The tracing data source in the exemplar entry reads a tenant that does not hold the trace
+      why: The link only sends the trace ID. If the target reads another tenant, Tempo cannot find it.
+    - text: The exemplar entry's label name
+      why: With a wrong label name, there would be no link to click at all.
+    - text: The Prometheus scrape interval
+      why: The scrape interval changes how often samples are taken, not whether a trace exists in Tempo.
+    - text: The time range of the latency panel
+      why: The panel's time range decides which exemplars are drawn. The trace lookup uses the ID.
+  answer: [0]
+  source: https://grafana.com/docs/grafana/latest/datasources/prometheus/configure/
+
+- id: q-m14-025
+  tags: [incident-loop, analysis]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: Users report failed checkouts. Which starting point fits the loop of this module best?
+  options:
+    - text: The CPU graphs of all nodes, to find a busy one
+      why: That starts from a possible cause. The loop starts from what users feel.
+    - text: The error ratio of the service users call, with a filter on its server spans
+      why: It measures the symptom where users feel it, and tells you when it started and how big it is.
+    - text: The logs of every service, searched for the word error
+      why: Without a time and a place, a search over all logs returns too much to read.
+    - text: The list of deployments made this week
+      why: Recent changes are worth checking, but only once you know which service and minute to compare them with.
+  answer: [1]
+  source: https://sre.google/sre-book/monitoring-distributed-systems/
