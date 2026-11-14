@@ -63,7 +63,7 @@ The second paging condition does the same for slower loss: the 6-hour burn rate 
 
 Recording rules compute the error ratio for each window: 5 minutes, 30 minutes, 1 hour and 6 hours. Two alerting rules, both named `CheckoutErrorBudgetBurn` and told apart by the label `window`, compare them with the thresholds. Both have `severity: page` and no `for`: the short window already filters out blips, and a `for` would only delay the page.
 
-The recorded names follow `level:metric:operations`. The level is `learn_m15`, so nobody mistakes them for the lab's own series; step 11 explains why the recording rules matter.
+The recorded names keep the colons of `level:metric:operations`, with `learn_m15` as the level, so nobody mistakes them for the lab's own series; step 11 explains why the recording rules matter.
 
 ## Where they run
 

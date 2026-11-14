@@ -84,14 +84,14 @@ A Grafana-managed alert does not go to the Prometheus stack's Alertmanager in `p
 </Trap>
 
 <Do>
-1. Open <LabLink to="grafana" path="/alerting/notifications/receivers/new">a new contact point</LabLink> (Alerting, Contact points, Create contact point). Name it `m15-webhook`, choose the integration **Webhook**, and set the URL to `http://webhook.learn-m15.svc:8080/grafana`.
+1. Open <LabLink to="grafana" path="/alerting/notifications/receivers/new">a new contact point</LabLink> (Alerting, Contact points, New contact point). Name it `m15-webhook`, choose the integration **Webhook**, and set the URL to `http://webhook.learn-m15.svc:8080/grafana`.
 2. Click **Test**, then **Send test notification**. Check that it arrived: <Cmd>{`kubectl -n learn-m15 logs deploy/webhook --tail=1`}</Cmd> The line reads `/grafana firing 1 alert(s): TestAlert`. Then click **Save contact point**.
 3. Open <LabLink to="grafana" path="/alerting/routes">Notification policies</LabLink>. Read the default policy: who it delivers to and what it groups by. Click **Add route** on it. Add the matcher `m15` `=` `practice`, choose the contact point `m15-webhook`, and click **Add route** in the dialog.
 4. Open <LabLink to="grafana" path="/alerting/new/alerting">a new alert rule</LabLink>. Name it `m15 checkout traffic low`. Leave the data source on Mimir, switch the query to **Code**, and enter: <Query lang="promql">{`sum(rate(traces_spanmetrics_calls_total{service_name="checkout", span_name="oteldemo.CheckoutService/PlaceOrder"}[5m])) * 60`}</Query> Set the alert condition to **Is below** `10`, and click **Preview alert rule condition**: the value is about 3 and the state Firing.
 5. Under **Add folder and labels**, click **New folder** and create `Learn m15`. Click **Add labels** and add `m15` = `practice`. Under **Set evaluation behavior**, click **New evaluation group**, name it `m15-practice` with the interval `1m`, and keep the pending period at 1m.
 6. Under **Configure notifications**, turn on **Advanced options** and click **Preview routing**: it shows the alert delivered to `m15-webhook`. Add the summary `Checkout takes {{ $values.A }} orders a minute, fewer than 10.` and click **Save**.
 7. About two minutes later (one evaluation, the pending period, then 30 seconds of grouping), read the webhook's log again: <Cmd>{`kubectl -n learn-m15 logs deploy/webhook --tail=1`}</Cmd> The line names your rule.
-8. Clean up in this order: on the rule's page, delete the rule; in Notification policies, delete your route; in Contact points, delete `m15-webhook`; in Dashboards, delete the folder `Learn m15`. Paste the second grouping label of the default policy in the check below.
+8. Clean up in this order. On the rule's page, **More**, **Delete**. In Notification policies, **More** on your route, **Delete**. In Contact points, **More** on `m15-webhook`, **Delete**. In Dashboards, open the folder `Learn m15`, **Folder actions**, **Delete this folder**, and type `Delete` to confirm. Paste the second grouping label of the default policy in the check below.
 </Do>
 
 <Done>
@@ -99,7 +99,7 @@ One Grafana-managed alert went from your rule through your nested policy to your
 </Done>
 
 <Trap practice>
-A contact point that is still used by a policy cannot be deleted, and a folder that still holds a rule should be emptied first. Delete in the order of action 8: rule, route, contact point, folder.
+While a policy still uses a contact point, its **Delete** is greyed out; delete the route first. A deleted rule can be restored from Recently deleted by an admin, but a deleted folder cannot. Keep the order of action 8: rule, route, contact point, folder.
 </Trap>
 
 <Remember>

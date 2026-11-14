@@ -63,7 +63,7 @@ Every notification is built from one alert group. The template sees it as data:
 - `.Alerts`: the list of alerts, each with `.Labels`, `.Annotations`, `.StartsAt` and more; `.Alerts.Firing` and `.Alerts.Resolved` filter it.
 - `.ExternalURL`: a link back to the Alertmanager.
 
-A template file defines named templates with `{{ define "name" }}...{{ end }}`, and a receiver uses one with `{{ template "name" . }}`. The configuration lists the template files under `templates`. The Alertmanager also ships default templates, which every integration uses until you set its text yourself.
+A template file defines named templates with `{{ define "name" }}...{{ end }}`, and a receiver uses one with `{{ template "name" . }}`. The configuration lists the template files under `templates`. The Alertmanager also ships default templates, which every chat, email or paging integration uses until you set its text yourself. The webhook uses none: it posts the group as JSON.
 
 <Layers caption="From an alert group to a message">
   <Layer title="Alert group">Status, group labels, common labels, alerts.</Layer>
@@ -126,7 +126,7 @@ Alertmanager templates are not Prometheus templates. `{{ $labels.x }}` and `{{ $
    ```
 2. Apply it and restart the Alertmanager so it reads the new files: <Cmd>{`kubectl apply -f m15-alertmanager-v2.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m15 rollout restart deploy/alertmanager`}</Cmd> <Cmd>{`kubectl -n learn-m15 rollout status deploy/alertmanager --timeout=120s`}</Cmd>
 3. Check the configuration: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool check-config /etc/alertmanager/alertmanager.yml`}</Cmd> It lists `1 templates` and ends with `SUCCESS`.
-4. Render the template with amtool's example data: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool template render --template.glob='/etc/alertmanager/*.tmpl' --template.text='{{ template "m15.text" . }}'`}</Cmd> The labels are empty, because the example data has none; the shape is what you check.
+4. Render the template with amtool's example data: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool template render --template.glob='/etc/alertmanager/*.tmpl' --template.text='{{ template "m15.text" . }}'`}</Cmd> The alert name and the service print empty, because the example data has no such labels; the shape is what you check.
 5. Send a page alert: <Cmd>{`kubectl -n learn-m15 exec deploy/alertmanager -- amtool alert add alertname=CheckoutErrors service=checkout severity=page --alertmanager.url=http://localhost:9093`}</Cmd>
 6. After about 15 seconds, read the last lines of the webhook's log: <Cmd>{`kubectl -n learn-m15 logs deploy/webhook --tail=3`}</Cmd> The pager line now holds your text instead of the alert list. Paste the text in the check below.
 </Do>

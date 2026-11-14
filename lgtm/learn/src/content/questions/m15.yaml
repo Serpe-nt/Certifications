@@ -460,16 +460,16 @@
 - id: q-m15-029
   tags: [ slo-recording-rules ]
   exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
-  q: A recording rule stores the 30-minute error ratio of checkout, summed over all its labels. Which name follows the level:metric:operations pattern?
+  q: A recording rule stores <code>sum by (service) (rate(checkout_orders_total[30m]))</code>. Which name follows the Prometheus naming guidelines?
   options:
-    - text: <code>checkout_errors_ratio_30m</code>
+    - text: <code>checkout_orders_rate_30m_by_service</code>
       why: Without colons nothing tells the reader that the series is recorded, or what level it has.
-    - text: <code>ratio_rate30m:checkout_errors:sum_by_service</code>
+    - text: <code>rate30m:checkout_orders:service</code>
       why: The order is level, then metric, then operations.
-    - text: <code>checkout:errors_total:increase30m</code>
+    - text: <code>service:checkout_orders_total:increase30m</code>
       why: _total is dropped after a rate, and the guidelines record rates, not increases.
-    - text: <code>slo:checkout_errors:ratio_rate30m</code>
-      why: The level names what is left, the metric what is counted, and ratio_rate30m the operation.
+    - text: <code>service:checkout_orders:rate30m</code>
+      why: The level names the label left, service; the metric loses _total after the rate; rate30m is the operation.
   answer: [ 3 ]
   source: https://prometheus.io/docs/practices/rules/
 

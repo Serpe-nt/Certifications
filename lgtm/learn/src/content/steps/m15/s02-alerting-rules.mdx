@@ -32,6 +32,9 @@ sources:
   - title: Template examples (Prometheus)
     url: https://prometheus.io/docs/prometheus/latest/configuration/template_examples/
     checked: 2026-11-14
+  - title: Template reference (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/template_reference/
+    checked: 2026-11-14
   - title: Alerting with the Prometheus Operator
     url: https://prometheus-operator.dev/docs/developer/alerting/
     checked: 2026-11-14
@@ -80,7 +83,7 @@ Keep changing numbers out of labels. A label is part of what makes an alert uniq
 
 ## Rules on Kubernetes: the PrometheusRule
 
-With the Prometheus Operator you do not edit a rule file on the server. You create a `PrometheusRule` resource, which holds the same groups under `spec`. The operator collects every PrometheusRule that its Prometheus selects, writes them into rule files, and Prometheus reloads them. Outside Kubernetes, `promtool check rules FILE` checks a rule file before it is loaded.
+With the Prometheus Operator you do not edit a rule file on the server. You create a `PrometheusRule` resource, which holds the same groups under `spec`. The operator collects every PrometheusRule that its Prometheus selects by `ruleSelector` and `ruleNamespaceSelector`, and Prometheus loads their groups. Outside Kubernetes, `promtool check rules FILE` checks a rule file before it is loaded.
 
 <InLab>
 The lab's Prometheus selects every PrometheusRule in every namespace (its `ruleSelector` and `ruleNamespaceSelector` are empty). So a rule you create in `learn-m15` is loaded within about a minute, and its alerts go to the lab's Alertmanager in `prom`, whose only receiver sends nothing.

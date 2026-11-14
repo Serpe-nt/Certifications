@@ -63,7 +63,7 @@ The same arithmetic gives the other two windows the workbook proposes: 5% in 6 h
 
 The workbook judges an alert by four things: precision (how many alerts were real), recall (how many real problems alerted), detection time and reset time. For an alert on the 1-hour burn rate, the time to fire is the budget ratio divided by the error ratio, times the window, times the burn rate. A total outage at 99.9% gives 0.001 / 1 × 60 minutes × 14.4, about 52 seconds. An error ratio of 1.44% takes the full hour.
 
-The reset time is the weak side. After a 10-minute total outage, the 1-hour error ratio stays above 1.44% for the rest of the hour, so the alert keeps firing long after the fix. Step 10 solves that with a second, shorter window.
+The reset time is the weak side. After a 10-minute total outage, the 1-hour error ratio stays above 1.44% for almost an hour after the fix, so the alert keeps firing all that time. Step 10 solves that with a second, shorter window.
 
 <InLab>
 Checkout in the lab places about 200 orders an hour. One failed order in an hour is an error ratio of about 0.5%, a burn rate of 5: no page. Three failed orders in an hour, about 1.5%, cross the 14.4 threshold. The workbook warns that low traffic makes single failures loud; this lab is such a service.
