@@ -81,7 +81,7 @@ Before it schedules a query, the query frontend asks the TSDB index how many byt
 </Figures>
 
 <InLab>
-Since 2026-11-14 the lab's Loki runs with query limits: `max_query_bytes_read` 500MB, `max_querier_bytes_read` 150MB, `tsdb_max_query_parallelism` 16, `max_query_parallelism` 8, `max_query_length` 49 hours (`/config` shows `2d1h`) and `query_timeout` 1 minute. `max_concurrent` stays at 4, and the chart sets `split_queries_by_interval` to 15 minutes. On that day, by the index, tenant `lab` held between 110 and 190 MB of log lines per hour across all services, so a filtered or metric query over every service for more than a few hours is refused.
+Since 2026-11-14 the lab's Loki runs with query limits: `max_query_bytes_read` 500MB, `max_querier_bytes_read` 150MB, `tsdb_max_query_parallelism` 16, `max_query_parallelism` 8, `max_query_length` 49 hours (`/config` shows `2d1h`) and `query_timeout` 1 minute. `max_concurrent` stays at 4, and the chart sets `split_queries_by_interval` to 15 minutes. On that day, by the index, tenant `lab` held between 110 and 195 MB of log lines per hour across all services, so a filtered or metric query over every service for more than a few hours is refused.
 </InLab>
 
 <Trap>
