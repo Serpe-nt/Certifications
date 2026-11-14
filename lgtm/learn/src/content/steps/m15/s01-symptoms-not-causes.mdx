@@ -32,6 +32,9 @@ sources:
   - title: CPUThrottlingHigh runbook (kube-prometheus)
     url: https://runbooks.prometheus-operator.dev/runbooks/kubernetes/cputhrottlinghigh/
     checked: 2026-11-14
+  - title: InfoInhibitor runbook (kube-prometheus)
+    url: https://runbooks.prometheus-operator.dev/runbooks/general/infoinhibitor/
+    checked: 2026-11-14
 ---
 
 <Problem>
@@ -77,7 +80,7 @@ Keep `KubeAPIErrorBudgetBurn`. It fires when the Kubernetes API server returns e
 
 Keep `Watchdog`. Its expression is `vector(1)`: it always fires. Routed to an outside service that expects it every few minutes, it is a dead man's switch: when it stops arriving, the alerting pipeline itself is broken. The lab routes it to a receiver that sends nothing.
 
-Mute `CPUThrottlingHigh`, or keep it off the pager. It fires when a container is throttled in more than 25% of its CPU periods over 15 minutes, with severity `info`. Throttling is a cause; users only feel it if latency rises, and the latency alert catches that. While this module was written, it went pending for the practice webhook of step 3, a pod that does almost nothing.
+Mute `CPUThrottlingHigh`, or keep it off the pager. It fires when a container is throttled in more than 25% of its CPU periods over 5 minutes, and that for 15 minutes (`for: 15m`), with severity `info`. Throttling is a cause; users only feel it if latency rises, and the latency alert catches that. The chart already keeps it quiet: `InfoInhibitor` mutes the `info` alerts of a namespace unless a warning or critical alert fires there too. While this module was written, it went pending for the practice webhook of step 3, a pod that does almost nothing, and `InfoInhibitor` fired for that namespace.
 
 Mute `KubeCPUOvercommit` as a page. It fires when the pods' CPU requests could not fit on the cluster after a node is lost. That is real capacity planning, and it belongs in a ticket: nothing breaks tonight because of it.
 

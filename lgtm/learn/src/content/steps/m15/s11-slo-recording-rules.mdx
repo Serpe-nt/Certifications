@@ -46,7 +46,7 @@ Record each window's error ratio once per evaluation, under a name of its own, a
 
 The workbook writes its alerts against series such as `job:slo_errors_per_request:ratio_rate1h`, and computes them with recording rules: the sum of the error rate divided by the sum of the request rate. Your group of step 10 does the same for four windows: `ratio_rate5m`, `ratio_rate30m`, `ratio_rate1h` and `ratio_rate6h`. The two alerts only compare four small series with thresholds.
 
-The names keep the colons of `level:metric:operations` from module m04 step 12, loosely. The guidelines want the level to name the labels left and the metric to be the source metric unchanged. Here the level `learn_m15` marks the module's own series, which has no labels left, `checkout_errors` names what is counted, and `ratio_rate5m` says how. Real SLO rule sets bend the pattern the same way, as the workbook's `job:slo_errors_per_request:ratio_rate1h` does.
+The names keep the colons of `level:metric:operations` from module m04 step 12, loosely. The guidelines want the level to name the labels left and the metric to be the source metric unchanged. The workbook's `job:slo_errors_per_request:ratio_rate1h` keeps both: `job` is the label left, and the two metrics of the ratio are joined with `_per_`. The names of this module give both up on purpose. The level `learn_m15` is not a label but a marker, so nobody mistakes the series for the lab's own, and `checkout_errors` with `ratio_rate5m` says what is counted and how, without `_per_`. A team's own SLO rules should follow the guidelines.
 
 <Layers caption="The rule group checkout-slo, top to bottom">
   <Layer title="ratio_rate5m, ratio_rate30m">Short windows, read by the two alerts.</Layer>

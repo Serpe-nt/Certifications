@@ -32,6 +32,9 @@ sources:
   - title: Configure data source-managed alert rules (Grafana)
     url: https://grafana.com/docs/grafana/v13.3/alerting/alerting-rules/create-data-source-managed-rule/
     checked: 2026-11-14
+  - title: Grafana v13.3.0 feature toggles, tempoAlerting (GitHub)
+    url: https://github.com/grafana/grafana/blob/v13.3.0/pkg/services/featuremgmt/registry.go
+    checked: 2026-11-14
 ---
 
 <Problem>
@@ -66,7 +69,7 @@ Trace alerts are then ordinary metric alerts on those series. That is what steps
 Every new span metric dimension multiplies series, as every label does. Span metrics also count only what reaches Tempo: if traces are sampled before Tempo, the counts are sampled too. Log rules cost reads, span metrics cost series; pick the one whose cost fits the question.
 
 <InLab>
-The lab's metrics-generator runs the `service-graphs` and `span-metrics` processors for every tenant, adds `service.namespace` as a dimension and `service_name` as a copy of the service. In the lab's Grafana 13.3 the Tempo data source is not offered for alert rules (its `alerting` flag is false), so alerts on traces use the span metrics in Mimir.
+The lab's metrics-generator runs the `service-graphs` and `span-metrics` processors for every tenant, adds `service.namespace` as a dimension and `service_name` as a copy of the service. In Grafana 13.3, alert rules on the Tempo data source sit behind the experimental feature toggle `tempoAlerting`, which is off by default. The lab leaves it off, so Tempo is not offered in the rule form, and alerts on traces use the span metrics in Mimir.
 </InLab>
 
 <Trap>

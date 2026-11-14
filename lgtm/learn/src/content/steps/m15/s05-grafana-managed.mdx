@@ -58,7 +58,7 @@ Grafana has an alerting system of its own, built on the Prometheus model. A Graf
 
 Grafana evaluates the rule itself, every interval of its evaluation group. Each series the query returns is an alert instance; the condition decides which of them breach. A pending period plays the part of `for`, and "keep firing for" the part of `keep_firing_for`.
 
-Grafana's states are Normal, Pending, Alerting and Recovering, plus two that only Grafana-managed rules have: No Data, when the query returns nothing, and Error, when the query fails. Both are handled by settings on the rule, so an alert on a metric that disappears does not go quiet without anyone noticing.
+Grafana's states are Normal, Pending and Alerting, as in Prometheus. Recovering is Grafana's state for the keep-firing-for period; in Prometheus such an alert simply stays firing. Two more only Grafana-managed rules have: No Data, when the query returns nothing, and Error, when the query fails. Both are handled by settings on the rule, so an alert on a metric that disappears does not go quiet without anyone noticing.
 
 <Compare caption="Prometheus words and Grafana words">
   <Col title="Prometheus and Alertmanager">Alerting rule, for, receiver, routing tree, firing.</Col>

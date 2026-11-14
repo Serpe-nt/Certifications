@@ -47,7 +47,7 @@ Alert fatigue comes from pages that are not actionable, not new, or not one per 
 
 Rules that page on causes. In step 2, a Deployment with a bad image tag went pending in your own rule, in `KubeDeploymentReplicasMismatch` and in `KubePodNotReady`. While the module was written, `CPUThrottlingHigh` went pending for the idle practice webhook. None of them was a user problem.
 
-Fan-out. One fault, three rules. The SRE book asks to control how many alerts one incident sends, by grouping related alerts in the monitoring or in the Alertmanager.
+Fan-out. One fault, three rules. The SRE book asks to control how many alerts one incident sends, by grouping related alerts in the monitoring or alerting system, for us the Alertmanager.
 
 Thresholds that do not fit the system. The Grafana rule of step 5 fired at once, because 10 orders a minute is normal elsewhere but not in this lab, where checkout gets about 3.
 
@@ -68,7 +68,7 @@ Low traffic. At about 200 orders an hour, three failed orders in an hour already
 
 ## Measure the load
 
-The SRE workbook targets at most two incidents per on-call shift, so there is time to follow each one up. The SRE book gives the same kind of measure, fewer than 2 paging events per shift, and names misconfigured monitoring as a common cause of overload. Count pages per shift, and how many led to action. A number that grows is the first sign of fatigue, long before someone mutes a channel.
+The SRE workbook targets at most two incidents per on-call shift, so there is time to follow each one up. The SRE book reaches the same bound from the work one incident takes, about six hours: at most two incidents per 12-hour on-call shift. It names misconfigured monitoring as a common cause of overload. Count pages per shift, and how many led to action. A number that grows is the first sign of fatigue, long before someone mutes a channel.
 
 <InLab>
 kube-prometheus-stack ships its own fix for noisy `info` alerts. The rule `InfoInhibitor` fires in a namespace that has an `info` alert and no warning or critical one, and the lab's Alertmanager has an inhibition rule that lets it mute every `severity="info"` alert of that namespace. While this module was written, `InfoInhibitor` fired for `learn-m15` because of the throttled webhook.

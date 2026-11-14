@@ -9,9 +9,9 @@ exam:
 tags: [alert-drill]
 flags: [paymentFailure, paymentUnreachable, productCatalogFailure]
 check:
-  kind: exact
-  prompt: Which flag did the drill switch on? Paste its name, as you found it before action 7 told you.
-  answers: ["paymentFailure", "paymentUnreachable", "productCatalogFailure"]
+  kind: regex
+  prompt: Paste the error text or the product id that told you the cause in action 6.
+  pattern: ".*(Invalid token|produced zero addresses|OLJCESPC7Z|Product Catalog Fail).*"
 outcome: You can take a page from your own SLO alert, follow its runbook to the failing dependency, name the fault before anyone tells you, and close the incident cleanly.
 terms:
   - term: Drill
@@ -60,7 +60,7 @@ The drill picks one of three faults, all on the order path of checkout:
 
 - payment rejects a share of the charges it receives;
 - checkout cannot reach the payment service at all;
-- the product catalog fails for one product, so orders that contain it fail.
+- the product catalog fails for one particular product, so the orders whose cart holds it fail, about one in five.
 
 Each leaves a different mark in the trace: a payment span with an error and its own message, a checkout client span to payment whose error says the call never reached a server, or a product-catalog span with an error for one product. Read the span's status message and its service before you guess.
 
@@ -152,11 +152,11 @@ Do not read the flag screen during the drill. It would tell you the answer, and 
          configMap: { name: drill }
    ```
 3. Start the drill and read its first line: <Cmd>{`kubectl apply -f m15-drill.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m15 logs drill`}</Cmd> It says that a fault is on. Note the time.
-4. Wait for the page. Read the alerts every minute: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/alerts; echo`}</Cmd> The page is the alert with `"window":"1h"` turning `firing`. How long it takes depends on the fault: about two minutes when every order fails, about three when half of them fail, and up to about ten when only orders with one product of ten fail. Read its `summary`, and open its `runbook_url`.
+4. Wait for the page. Read the alerts every minute: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/alerts; echo`}</Cmd> The page is the alert with `"window":"1h"` turning `firing`. How long it takes depends on the fault: about two minutes when every order fails, about three when half of them fail, and 5 to 10 minutes when only the orders whose cart holds one particular product fail, about one in five. Read its `summary`, and open its `runbook_url`.
 5. On the dashboard, set the time range to the last 30 minutes and Span kind to `SPAN_KIND_SERVER`. Find when the errors started.
-6. In <LabLink to="grafana" path="/explore">Explore</LabLink>, data source Tempo, query type **TraceQL**, find failing orders: <Query lang="traceql">{`{ resource.service.name = "checkout" && name = "oteldemo.CheckoutService/PlaceOrder" && status = error }`}</Query> Open one trace. Find the first span with an error: its service, its name and its status message. Decide which of the three faults it is, and write it down.
+6. In <LabLink to="grafana" path="/explore">Explore</LabLink>, data source Tempo, query type **TraceQL**, find failing orders: <Query lang="traceql">{`{ resource.service.name = "checkout" && name = "oteldemo.CheckoutService/PlaceOrder" && status = error }`}</Query> Open one trace. Find the first span with an error: its service, its name and its status message. Decide which of the three faults it is, and copy the error text or the product id that told you.
 7. Mitigate: stop the drill. It switches the fault off and tells you what it was: <Cmd>{`kubectl -n learn-m15 exec drill -- python /app/drill.py stop`}</Cmd> Read the flag API of action 1 again: every flag is `off`. Note the time.
-8. Read the alerts of action 4 until the `window` `1h` alert is gone, about five minutes. Then clean up the module: delete the rule group, check that tenant `lab` has no rules left, and delete the namespace with everything in it: <Cmd>{`kubectl -n learn-m15 run mimirtool --rm -i --quiet --restart=Never --image=grafana/mimirtool:3.2.4 --env=MIMIR_ADDRESS=http://mimir-gateway.mimir.svc --env=MIMIR_TENANT_ID=lab -- rules delete learn-m15 checkout-slo`}</Cmd> <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/config/v1/rules; echo`}</Cmd> <Cmd>{`kubectl delete namespace learn-m15`}</Cmd> The second command answers `{}`. Paste the flag you named in action 6 in the check below.
+8. Read the alerts of action 4 until the `window` `1h` alert is gone, about five minutes. Then clean up the module: delete the rule group, check that tenant `lab` has no rules left, and delete the namespace with everything in it: <Cmd>{`kubectl -n learn-m15 run mimirtool --rm -i --quiet --restart=Never --image=grafana/mimirtool:3.2.4 --env=MIMIR_ADDRESS=http://mimir-gateway.mimir.svc --env=MIMIR_TENANT_ID=lab -- rules delete learn-m15 checkout-slo`}</Cmd> <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/config/v1/rules; echo`}</Cmd> <Cmd>{`kubectl delete namespace learn-m15`}</Cmd> The second command answers `{}`. Paste the error text or the product id from action 6 in the check below.
 </Do>
 
 <Done>

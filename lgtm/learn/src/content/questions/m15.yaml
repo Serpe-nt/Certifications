@@ -54,7 +54,7 @@
 - id: q-m15-004
   tags: [ alert-rules ]
   exam: { cert: pca, domain: P5, competency: Configuring Alerting rules }
-  q: 'A rule has <code>expr: up{job="api"} == 0</code> and no <code>for</code>. Rules are evaluated every minute. A target is down for 20 seconds between two evaluations and up at both. What happens?'
+  q: 'A rule has <code>expr: up{job="api"} == 0</code> and no <code>for</code>. Rules are evaluated every minute. A target is down for 20 seconds between two evaluations; no scrape falls into those 20 seconds, and it is up at both. What happens?'
   options:
     - text: The alert fires once, because a rule without for fires at once
       why: It fires at the first evaluation that sees a result. No evaluation saw the target down.
@@ -467,7 +467,7 @@
     - text: <code>rate30m:checkout_orders:service</code>
       why: The order is level, then metric, then operations.
     - text: <code>service:checkout_orders_total:increase30m</code>
-      why: _total is dropped after a rate, and the guidelines record rates, not increases.
+      why: The expression is a rate, so the operation is rate30m, and _total is dropped after a rate.
     - text: <code>service:checkout_orders:rate30m</code>
       why: The level names the label left, service; the metric loses _total after the rate; rate30m is the operation.
   answer: [ 3 ]

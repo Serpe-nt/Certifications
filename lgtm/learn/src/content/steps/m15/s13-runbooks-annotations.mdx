@@ -49,7 +49,7 @@ An alert carries text for the person it wakes: a summary with the live numbers, 
 
 ## What a page must answer
 
-A page should answer four questions before the laptop opens: what is broken for users, how bad it is now, where to look first, and where the full instructions are. Grafana's documentation asks for annotations a first responder can act on without knowing how the alert was built. It names three common ones: `summary` for what was detected, `description` for what happened and how to respond, and `runbook_url` for the page that guides the response.
+A page should answer four questions before the laptop opens: what is broken for users, how bad it is now, where to look first, and where the full instructions are. Grafana's documentation asks for annotations a first responder can act on without knowing how the alert was built. It lists five optional annotations. Three are text: `summary` for what was detected and why, `description` for what happened and what the alert does, and `runbook_url` for the page that guides the response. The other two, `__dashboardUid__` and `__panelId__`, link a dashboard panel. The documentation's example description also says how to respond.
 
 The SRE workbook adds that each new alert should come with its playbook entry, and that playbooks age as fast as production changes. Keep the entry short and structured, so it can be kept current.
 
@@ -164,7 +164,7 @@ Do not put `{{ $value }}` into a label. A label that changes with every evaluati
    ```
 2. Apply it and read the load pod's log: <Cmd>{`kubectl apply -f m15-slo-v2.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m15 wait --for=jsonpath='{.status.phase}'=Succeeded pod/slo-load-2 --timeout=120s`}</Cmd> <Cmd>{`kubectl -n learn-m15 logs slo-load-2`}</Cmd> A line `updating group` names the first rule that differs: rule `#4`, the first alert.
 3. Remove the two load pods, which have done their work: <Cmd>{`kubectl -n learn-m15 delete pod slo-load slo-load-2`}</Cmd>
-4. After a minute, read the annotations the ruler now holds: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/rules | grep -o '"runbook_url":"[^"]*"' | sort | uniq -c`}</Cmd> Two alerts, one link.
+4. After a minute, read the annotations the ruler now holds: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' 'http://10.10.0.5/prometheus/api/v1/rules?exclude_alerts=true' | grep -o '"runbook_url":"[^"]*"' | sort | uniq -c`}</Cmd> Two rules, one link. Without `exclude_alerts=true` the endpoint also returns each rule's active alerts with their annotations, and the `6h` alert, which can still fire from step 10, would add a third link.
 5. Open the link in your browser and check that it leads to the dashboard. Paste the `runbook_url` in the check below.
 </Do>
 
@@ -173,7 +173,7 @@ Both alerts of your SLO group carry a summary with live numbers, a description w
 </Done>
 
 <Trap practice>
-The ruler's rules API shows the annotation templates as written, with `{{ $value }}` in them. They are filled in only on an active alert, in `/prometheus/api/v1/alerts`, which step 14 reads.
+With `exclude_alerts=true` the rules API shows the annotation templates as written, with `{{ $value }}` in them. They are filled in only on an active alert, which the rules API embeds when you leave the parameter out, and which `/prometheus/api/v1/alerts` lists on its own; step 14 reads that one.
 </Trap>
 
 <Remember>
