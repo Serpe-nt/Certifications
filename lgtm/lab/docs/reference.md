@@ -168,3 +168,8 @@ is switched through its targeting rule, as the flag screen does it.
 
 Sizes are in `vm/nodes.yml`; what the lab uses of them is in `budget.md`. SSH:
 `ssh -i ~/.ssh/ansible vaka@10.10.0.30`. HAProxy statistics: http://10.10.0.5:8404/stats.
+
+The cluster runs Kubernetes 1.35 and Calico 3.31.7 (`ansible/inventory/group_vars/all.yml`). When
+the PC sleeps the VMs pause and go on after the wake. After a sleep of more than about 23 hours,
+or whenever a new pod stays in `ContainerCreating` with `connection is unauthorized`, run
+`make calico-renew` (`runbook.md`, "After the PC has slept").

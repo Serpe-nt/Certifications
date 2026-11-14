@@ -6,7 +6,7 @@ primary_master: "{{ groups['control_plane'][0] }}"
 control_plane_endpoint: cluster-endpoint.k8s.local
 
 k8s_minor_version: "1.35"
-calico_version: "3.31.4"
+calico_version: "3.31.7"
 
 # The network role writes a netplan file for eth2 with the address k8s_net_ip.
 network_manage_k8s_interface: true

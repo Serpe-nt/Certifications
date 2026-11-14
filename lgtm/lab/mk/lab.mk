@@ -29,7 +29,7 @@ LAB_PLAYBOOK = cd $(ANSIBLE_DIR) && $(LAB_ROLES_PATH) $(ANSIBLE_PLAYBOOK) -i loc
 	-e lab_profile=$(LAB_PROFILE) -e lab_kubeconfig=$(LAB_KUBECONFIG)
 LAB_RENDER_DIR = $(CURDIR)/.bin/lab-render
 
-.PHONY: lab lab-tools status reset lab-check lab-kind-up lab-kind-down lab-lint lab-lint-ansible
+.PHONY: lab lab-tools status reset lab-check calico-renew lab-kind-up lab-kind-down lab-lint lab-lint-ansible
 
 lab: collections lab-tools ## Install the LGTM stack and the shop (LAB_PROFILE=full|kind, TAGS=<release>)
 	$(LAB_PLAYBOOK) $(if $(TAGS),--tags $(TAGS),) $(ANSIBLE_ARGS)
@@ -51,6 +51,11 @@ lab-check: ## Smoke test: every signal arrives and the shop can be followed metr
 	LAB_KUBECONFIG=$(LAB_KUBECONFIG) LAB_GATEWAY_URL=$(LAB_GATEWAY_URL) LAB_CHECK_WARMUP=$(LAB_CHECK_WARMUP) \
 	LAB_VOLUME_FULL_RATIO=$(LAB_VOLUME_FULL_RATIO) LAB_LONGHORN_FREE_RATIO=$(LAB_LONGHORN_FREE_RATIO) \
 	bash $(CURDIR)/tests/lab/smoke.sh
+
+calico-renew: lab-tools ## After a long sleep of the PC: restart calico-node node by node (new CNI token), wait, check
+	KUBECONFIG=$(LAB_KUBECONFIG) $(CURDIR)/.bin/kubectl -n calico-system rollout restart daemonset/calico-node
+	KUBECONFIG=$(LAB_KUBECONFIG) $(CURDIR)/.bin/kubectl -n calico-system rollout status daemonset/calico-node --timeout=10m
+	LAB_KUBECONFIG=$(LAB_KUBECONFIG) bash $(CURDIR)/tests/lab/cni-token.sh
 
 lab-kind-up: lab-tools ## Create the kind test cluster lgtm-l3 with stand-ins for the platform
 	KIND_CLUSTER=$(LAB_KIND_CLUSTER) LAB_KUBECONFIG=$(LAB_KIND_KUBECONFIG) bash $(CURDIR)/tests/lab/kind-up.sh
