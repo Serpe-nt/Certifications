@@ -88,7 +88,7 @@ You went from a percentile to the slow spans, down to the database query that wa
 </Done>
 
 <Trap practice>
-Switch the flag off when you are done, and check on the flag screen that it shows `off`. Other people practise in the same lab, and a flag left on spoils every number they read. If nothing gets slow within two minutes of switching it on, product-catalog may not have picked up the flag: tell whoever runs the lab rather than leaving it on.
+If checkout has not slowed two minutes after the switch, product-catalog is serving an old copy of the flags. Leave the flag on, restart it with <Cmd>{`kubectl -n shop rollout restart deploy/product-catalog`}</Cmd> and wait until it is ready: <Cmd>{`kubectl -n shop rollout status deploy/product-catalog`}</Cmd> The flag then works at once. When you are done, switch the flag off and check on the flag screen that it shows `off`: other people practise in the same lab, and a flag left on spoils every number they read.
 </Trap>
 
 <Question id="q-m13-s12" answer="b">

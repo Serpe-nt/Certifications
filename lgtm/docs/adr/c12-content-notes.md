@@ -23,7 +23,7 @@ Card C12, module m13 Tempo, 2026-11-14. What this module taught, on top of the e
 
 ## The fault flags on this lab
 
-- The first run of `productCatalogLockContention` had no effect: flagd evaluated it as on, but product-catalog serves static flags from its flagd provider cache, which was stale about 30 hours after the pod started. One restart of product-catalog (the owner's go-ahead) fixed it at once. Check the effect within the first minute after a switch; the flag API is not proof.
+- The first run of `productCatalogLockContention` had no effect: flagd evaluated it as on, but product-catalog serves static flags from its flagd provider cache, which was stale about 30 hours after the pod started. One restart of product-catalog (the owner's go-ahead) fixed it at once. Check the effect within the first minute after a switch; the flag API is not proof. C13 saw checkout, also Go, pick up its static flags without a restart. Step 12 has a practice trap with the restart for learners.
 - flagd's own metrics (`feature_flag_flagd_impression_total`, through the API server proxy on the flagd pod's port 8014) show which flags a service evaluates through flagd and which it serves from cache.
 - The shared notes folder of the wave worked for coordinating flags: each card keeps one `cNN-flag-now.md` with its real times.
 

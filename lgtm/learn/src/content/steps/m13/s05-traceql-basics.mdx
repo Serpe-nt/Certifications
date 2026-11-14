@@ -60,7 +60,7 @@ Attributes are written with a dot and start with their scope. `resource.service.
 
 ## Comparisons are strict
 
-Values have types: strings in double quotes, integers, floats, durations such as `50ms`, the status values `ok`, `error` and `unset`, the kinds `server`, `client`, `producer`, `consumer` and `internal`, and `nil` for "not set". An integer attribute does not match a string: on this lab `{ span.http.response.status_code = 200 }` finds spans and `{ span.http.response.status_code = "200" }` finds none.
+Values have types: strings in double quotes, integers, floats, durations such as `50ms`, the status values `ok`, `error` and `unset`, the kinds `server`, `client`, `producer`, `consumer`, `internal` and `unspecified`, and `nil` for "not set". An integer attribute does not match a string: on this lab `{ span.http.response.status_code = 200 }` finds spans and `{ span.http.response.status_code = "200" }` finds none.
 
 Regular expressions with `=~` and `!~` are anchored at both ends. `{ resource.service.name =~ "check" }` returned nothing on the lab; `"check.*"` returned checkout. Finally, `select()` after a pipe adds fields to each result span without filtering. It is how you read an attribute of the matching spans without opening each trace.
 

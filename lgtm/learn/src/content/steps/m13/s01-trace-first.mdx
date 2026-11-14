@@ -43,7 +43,7 @@ A trace keeps the order and the nesting. Each span has a start time, a duration 
 
 ## A trace store answers by request
 
-Tempo receives spans from instrumented applications and stores them in object storage, the only storage it needs. It answers two kinds of questions. Give it a trace ID and it returns every span with that ID, collected from wherever they were written. Give it a search, written in TraceQL, and it returns the traces that match, such as every checkout over one second or every trace where a database call failed.
+Tempo receives spans from instrumented applications and keeps them as blocks in object storage. In monolithic mode that is the only storage it needs; in microservices mode, which this lab runs, a Kafka topic sits in front of it, as step 2 shows. It answers two kinds of questions. Give it a trace ID and it returns every span with that ID, collected from wherever they were written. Give it a search, written in TraceQL, and it returns the traces that match, such as every checkout over one second or every trace where a database call failed.
 
 A trace is never closed: a service can send another span for it at any time, and Tempo collects all spans of the ID when you ask. This is why a trace with very many spans is expensive to fetch, and why Tempo has limits on the size of one trace, which step 13 shows.
 

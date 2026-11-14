@@ -46,7 +46,7 @@ The lab promises 48 hours of traces. A block-builder writes a few new blocks eve
 </Problem>
 
 <Idea>
-A Tempo block is a Parquet file of whole traces plus the metadata that makes it findable. The backend scheduler hands out compaction jobs that merge small blocks of the same hour and retention jobs that delete blocks past the retention period; backend workers run them. A block is visible to queries only once its `meta.json` exists.
+A Tempo block is a Parquet file of whole traces plus the metadata that makes it findable. The backend scheduler hands out compaction jobs that merge small blocks of the same hour and retention jobs that remove blocks past the retention period; backend workers run them. A block is visible to queries only once its `meta.json` exists.
 </Idea>
 
 ## What a block-builder writes
@@ -55,19 +55,19 @@ Each cycle, a block-builder writes one or more blocks per tenant and partition. 
 
 ## Why Parquet
 
-Parquet stores data by column. A TraceQL condition such as `span.http.response.status_code = 500` reads the column of that attribute, not whole traces. Each row of a Tempo block is one trace; its spans are nested inside it, under their resource and scope. A few fields, such as `service.name`, the span name, kind, status and duration, have columns of their own. Other attributes sit in a generic attribute map that is slower to scan, unless an operator promotes them to dedicated columns. Tempo 3.1 writes the format vParquet5 by default; vParquet4 can still be chosen, and vParquet3 can no longer be written.
+Parquet stores data by column. A TraceQL condition such as `span.http.response.status_code = 500` makes Tempo read only the columns the query needs, not whole traces. Each row of a Tempo block is one trace; its spans are nested inside it, under their resource and scope. A few fields, such as `service.name`, the span name, kind, status and duration, have columns of their own. Other attributes sit in a generic attribute map that is slower to scan, unless an operator promotes them to dedicated columns. Tempo 3.1 writes the format vParquet5 by default; vParquet4 can still be chosen, and vParquet3 can no longer be written.
 
 ## Compaction and retention
 
 The backend scheduler is a single pod. Every cycle it looks at each tenant's blocklist and creates compaction jobs: groups of two to four blocks of the same one-hour window and level, smallest first. A backend worker merges each group into one block and marks the inputs compacted by renaming their `meta.json` to `meta.compacted.json`. The old blocks stay readable for one more hour, because other components only learn about the new block when they next poll the bucket, every five minutes.
 
-Retention is a job of its own, created once an hour: it deletes blocks whose data is older than the retention period. The period is `block_retention`, 48 hours in this lab. A trace is therefore kept between 48 and about 49 hours.
+Retention is a job of its own, created once an hour, and it removes a block in two steps. First, once the block's end time is older than `block_retention`, 48 hours in this lab, the job marks the block as compacted. A later run deletes it after `compacted_block_retention`, one hour. Blocks also cover a window of time, so a trace stays readable for roughly 48 to 50 hours.
 
 <Timeline caption="Life of a block in this lab">
   <Event at="0 to 5 min" title="Built">A block-builder flushes the cycle's spans as a level-0 block.</Event>
   <Event at="minutes later" title="Compacted">A backend worker merges it with others of the same hour.</Event>
   <Event at="+1 h" title="Old copy deleted">The compacted inputs are removed after one hour.</Event>
-  <Event at="48 h" title="Deleted">The next hourly retention job removes the block.</Event>
+  <Event at="48 h and later" title="Marked, then deleted">An hourly retention job marks the block once its end is past 48 h; a later run deletes it an hour after.</Event>
 </Timeline>
 
 <InLab>
@@ -94,7 +94,7 @@ The lab's object store has a console, but its keys are a Secret; this step does 
 </Trap>
 
 <Remember>
-A block is Parquet plus `meta.json`, invisible until `meta.json` is written. Compaction merges blocks of the same hour; retention deletes them after 48 hours here.
+A block is Parquet plus `meta.json`, invisible until `meta.json` is written. Compaction merges blocks of the same hour; retention marks them after 48 hours here and deletes them an hour later.
 </Remember>
 
 <Question id="q-m13-s10" answer="c">

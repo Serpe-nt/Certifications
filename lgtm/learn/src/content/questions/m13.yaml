@@ -224,7 +224,7 @@
     - text: 'The second form is deprecated and will stop working'
       why: 'The guide calls it slower, not deprecated.'
     - text: 'The second form only searches resource attributes'
-      why: 'A leading dot without a scope searches every scope, not only the resource.'
+      why: 'A leading dot without a scope searches the span and the resource attributes, not only the resource.'
     - text: 'The first form is case sensitive and the second is not'
       why: 'Scope has nothing to do with case; both compare values exactly.'
     - text: 'An unscoped name makes Tempo look in several scopes'
@@ -503,7 +503,7 @@
     - text: 'The query frontend caches the answer of every query'
       why: 'A results cache helps only for repeated queries, not for the first one.'
     - text: 'Blocks are Parquet, so Tempo reads the columns the query needs'
-      why: 'Columnar storage lets the query read the status code column without whole traces.'
+      why: 'Columnar storage lets Tempo read only the columns the query needs, not whole traces.'
     - text: 'Status codes are stored in Mimir and joined at query time'
       why: 'Span attributes stay in Tempo. Mimir holds only the metrics the generator writes.'
   answer: [2]
@@ -588,7 +588,7 @@
     - text: '<code>block_retention</code>, the age of the stored blocks'
       why: 'Retention deletes old blocks. It never refuses a write.'
     - text: '<code>rate_limit_bytes</code>, the ingestion rate per tenant'
-      why: 'The rate limit is the only limit the distributor enforces before it answers.'
+      why: 'The ingestion rate, with its burst, is the only per-tenant limit the distributor refuses on before it answers.'
   answer: [3]
   source: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/distributor/
 

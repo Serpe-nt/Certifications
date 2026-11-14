@@ -55,7 +55,7 @@ The **Comparison** tab answers "what is different about the bad spans". With **D
 
 ## Structure and the traces themselves
 
-The third tab shows aggregated structure, built from many traces at once: **Service structure** for rate, **Root cause errors** for errors and **Root cause latency** for duration, the chain of spans where the time or the error sits. The last tab lists traces: **Traces**, **Errored traces** or **Slow traces**. Each opens the trace view you know from Explore. A **Trace ID** field in the header opens one trace directly.
+The third tab shows aggregated structure, built from many traces at once: **Service structure** for rate, **Root cause errors** for errors and **Root cause latency** for duration, the chain of spans where the time or the error sits. With **Errors**, an **Exceptions** tab also groups the exception messages of the failed spans, with how often each occurred. The last tab lists traces: **Traces**, **Errored traces** or **Slow traces**. Each opens the trace view you know from Explore. A **Trace ID** field in the header opens one trace directly.
 
 <Flow caption="A click path to a slow trace">
   <Stage title="Duration" kicker="metric">Heat map of span durations.</Stage>
@@ -66,7 +66,7 @@ The third tab shows aggregated structure, built from many traces at once: **Serv
 
 ## What it needs
 
-Grafana 13.2 and later ship Traces Drilldown with no install; the lab runs Grafana 13.3.0 with the app at version 3.2.0. It needs a Tempo data source and a Tempo with TraceQL metrics, which Tempo 3 has, as step 7 showed. Because every panel is a TraceQL metrics query, the app has the same limits: on this lab no panel can cover more than 3 hours.
+Grafana 13.2 and later ship Traces Drilldown with no install; the lab runs Grafana 13.3.0 with the app at version 3.2.0. It needs a Tempo data source and a Tempo with TraceQL metrics, which Tempo 3 has, as step 7 showed. Its metric panels are TraceQL metrics queries, so they have the same limit: on this lab no metric panel can cover more than 3 hours. The lists of traces are searches, with the search limits.
 
 <InLab>
 In the main menu, **Drilldown** > **Traces** opens the app on the data source `tempo`, tenant `lab`. Practice tenants do not appear, because the data source always sends `lab`.
@@ -90,7 +90,7 @@ You moved from a heat map of durations to the attributes of the slow spans, to t
 </Done>
 
 <Trap practice>
-If the panels stay empty, check the data source selector at the top: it must be `tempo`. A time range longer than 3 hours makes the queries fail on this lab.
+If the panels stay empty, check the data source selector at the top: it must be `tempo`. A time range longer than 3 hours makes the metric panels fail on this lab.
 </Trap>
 
 <Question id="q-m13-s11" answer="a">

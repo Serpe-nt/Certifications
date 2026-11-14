@@ -44,7 +44,7 @@ A batch job wraps a whole night of work in one trace and attaches every record i
 </Problem>
 
 <Idea>
-Tempo applies limits per tenant, as overrides. The distributor checks only the ingestion rate, and refuses an excess at once. Other limits, such as the size of one trace, are applied later by the live-stores and block-builders, after the sender has already heard `200`; the only record of the refusal is Tempo's own metrics.
+Tempo applies limits per tenant, as overrides. The only per-tenant limit the distributor refuses on is the ingestion rate, with its burst, and it refuses an excess at once. Other limits, such as the size of one trace, are applied later by the live-stores and block-builders, after the sender has already heard `200`; the only record of the refusal is Tempo's own metrics.
 </Idea>
 
 ## A tenant is a header
@@ -53,7 +53,7 @@ Every request to a Tempo with multi-tenancy on carries `X-Scope-OrgID`. The tena
 
 ## Overrides: one file, defaults and exceptions
 
-Per-tenant limits live in overrides. The block `overrides.defaults` applies to every tenant; a runtime file can set other values for a named tenant and is reloaded without a restart. The lab's Tempo runs with the defaults below and no tenant of its own in the runtime file, so `learn-m13` gets exactly what `lab` gets. The status page `/status/overrides/TENANT` shows what a tenant receives and where it came from.
+Per-tenant limits live in overrides. The block `overrides.defaults` applies to every tenant; a runtime file can set other values for a named tenant and is reloaded without a restart. The lab's Tempo runs with the defaults below and no tenant of its own in the runtime file, so `learn-m13` gets exactly what `lab` gets. The status page `/status/overrides/TENANT` shows the overrides a tenant receives; on this lab it also prints `Source of runtime overrides: default overrides`.
 
 <Compare caption="Overrides every tenant gets on this lab, and who enforces them">
   <Col title="Distributor">`rate_limit_bytes` 30,000,000 bytes a second and `burst_size_bytes` 30,000,000, per distributor pod (local strategy).</Col>
@@ -64,7 +64,7 @@ The lab also keeps the distributor's `max_attribute_bytes` at 2,048: a longer at
 
 ## Refused at once, or refused later
 
-The ingestion rate is the only limit a distributor enforces while the sender waits. A tenant that sends more than its rate gets an error, `RATE_LIMITED`, and the distributor counts the spans in `tempo_discarded_spans_total` with a reason. A sender that sees it can retry later.
+The ingestion rate, with its burst, is the only per-tenant limit a distributor refuses on while the sender waits. It also drops spans with an invalid trace or span ID and cuts long attributes, but those are not tenant limits. A tenant that sends more than its rate gets an error, `RATE_LIMITED`, and the distributor counts the spans in `tempo_discarded_spans_total` with a reason. A sender that sees it can retry later.
 
 The size of a trace cannot be judged by a distributor, because a trace arrives in pieces, possibly hours apart. So the live-store and the block-builder add up each trace's size as they read it from Kafka, and drop the spans that would take it past `max_bytes_per_trace`. By then Kafka has the spans and the distributor has answered `200`. The refusal shows only in `tempo_discarded_spans_total{reason="trace_too_large"}` on those pods, and in a trace that is missing or cut short. That is what happened to the batch job of the story.
 
@@ -135,7 +135,7 @@ Do not raise the size or send the pod in a loop to "see more": one trace over th
 </Trap>
 
 <Remember>
-The distributor refuses only by rate. Trace size is judged downstream, after a `200`; look for `tempo_discarded_spans_total` on live-stores and block-builders.
+Of the tenant limits, the distributor refuses only by rate. Trace size is judged downstream, after a `200`; look for `tempo_discarded_spans_total` on live-stores and block-builders.
 </Remember>
 
 <Question id="q-m13-s13" answer="c">
