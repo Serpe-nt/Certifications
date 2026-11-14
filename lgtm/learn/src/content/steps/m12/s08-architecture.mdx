@@ -1,0 +1,125 @@
+---
+id: m12-s08
+title: "Architecture: the write path and the read path"
+kind: lab
+minutes: 22
+order: 8
+exam:
+  - cert: none
+tags: [loki-architecture]
+check:
+  kind: exact
+  prompt: Paste the container name of the Loki component that logged your query with its total_bytes in action 5.
+  answers: ["query-frontend"]
+outcome: You can name each Loki component on the lab, say what it does for a write and for a query, and find a component's view of your own query.
+terms:
+  - term: Distributor
+    def: The first stop of a push. It checks the lines against limits and sends each stream to its ingesters.
+  - term: Ingester
+    def: Holds recent lines of its streams in memory, answers queries for them, and writes chunks to the object store.
+  - term: Hash ring
+    def: The shared list that decides which ingesters own which streams; each ingester owns ranges of hash values.
+  - term: Replication factor
+    def: How many ingesters receive each stream; 3 here, and a write needs two of them to answer.
+  - term: Query frontend
+    def: Receives queries, splits them into smaller ones by time and by shard, and merges the answers.
+  - term: Querier
+    def: Runs the pieces of a query against the ingesters and the object store.
+  - term: Index gateway
+    def: Answers questions about the index for the queriers and the query frontend.
+sources:
+  - title: Loki architecture
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/architecture/
+    checked: 2026-11-14
+  - title: Loki components
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/components/
+    checked: 2026-11-14
+  - title: Consistent hash rings
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/hash-rings/
+    checked: 2026-11-14
+---
+
+<Problem>
+A colleague says "Loki is slow" and wants to give it more memory. The lab's Loki is fifteen pods: eight Loki components, its nginx gateway and two caches. Which of them is slow, and which would more memory help? You cannot tell until you know what each one does with a line and with a query.
+</Problem>
+
+Loki is one program that can play many parts. In this lab, each part runs as its own set of pods.
+
+<Idea>
+A write goes through the distributor to three ingesters, which keep recent lines in memory and later write chunks to the object store. A query goes through the query frontend, which splits it into pieces. Queriers run the pieces against the ingesters and the object store, with the index gateway's help. The compactor and the ruler work in the background.
+</Idea>
+
+## The write path
+
+A sender pushes lines to the distributor. The distributor checks them: valid labels, timestamps that are not too old or too far ahead, lines that are not too long, and the tenant's limits. It sorts each stream's labels so that the same set always looks the same. Then it hashes the tenant and the label set, looks the hash up in the ingesters' hash ring, and sends the stream to as many ingesters as the replication factor says. With a factor of 3, the write succeeds once two of the three have answered.
+
+Each ingester keeps the stream's newest lines in memory, in a chunk that is still open. It writes them to a write-ahead log on its disk, so a restart does not lose them. When a chunk is full, too old, or has been idle for a while, the ingester compresses it and writes it to the object store, along with index files. The three copies of one chunk usually produce one object, because the object's name is a hash of its content.
+
+<Flow caption="One push">
+  <Stage title="Gateway" kicker="nginx">Routes /loki/api/v1/push and /otlp/v1/logs.</Stage>
+  <Stage title="Distributor" kicker="2 pods">Validates, applies limits, hashes the stream.</Stage>
+  <Stage title="Ingesters" kicker="3 pods">Each stream to all three; two answers are enough.</Stage>
+  <Stage title="Object store" kicker="loki-chunks">Chunks and index files, written later.</Stage>
+</Flow>
+
+## The read path
+
+A query reaches the query frontend. The frontend splits it by time (every 15 minutes in this lab) and, with the TSDB index, into shards by the amount of data. It puts the pieces in the query scheduler's queue, one queue per tenant, so that one tenant cannot block another. Queriers take pieces from the queue. Each querier asks all ingesters for recent lines and asks the index gateway which chunks in the object store hold the rest. It reads those chunks, runs the pipeline, and removes the duplicates that replication created. The frontend merges the answers, caches the results of metric queries, and logs one line per query with its statistics.
+
+<Flow caption="One query">
+  <Stage title="Query frontend" kicker="1 pod">Splits by time and shard, merges, caches.</Stage>
+  <Stage title="Scheduler" kicker="1 pod">A fair queue per tenant.</Stage>
+  <Stage title="Queriers" kicker="2 pods">Ask ingesters and the index gateway, read chunks.</Stage>
+</Flow>
+
+## The background workers
+
+The compactor merges the many small index files the ingesters write into one file per tenant and day. It also applies retention and deletes data on request, as steps 10 and 11 show. It usually runs as a single instance. The ruler evaluates rules on a schedule, as step 13 shows. Two memcached instances cache chunks and query results. In front of all of them, Loki's own nginx gateway sends each path to the right component.
+
+<InLab>
+The release `loki` runs 2 distributors, 3 ingesters, 2 queriers, and one each of query frontend, query scheduler, index gateway, compactor, ruler and gateway, plus the two caches: 15 pods in the namespace `loki`. Its replication factor is 3.
+</InLab>
+
+<Trap>
+The ingesters answer queries too. A query over the last few minutes is served mostly from their memory, not from the object store, so "the query is slow" and "the object store is slow" are not the same problem.
+</Trap>
+
+<Remember>
+Writes: distributor, then three ingesters, then the object store. Reads: query frontend, scheduler, queriers, which ask the ingesters and the index gateway. The compactor and the ruler work on their own schedule.
+</Remember>
+
+<Do>
+1. In WSL, list Loki's pods and where they run: <Cmd>{`kubectl -n loki get pods -o wide`}</Cmd> Group them by the part they play on the write path, on the read path, or in the background.
+2. Read the ingesters' hash ring through the lab's gateway. Each ingester should be `ACTIVE`: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/ring | grep -o 'ACTIVE' | wc -l`}</Cmd> The answer is 3.
+3. In `lgtm/lab`, read the replication factor the lab sets for Loki: <Cmd>{`grep -n -A1 commonConfig helm/loki/values.yaml`}</Cmd>
+4. In <LabLink to="grafana" path="/explore">Explore</LabLink>, with the data source `loki` and the time range **Last 15 minutes**, run a query you will recognize: <Query lang="logql">{`{service_name="beacon"} |= "log-m12-8"`}</Query>
+5. Find your query in the logs of the component that received it: <Query lang="logql">{`{namespace="loki", container="query-frontend"} |= "metrics.go" |= "log-m12-8"`}</Query> Read `splits`, `shards`, `total_bytes` and `ingester_requests` in the line. Paste the container's name in the check below.
+</Do>
+
+<Done>
+You matched the pods to their parts, saw three active ingesters in the ring, and read the query frontend's statistics for a query you ran.
+</Done>
+
+<Trap practice>
+The query frontend's line reaches Loki through Alloy, a few seconds after your query. If action 5 finds nothing, run it again. Run it twice and it also finds its own line, because it contains the text `log-m12-8` too: pick the line whose `query=` is the one from action 4.
+</Trap>
+
+<Question id="q-m12-s08" answer="b">
+In a Loki with three ingesters and a replication factor of 3, one ingester pod restarts. What happens to writes while it is down?
+
+- Writes fail until it is back, because each stream must reach all three of its ingesters.
+
+  The distributor waits for a quorum, not for all three. Two answers out of three are enough.
+
+- Writes go on: each stream still reaches two of its three replicas, which is a quorum.
+
+  A write needs a quorum of the stream's replicas: half the replication factor, rounded down, plus one. With a factor of 3 that is two, so one ingester can be down.
+
+- Writes go on, but they skip the ingesters and go straight to the object store.
+
+  Writes always go through ingesters. They build the chunks that end up in the object store.
+
+- Writes queue up in the distributor and are sent when the ingester returns.
+
+  The distributor is stateless and keeps no queue of writes. It answers the sender as soon as the quorum has answered.
+</Question>

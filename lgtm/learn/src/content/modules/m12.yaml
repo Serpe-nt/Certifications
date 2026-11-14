@@ -1,0 +1,6 @@
+id: m12
+title: Loki
+goal: Write LogQL fluently and avoid the label mistakes that sink a Loki.
+order: 12
+quiz: true
+exams: []

@@ -1,0 +1,116 @@
+---
+id: m12-s03
+title: "Two ways in: what becomes a label"
+kind: lab
+minutes: 18
+order: 3
+exam:
+  - cert: none
+tags: [loki-ingest]
+check:
+  kind: exact
+  prompt: Paste the name of one stream label on the beacon's OTLP stream whose value changes with every new beacon pod.
+  answers: ["k8s_pod_name", "service_instance_id"]
+outcome: You can say which fields become stream labels when logs reach Loki through Alloy and through OTLP, and spot a label that should be structured metadata.
+terms:
+  - term: Push API
+    def: Loki's HTTP endpoint /loki/api/v1/push, which takes streams of lines with their labels; Alloy writes to it.
+  - term: OTLP endpoint
+    def: Loki's endpoint /otlp/v1/logs, which takes OpenTelemetry log records and maps them to labels, line and metadata.
+  - term: Resource attribute
+    def: An OpenTelemetry attribute that describes the source of the data, such as service.name or k8s.pod.name.
+sources:
+  - title: Understand labels
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/
+    checked: 2026-11-14
+  - title: Ingesting logs to Loki using OpenTelemetry Collector
+    url: https://grafana.com/docs/loki/v3.7.x/send-data/otel/
+    checked: 2026-11-14
+  - title: Modify default OpenTelemetry labels
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/modify-default-labels/
+    checked: 2026-11-14
+  - title: Ingesting logs to Loki using Alloy
+    url: https://grafana.com/docs/loki/v3.7.x/send-data/alloy/
+    checked: 2026-11-14
+---
+
+<Problem>
+Two teams send logs to the same Loki. One team's pod names appear in a selector, the other team's do not. One team gets a new stream every time a pod restarts, the other does not. Nobody chose this on purpose: each sender has its own default rules for what becomes a label.
+</Problem>
+
+The labels of a stream are decided before Loki stores anything, partly by the sender and partly by Loki itself.
+
+<Idea>
+Through the push API, the sender chooses the labels: Alloy sets them with its relabel rules and can move fields into structured metadata. Through OTLP, Loki maps the record itself: a fixed list of resource attributes becomes labels, the body becomes the line, and everything else becomes structured metadata.
+</Idea>
+
+## Through Alloy, the sender decides
+
+Alloy tails a pod's log files and sends the lines to Loki's push API, `/loki/api/v1/push`. Each push carries streams: a label set and the lines that belong to it. Alloy builds the label set from what it knows about the pod, with rules you can change. Loki stores the labels as they arrive. When a stream has no `service_name`, Loki adds one, taken from the first label it finds in a list that starts with `service`, `app` and `application`. If it finds none, the value is `unknown_service`.
+
+The chart that installs Alloy in this lab sets `namespace`, `container`, `job` (as `namespace/container`), `service_name`, `app_kubernetes_io_name` and `cluster`. It also sets `stream` (stdout or stderr) and `flags`, which come from the container runtime's log format. It moves `pod` and `service_instance_id` into structured metadata, so a pod that restarts does not open a new stream.
+
+## Through OTLP, Loki decides
+
+The collector gateway sends OpenTelemetry log records to Loki's endpoint `/otlp/v1/logs`. Loki maps each record on its own. Seventeen resource attributes become labels by default, among them `service.name`, `service.namespace`, `k8s.namespace.name` and `k8s.pod.name`. Dots become underscores, so `service.name` turns into `service_name`. The body becomes the log line. Every other resource attribute, the scope and every field of the record go into structured metadata, including `trace_id` and `severity_text`.
+
+The list can be changed per tenant with `otlp_config`. The lab adds one attribute to it: `cluster`.
+
+<Compare caption="Who picks the labels">
+  <Col title="Push API (Alloy)">The sender's rules. In this lab: namespace, container, job, service_name and a few more. The pod name is structured metadata.</Col>
+  <Col title="OTLP endpoint" hot>Loki's default list of 17 resource attributes, plus cluster in this lab. The pod name is a label.</Col>
+</Compare>
+
+## Two pod names that should not be labels
+
+Loki's documentation says that `k8s.pod.name` and `service.instance.id` are no longer recommended as default labels. Both change whenever a pod is replaced, so each rollout opens new streams. They stay in the default list only because removing them would break existing setups. For a new install, the docs advise moving them to structured metadata, in the sender or in Loki's `otlp_config`.
+
+The lab keeps Loki's defaults, so you can see the difference for yourself below.
+
+<InLab>
+Alloy reads the log files of every namespace except `shop`. The shop sends its logs over OTLP only, so that no line is stored twice. The beacon in `lab-tools` sends its records over OTLP as well.
+</InLab>
+
+<Trap>
+Do not assume two streams from the same pod have the same labels. In this lab, a selector on `namespace` finds Alloy's streams and misses the shop's OTLP streams, which have `k8s_namespace_name` instead.
+</Trap>
+
+<Remember>
+Push API: the sender picks the labels. OTLP: Loki's list of resource attributes picks them, and everything else is structured metadata.
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki`, the time range **Last 5 minutes**, and the Code editor.
+2. Read one line that came through Alloy, from Loki's own ingester: <Query lang="logql">{`{namespace="loki", container="ingester"}`}</Query> Open a line's details. Under **Indexed labels** are `job` `loki/ingester`, `stream` and `flags`. The pod name is `pod`, under **Structured metadata**.
+3. Read one line that came through OTLP, from the beacon: <Query lang="logql">{`{service_name="beacon", k8s_namespace_name="lab-tools"}`}</Query> Open a line's details. Count the fields under **Indexed labels** and note the ones that name the pod.
+4. Compare the two namespace labels on the shop: <Query lang="logql">{`{k8s_namespace_name="shop"}`}</Query> returns the lines the shop's services wrote over OTLP. With `{namespace="shop"}` you would get at most the namespace's Kubernetes events, which Alloy sends, and never a line of the shop's services.
+5. Paste in the check one label of the beacon's OTLP stream from action 3 whose value changes with every new pod.
+</Do>
+
+<Done>
+You found the pod name as structured metadata on Alloy's stream and as a stream label on the OTLP stream.
+</Done>
+
+<Trap practice>
+The pod's name appears on both lines under two names: `pod`, as structured metadata, in action 2, and `k8s_pod_name`, as a stream label, in action 3. Only the second one can go inside the braces.
+</Trap>
+
+<Question id="q-m12-s03" answer="d">
+A service sends its logs over OTLP to Loki 3.7 with the default settings. Its resource has the attributes `service.name`, `k8s.pod.name` and `host.arch`, and each record has `trace_id`. Which of these is a stream label in Loki?
+
+- `trace_id`, because Loki indexes the trace ID so that traces can be linked to logs.
+
+  Fields of the log record go into structured metadata. The trace link in Grafana works on the metadata.
+
+- `host_arch`, because every resource attribute becomes a stream label.
+
+  Only the attributes on Loki's default list become labels. `host.arch` is not on it, so it goes into structured metadata.
+
+- None of them: over OTLP, every attribute is stored as structured metadata.
+
+  Loki promotes the resource attributes on its default list to labels, so some of them are labels.
+
+- `k8s_pod_name`, since `k8s.pod.name` is on Loki's default label list.
+
+  The default list includes it. The docs advise new users to move it to structured metadata, since every new pod makes a new stream.
+</Question>

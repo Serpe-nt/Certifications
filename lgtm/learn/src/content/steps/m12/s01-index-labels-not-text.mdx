@@ -1,0 +1,104 @@
+---
+id: m12-s01
+title: Index the labels, not the text
+kind: concept
+minutes: 12
+order: 1
+exam:
+  - cert: none
+tags: [loki-idea]
+outcome: You can explain why Loki indexes a few labels per stream and searches the text at query time, and what that costs and saves.
+terms:
+  - term: Log stream
+    def: All log lines that share exactly the same set of labels.
+  - term: Label
+    def: A key and value pair that names where a log line came from, such as namespace="loki".
+  - term: Chunk
+    def: A compressed block of log lines of one stream over a stretch of time, stored in the object store.
+  - term: Index
+    def: Loki's table of contents. It maps label sets to the chunks that hold their lines.
+sources:
+  - title: Loki overview
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/overview/
+    checked: 2026-11-14
+  - title: Query Loki
+    url: https://grafana.com/docs/loki/v3.7.x/query/
+    checked: 2026-11-14
+  - title: Understand labels
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/
+    checked: 2026-11-14
+  - title: Label best practices
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/bp-labels/
+    checked: 2026-11-14
+---
+
+<Problem>
+A team stores every log line in a search engine that indexes each word. Search is instant, but the index is now larger than the logs, it needs fast disks, and each new service makes it grow again. The bill for keeping a week of logs is higher than the bill for running the services that wrote them.
+</Problem>
+
+Most log searches do not need an index of every word. You usually know where to look first: this namespace, that service, the last hour.
+
+<Idea>
+Loki indexes only a small set of labels per stream and never indexes the text of the lines. The lines go into compressed chunks in an object store. A query uses the labels to pick a few streams, then scans their lines in parallel.
+</Idea>
+
+## A stream is one set of labels
+
+Every line that reaches Loki carries labels, such as `namespace="loki"` and `container="ingester"`. All lines with exactly the same labels form one log stream. Loki keeps a stream's lines together, in time order, and compresses them into chunks. A chunk holds one stream for a stretch of time. Loki stores chunks in an object store such as S3.
+
+The index is small because it only records which label sets exist and which chunks belong to each. Loki's overview calls it a table of contents. A stream with a thousand lines a second still costs one entry for its labels, plus a reference for each chunk.
+
+## A query is find, then scan
+
+A LogQL query starts with a stream selector in braces, such as `{namespace="loki", container="ingester"}`. Loki looks up the selector in the index and finds the chunks of the matching streams for the time range. Then it reads those chunks and runs the rest of the query on each line: a filter for a word, a parser, a count. This second part is a parallel grep, run by many workers at once.
+
+<Flow caption="What happens to one query">
+  <Stage title="Selector" kicker="Index">The labels in braces pick the streams.</Stage>
+  <Stage title="Chunks" kicker="Object store">Only those streams' chunks for the time range are read.</Stage>
+  <Stage title="Pipeline" kicker="Queriers">Filters and parsers run on every line read.</Stage>
+</Flow>
+
+So the cost of a query depends on how much text the selector and the time range let through. A narrow selector over 15 minutes reads little. A selector that matches everything over a day reads everything.
+
+## What this saves, and what it asks of you
+
+A small index and compressed chunks in cheap object storage make Loki less expensive to run than tools that index every word. LogQL also lets you decide the shape of a line when you query it, not when you send it. Loki's docs call this "schema at query".
+
+In exchange, labels must be chosen well. Labels describe the source of a line: the cluster, the namespace, the application. They should have few values that last a long time. Something that changes on every line, such as a user ID, belongs in the text or in structured metadata, which step 2 covers. Step 12 shows on the lab what a label with too many values does.
+
+<Compare caption="Two ways to find a log line">
+  <Col title="Full-text index">Every word is indexed when it arrives. Any word is found at once, but the index is large and costly to keep.</Col>
+  <Col title="Loki" hot>Only labels are indexed. The selector narrows the search, and the text is scanned at query time.</Col>
+</Compare>
+
+<InLab>
+In the last hour, tenant `lab` held 134 streams and about 360 MB of log lines. Their chunks and their index live in the bucket `loki-chunks` of the lab's object store.
+</InLab>
+
+<Trap>
+Loki is not slow at text search, and it does not need a label for every field you search. Labels only pick streams. Add a label because it describes where logs come from, never to make one search faster.
+</Trap>
+
+<Remember>
+Labels choose the streams, and the time range chooses the chunks. Everything after the braces is work done on every line that those two let through.
+</Remember>
+
+<Question id="q-m12-s01" answer="c">
+A developer asks you to add a label `customer_id` to every log line of the payment service, so that searching for one customer is fast. What does Loki do with a search for one customer without that label?
+
+- It cannot find the customer, because Loki only searches the labels it has indexed.
+
+  Loki searches the text of the lines after the selector. A line filter such as `|= "customer_id=4711"` finds the customer without any label.
+
+- It reads the whole bucket, because without the label there is no way to narrow the search.
+
+  The stream selector still narrows the search, for example to the payment service, and the time range narrows it again.
+
+- It selects the payment streams by label, then scans their lines for the ID.
+
+  This is how Loki works by design. The selector picks streams from the small index, and the text is searched when the query runs.
+
+- It builds a temporary full-text index of the payment service's logs and then answers from it.
+
+  Loki builds no full-text index, not even for a moment. It reads the chunks and filters the lines one by one.
+</Question>
