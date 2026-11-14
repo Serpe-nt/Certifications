@@ -392,8 +392,8 @@
   exam: { cert: none }
   q: "A service sends OTLP with 35 attributes on each data point. Mimir answers <code>400</code> with <code>err-mimir-max-label-names-per-series</code>. Which change fixes it without touching Mimir?"
   options:
-    - text: "Send fewer attributes, so each series stays under 30 labels"
-      why: "Each data point attribute becomes a label, and the default limit is 30 labels per series."
+    - text: "Send fewer attributes, so each series has at most 30 labels"
+      why: "Each data point attribute becomes a label, and with <code>__name__</code>, <code>job</code> and any promoted attributes a series may have at most 30 labels by default."
     - text: "Send the same data with remote write instead of OTLP"
       why: "The same series would have the same labels and break the same limit."
     - text: "Shorten every label value to under 2,048 characters"
@@ -441,7 +441,7 @@
   q: "A tenant is close to its series limit, and the cardinality API is off. Which PromQL query shows the metric names with the most series?"
   options:
     - text: "<code>topk(10, count_over_time({__name__=~\".+\"}[30m]))</code>"
-      why: "This counts samples per series over an hour, not series per metric name."
+      why: "This counts samples per series over 30 minutes, not series per metric name."
     - text: "<code>topk(10, count by (__name__) ({__name__=~\".+\"}))</code>"
       why: "Counting series grouped by metric name and keeping the top ten shows where the series are."
     - text: "<code>topk(10, sum by (__name__, job) ({__name__=~\".+\"}))</code>"

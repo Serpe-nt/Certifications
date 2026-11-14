@@ -38,7 +38,7 @@ sources:
 ---
 
 <Problem>
-On 2026-11-11 at 17:57 UTC the lab's Kafka filled its disks and stopped. Prometheus, the collector gateway and Tempo kept running. Yet Mimir stored no sample until Kafka came back the next day at 12:02, about 18 hours later. Why did a full Kafka stop every write to Mimir?
+On 2026-11-11 at 17:57 UTC the lab's Kafka filled its disks and stopped. Prometheus, the collector gateway and Tempo kept running. Yet until Kafka came back the next day at 12:02, about 18 hours later, Mimir stored almost nothing: only a few `up` series of tenant `lab` from 04:10 on. Why did a full Kafka stop the writes to Mimir?
 </Problem>
 
 The answer is in the order of the write path. In Mimir 3, Kafka is not a side system: it is the place where a write counts as done.
@@ -57,7 +57,7 @@ Then it shards. The distributor hashes each series and looks the hash up in the 
 
 The distributor writes the records to the Kafka brokers and waits. Kafka stores them durably and, when the topic has replicas, copies them to other brokers. Only when Kafka confirms does the distributor answer the sender with success. The write path of the ingest storage architecture ends at Kafka: no ingester takes part in it.
 
-That answers the scene. With Kafka down, no distributor could finish a write, so every sender got errors. Prometheus retries failed sends from its WAL, but only for about two hours (module m03, step 13), so most of those 18 hours were lost for good.
+That answers the scene. With Kafka down, the distributors could not finish their writes, so the senders got errors. Prometheus retries failed sends from its WAL, but only for about two hours (module m03, step 13), so most of those 18 hours were lost for good.
 
 <Flow caption="One sample on the write path">
   <Stage title="Sender" kicker="Remote write or OTLP">Prometheus or the collector sends a batch with a tenant header.</Stage>

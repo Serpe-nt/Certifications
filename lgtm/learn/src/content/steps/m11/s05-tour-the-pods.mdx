@@ -47,7 +47,7 @@ Every Mimir pod except the gateway runs the same image, and its `-target` flag s
 
 ## One image, many roles
 
-The pods of the namespace `mimir` come from the chart's Deployments and StatefulSets. The stateless components, the distributors, queriers, query-frontend, query-scheduler and ruler, are Deployments, so their pods carry a random suffix. The stateful ones keep data on a volume and are StatefulSets with numbered pods: the ingesters keep their WAL and local blocks, the store-gateway its index-headers, the Alertmanager its alert state, and the compactor uses its volume as working space.
+The pods of the namespace `mimir` come from the chart's Deployments and StatefulSets. The stateless components, the distributors, queriers, query-frontend, query-scheduler and ruler, are Deployments, so their pods carry a random suffix. The stateful ones keep data on a volume and are StatefulSets with numbered pods: the ingesters keep their WAL and local blocks, the store-gateway its index-headers, the Alertmanager its alert state. The compactor is stateless, but it needs scratch disk while it merges blocks, so the chart also gives it a StatefulSet with a volume.
 
 The gateway is the odd one out. It is an nginx server that the chart puts in front of everything: it routes `/api/v1/push` and `/otlp/v1/metrics` to the distributors, `/prometheus` to the query-frontend, and the rule and alert paths to the ruler and the Alertmanager.
 

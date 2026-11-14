@@ -42,7 +42,7 @@ Mimir's Alertmanager is the Prometheus Alertmanager made multi-tenant. Each tena
 
 The component groups, deduplicates and routes alerts to receivers as the Prometheus Alertmanager does, and it reads the same configuration file format. The difference is that every tenant has a configuration and a web screen of its own, selected by the header `X-Scope-OrgID`, at the path `/alertmanager`.
 
-Alerts reach it from the ruler. Mimir's ruler is pointed at the Alertmanager with `-ruler.alertmanager-url`; when an alerting rule has been true for its whole `for` duration, the ruler sends the firing alert there, under the rule's tenant.
+Alerts reach it from the ruler. Mimir's ruler is pointed at the Alertmanager with `-ruler.alertmanager-url`, which the configuration reference now marks as deprecated in favour of the per-tenant limit `ruler_alertmanager_client_config.alertmanager_url`; the lab still uses the old setting. When an alerting rule has been true for its whole `for` duration, the ruler sends the firing alert there, under the rule's tenant.
 
 <Flow caption="An alert from a rule to a receiver">
   <Stage title="Ruler" kicker="Tenant team-a">An alerting rule stays true for its whole for duration.</Stage>

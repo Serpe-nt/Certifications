@@ -56,7 +56,7 @@ An ingester keeps the newest samples in memory and in its WAL. Every two hours b
 
 ## The compactor merges
 
-Each ingester uploads its own block, so one two-hour window of one tenant arrives as one block per ingester. The compactor merges them per tenant in two ways. Vertical compaction joins the blocks of the same time range into one and removes duplicate samples. Horizontal compaction then joins adjacent ranges into larger blocks, by default of 12 hours and then 24 hours. Fewer blocks mean fewer index lookups per query, and a smaller index for the store-gateways to keep.
+Each ingester uploads its own block, so one two-hour window of one tenant arrives as one block per ingester. The compactor merges them per tenant in two ways. Vertical compaction joins the blocks of the same time range into one. Where several ingesters hold the same series, as with two ingesters per partition in two zones or with the classic architecture's replication, it also removes the duplicate samples. Horizontal compaction then joins adjacent ranges into larger blocks, by default of 12 hours and then 24 hours. Fewer blocks mean fewer index lookups per query, and a smaller index for the store-gateways to keep.
 
 The compactor also keeps each tenant's bucket index up to date: the list of blocks and deletion marks that queriers and store-gateways read instead of listing the bucket.
 

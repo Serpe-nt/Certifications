@@ -65,7 +65,7 @@ The rules live in the ruler's object storage, and you change them through the HT
 <Compare caption="Three kinds of mimirtool rules commands">
   <Col title="Change the ruler">load, delete, delete-namespace, sync: they write through the API.</Col>
   <Col title="Read the ruler">list, get, print, diff: they read through the API.</Col>
-  <Col title="Work offline" hot>lint, check, prepare: they read only the local file.</Col>
+  <Col title="Work offline" hot>lint, check, prepare: they need no cluster. lint and prepare rewrite the file; check only reads it.</Col>
 </Compare>
 
 The state of the rules, with each rule's health and last evaluation, is in a second API: `/prometheus/api/v1/rules`, the same as in Prometheus.
