@@ -83,15 +83,20 @@ Loki rules are Prometheus rules with LogQL expressions. Load them per tenant thr
 
 <Do>
 1. Check that the writer of step 11 still runs and writes an error line every 25 seconds: <Cmd>kubectl -n learn-m12 get pod writer</Cmd>
-2. Save this rule group as `m12-rule.yaml`: <Cmd>{`name: m12-practice
-interval: 1m
-rules:
-  - alert: WriterLogsErrors
-    expr: sum(count_over_time({app="m12-writer"} |= "level=error" [2m])) > 0
-    labels:
-      severity: info
-    annotations:
-      summary: The practice writer logged errors in the last two minutes.`}</Cmd>
+2. Save this rule group as `m12-rule.yaml`:
+
+   ```yaml
+   name: m12-practice
+   interval: 1m
+   rules:
+     - alert: WriterLogsErrors
+       expr: sum(count_over_time({app="m12-writer"} |= "level=error" [2m])) > 0
+       labels:
+         severity: info
+       annotations:
+         summary: The practice writer logged errors in the last two minutes.
+   ```
+
 3. Load it for tenant `learn-m12`, in the rule namespace `m12`: <Cmd>{`curl -s -X POST -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' -H 'Content-Type: application/yaml' --data-binary @m12-rule.yaml http://10.10.0.5/loki/api/v1/rules/m12`}</Cmd> Loki answers `{"status":"success"...}`. List the tenant's groups: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/rules`}</Cmd>
 4. Read the rule's state: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/prometheus/api/v1/rules`}</Cmd> At first, `health` is `unknown` and `lastEvaluation` is `0001-01-01`: the ruler has not picked up the group yet. Repeat every 30 seconds; within about two minutes `health` turns `ok`.
 5. When `health` is `ok`, read the `state` of the rule in the same answer, and look at the alert itself: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/prometheus/api/v1/alerts`}</Cmd> Its `value` is the number of error lines in the last two minutes. Paste the state in the check below.

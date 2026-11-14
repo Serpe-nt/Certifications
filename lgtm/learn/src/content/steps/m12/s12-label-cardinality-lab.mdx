@@ -83,39 +83,44 @@ A label with a value per request makes a stream per request. Loki refuses new st
 
 <Do>
 1. Check that the writer from step 11 is running: <Cmd>kubectl -n learn-m12 get pod writer</Cmd> If the namespace is gone, apply `m12-writer.yaml` from step 11 again first.
-2. Save this Job as `m12-burst.yaml`. It sends 12 pushes of 500 streams each to tenant `learn-m12`. Every stream has the label `request_id` with a new value, the classic mistake: <Cmd>{`apiVersion: batch/v1
-kind: Job
-metadata:
-  name: burst
-  namespace: learn-m12
-spec:
-  backoffLimit: 0
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-        - name: burst
-          image: curlimages/curl:8.23.0
-          command: [/bin/sh, -c]
-          args:
-            - |
-              id=0
-              for push in 1 2 3 4 5 6 7 8 9 10 11 12; do
-                ts="$(date +%s)000000000"
-                streams=""
-                sep=""
-                n=0
-                while [ $n -lt 500 ]; do
-                  n=$((n+1)); id=$((id+1))
-                  streams="$streams$sep$(printf '{"stream":{"app":"m12-burst","request_id":"req-%s"},"values":[["%s","handled request req-%s"]]}' $id $ts $id)"; sep=","
-                done
-                body=$(printf '{"streams":[%s]}' "$streams")
-                code=$(curl -s -o /tmp/answer -w '%{http_code}' -H 'Content-Type: application/json' -H 'X-Scope-OrgID: learn-m12' --data-raw "$body" http://loki-gateway.loki.svc/loki/api/v1/push)
-                echo "push $push, streams up to req-$id: HTTP $code $(head -c 160 /tmp/answer)"
-              done
-          resources:
-            requests: { cpu: 50m, memory: 32Mi }
-            limits: { cpu: 500m, memory: 64Mi }`}</Cmd>
+2. Save this Job as `m12-burst.yaml`. It sends 12 pushes of 500 streams each to tenant `learn-m12`. Every stream has the label `request_id` with a new value, the classic mistake:
+
+   ```yaml
+   apiVersion: batch/v1
+   kind: Job
+   metadata:
+     name: burst
+     namespace: learn-m12
+   spec:
+     backoffLimit: 0
+     template:
+       spec:
+         restartPolicy: Never
+         containers:
+           - name: burst
+             image: curlimages/curl:8.23.0
+             command: [/bin/sh, -c]
+             args:
+               - |
+                 id=0
+                 for push in 1 2 3 4 5 6 7 8 9 10 11 12; do
+                   ts="$(date +%s)000000000"
+                   streams=""
+                   sep=""
+                   n=0
+                   while [ $n -lt 500 ]; do
+                     n=$((n+1)); id=$((id+1))
+                     streams="$streams$sep$(printf '{"stream":{"app":"m12-burst","request_id":"req-%s"},"values":[["%s","handled request req-%s"]]}' $id $ts $id)"; sep=","
+                   done
+                   body=$(printf '{"streams":[%s]}' "$streams")
+                   code=$(curl -s -o /tmp/answer -w '%{http_code}' -H 'Content-Type: application/json' -H 'X-Scope-OrgID: learn-m12' --data-raw "$body" http://loki-gateway.loki.svc/loki/api/v1/push)
+                   echo "push $push, streams up to req-$id: HTTP $code $(head -c 160 /tmp/answer)"
+                 done
+             resources:
+               requests: { cpu: 50m, memory: 32Mi }
+               limits: { cpu: 500m, memory: 64Mi }
+   ```
+
 3. Run it and wait for it to finish, about a minute: <Cmd>kubectl apply -f m12-burst.yaml</Cmd> <Cmd>kubectl -n learn-m12 wait --for=condition=Complete job/burst --timeout=300s</Cmd>
 4. Read what Loki answered: <Cmd>kubectl -n learn-m12 logs job/burst</Cmd> The first pushes get `HTTP 204`. Push 10 gets `HTTP 429` and `maximum active stream limit exceeded when trying to create stream`, and so do the pushes after it.
 5. Count the burst's streams with a metric query: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=count(count_over_time({app="m12-burst"}[15m]))'`}</Cmd> Paste the number at the end of the answer in the check below.

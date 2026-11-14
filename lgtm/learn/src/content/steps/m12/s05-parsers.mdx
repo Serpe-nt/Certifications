@@ -44,7 +44,7 @@ A parser reads fields out of each line and adds them as labels for the rest of t
 
 When lines are JSON, `| json` extracts every property. Nested keys are joined with an underscore: `payload.token` becomes `payload_token`. Arrays are skipped. When lines are logfmt, `| logfmt` extracts every `key=value` pair. Both parsers take parameters to extract only some fields, and to rename them: `| json code="response_code", method` or `| logfmt duration, kind="query_type"`. Extracting only what you need is less work for Loki and leaves fewer labels in the result.
 
-Names are cleaned to fit label rules, so characters other than letters, digits, underscores and colons become underscores. Envoy's JSON key `:authority` becomes `_authority`.
+Names are cleaned to fit label rules, so characters other than letters, digits and underscores become underscores. Envoy's JSON key `:authority` becomes `_authority`.
 
 ## pattern and regexp read everything else
 

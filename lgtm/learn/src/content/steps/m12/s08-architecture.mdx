@@ -40,7 +40,7 @@ sources:
 ---
 
 <Problem>
-A colleague says "Loki is slow" and wants to give it more memory. The lab's Loki is fifteen pods of ten kinds. Which of them is slow, and which would more memory help? You cannot tell until you know what each one does with a line and with a query.
+A colleague says "Loki is slow" and wants to give it more memory. The lab's Loki is fifteen pods: eight Loki components, its nginx gateway and two caches. Which of them is slow, and which would more memory help? You cannot tell until you know what each one does with a line and with a query.
 </Problem>
 
 Loki is one program that can play many parts. In this lab, each part runs as its own set of pods.
@@ -111,9 +111,9 @@ In a Loki with three ingesters and a replication factor of 3, one ingester pod r
 
   The distributor waits for a quorum, not for all three. Two answers out of three are enough.
 
-- Writes go on: each stream still reaches two of its ingesters, which is a quorum of three.
+- Writes go on: each stream still reaches two of its three replicas, which is a quorum.
 
-  A write succeeds when half of the ingesters plus one answer. With three, two are enough, so one ingester can be down.
+  A write needs a quorum of the stream's replicas: half the replication factor, rounded down, plus one. With a factor of 3 that is two, so one ingester can be down.
 
 - Writes go on, but they skip the ingesters and go straight to the object store.
 

@@ -184,7 +184,7 @@
 - id: q-m12-012
   tags: [ logql-selectors, loki-query-performance ]
   exam: { cert: none }
-  q: Both queries return the same lines. Which one is cheaper, and why? A is <code>{job="mysql"} | json | line_format "{{.err}}" |= "error"</code>, B is <code>{job="mysql"} |= "error" | json | line_format "{{.err}}"</code>.
+  q: In these two queries, the err field never contains the word error unless the line does. Which one is cheaper, and why? A is <code>{job="mysql"} | json | line_format "{{.err}}" |= "error"</code>, B is <code>{job="mysql"} |= "error" | json | line_format "{{.err}}"</code>.
   options:
     - text: A, because the parser shortens each line before the text filter reads it
       why: Shortening helps the filter little, while the parser had to run on every line first.
@@ -298,18 +298,18 @@
 - id: q-m12-019
   tags: [ logql-formatting ]
   exam: { cert: none }
-  q: How does Loki read <code>| status="500" or method="GET" and size > 20KB</code>?
+  q: How does Loki 3.7 read <code>| status="500" or method="GET" and size > 20KB</code>?
   options:
     - text: As <code>(status="500" or method="GET") and size > 20KB</code>
-      why: Predicates are read from left to right. Brackets are needed for any other order.
+      why: The log queries page describes this left-to-right reading, but Loki's grammar binds and tighter than or, and Loki does not read it this way.
     - text: As <code>status="500" or (method="GET" and size > 20KB)</code>
-      why: That is the usual precedence in many languages, but LogQL label filters go from left to right.
+      why: and binds tighter than or in LogQL's grammar, so the and pair is evaluated first. Brackets make the intent clear.
     - text: As a syntax error, because or and and cannot be mixed
-      why: They can be mixed; the order of evaluation is left to right unless brackets say otherwise.
+      why: They can be mixed in one label filter; the grammar decides which binds first.
     - text: As three separate filters, each of which must match
-      why: Commas, spaces and pipes mean and; or joins the first two predicates.
-  answer: [ 0 ]
-  source: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+      why: Commas, spaces and pipes mean and; or joins status="500" with the and pair.
+  answer: [ 1 ]
+  source: https://raw.githubusercontent.com/grafana/loki/v3.7.9/pkg/logql/syntax/syntax.y
 
 - id: q-m12-020
   tags: [ logql-formatting ]
@@ -427,14 +427,14 @@
 - id: q-m12-027
   tags: [ logql-metrics, loki-labels ]
   exam: { cert: none }
-  q: An OTLP stream's lines each carry a unique observed_timestamp in structured metadata. What does <code>count_over_time({service_name="beacon"}[10m])</code> return?
+  q: An OTLP stream writes 20 lines in 10 minutes, and each line carries a unique observed_timestamp in structured metadata. What does <code>count_over_time({service_name="api"}[10m])</code> return?
   options:
     - text: One series with the number of lines, because the selector matches one stream
       why: A metric query keeps structured metadata as labels, so lines with different metadata are different series.
     - text: An error, because count_over_time cannot read OTLP lines
       why: OTLP lines are ordinary lines in Loki; any metric function can count them.
     - text: One series per line, because each line has its own metadata labels
-      why: Structured metadata is added to the result's labels, so a unique value per line makes a series per line.
+      why: Structured metadata is added to the result's labels, so a unique value per line makes a series per line; past 500 series the query would fail instead.
     - text: The number of streams that the selector matches
       why: count_over_time counts lines in a window, per series. It does not count streams.
   answer: [ 2 ]

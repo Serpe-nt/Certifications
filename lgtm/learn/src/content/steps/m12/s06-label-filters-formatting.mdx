@@ -28,6 +28,9 @@ sources:
   - title: Template functions
     url: https://grafana.com/docs/loki/v3.7.x/query/template_functions/
     checked: 2026-11-14
+  - title: LogQL grammar, operator precedence (Loki v3.7.9)
+    url: https://raw.githubusercontent.com/grafana/loki/v3.7.9/pkg/logql/syntax/syntax.y
+    checked: 2026-11-14
 ---
 
 <Problem>
@@ -49,7 +52,7 @@ A label filter can sit anywhere in the pipeline, usually right after a parser. L
 - a duration, such as `duration > 250ms` (units ns, us, ms, s, m, h);
 - a size in bytes, such as `total_bytes > 1MB` (units B, kB, KB, KiB, MB, MiB and up).
 
-Numbers, durations and sizes support `==`, `!=`, `>`, `>=`, `<` and `<=`. Predicates chain with `and` and `or`, and a comma, a space or another pipe also means `and`. They are read from left to right; brackets change the order. A filter on structured metadata, such as `| slot="log-m12-4"`, is the same kind of stage.
+Numbers, durations and sizes support `==`, `!=`, `>`, `>=`, `<` and `<=`. Predicates chain with `and` and `or`, and a comma, a space or another pipe also means `and`. `and` binds tighter than `or`, as in most languages: `a or b and c` means `a or (b and c)`. The log queries page says the predicates are read from left to right, but Loki 3.7.9 does not do that, as action 4 shows. Write brackets whenever you mix the two. A filter on structured metadata, such as `| slot="log-m12-4"`, is the same kind of stage.
 
 ## When the type does not fit
 
@@ -82,8 +85,9 @@ Filter on parsed fields with the type they really have. Format with line_format 
 1. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki`, the time range **Last 15 minutes**, and the Code editor.
 2. Filter Loki's own query lines on a duration and a size together: <Query lang="logql">{`{namespace="loki", container="query-frontend"} |= "metrics.go" | logfmt | duration > 5ms and total_bytes > 100kB`}</Query>
 3. Try a duration filter on Envoy's number: <Query lang="logql">{`{namespace="gateway", container="envoy"} | json | duration > 5s`}</Query> Lines of a few milliseconds still appear. Open one: it carries `__error__` `LabelFilterErr`, and `__error_details__` says the duration is missing its unit. Add `| __error__=""` at the end and run it again: nothing is left.
-4. Write the filter with the right type, and format each line: <Query lang="logql">{`{namespace="gateway", container="envoy"} | json | duration >= 5 | label_format host=_authority | line_format "{{.response_code}} {{.method}} {{.host}} {{.duration}}ms"`}</Query> Each line now reads like `200 GET loki.lab.k8s.local 6ms`.
-5. Use `line_format` to show only the beacon's token: <Query lang="logql">{`{service_name="beacon"} | slot="log-m12-4" | json | line_format "{{.payload_token}}"`}</Query> Paste the line in the check below.
+4. Mix `or` and `and` on the beacon's slots and see which binds first: <Query lang="logql">{`{service_name="beacon"} | slot="log-m12-1" or slot="log-m12-2" and slot="log-m12-3"`}</Query> The lines of slot `log-m12-1` come back: Loki read it as `log-m12-1 or (log-m12-2 and log-m12-3)`. Now add brackets: <Query lang="logql">{`{service_name="beacon"} | (slot="log-m12-1" or slot="log-m12-2") and slot="log-m12-3"`}</Query> Nothing comes back, because no line has two slots.
+5. Write the filter with the right type, and format each line: <Query lang="logql">{`{namespace="gateway", container="envoy"} | json | duration >= 5 | label_format host=_authority | line_format "{{.response_code}} {{.method}} {{.host}} {{.duration}}ms"`}</Query> Each line now reads like `200 GET loki.lab.k8s.local 6ms`.
+6. Use `line_format` to show only the beacon's token: <Query lang="logql">{`{service_name="beacon"} | slot="log-m12-4" | json | line_format "{{.payload_token}}"`}</Query> Paste the line in the check below.
 </Do>
 
 <Done>

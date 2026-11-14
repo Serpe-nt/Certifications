@@ -65,7 +65,7 @@ The period is a limit in `limits_config`. `retention_period` applies to every st
 
 A delete request is a POST to the compactor's `/loki/api/v1/delete`, with a stream selector, an optional line filter, and a start and end time. It runs through the same machinery as retention, so `retention_enabled` must be on. The tenant's `deletion_mode` decides what is allowed: `filter-and-delete`, the default, removes the lines from storage; `filter-only` only hides them from queries; `disabled` refuses requests.
 
-A request can be cancelled during `delete_request_cancel_period`, 24 hours by default; only after that does the compactor process it. Once processing has started, cancelling needs `force=true`, and some lines may already be gone. On this lab, the lines stayed visible to queries while the request waited. A request with a line filter is split into pieces of at most a day each. Deleting with a line filter is one of the compactor's heaviest jobs.
+A request can be cancelled during `delete_request_cancel_period`, 24 hours by default; only after that does the compactor process it. Once that period has passed, a cancel needs `force=true`, whether processing has started or not, and some lines may already be gone. On this lab, the lines stayed visible to queries while the request waited. A request with a line filter is split into pieces of at most a day each. Deleting with a line filter is one of the compactor's heaviest jobs.
 
 <InLab>
 The lab sets `retention_period: 48h`, `retention_enabled: true` and `delete_request_store: s3` in `lgtm/lab/helm/loki/values.yaml`. Its compactor is the StatefulSet `loki-compactor` with one replica, and its deletion mode is the default, `filter-and-delete`.
@@ -81,36 +81,41 @@ The compactor applies retention every few minutes and deletes chunks two hours a
 
 <Do>
 1. In WSL, read the compactor's settings from Loki's running configuration: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/config | grep -E '^ +(retention_enabled|retention_delete_delay|delete_request_cancel_period|compaction_interval|retention_period|deletion_mode):'`}</Cmd> The first `retention_period` is `2d`, the lab's 48 hours. The second, `0s`, belongs to the deprecated table manager.
-2. Save this as `m12-writer.yaml`. It creates the namespace `learn-m12` and a pod that pushes one logfmt line every 5 seconds to Loki's push API as tenant `learn-m12`, never as `lab`. Every fifth line has `level=error`. <Cmd>{`apiVersion: v1
-kind: Namespace
-metadata:
-  name: learn-m12
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: writer
-  namespace: learn-m12
-spec:
-  containers:
-    - name: writer
-      image: curlimages/curl:8.23.0
-      command: [/bin/sh, -c]
-      args:
-        - |
-          i=0
-          while true; do
-            i=$((i+1))
-            level=info
-            if [ $((i % 5)) -eq 0 ]; then level=error; fi
-            line="level=$level msg=order_paid order=$i duration=$((i * 37 % 900))ms"
-            body=$(printf '{"streams":[{"stream":{"app":"m12-writer","env":"practice"},"values":[["%s000000000","%s"]]}]}' "$(date +%s)" "$line")
-            curl -s -o /dev/null -H 'Content-Type: application/json' -H 'X-Scope-OrgID: learn-m12' --data-raw "$body" http://loki-gateway.loki.svc/loki/api/v1/push
-            sleep 5
-          done
-      resources:
-        requests: { cpu: 10m, memory: 16Mi }
-        limits: { cpu: 100m, memory: 64Mi }`}</Cmd>
+2. Save this as `m12-writer.yaml`. It creates the namespace `learn-m12` and a pod that pushes one logfmt line every 5 seconds to Loki's push API as tenant `learn-m12`, never as `lab`. Every fifth line has `level=error`:
+
+   ```yaml
+   apiVersion: v1
+   kind: Namespace
+   metadata:
+     name: learn-m12
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: writer
+     namespace: learn-m12
+   spec:
+     containers:
+       - name: writer
+         image: curlimages/curl:8.23.0
+         command: [/bin/sh, -c]
+         args:
+           - |
+             i=0
+             while true; do
+               i=$((i+1))
+               level=info
+               if [ $((i % 5)) -eq 0 ]; then level=error; fi
+               line="level=$level msg=order_paid order=$i duration=$((i * 37 % 900))ms"
+               body=$(printf '{"streams":[{"stream":{"app":"m12-writer","env":"practice"},"values":[["%s000000000","%s"]]}]}' "$(date +%s)" "$line")
+               curl -s -o /dev/null -H 'Content-Type: application/json' -H 'X-Scope-OrgID: learn-m12' --data-raw "$body" http://loki-gateway.loki.svc/loki/api/v1/push
+               sleep 5
+             done
+         resources:
+           requests: { cpu: 10m, memory: 16Mi }
+           limits: { cpu: 100m, memory: 64Mi }
+   ```
+
 3. Apply it, wait until the pod runs, and give it a minute: <Cmd>kubectl apply -f m12-writer.yaml</Cmd> <Cmd>kubectl -n learn-m12 wait --for=condition=Ready pod/writer --timeout=120s</Cmd>
 4. Grafana's `loki` data source reads tenant `lab` only, so read the practice tenant with curl: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/query_range --data-urlencode 'query={app="m12-writer"} |= "level=error"' --data-urlencode 'since=10m' | grep -o 'level=error[^"]*'`}</Cmd> A few error lines come back.
 5. Ask Loki to delete the error lines of the last 10 minutes: <Cmd>{`curl -s -o /dev/null -w '%{http_code}\\n' -X POST -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' -G http://10.10.0.5/loki/api/v1/delete --data-urlencode 'query={app="m12-writer"} |= "level=error"' --data-urlencode "start=$(( $(date +%s) - 600 ))" --data-urlencode "end=$(date +%s)"`}</Cmd> Loki answers `204`.

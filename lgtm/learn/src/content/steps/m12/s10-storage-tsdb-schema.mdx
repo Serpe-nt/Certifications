@@ -52,9 +52,9 @@ A chunk holds the lines of one stream for a stretch of time, compressed in block
 The index is a table of contents: for each stream, which chunks hold it and for which times. Ingesters write index files as they go, and the index shipper uploads them to the same object store. The compactor later merges them into one file per tenant and day. In the bucket, chunks sit under a prefix per tenant, such as `lab/`, and the index under `index/`.
 
 <Layers caption="What lies in the bucket loki-chunks">
-  <Layer title="index/">TSDB index files: one table per day, compacted to one file per tenant.</Layer>
+  <Layer title="index/">TSDB index files, one table per day, compacted to one file per tenant; also the delete requests' table.</Layer>
   <Layer title="lab/, learn-m12/, ...">Chunks of each tenant: compressed lines and their structured metadata.</Layer>
-  <Layer title="Other objects" hot>Delete requests, the cluster seed. Never expire them with a bucket rule.</Layer>
+  <Layer title="loki_cluster_seed.json" hot>A small file at the root. Like the index and the delete requests under index/, never expire it with a bucket rule.</Layer>
 </Layers>
 
 ## Why TSDB

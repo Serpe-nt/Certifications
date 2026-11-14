@@ -37,7 +37,7 @@ sources:
 ---
 
 <Problem>
-On 2026-11-12 at 11:14 UTC, someone checked this lab's Kafka logs with a regular expression filter over 90 minutes of the namespace `kafka`, where crash-looping brokers had been logging a lot. Two minutes later they ran it again. The lab's object store went from about 670 to about 900 MiB of memory and kept it. Less than an hour later it was killed for using too much.
+On 2026-11-12 at 11:14 UTC, someone checked this lab's Kafka logs with a regular expression filter over 90 minutes of the namespace `kafka`, where crash-looping brokers had been logging a lot. Two minutes later they ran it again. The lab's object store went from about 670 to about 900 MiB of memory, and 50 minutes later it still held about 770. Less than an hour later it was killed for using too much.
 </Problem>
 
 Nothing in Loki stopped those two queries. They were allowed to read as much as they wanted, as fast as the queriers could fetch it.
