@@ -155,6 +155,54 @@ Defects seen on this cluster and how they showed (`acceptance-lab.md`):
   down. Mimir's distributors log `failed to write to partitions`, Tempo's `failed to write to
   kafka`, Prometheus `Failed to send batch, retrying`. See "Kafka's disks are full" below.
 
+## A fault flag does nothing
+
+How it shows: the flag screen and its API (`GET /feature/api/read` on `flags.lab.k8s.local`)
+show the flag on, but the service it belongs to goes on as before, longer than the 15 seconds a
+change takes on this lab (`acceptance-lab.md`, "Fault flags reach every service").
+
+The one command, with the flag still on (`<service>` is the Deployment the flag belongs to, see
+`demo.md`, "Fault flags"):
+
+```bash
+kubectl -n shop rollout restart deployment/<service> && kubectl -n shop rollout status deployment/<service>
+```
+
+The new pod reads the flag from flagd at its first evaluation.
+
+Why it could happen: a service whose flagd provider caches flag values and has stopped reading
+flagd's event stream serves its old values. Before shop chart 0.2.0 this happened to product-catalog
+when it started while flagd did not answer yet (`lgtm/docs/adr/l9-flag-cache.md`). Every service
+whose provider caches now runs with `FLAGD_CACHE=disabled`, so it should not happen any more. No
+check can see the fault in advance: the stuck provider logs nothing and exposes nothing, and flagd
+still counts its event stream as open. If it happens, check that the service's Deployment still has
+`FLAGD_CACHE=disabled`:
+
+```bash
+kubectl -n shop get deployment <service> -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="FLAGD_CACHE")].value}'; echo
+```
+
+## Tempo's querier is killed for memory
+
+How it shows: `kubectl -n tempo get pods` shows the querier with restarts and `OOMKilled` as its last
+state; at the same moment the query frontend logs `not ready: number of queriers connected to
+query-frontend is 0`, its liveness probe fails once, and the query that was running ends with
+`context canceled`.
+
+On 2026-11-14 at 18:26 UTC the querier (limit 768Mi) was killed twice within seconds while it looked
+up one trace by its id: `69c22a0fcce4dfdf1184996cdc4cc838`, tenant `lab`. Before that request it
+used 62 MiB. The trace was payment's flagd event stream: payment starts its flagd provider inside
+its first `charge` span, so the spans of that stream all belong to the trace of the shop's first
+order after payment started. The provider ends the stream every 10 minutes (its stream deadline)
+and opens a new one, and both ends mark each finished stream span as an error. Such a trace grows by
+a few spans every 10 minutes for the life of the payment pod, and soon has spans in every block
+Tempo keeps. A search over a recent window does not reach its root span, so Tempo shows
+`<root span not yet received>`, with error spans of `payment` and `flagd`, about 600 seconds
+long. A search for payment's errors finds it.
+
+Do not open that trace. If the querier was killed, it comes back by itself within seconds; nothing
+else needs doing. A restart of payment starts a new trace of this kind, which grows again.
+
 ## Kafka's disks are full
 
 How it shows: the three pods `telemetry-dual-role-*` restart every minute or so

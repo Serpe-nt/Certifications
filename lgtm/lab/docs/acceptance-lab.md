@@ -715,3 +715,74 @@ exemplars; tenant `lab` has them from the OpenTelemetry side (the exemplar PASS 
 ### Afterwards
 
 `make lab` at 18:06:34 to 18:08:00 UTC: `ok=29 changed=0 unreachable=0 failed=0`.
+
+## Fault flags reach every service (2026-11-14, card L9)
+
+On 2026-11-14 a flag switched on at 18:40 UTC did not reach product-catalog until its pod was
+restarted. The cause and the fix are in `lgtm/docs/adr/l9-flag-cache.md`: the Go flagd provider
+stops reading flagd's event stream when it starts before flagd answers, and then serves its cached
+values for the life of the pod. Since shop chart 0.2.0 every service whose provider caches runs
+with `FLAGD_CACHE=disabled`, so every evaluation asks flagd. Applied with the owner's go-ahead.
+
+### Upgrade
+
+`make lab TAGS=shop`, 23:02:34 to 23:04:36 UTC, `changed=1`; release `shop` revision 2, chart
+`shop-0.2.0`. The chart's version is in the labels of every pod template, so every pod of the shop
+restarted, Kafka, PostgreSQL and Valkey included. As on a fresh install, product-catalog restarted
+four times until PostgreSQL took connections and checkout once until Kafka did. Every pod was ready
+at 23:04:38. `FLAGD_CACHE` read from the Deployments afterwards: `disabled` for ad, checkout,
+fraud-detection, payment, product-catalog and recommendation; not set for cart, whose provider does
+not cache unless it is set to `lru`.
+
+### The interrupted connection
+
+The flagd pod was deleted at 23:05:03 UTC (`kubectl -n shop delete pod <flagd pod>`); the
+Deployment's new pod was ready at 23:05:25. This breaks the event stream of every service at once,
+as a crash or a move of flagd to another node would, and it restarts nothing else. A
+restarted flagd starts from the ConfigMap, so every flag was off afterwards. Twenty seconds later
+flagd counted seven open event streams of the current protocol
+(`http_server_active_requests{http_route="/flagd.evaluation.v2.Service/EventStream"} 7` on its
+metrics port 8014: ad, cart, checkout, fraud-detection, payment, product-catalog, recommendation)
+and one of the older protocol (the browser on the load generator). No service restarted.
+
+The fault itself, a Go service that starts while flagd does not answer yet, was reproduced off the
+lab (ADR, "Cause"). A restart of flagd alone does not bring it back: a provider that is already
+running sees its stream end and connects again.
+
+### One flag per service
+
+One flag at a time, switched on through the flag screen's API (`POST /feature/api/write`), and
+switched off as soon as its effect showed. Before each switch `GET /feature/api/read` showed every
+flag off, and after each switch off it did again. The effect is the first log line, span or metric
+that only the flag produces, found in Loki, Tempo or Mimir. No service was restarted between the
+upgrade and the end of this table.
+
+| Service | Flag (variant) | On | Off | First effect | After |
+|---|---|---|---|---|---|
+| product-catalog | `productCatalogLockContention` (on) | 23:05:53 | 23:06:03 | log `lock contention scenario active` at 23:06:02.551 | 9.6 s |
+| checkout | `emitRawPii` (on) | 23:06:30 | 23:07:26 | `PlaceOrder` span with `demo.payment.card_number` (masked by the gateway) and `user.hash`, at 23:06:42.618 | 12.6 s |
+| payment | `emitRawPii` (on), the same window | 23:06:30 | 23:07:26 | `charge` span with `demo.payment.card_number`, at 23:06:42.631 | 12.6 s |
+| ad | `adManualGc` (on) | 23:08:28 | 23:08:41 | log `Triggering a manual garbage collection` at 23:08:36.868 | 8.9 s |
+| fraud-detection | `kafkaConsumerDead` (on) | 23:09:11 | 23:09:15 | log `FeatureFlag 'kafkaConsumerDead' is enabled, unsubscribing from 'orders'` at 23:09:11.672; `is disabled, re-subscribing` at 23:09:15.679 | 0.7 s |
+| cart | `cartMetricCardinalityOverflow` (on) | 23:09:42 | 23:10:19 | `demo_cart_get_cart_latency_seconds` with a `demo_cart_trace_id` label in Mimir at 23:10:19 (cart exports metrics periodically); the earliest of those 31 trace ids is a `GetCart` span at 23:09:43.282 | 1.3 s |
+| recommendation | `recommendationCacheFailure` (on) | 23:10:52 | 23:10:55 | log `get_product_list: cache ...` at 23:10:52.886 | 0.9 s |
+| load-generator | `loadGeneratorFloodHomepage` (on) | 23:11:26 | 23:11:35 | log `User flooding homepage 100 times` at 23:11:33.403 | 7.4 s |
+| frontend, in the browser | `imageSlowLoad` (5sec) | 23:12:00 | 23:12:16 | Envoy access log of a `/images/products/` request with response flag `DI` (delay injected), started at 23:12:07.456 | 7.5 s |
+
+Each service applies a change at its next evaluation. product-catalog checks its lock flag every 10
+seconds; checkout and payment check theirs on each order, and the first order after the switch came
+12 seconds later; ad checks on each ad request. So a flag reaches a service of this shop within
+about 15 seconds of the switch, and the browser at its next page load.
+
+The Tempo searches looked at the start of each matching span. The start of the trace is earlier: a
+load-generator checkout trace begins 20 to 40 seconds before its `PlaceOrder` span.
+
+### Afterwards
+
+Every flag off at 23:14:07 (`GET /feature/api/read`). `make lab-check` 23:12:32 to 23:12:39:
+`LAB CHECK PASSED`. `make lab` 23:12:39 to 23:13:47: `ok=29 changed=0 unreachable=0 failed=0`.
+
+flagd's cost (Prometheus, `rate(container_cpu_usage_seconds_total[10m])` and
+`container_memory_working_set_bytes` of the container `flagd`): 0.0037 CPU cores and 41 MiB at
+22:55 UTC, before the change; 0.011 cores and 39 MiB at 23:15 UTC, after it. The limits are 200m
+and 75Mi.
