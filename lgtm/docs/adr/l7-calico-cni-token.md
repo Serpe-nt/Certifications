@@ -99,8 +99,8 @@ from the lab), so only one node at a time has its Calico agent down, for a few s
 operator keeps the template annotation `kubectl.kubernetes.io/restartedAt` that the restart sets
 (it merges template annotations, `mergeState` above), so it does not undo the restart. It is safe
 on a healthy lab: the only effect is new tokens. Longhorn reports `CalicoIsDown` node pressure
-for the moments calico-node is down on a node (seen at 17:37 UTC on 2026-11-14, when all five
-calico-node pods were deleted at once); that clears by itself.
+for the moments calico-node is down on a node (seen at 17:37 UTC on 2026-11-14, when the owner
+deleted all five calico-node pods at once); that clears by itself.
 
 ## The check
 
