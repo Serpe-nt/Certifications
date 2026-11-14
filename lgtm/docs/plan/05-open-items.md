@@ -1,56 +1,35 @@
 # Open items
 
-What is known to be unfinished, unverified or broken. Owned by the planner; a line leaves this file when a pull request closes it. Written on 2026-11-13 after wave 7.
+What is known to be unfinished, unverified or broken. Owned by the planner; a line leaves this file when a pull request closes it. Rewritten on 2026-11-14, before wave 8.
 
 ## Lesson actions not yet walked on the lab
 
-The text is written and its facts are checked, but these actions were not done as a learner would do them, because nobody could sign in to Grafana or because a session was not allowed to change the cluster. Each is marked `lab-unverified` in its module's log. One session with the owner present can walk them all.
+None. Every action of m00 to m09 has been done on the lab as a learner would do it: m01, m04 and m06 in pull requests 64, 65, 66 and 68, and m07 to m09 in pull request 72 (card W2). Card W1 (pull request 71) then ran every lab check of m00 to m06 again on the lab's version 3 and corrected the numbers that had changed.
 
-| Module | What is unverified |
-|---|---|
-| m07 OpenTelemetry tracing | Every Grafana click of steps 3 to 9 and 12 (the data was read from Tempo's API instead). Step 5: the token check in the site (the token was read from Tempo, not entered with the lab seed). |
-| m08 OpenTelemetry metrics, logs, configuration | The Grafana Explore clicks of steps 4, 6, 8 and 12, and the link from a log line to its trace in step 6 (the same queries ran through the APIs). |
-| m09 OpenTelemetry Collector | Everything in the cluster: the practice Collector in `learn-m09` (steps 5, 6, 8, 12, 13), the fault flag `emitRawPii` in step 6 (never switched on, so "the raw value does not reach Loki or Tempo" is untested), the Grafana clicks of step 11. Every configuration was validated and run locally in the contrib 0.165.0 image. Two things to look at during the walk: in a local run the span metrics connector reported `calls` as 0 while its duration histogram counted every span (step 8), and step 13 assumes a rolling update of one replica keeps the old pod while the new one fails. |
-| m05 Grafana core | Nothing unverified, but the planner could not check that the folder `Learn m05`, the team and the service account are gone. |
+Left alone on purpose: `make reset` (m01 step 20, described from the owner's own run), pushing a delta metric into Mimir (m08), and changing a lab release to settle the inferences of m06, which stay marked `inference` in its log.
 
 ## Lab defects
 
-| What | Since | Notes |
-|---|---|---|
-| The object store (RustFS) is OOM-killed about every four hours | 2026-11-11 | Raising its limit from 1Gi to 1536Mi (pull request 55) only delayed it: killed again on 2026-11-13 at 01:10 UTC with nothing unusual running. Its memory climbs on its own (714 MiB two hours after a restart). It restarts by itself and loses nothing, but S3 is away for a minute each time. Needs a real answer: a RustFS setting or version, a scheduled restart, or another store. |
-| The collector gateway cannot scrape the shop's Kafka | found 2026-11-13 | Both gateway pods log `Error scraping metrics` from `kafka_metrics` about four times a minute: the shop's Kafka announces `kafka:9092`, which does not resolve from the namespace `otel`. Only the log shows it. |
-| The workshop service does not stop with Ctrl+C on Windows under zero-code instrumentation | found 2026-11-13 | `opentelemetry-instrument` replaces the process, so `python run.py` returns at once and the service keeps running. Module m07 step 7 gives a `Stop-Process` command. |
-| `lgtm/lab/workshop/.venv` is not git-ignored | found 2026-11-13 | |
-| The workers are close to their memory limit | 2026-11-12 | worker1 at 85 to 87% in use, worker2 at 90% of memory requested. Wave 7 put nothing in the cluster for that reason. Card L6 answers it: one master instead of three, workers at 8 GB instead of 6 (the owner's decision of 2026-11-13). |
+None open. The five of 2026-11-13 were closed by card L6 in pull requests 67 and 70: the object store killed for memory about every four hours, the collector gateway unable to scrape the shop's Kafka, the workshop service not stopping on Ctrl+C on Windows, `lgtm/lab/workshop/.venv` not git-ignored, and the workers close to their memory limit.
 
-Card L6 (`cards/w8-l6-lab-v3.md`) takes all five rows. Its part 1 is merged (pull request 67): the broker advertises a name with its namespace, RustFS is pinned to 1.0.5 (upstream issue 9145 describes the retention; the limit stays at 1536Mi so the rebuild shows whether 1.0.5 holds; the fallback is a scheduled restart), and `run.py` stops the service on Ctrl+C on Windows. They count as fixed when the rebuilt lab shows it (part 2).
+To watch:
 
-## What the walk needs from the owner
+- The object store. RustFS 1.0.5 has run 23 hours without a restart. Its resident memory went 69, 128, 139, 142, 144 MiB and levelled off, with 157 MiB the highest reading, where 1.0.4 reached 1.5 GiB in about four hours. The PC slept part of that time. Look again after wave 8, the first wave that loads Mimir and Loki with practice data.
+- cert-manager's controller restarted once on 2026-11-14 at 11:49 UTC with exit code 0, a clean shutdown. Nothing else restarted. If it happens again, look at the control-plane node first: there is only one, and 65% of its memory is in use.
 
-Asked of each worker on 2026-11-13. The walk runs on the rebuilt lab, after card L6.
+## The lab before wave 8
 
-- Done on 2026-11-13, each in its own worker's session after the owner signed in there: m01 steps 18 and 19 (pull request 65) and steps 16 and 17 (68), m04 step 13 (66), m06 steps 6, 8 and 12 (64).
-- A Grafana sign-in in the browser pane of the session that walks: m07 steps 3 to 9 and 12, m08 steps 4, 6, 8 and 12, m09 steps 6 and 11 (card W2), and the checks of m05 (card W1).
-- A go-ahead, said in that session, to create and delete `learn-m09` and to switch the flag `emitRawPii` on for a few minutes.
-- The lab seed in the site's settings, for the token check of m07 step 5 (the rebuild makes a new seed).
-- Left alone on purpose: `make reset` (m01 step 20), pushing a delta metric into Mimir (m08), changing a lab release to settle four inferences of m06, editing WSL's `/etc/hosts` for a Ctrl+C test (m07).
+Read on 2026-11-14 at 12:03 UTC.
 
-Two cards follow the rebuild: W1 (`cards/w8-w1-new-shape-and-checks.md`) corrects m00 to m06 for the new shape and runs every lab check of those modules again; W2 (`cards/w8-w2-otel-walk.md`) walks m07 to m09.
-
-The new lab shape also changes lesson text and check answers: m00 (five steps, with the checks "8 VMs" and "3 etcd pods"), m04 (step 11's check and a few lines), m05 (step 2's check), m06 (a few lines and one question).
-
-## State on 2026-11-14
-
-- The lab was rebuilt on 2026-11-13 as version 3 and accepted (pull requests 67 and 70). A day later: five nodes Ready, every pod ready, node memory 55 to 66%.
-- The object store: RustFS 1.0.5 has not restarted since the rebuild; its resident memory went 69, 128, 139, 142 MiB and levelled off, where 1.0.4 reached 1.5 GiB in about four hours. The PC slept part of that day, so it is fewer running hours than a full day; look once more after wave 8.
-- The gateway's Kafka scrape: no error since the shop's Kafka came up. The workshop service stops on Ctrl+C on Windows (seen by card W2).
-- Card W2 is merged (pull request 72): no row in the logs of m07, m08 and m09 is unverified. Card W1 (pull request 71) is in its second round: an independent check found seven old-lab numbers left in m01, m03 and m04.
-- The fault flags cannot be read from the ConfigMap `shop/shop-flags`, which only holds the defaults; the planner's earlier checks that way proved nothing. The flag screen's API shows the real state.
+- Five nodes Ready, every pod ready, no alert firing, every fault flag off, no `learn-` namespace.
+- Memory in use: 51 to 56% on the workers, 65% on the control-plane node. Each worker has 2.7 to 3.0 GiB that no pod requests, 11.5 GiB in all. Three modules practise at once in wave 8, so the wave notes hold each of them to 1 GiB.
+- The fullest volume is at 29%. The Longhorn disks are 73 to 79% free and every volume is healthy.
+- The fault flags cannot be read from the ConfigMap `shop/shop-flags`, which only holds the defaults. The flag screen's API shows the real state.
 
 ## Decisions not taken yet
 
 - Native histograms: the lab's Prometheus scrapes classic histograms only; one setting turns native ones on (`prometheus.prometheusSpec.scrapeNativeHistograms`). Module m04 step 8 is a concept step until then.
-- Loki's query limits are the defaults; one heavy log query can push the object store over its memory limit. Module m12 is the place to set and teach them.
+- Loki's query limits are the defaults. On 2026-11-12 one heavy log query pushed the object store, then RustFS 1.0.4, over its memory limit. Card C11 (module m12) names the limits the lab should set; the owner decides after its pull request.
 - The display font of the site states "All rights reserved" in its file and the repository is public; the owner decided to use it.
 
 ## How the work is run
