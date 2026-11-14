@@ -78,6 +78,16 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - Host ports, all on 127.0.0.1: C6 uses 8097, C7 8098, C8 8100 for the site. Port-forwards: C6 18100 to 18109, C7 18110 to 18119, C8 18120 to 18129.
 - No kind clusters.
 
+## Wave 8
+
+- Worktrees are cut from `main`. The lab is version 3 (card L6): one control-plane node, four workers with 8 GB, five Kubernetes nodes. Every count a lesson quotes comes from `lgtm/lab/docs/acceptance-cluster.md`, section "What the lessons quote", or from the lab itself.
+- The workers have room: a module's practice workloads may request up to 4 GiB in all, at most 1.5 GiB on one worker (`lgtm/lab/docs/budget.md`). Each card has a practice namespace and, where it writes data, a practice tenant of the same name; never write practice data as tenant `lab` or `prom`.
+- A worker session is refused changes to the shared cluster until the owner says so in that session. Ask once, in your first message, for everything you need (the go-ahead for your namespace and tenant and for any single action your card names, a Grafana sign-in in your browser pane, the lab seed), then start with what needs none of it.
+- Grafana: no session types a password or reads the admin password from the cluster.
+- Fault flags: the flag screen edits its own copy of the flag file, so the ConfigMap `shop/shop-flags` does not show whether a flag is on. Read the real state from the screen or from its API (`GET /feature/api/read` on the flag screen's address).
+- Numbers: a digit next to nodes, targets, series, rows, pods or GiB is a fact about the lab. Read it from the lab on the day and log it; the lab's shape changed once already.
+- Host ports, all on 127.0.0.1: C9 uses 8097, C10 8098, C11 8100 for the site. Port-forwards: C9 18100 to 18109, C10 18110 to 18119, C11 18120 to 18129.
+
 ## Pull request text
 
 - Title: `[lgtm <card id>] <what it delivers>`
@@ -116,5 +126,8 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | before 8 | `w8-l6-lab-v3.md` | L6 lab version 3: one master, 8 GB workers, defects fixed, rebuilt with the owner |
 | before 8 | `w8-w1-new-shape-and-checks.md` | W1 modules m00 to m06 follow the new lab; every lab check run again |
 | before 8 | `w8-w2-otel-walk.md` | W2 the unverified actions of m07, m08 and m09, walked with the owner |
+| 8 | `w8-c9-alloy.md` | C9 module m10 Grafana Alloy |
+| 8 | `w8-c10-mimir.md` | C10 module m11 Mimir |
+| 8 | `w8-c11-loki.md` | C11 module m12 Loki |
 
-Cards for wave 8 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
+Cards for wave 9 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
