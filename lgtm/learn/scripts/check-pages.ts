@@ -89,7 +89,7 @@ export function firstDifference(want: string, got: string): string | null {
 }
 
 /** Compares one step's source blocks with the text of its page; one message per problem. */
-export function compareStep(body: string, html: string): string[] {
+export function compareStep(body: string, html: string, lineOffset = 0): string[] {
   const want = sourceBlocks(body);
   const got = pageBlocks(html);
   const problems: string[] = [];
@@ -99,7 +99,7 @@ export function compareStep(body: string, html: string): string[] {
   want.forEach((b, i) => {
     if (i >= got.length) return;
     const d = firstDifference(b.text, got[i]);
-    if (d) problems.push(`block ${i + 1}, the ${b.kind} at line ${b.line}: ${d}`);
+    if (d) problems.push(`block ${i + 1}, the ${b.kind} at line ${b.line + lineOffset}: ${d}`);
   });
   return problems;
 }
@@ -117,13 +117,15 @@ if (import.meta.main) {
     const [mod, num] = id.split('-');
     const page = path.join(dist, 'm', mod, num, 'index.html');
     if (!fs.existsSync(page)) {
-      console.log(`error: steps/${s.file}: no built page at ${path.relative(process.cwd(), page)}; run the build first`);
+      console.log(`error: ${s.file}: no built page at ${path.relative(process.cwd(), page)}; run the build first`);
       failed++;
       continue;
     }
     steps++;
     blocks += sourceBlocks(s.body).length;
-    for (const p of compareStep(s.body, fs.readFileSync(page, 'utf8'))) {
+    // Report lines of the file, not of the body after the frontmatter.
+    const offset = fs.readFileSync(path.join(root, s.file), 'utf8').split('\n').length - s.body.split('\n').length;
+    for (const p of compareStep(s.body, fs.readFileSync(page, 'utf8'), offset)) {
       console.log(`error: ${s.file} (${id}): ${p}`);
       failed++;
     }
