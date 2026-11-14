@@ -88,6 +88,7 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - Fault flags: the flag screen edits its own copy of the flag file, so the ConfigMap `shop/shop-flags` does not show whether a flag is on. Read the real state from the screen or from its API (`GET /feature/api/read` on the flag screen's address).
 - Numbers: a digit next to nodes, targets, series, rows, pods or GiB is a fact about the lab. Read it from the lab on the day and log it; the lab's shape changed once already.
 - Host ports, all on 127.0.0.1: C9 uses 8097, C10 8098, C11 8100 for the site. Port-forwards: C9 18100 to 18109, C10 18110 to 18119, C11 18120 to 18129.
+- A file in a lesson is a fenced code block under its list item, never a multi-line `<Cmd>`: Markdown strips the indentation of a `<Cmd>` inside a numbered action (`03-content-contract.md`, "things the first modules ran into"). Card W3 (site port 8102) repairs the merged modules.
 - On 2026-11-14 at 12:50 UTC new pods stopped starting on three nodes: Calico's token for the CNI plugin had run out while the VMs were paused overnight. The planner restarted calico-node there at 13:13 UTC with the owner's word. If a new pod stays in ContainerCreating with `connection is unauthorized`, it is that again: tell the planner, change nothing. Card L7 (site port 8101, port-forwards 18130 to 18139) makes the lab survive a sleep.
 
 ## Pull request text
@@ -131,6 +132,7 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 8 | `w8-c9-alloy.md` | C9 module m10 Grafana Alloy |
 | 8 | `w8-c10-mimir.md` | C10 module m11 Mimir |
 | 8 | `w8-c11-loki.md` | C11 module m12 Loki |
+| beside 8 | `w8-w3-files-keep-indentation.md` | W3 a file copied from a lesson keeps its indentation: twelve blocks in m01, m03, m06 and m09, a rule in `check:content`, a Copy button on fenced blocks |
 | beside 8 | `w8-l7-pods-start-after-sleep.md` | L7 new pods start after the PC has slept: Calico's CNI token, a command, a check, the runbook and m00 step 7 |
 
 Cards for wave 9 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
