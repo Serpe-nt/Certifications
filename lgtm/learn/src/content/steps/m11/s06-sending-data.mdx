@@ -79,7 +79,59 @@ Do not look for `service_name` to find an OTLP sender in a plain Mimir. The stan
 <Do>
 1. In WSL, read the two real senders. Prometheus first: <Cmd>{`kubectl -n prom get prometheus -o jsonpath='{.items[0].spec.remoteWrite}'; echo`}</Cmd> Then the collector gateway: <Cmd>{`kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' | grep -A4 'otlp_http/mimir:'`}</Cmd> Note the path and the `X-Scope-OrgID` of each.
 2. Create the practice namespace of this module: <Cmd>{`kubectl create namespace learn-m11`}</Cmd>
-3. Save this as `m11-writer.yaml`. A ConfigMap holds an OTLP JSON body with six data points of one gauge, and a small pod fills in a counter and the time and posts it every five seconds as tenant `learn-m11`: <Cmd>{`apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: writer-body\n  namespace: learn-m11\ndata:\n  body.json: |\n    {"resourceMetrics": [{\n      "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "writer"}}]},\n      "scopeMetrics": [{"metrics": [{"name": "learn_m11_heartbeat", "gauge": {"dataPoints": [\n        {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "0"}}]},\n        {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "1"}}]},\n        {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "2"}}]},\n        {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "3"}}]},\n        {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "4"}}]},\n        {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "5"}}]}\n      ]}}]}]\n    }]}\n---\napiVersion: v1\nkind: Pod\nmetadata:\n  name: writer\n  namespace: learn-m11\nspec:\n  containers:\n    - name: writer\n      image: curlimages/curl:8.23.0\n      command: [/bin/sh, -c]\n      args:\n        - |\n          i=0\n          while true; do\n            sed -e "s/VALUE/$i/g" -e "s/TIME/$(date +%s)000000000/g" /body/body.json > /tmp/body.json\n            code=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Scope-OrgID: learn-m11' \\\n              -H 'Content-Type: application/json' --data @/tmp/body.json \\\n              http://mimir-gateway.mimir.svc/otlp/v1/metrics)\n            echo "$(date -u +%H:%M:%S) sent $i status $code"\n            i=$((i+1))\n            sleep 5\n          done\n      volumeMounts:\n        - { name: body, mountPath: /body }\n      resources:\n        requests: { cpu: 10m, memory: 16Mi }\n        limits: { cpu: 50m, memory: 32Mi }\n  volumes:\n    - name: body\n      configMap: { name: writer-body }`}</Cmd>
+3. Save this as `m11-writer.yaml`. A ConfigMap holds an OTLP JSON body with six data points of one gauge, and a small pod fills in a counter and the time and posts it every five seconds as tenant `learn-m11`:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: writer-body
+     namespace: learn-m11
+   data:
+     body.json: |
+       {"resourceMetrics": [{
+         "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "writer"}}]},
+         "scopeMetrics": [{"metrics": [{"name": "learn_m11_heartbeat", "gauge": {"dataPoints": [
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "0"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "1"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "2"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "3"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "4"}}]},
+           {"asDouble": VALUE, "timeUnixNano": "TIME", "attributes": [{"key": "n", "value": {"stringValue": "5"}}]}
+         ]}}]}]
+       }]}
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: writer
+     namespace: learn-m11
+   spec:
+     containers:
+       - name: writer
+         image: curlimages/curl:8.23.0
+         command: [/bin/sh, -c]
+         args:
+           - |
+             i=0
+             while true; do
+               sed -e "s/VALUE/$i/g" -e "s/TIME/$(date +%s)000000000/g" /body/body.json > /tmp/body.json
+               code=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Scope-OrgID: learn-m11' \
+                 -H 'Content-Type: application/json' --data @/tmp/body.json \
+                 http://mimir-gateway.mimir.svc/otlp/v1/metrics)
+               echo "$(date -u +%H:%M:%S) sent $i status $code"
+               i=$((i+1))
+               sleep 5
+             done
+         volumeMounts:
+           - { name: body, mountPath: /body }
+         resources:
+           requests: { cpu: 10m, memory: 16Mi }
+           limits: { cpu: 50m, memory: 32Mi }
+     volumes:
+       - name: body
+         configMap: { name: writer-body }
+   ```
 4. Apply it and wait for the pod: <Cmd>{`kubectl apply -f m11-writer.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m11 wait --for=condition=Ready pod/writer --timeout=120s`}</Cmd> After half a minute, read its log: <Cmd>{`kubectl -n learn-m11 logs writer --tail=3`}</Cmd> Every line ends in `status 200`. The pod keeps running until step 13 of this module.
 5. Query your tenant through the lab's gateway: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=learn_m11_heartbeat'; echo`}</Cmd> Six series come back, one per value of `n`, with the counter as their value.
 6. Read the labels of one series. `n` came from the data point. `job` and `service_name` came from the resource: `job` by the OTLP rule, `service_name` because the lab promotes `service.name`.

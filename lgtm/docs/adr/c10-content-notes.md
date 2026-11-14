@@ -5,7 +5,7 @@ Card C10, module m11 Mimir, 2026-11-14. What this module taught, on top of the e
 ## Commands must be template strings
 
 - A `<Cmd>` written as plain text goes through the Markdown typography: `'x'` turns into `‘x’`, `"x"` into `“x”`, and `--flag` into `–flag` (an en dash). The page looks fine and the copied command fails. Write every command as `<Cmd>{`...`}</Cmd>`, even a short one.
-- A multi-line template string inside a list item, and `<Do>` is a list, loses the leading spaces of its lines, so a YAML manifest pastes with broken indentation. Moving the `<Cmd>` to its own block or indenting it does not help. What works: the whole manifest on one source line, with `\n` for each line break and every backslash doubled. m11 steps 6 and 10 do this; a small script turned the applied file into that line, and the built page was compared with the file byte for byte.
+- A multi-line template string inside a list item, and `<Do>` is a list, loses the leading spaces of its lines, so a YAML manifest pastes with broken indentation. Give a file with indented lines as a fenced code block (```` ```yaml ````) indented under its list item, as m10 and m11 steps 6 and 10 do, and keep `<Cmd>` for one-line commands. Then read the `<pre>` in `dist/m/<module>/<step>/index.html` and compare it with the file you applied; in m11 both manifests matched byte for byte.
 - Several merged steps of m01, m03 and m06 to m09 have one of these faults; the list is in the shared note `c10-cmd-copy-paste.md` for the planner.
 - A `regex` check is anchored (`^(?:pattern)$`). To accept a pasted log line that contains a phrase, write `.*phrase.*`.
 

@@ -79,7 +79,47 @@ Uploading a group is not evaluating it. Check `/prometheus/api/v1/rules`: a rule
 </Trap>
 
 <Do>
-1. In WSL, save this as `m11-rules.yaml`. A ConfigMap holds a rule namespace with one recording rule that counts your heartbeat series, and a one-shot pod runs `mimirtool rules load` on it as tenant `learn-m11`. The image has no shell, so the pod passes its arguments straight to `mimirtool`. <Cmd>{`apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: m11-rules\n  namespace: learn-m11\ndata:\n  rules.yaml: |\n    namespace: learn-m11\n    groups:\n      - name: heartbeat\n        interval: 1m\n        rules:\n          - record: m11:learn_m11_heartbeat:count\n            expr: count(learn_m11_heartbeat)\n---\napiVersion: v1\nkind: Pod\nmetadata:\n  name: rules-load\n  namespace: learn-m11\nspec:\n  restartPolicy: Never\n  containers:\n    - name: mimirtool\n      image: grafana/mimirtool:3.2.4\n      args: [rules, load, /rules/rules.yaml]\n      env:\n        - { name: MIMIR_ADDRESS, value: "http://mimir-gateway.mimir.svc" }\n        - { name: MIMIR_TENANT_ID, value: learn-m11 }\n      volumeMounts:\n        - { name: rules, mountPath: /rules }\n      resources:\n        requests: { cpu: 10m, memory: 32Mi }\n        limits: { cpu: 100m, memory: 128Mi }\n  volumes:\n    - name: rules\n      configMap: { name: m11-rules }`}</Cmd>
+1. In WSL, save this as `m11-rules.yaml`. A ConfigMap holds a rule namespace with one recording rule that counts your heartbeat series, and a one-shot pod runs `mimirtool rules load` on it as tenant `learn-m11`. The image has no shell, so the pod passes its arguments straight to `mimirtool`.
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m11-rules
+     namespace: learn-m11
+   data:
+     rules.yaml: |
+       namespace: learn-m11
+       groups:
+         - name: heartbeat
+           interval: 1m
+           rules:
+             - record: m11:learn_m11_heartbeat:count
+               expr: count(learn_m11_heartbeat)
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: rules-load
+     namespace: learn-m11
+   spec:
+     restartPolicy: Never
+     containers:
+       - name: mimirtool
+         image: grafana/mimirtool:3.2.4
+         args: [rules, load, /rules/rules.yaml]
+         env:
+           - { name: MIMIR_ADDRESS, value: "http://mimir-gateway.mimir.svc" }
+           - { name: MIMIR_TENANT_ID, value: learn-m11 }
+         volumeMounts:
+           - { name: rules, mountPath: /rules }
+         resources:
+           requests: { cpu: 10m, memory: 32Mi }
+           limits: { cpu: 100m, memory: 128Mi }
+     volumes:
+       - name: rules
+         configMap: { name: m11-rules }
+   ```
 2. Apply it and read what `mimirtool` did: <Cmd>{`kubectl apply -f m11-rules.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m11 wait --for=jsonpath='{.status.phase}'=Succeeded pod/rules-load --timeout=120s`}</Cmd> <Cmd>{`kubectl -n learn-m11 logs rules-load`}</Cmd> The log names the group `heartbeat` in the namespace `learn-m11`.
 3. List the tenant's rules with a throw-away `mimirtool` pod: <Cmd>{`kubectl -n learn-m11 run mimirtool --rm -i --quiet --restart=Never --image=grafana/mimirtool:3.2.4 --env=MIMIR_ADDRESS=http://mimir-gateway.mimir.svc --env=MIMIR_TENANT_ID=learn-m11 -- rules list`}</Cmd> The table shows `learn-m11 | heartbeat`.
 4. Wait a minute or two, then read the rule's state from the ruler: <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m11' http://10.10.0.5/prometheus/api/v1/rules; echo`}</Cmd> Repeat until the rule shows `"health":"ok"` and a `lastEvaluation` time.
