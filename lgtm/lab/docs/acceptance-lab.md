@@ -623,3 +623,95 @@ console Ctrl+C event, `run.py solutions/01-zero-code` stays in the foreground wh
 runs, exits with 130 on Ctrl+C and leaves no process.
 The owner's own run in a PowerShell window (step 11 of the rebuild list) had not been done when
 this was written.
+
+## Query limits and the cardinality API (2026-11-14, card L8)
+
+Three lab changes the owner said yes to on 2026-11-14; reasons and sources in
+`lgtm/docs/adr/l8-query-limits-and-switches.md`. Applied with the owner's go-ahead, one release
+at a time.
+
+### Loki's query limits
+
+`make lab TAGS=loki`, 17:58:52 to 18:02:10 UTC, `changed=1`. The ingesters restarted one at a
+time (ingester-2 17:59:37, ingester-1 18:00:27, ingester-0 18:01:17); the distributors, queriers,
+query-frontend, scheduler, index-gateway, compactor and ruler restarted at 17:59 to 18:00. The
+gateway and the two caches did not. Every pod ready, no restart count above 0.
+
+`/config` afterwards (`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/config`):
+
+```
+  max_concurrent: 4
+  max_query_length: 2d1h
+  max_query_parallelism: 8
+  tsdb_max_query_parallelism: 16
+  query_timeout: 1m
+  max_query_bytes_read: 500MB
+  max_querier_bytes_read: 150MB
+```
+
+The index's size of tenant `lab` at 18:03 UTC (`/loki/api/v1/index/stats`), which is what the
+limit is checked against: every service (`{service_name=~".+"}`) 194 MB over 1 hour, 667 MB over
+6 hours, 1,021 MB over 24 hours (the VMs were paused from 22:10 on 2026-11-13 to 11:47 UTC, so
+the day holds about 15 hours of logs). Alloy's pod logs alone (`{namespace=~".+"}`) 33 MB over 1
+hour and 134 MB over 6 hours.
+
+A query that passes: `sum(count_over_time({namespace=~".+"} |= "error" [6h]))` at 18:02:42,
+HTTP 200 in 0.21 s, `totalBytesProcessed` 193,729,909, 723 chunks, all from the chunk cache.
+
+The refused query, at 18:03:31 UTC (module m12 step 15, action 5):
+
+```
+$ curl -s -w ' (HTTP %{http_code})' -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=sum(count_over_time({service_name=~".+"} |= "error" [24h]))'; echo
+the query would read too many bytes (query: 973 MiB, limit: 500 MiB); consider adding more specific stream selectors or reduce the time range of the query (HTTP 400)
+```
+
+How Loki refused it: the answer came in 0.0096 s with status 400. The query frontend logged
+`msg="executing query" type=instant`, asked the index for the size of `{service_name=~".+"}` over
+the range (two `query_type=stats` lines on a querier, 2 to 3 ms each), then logged
+`msg="Query exceeds limits" status=rejected limit_name=MaxQueryBytesRead limit_bytes="500 MiB"
+resolved_bytes="973 MiB"`. No `metrics.go` line with `query_type=metric` followed, and neither
+querier logged the metric query: it read no chunk. Loki reads `500MB` in the configuration as
+500 MiB.
+
+`make lab-check` at 18:02:26: `LAB CHECK PASSED`.
+
+### Mimir's cardinality API for tenant `lab`
+
+Before, at 17:38 UTC: `cardinality analysis is disabled for the tenant: lab`.
+
+`make lab TAGS=mimir`, 18:03:56 to 18:04:47 UTC, `changed=1`. The rendered `checksum/config` of
+the Mimir pods equals the running one, so no pod restarted (every pod kept its age of 28 hours,
+ingester-1 its 5 hours). The runtime configuration showed `cardinality_analysis_enabled: true`
+for tenant `lab` on every distributor, ingester, querier, query-frontend and ruler by 18:06:21,
+about 90 seconds after the upgrade; until the last querier had it, `active_series` answered
+`error merging partial responses ... cardinality analysis is disabled for the tenant: lab`.
+
+The API's answers for tenant `lab`, 18:05 to 18:09 UTC:
+
+- `label_names?limit=5`: `label_values_count_total` 1359, `label_names_count` 148; first
+  `__name__` with 417 values, then `slot` 171, `span_name` 82, `le` 65, `device` 24.
+- `label_values?label_names[]=__name__&count_method=active&limit=5`: `series_count_total` 5876;
+  `traces_spanmetrics_latency_bucket` 1469, `traces_service_graph_request_client_seconds_bucket`
+  270, `traces_service_graph_request_server_seconds_bucket` 270,
+  `otel_sdk_exporter_operation_duration_seconds_bucket` 232, `lab_beacon_value` 171.
+- `label_values` with `selector=traces_spanmetrics_latency_bucket`: `le` 13 values, `service_name`
+  15 (top `frontend` 390), `span_kind` 5, `span_name` 82, `status_code` 2.
+- `active_series?selector=traces_spanmetrics_latency_bucket{service_name="checkout"}`: 130 series.
+- Tenant `prom`: `cardinality analysis is disabled for the tenant: prom`, as intended.
+
+`make lab-check`, ending 18:06:34: `LAB CHECK PASSED`.
+
+### Exemplars in Prometheus: none to store
+
+At 17:40 UTC every kind of scrape target of the lab's Prometheus (8 ServiceMonitors in namespace
+`prom`, no PodMonitor) was asked through `kubectl proxy` for OpenMetrics text and for protobuf:
+Prometheus, Alertmanager, kube-state-metrics, node exporter, kubelet, cAdvisor, the API server,
+CoreDNS and the operator. Only kube-state-metrics answered in OpenMetrics; no answer held an
+exemplar (no ` # {` in any text, no trace id in any protobuf answer). Exemplar storage would keep
+nothing, so it stays off and the Prometheus release was not changed. Tenant `prom` holds no
+exemplars; tenant `lab` has them from the OpenTelemetry side (the exemplar PASS line of
+`make lab-check`).
+
+### Afterwards
+
+`make lab` at 18:06:34 to 18:08:00 UTC: `ok=29 changed=0 unreachable=0 failed=0`.

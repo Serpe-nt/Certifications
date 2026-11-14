@@ -9,7 +9,7 @@ exam:
 tags: [mimir-cardinality, cardinality]
 check:
   kind: exact
-  prompt: Which metric name has the most series in tenant lab? Paste it from action 3.
+  prompt: Which metric name has the most series in tenant lab? Paste it from action 2.
   answers: ["traces_spanmetrics_latency_bucket"]
 outcome: You can find the metrics and labels that make the most series in a tenant, with PromQL and with Mimir's cardinality API, and say how to switch that API on.
 terms:
@@ -21,7 +21,7 @@ sources:
   - title: Grafana Mimir HTTP API, cardinality endpoints
     url: https://grafana.com/docs/mimir/v3.2.x/references/http-api/
     checked: 2026-11-14
-  - title: Grafana Mimir configuration parameters, cardinality_analysis_enabled
+  - title: Grafana Mimir configuration parameters, cardinality_analysis_enabled and lookback_delta
     url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
     checked: 2026-11-14
   - title: About Grafana Mimir runtime configuration
@@ -33,41 +33,43 @@ sources:
 ---
 
 <Problem>
-Tenant `lab` uses 5,700 of its 500,000 series today. A colleague wants to add a new label to the span metrics, and you must say what it will cost. First you need to know which metrics hold the series now, and which of their labels multiply them.
+Tenant `lab` uses 5,900 of its 500,000 series today. A colleague wants to add a new label to the span metrics, and you must say what it will cost. First you need to know which metrics hold the series now, and which of their labels multiply them.
 </Problem>
 
 <Idea>
-Find the big metrics with one PromQL query: count the series per metric name and keep the top ones. Then count the values of each label of the biggest metric to see which label multiplies it. Mimir also has a cardinality API that does this per label, but it is off by default and needs a per-tenant switch.
+Mimir's cardinality API answers both questions: it counts the values of every label name and the series behind each value of a label, and it lists the active series a selector matches. It is off by default and switched on per tenant; this lab has it on for tenant `lab`. PromQL gives the same answers with a count per metric name, and it works where the API is off.
 </Idea>
-
-## Count series per metric name
-
-Module m02 showed that every label multiplies the series of a metric. In Mimir the series count is also the number the tenant's limit is checked against. The question "what is expensive" therefore starts with a count per metric name:
-
-<Query lang="promql">{`topk(10, count by (__name__) ({__name__=~".+"}))`}</Query>
-
-The selector matches every series of the tenant at the query's time, so run it on one tenant at a time and not on a huge one at peak hours. For a whole tenant, the distributors' page `/distributor/all_user_stats` from step 7 already gives the total.
-
-## Find the label that multiplies
-
-The top metric is usually a histogram, because every bucket is its own series. Count the distinct values of each of its labels with `count(count by (LABEL) (METRIC))`. The product of the counts is the most the metric can reach; the real number is lower, because not every combination occurs. The label with the most values, or the one that is still growing, is where a new label or a change of instrumentation pays off first.
-
-<Figures caption="traces_spanmetrics_latency_bucket in tenant lab, 2026-11-14" unit="Distinct values">
-  <Stat label="Span names" value="80" amount={80} max={80} hot />
-  <Stat label="Services" value="14" amount={14} max={80} />
-  <Stat label="Buckets" value="13" amount={13} max={80} />
-  <Stat label="Span kinds" value="5" amount={5} max={80} />
-  <Stat label="Status codes" value="2" amount={2} max={80} />
-</Figures>
 
 ## The cardinality API
 
-Mimir's query-frontend offers three endpoints for this work. `/prometheus/api/v1/cardinality/label_names` counts the values of every label name. `/prometheus/api/v1/cardinality/label_values?label_names[]=NAME` counts the series per value of the named labels. `/prometheus/api/v1/cardinality/active_series?selector=...` lists the active series that match. They read the ingesters only, so they describe recent data, and they can count all series in memory or only the active ones, those with a sample in the last 20 minutes.
+Mimir's query-frontend offers three endpoints for this work. `/prometheus/api/v1/cardinality/label_names` counts the values of every label name. `/prometheus/api/v1/cardinality/label_values?label_names[]=NAME` counts the series per value of the named labels, and a `selector` narrows it to one metric. `/prometheus/api/v1/cardinality/active_series?selector=...` lists the active series that match. They read the ingesters only, so they describe recent data, and they can count all series in memory or only the active ones, those with a sample in the last 20 minutes.
 
-All three are off by default. The switch is the limit `cardinality_analysis_enabled`, which you can set for all tenants or for one tenant in the runtime overrides.
+The label `__name__` holds the metric name, so `label_values` for `__name__` lists the metrics by series count. That is where the question "what is expensive" starts: in Mimir the series count is also the number the tenant's limit is checked against.
+
+All three endpoints are off by default. The switch is the limit `cardinality_analysis_enabled`, which you can set for all tenants or for one tenant in the runtime overrides.
+
+## Find the label that multiplies
+
+Module m02 showed that every label multiplies the series of a metric. The top metric is usually a histogram, because every bucket is its own series. Count the distinct values of each of its labels. The product of the counts is the most the metric can reach; the real number is lower, because not every combination occurs. The label with the most values, or the one that is still growing, is where a new label or a change of instrumentation pays off first.
+
+<Figures caption="traces_spanmetrics_latency_bucket in tenant lab, 2026-11-14" unit="Distinct values">
+  <Stat label="Span names" value="82" amount={82} max={82} hot />
+  <Stat label="Services" value="15" amount={15} max={82} />
+  <Stat label="Buckets" value="13" amount={13} max={82} />
+  <Stat label="Span kinds" value="5" amount={5} max={82} />
+  <Stat label="Status codes" value="2" amount={2} max={82} />
+</Figures>
+
+## Without the API: PromQL
+
+Where the API is off, one PromQL query finds the big metrics by counting the series per metric name:
+
+<Query lang="promql">{`topk(10, count by (__name__) ({__name__=~".+"}))`}</Query>
+
+The selector matches every series of the tenant at the query's time, so run it on one tenant at a time and not on a huge one at peak hours. `count(count by (LABEL) (METRIC))` then counts the values of one label. For a whole tenant, the distributors' page `/distributor/all_user_stats` from step 7 already gives the total.
 
 <InLab>
-The lab leaves `cardinality_analysis_enabled` off, so the API answers `cardinality analysis is disabled for the tenant`. Turning it on for `lab` would be one line under `overrides.lab` in the Mimir values; that is a change to a lab release, so this step uses PromQL.
+Since 2026-11-14, tenant `lab` has `cardinality_analysis_enabled: true` in the runtime overrides of the Mimir release, and Mimir picked it up without a restart. Tenant `prom` and the practice tenants keep the default, so the API answers them `cardinality analysis is disabled for the tenant`.
 </InLab>
 
 <Trap>
@@ -75,24 +77,25 @@ With `count_method=inmemory`, two calls of the cardinality API a minute apart ca
 </Trap>
 
 <Do>
-1. In WSL, try the cardinality API as tenant `lab`: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/label_names; echo`}</Cmd> The answer says that cardinality analysis is disabled for the tenant.
-2. Define the query helper of step 7 again if this is a new shell, and count the tenant's series: <Cmd>{`q() { curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $1" http://10.10.0.5/prometheus/api/v1/query --data-urlencode "query=$2"; echo; }`}</Cmd> <Cmd>{`q lab 'count({__name__=~".+"})'`}</Cmd> A few thousand series.
-3. Find the five metric names with the most series: <Cmd>{`q lab 'topk(5, count by (__name__) ({__name__=~".+"}))'`}</Cmd> One histogram from Tempo's span metrics is far ahead of the rest.
-4. Count the values of each label of that metric: <Cmd>{`for l in le span_name service_name span_kind status_code; do printf '%s ' $l; q lab "count(count by ($l) (traces_spanmetrics_latency_bucket))"; done`}</Cmd> The bucket label `le` has 13 values, and `span_name` has the most.
-5. See which service contributes most: <Cmd>{`q lab 'topk(3, count by (service_name) (traces_spanmetrics_latency_bucket))'`}</Cmd>
-6. Paste the metric name from action 3 in the check below.
+1. In WSL, ask the cardinality API which label names of tenant `lab` have the most values: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/label_names --data-urlencode 'limit=5'; echo`}</Cmd> About 150 label names; `__name__` comes first, with one value per metric, about 420.
+2. List the five metrics with the most active series: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/label_values --data-urlencode 'label_names[]=__name__' --data-urlencode 'count_method=active' --data-urlencode 'limit=5'; echo`}</Cmd> `series_count_total` is the tenant's active series. One histogram from Tempo's span metrics is first, with about five times the series of the next.
+3. Count the values of three labels of that metric, with the top three values of each: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/label_values --data-urlencode 'selector=traces_spanmetrics_latency_bucket' --data-urlencode 'label_names[]=span_name' --data-urlencode 'label_names[]=service_name' --data-urlencode 'label_names[]=le' --data-urlencode 'count_method=active' --data-urlencode 'limit=3'; echo`}</Cmd> The bucket label `le` has 13 values, `span_name` has the most, and `frontend` is the service with the most series.
+4. List the active series of one service and count them: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/cardinality/active_series --data-urlencode 'selector=traces_spanmetrics_latency_bucket{service_name="checkout"}' | grep -o '"__name__"' | wc -l`}</Cmd> About 130 series for checkout alone.
+5. Now the same with PromQL, as you would on a tenant without the API. Define the query helper of step 7 again if this is a new shell, and find the five biggest metrics: <Cmd>{`q() { curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $1" http://10.10.0.5/prometheus/api/v1/query --data-urlencode "query=$2"; echo; }`}</Cmd> <Cmd>{`q lab 'topk(5, count by (__name__) ({__name__=~".+"}))'`}</Cmd> The same metric is first, with a few series fewer than in action 2: PromQL counts the series with a sample in the last 5 minutes (`lookback_delta`), the API's active method those of the last 20.
+6. Count the values of each of its labels with PromQL: <Cmd>{`for l in le span_name service_name span_kind status_code; do printf '%s ' $l; q lab "count(count by ($l) (traces_spanmetrics_latency_bucket))"; done`}</Cmd> The counts for `le`, `span_name` and `service_name` are those of action 3, or one or two lower for the same reason.
+7. Paste the metric name from action 2 in the check below.
 </Do>
 
 <Done>
-You found the tenant's biggest metric and the label that multiplies it most, without the cardinality API.
+You found the tenant's biggest metric and the label that multiplies it most, with the cardinality API and again with PromQL.
 </Done>
 
 <Trap practice>
-Keep the query of action 4 in double quotes, as written, so that the shell fills in `$l`. In single quotes, Mimir receives the text `$l` itself and answers with a parse error.
+Keep the query of action 6 in double quotes, as written, so that the shell fills in `$l`. In single quotes, Mimir receives the text `$l` itself and answers with a parse error. The API calls work only as tenant `lab`: as `prom`, Mimir answers that cardinality analysis is disabled.
 </Trap>
 
 <Remember>
-`topk(10, count by (__name__) (...))` finds the big metrics; `count(count by (LABEL) (...))` finds the label that multiplies them. The cardinality API does the same per label, once `cardinality_analysis_enabled` is on.
+The cardinality API counts series per label and per value where `cardinality_analysis_enabled` is on, as for tenant `lab` here. Without it, `topk(10, count by (__name__) (...))` finds the big metrics and `count(count by (LABEL) (...))` finds the label that multiplies them.
 </Remember>
 
 <Question id="q-m11-s09" answer="b">
