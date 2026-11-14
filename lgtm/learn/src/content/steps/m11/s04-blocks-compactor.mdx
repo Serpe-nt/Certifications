@@ -87,7 +87,7 @@ Ingesters upload two-hour blocks and keep them locally for a while. The compacto
 <Question id="q-m11-s04" answer="a">
 A team sets `compactor_blocks_retention_period: 30d` for its tenant. Six weeks later the bucket still holds the tenant's blocks from two months ago. Which component should you check first?
 
-- The compactor, which applies retention and deletes old blocks
+- The compactor, which applies retention
 
   Only the compactor marks and deletes blocks past retention. If it is not running for this tenant, nothing else removes them.
 

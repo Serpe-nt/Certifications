@@ -108,7 +108,7 @@ A new Grafana data source for Mimir has no custom header set, and every query re
 
   Mimir itself answers such a request with 401 and an error, not with an empty success.
 
-- The proxy fills in a default tenant that holds no data
+- The proxy sends a default tenant with no data
 
   An empty success with no header points to a proxy that adds a default ID, as the lab's gateway does with `anonymous`.
 

@@ -98,11 +98,11 @@ Keep the query of action 4 in double quotes, as written, so that the shell fills
 <Question id="q-m11-s09" answer="b">
 You call `/prometheus/api/v1/cardinality/label_names` on a Mimir tenant and get `cardinality analysis is disabled for the tenant`. What turns the endpoint on for this tenant only?
 
-- Restarting the query-frontend with a higher query limit
+- Restarting the query-frontend with a much higher query limit
 
   The endpoint is switched by a limit, not by query size or a restart.
 
-- Setting `cardinality_analysis_enabled: true` in the tenant's runtime override
+- A runtime override with `cardinality_analysis_enabled: true`
 
   It is a per-tenant limit, so an override for that tenant switches it on, and the runtime configuration is reloaded without a restart.
 

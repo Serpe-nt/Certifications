@@ -86,15 +86,15 @@ One Prometheus has one machine's memory, one unreplicated disk and no walls betw
 <Question id="q-m11-s01" answer="c">
 Two teams share one Prometheus server. One of them adds a label whose values are user IDs, and the server runs out of memory. Which feature of Mimir is meant for this situation?
 
-- Blocks in object storage
+- Blocks in object storage, kept for a year
 
-  Object storage keeps history cheap and safe. It does nothing about how many series one team creates.
+  Object storage keeps the history. It does nothing about how many series one team creates.
 
 - Monolithic mode with `-target=all`
 
   Monolithic mode runs every component in one process. It keeps the teams on shared resources.
 
-- Tenants, each with its own series limits
+- Tenants with their own limits
 
   Each team writes as its own tenant, and a per-tenant limit stops one team's series growth before it hurts the others.
 
