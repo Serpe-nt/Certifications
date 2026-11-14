@@ -63,7 +63,7 @@ Grafana --> mimir-gateway /prometheus (tenants lab and prom), loki-gateway, temp
 | A latency panel | the trace | Exemplars: data source `mimir`, `exemplarTraceIdDestinations` for the labels `traceID` (Tempo's span metrics) and `trace_id` (OTLP metrics), both to `tempo`. The RED dashboards query `traces_spanmetrics_latency_bucket` with exemplars on. |
 | A trace | its logs | Data source `tempo`, trace to logs: `{service_name="<span's service.name>"} \| trace_id="<trace id>"` on `loki`. |
 | A trace | its metrics | Data source `tempo`, trace to metrics: request rate and p95 latency from the span metrics on `mimir`. Service graph from `traces_service_graph_*`. |
-| A log line | its trace | Data source `loki`, derived field `TraceID` on the structured metadata `trace_id`, linking to `tempo`. |
+| A log line | its trace | Data source `loki`, derived field `trace_id` on the structured metadata `trace_id`, linking to `tempo`. |
 
 Data source UIDs: `mimir` (tenant `lab`), `mimir-prom` (tenant `prom`), `loki`, `tempo`,
 `prometheus`, `alertmanager`. Module m14 takes these links apart and rebuilds them.

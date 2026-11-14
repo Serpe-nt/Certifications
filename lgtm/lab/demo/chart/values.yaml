@@ -109,6 +109,8 @@ components:
     env:
       AD_PORT: "9555"
       AD_PROMETHEUS_PORT: "9465"
+      # Every evaluation asks flagd, so a flag change applies at once (ADR l9-flag-cache).
+      FLAGD_CACHE: disabled
       OTEL_LOGS_EXPORTER: otlp
       OTEL_EXPERIMENTAL_SDK_TELEMETRY_VERSION: latest
     # Upstream's limit is 300 MiB; ad used 294 MiB of it in the smoke test,
@@ -146,6 +148,8 @@ components:
       PRODUCT_CATALOG_ADDR: product-catalog:3550
       KAFKA_ADDR: kafka:9092
       GOMEMLIMIT: 16MiB
+      # Every evaluation asks flagd, so a flag change applies at once (ADR l9-flag-cache).
+      FLAGD_CACHE: disabled
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_GO_X_OBSERVABILITY: "true"
     readinessProbe:
@@ -161,6 +165,8 @@ components:
     env:
       KAFKA_ADDR: kafka:9092
       OTEL_INSTRUMENTATION_KAFKA_EXPERIMENTAL_SPAN_ATTRIBUTES: "true"
+      # Every evaluation asks flagd, so a flag change applies at once (ADR l9-flag-cache).
+      FLAGD_CACHE: disabled
       OTEL_INSTRUMENTATION_MESSAGING_EXPERIMENTAL_RECEIVE_TELEMETRY_ENABLED: "true"
       OTEL_EXPERIMENTAL_SDK_TELEMETRY_VERSION: latest
     resources:
@@ -246,6 +252,8 @@ components:
     env:
       PAYMENT_PORT: "50051"
       IPV6_ENABLED: "false"
+      # Every evaluation asks flagd, so a flag change applies at once (ADR l9-flag-cache).
+      FLAGD_CACHE: disabled
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     readinessProbe:
       tcpSocket: { port: 50051 }
@@ -259,6 +267,8 @@ components:
     criticality: high
     env:
       PRODUCT_CATALOG_PORT: "3550"
+      # Every evaluation asks flagd, so a flag change applies at once (ADR l9-flag-cache).
+      FLAGD_CACHE: disabled
       GOMEMLIMIT: 16MiB
       OTEL_GO_X_OBSERVABILITY: "true"
       OTEL_CONFIG_FILE: /otel-config/otel-config.yml
@@ -278,7 +288,7 @@ components:
       RECOMMENDATION_PORT: "9001"
       PRODUCT_CATALOG_ADDR: product-catalog:3550
       # The Python flagd provider's flag cache sometimes kept a changed flag
-      # for minutes; without it every evaluation asks flagd.
+      # for minutes; without it every evaluation asks flagd (ADR l9-flag-cache).
       FLAGD_CACHE: disabled
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED: "true"
