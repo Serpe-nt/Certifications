@@ -1,0 +1,124 @@
+---
+id: m10-s03
+title: Components, exports and how one feeds the next
+kind: lab
+minutes: 20
+order: 3
+exam:
+  - cert: none
+tags: [alloy-components]
+check:
+  kind: exact
+  prompt: Paste the reference that loki.source.file puts in its forward_to list, exactly as the file writes it.
+  answers: ["loki.process.pod_logs.receiver", "[loki.process.pod_logs.receiver]"]
+outcome: You can follow an Alloy pipeline from discovery to its destination by reading which component's export each argument references.
+terms:
+  - term: Argument
+    def: A setting of a component, written in its block.
+  - term: Export
+    def: A value a running component makes available to others, such as targets or a receiver.
+  - term: Reference
+    def: An expression of the form name.label.export that reads another component's export.
+  - term: Receiver
+    def: An export that accepts data; a component sends to it by listing it in forward_to.
+  - term: Component controller
+    def: The part of Alloy that builds the graph of components, evaluates them and tracks their health.
+sources:
+  - title: Components (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/get-started/components/
+    checked: 2026-11-14
+  - title: Component exports (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/get-started/expressions/referencing_exports/
+    checked: 2026-11-14
+  - title: Component controller (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/get-started/components/component-controller/
+    checked: 2026-11-14
+  - title: discovery.relabel (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/discovery/discovery.relabel/
+    checked: 2026-11-14
+  - title: local.file_match (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/local/local.file_match/
+    checked: 2026-11-14
+  - title: loki.source.file (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.source.file/
+    checked: 2026-11-14
+  - title: loki.write (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.write/
+    checked: 2026-11-14
+---
+
+<Problem>
+A Collector configuration ends with a `service` section that lists, per pipeline, which receivers, processors and exporters run in which order. The lab's Alloy file has no such section. Its components just sit there, one after another, and yet the pod logs end up in Loki. Something must wire them together.
+</Problem>
+
+The wiring is inside the components themselves. Each one names, in its own arguments, what it takes from another.
+
+<Idea>
+A component has arguments, which you set, and exports, which it produces while it runs. When one component's argument references another component's export, Alloy connects the two. A file is a graph of such references, and following them is how you read a pipeline.
+</Idea>
+
+## Arguments in, exports out
+
+`discovery.kubernetes "pods"` takes arguments such as `role = "pod"` and exports `targets`: a list of the pods it found, each with labels such as `__meta_kubernetes_namespace`. The next component, `discovery.relabel "filtered_pods"`, has the argument `targets = discovery.kubernetes.pods.targets`. That expression is a reference: component name, label and export name joined with dots. From now on, whenever discovery finds a new pod, its export changes and Alloy evaluates `discovery.relabel` again with the new list.
+
+## Two directions in one pipeline
+
+Targets flow by pull: each component references the export of the one before it. Log lines flow by push, and the reference points the other way. `loki.source.file` sends lines to whatever its `forward_to` list names, and that list holds the `receiver` export of the component after it. So the reader of files names the processor, and the processor names the writer.
+
+<Flow caption="The lab's pod log pipeline, one reference at a time">
+  <Stage title="discovery.kubernetes" kicker="Finds pods">Exports targets: the pods of this node.</Stage>
+  <Stage title="discovery.relabel" kicker="Filters, labels">Drops the shop, sets labels and the log path; exports output.</Stage>
+  <Stage title="loki.source.file" kicker="Reads files">Gets file targets from local.file_match; forwards each line.</Stage>
+  <Stage title="loki.process" kicker="Then loki.write">Parses the CRI format; forwards to the writer's receiver.</Stage>
+</Flow>
+
+Between relabel and the file reader sits `local.file_match`, which turns each target's `__path__` label, a glob such as `/var/log/pods/*<uid>/<container>/*.log`, into the real files on disk. After `loki.process`, the custom component's argument hands the lines to `loki.write "loki"`, which pushes them to Loki.
+
+## The graph Alloy builds from the references
+
+The component controller, the core of Alloy, collects every reference into a directed graph. A component that references itself, or two components that reference each other, make the file invalid. Alloy evaluates a component only after everything it references, and evaluates the dependents again when an export changes. Each component gets a health state: unknown, healthy, unhealthy or exited. If a component fails to evaluate new arguments, it keeps running with the last ones that worked, so one bad value does not stop the whole pipeline.
+
+<InLab>
+In the lab's file, `logs_destinations = [loki.write.loki.receiver]` is the only place where the custom component meets the writer. The same writer also has an `otelcol.exporter.loki` in front of it that nothing sends to: the chart adds it to every Loki destination.
+</InLab>
+
+<Trap>
+Healthy does not mean busy. A component that nothing sends to still loads and reports healthy: the lab's `otelcol.exporter.loki "loki"` does exactly that. To see whether data really moves, look at the graph and the live data in step 4, not at the health column alone.
+</Trap>
+
+<Do>
+1. If `alloy-logs.alloy` from step 2 is gone, save it again: <Cmd>{`kubectl -n alloy get configmap k8s-monitoring-alloy-logs -o jsonpath='{.data.config\\.alloy}' > alloy-logs.alloy`}</Cmd>
+2. Print every argument that references another component: <Cmd>{`grep -n -E 'targets *=|path_targets *=|forward_to *=|logs_destinations *=' alloy-logs.alloy`}</Cmd>
+3. Start at line 16 and follow the chain. For each line, say which component it is in, and which component and export it reads. Lines 16, 141 and 145 pull targets; lines 147 and 197 push log lines.
+4. Find where the argument of line 197 gets its value: <Cmd>{`grep -n -A2 'logs_destinations = \\[' alloy-logs.alloy`}</Cmd> That is the end of the pipeline.
+5. Paste the reference that `loki.source.file` uses in `forward_to`, without the brackets, in the check below.
+6. Delete the file: <Cmd>{`rm alloy-logs.alloy`}</Cmd>
+</Do>
+
+<Done>
+You followed the references from `discovery.kubernetes` to `loki.write` and saw where the direction changes from pulling targets to pushing lines.
+</Done>
+
+<Remember>
+A reference is `name.label.export`. Targets are pulled from the component before; data is pushed to the receiver of the component after.
+</Remember>
+
+<Question id="q-m10-s03" answer="a">
+`prometheus.scrape "app"` should send its samples to `prometheus.remote_write "mimir"`. Which line, in which block, connects them?
+
+- `forward_to = [prometheus.remote_write.mimir.receiver]` in the scrape block
+
+  The sender lists the receiver export of the component it pushes to.
+
+- `targets = prometheus.scrape.app.targets` in the remote write block
+
+  Remote write has no targets argument, and data is pushed by the sender, not pulled by the writer.
+
+- `input = prometheus.scrape.app` in the remote write block
+
+  A reference needs an export name after the label, and remote write does not pull from the scraper.
+
+- A pipelines list in a service block at the end of the file
+
+  Alloy has no service section. Components are connected by references in their own arguments.
+</Question>

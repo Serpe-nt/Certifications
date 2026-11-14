@@ -1,0 +1,127 @@
+---
+id: m10-s02
+title: "The configuration language: blocks, attributes, expressions"
+kind: lab
+minutes: 20
+order: 2
+exam:
+  - cert: none
+tags: [alloy-syntax]
+check:
+  kind: exact
+  prompt: Paste the name of the environment variable whose value the lab's log collector uses to discover only the pods of its own node.
+  answers: ["HOSTNAME"]
+outcome: You can read any Alloy configuration file and tell blocks, labels, attributes and expressions apart, including a function call and a custom component.
+terms:
+  - term: Block
+    def: A name, an optional label in double quotes, and a body in braces. A component is a block.
+  - term: Label
+    def: The name in double quotes after a block name; it tells two blocks of the same kind apart.
+  - term: Attribute
+    def: One setting inside a block, written name = value.
+  - term: Expression
+    def: A value worked out when Alloy loads the file, such as a function call or a reference to another component.
+  - term: Custom component
+    def: A pipeline packed into one reusable component with a declare block.
+sources:
+  - title: Alloy syntax (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/get-started/syntax/
+    checked: 2026-11-14
+  - title: Types and values (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/get-started/expressions/types_and_values/
+    checked: 2026-11-14
+  - title: Custom components (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/get-started/components/custom-components/
+    checked: 2026-11-14
+  - title: sys.env (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/stdlib/sys/
+    checked: 2026-11-14
+  - title: convert.nonsensitive (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/stdlib/convert/
+    checked: 2026-11-14
+  - title: discovery.kubernetes (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/discovery/discovery.kubernetes/
+    checked: 2026-11-14
+---
+
+<Problem>
+You open the lab's Alloy configuration for the first time. It is 241 lines of braces, quotes and dots. Some lines look like settings, some like function calls, and one block called `declare` seems to define something new. Nothing tells you where a line starts mattering.
+</Problem>
+
+Alloy's language has very few kinds of lines. Once you can name each kind, a long file reads like a list of parts and their settings.
+
+<Idea>
+An Alloy file is made of blocks and attributes. A block has a name, often a label in double quotes, and a body in braces; an attribute sets one value with `name = value`. A value can be a plain constant or an expression, such as a function call or a reference to another component, which Alloy works out when it loads the file.
+</Idea>
+
+## Blocks and labels
+
+A block starts with its name. The name of a component is a dotted path such as `loki.write` or `discovery.kubernetes`: the first part is the family, the rest says what it does. Then comes a label in double quotes, `"loki"` or `"pods"`, which you choose. The label tells two components of the same kind apart, so `prometheus.scrape "frontend"` and `prometheus.scrape "backend"` can live in one file. A label must be a valid identifier: letters, digits and underscores, not starting with a digit. `my-component` is not allowed.
+
+Blocks nest. Inside `loki.write "loki"` the lab has an `endpoint { ... }` block without a label, and inside that a `tls_config { ... }` block. Nested blocks group settings; they do not run on their own.
+
+## Attributes and values
+
+Inside a block, each `name = value` line is an attribute. The values have a few types: strings in double quotes, numbers, `true` and `false`, arrays in square brackets, and objects in braces with `key = value` pairs. A duration is a string such as `"500ms"` or `"5m"`. `//` starts a comment.
+
+The order of blocks and attributes does not matter. Alloy reads the whole file, works out which values depend on which, and evaluates them in that order.
+
+<Layers caption="One line of the lab's configuration, from outside in">
+  <Layer title="Block">`discovery.kubernetes "pods" { ... }`</Layer>
+  <Layer title="Nested block">`selectors { ... }`</Layer>
+  <Layer title="Attribute">`field = ...`</Layer>
+  <Layer title="Expression" hot>`"spec.nodeName=" + sys.env("HOSTNAME")`</Layer>
+</Layers>
+
+## Expressions: values worked out at load time
+
+A value does not have to be a constant. `"spec.nodeName=" + sys.env("HOSTNAME")` joins a string with the result of the function `sys.env`, which reads an environment variable of the Alloy process and returns an empty string if it is not set. `convert.nonsensitive(...)` turns a secret value back into a plain string. A third kind of expression, a reference such as `discovery.kubernetes.pods.targets`, takes the output of another component; step 3 is about those.
+
+## A component made of components
+
+The lab's file opens with `declare "pod_logs_via_loki" { ... }`. A `declare` block defines a custom component: a pipeline of ordinary components packed into one unit with a name. Inside it, an `argument "logs_destinations"` block is an input the user of the custom component must give. Lower down, `pod_logs_via_loki "feature" { logs_destinations = [...] }` uses the new component exactly as you would use a built-in one. The k8s-monitoring chart writes one such custom component for each feature you switch on.
+
+<InLab>
+The configuration of the log collector is in the ConfigMap `k8s-monitoring-alloy-logs` in the namespace `alloy`, under the key `config.alloy`. The chart generates it from the release's values; nobody wrote it by hand.
+</InLab>
+
+<Trap>
+Single quotes do not make a string in Alloy. A label or a value in `'...'` is a syntax error; use double quotes, or backticks for a raw string with no escape sequences.
+</Trap>
+
+<Do>
+1. In WSL, with `KUBECONFIG` pointing at the lab, save the log collector's configuration to a file: <Cmd>{`kubectl -n alloy get configmap k8s-monitoring-alloy-logs -o jsonpath='{.data.config\\.alloy}' > alloy-logs.alloy`}</Cmd> The backslash keeps the dot in `config.alloy` from being read as a path separator.
+2. List every block that has a label, with its line number: <Cmd>{`grep -n -E '^ *[a-z_.]+ "[a-z_]+" \\{' alloy-logs.alloy`}</Cmd> The indented ones sit inside the `declare` block. Find the line where the custom component is used.
+3. Read the discovery block: <Cmd>{`grep -n -A6 'discovery.kubernetes "pods"' alloy-logs.alloy`}</Cmd> Name each part of line 11: the attribute, the string constant, the operator and the function call.
+4. Find where that environment variable comes from. The DaemonSet sets it from a field of the pod: <Cmd>{`kubectl -n alloy get daemonset k8s-monitoring-alloy-logs -o yaml | grep -n -A4 'name: HOSTNAME'`}</Cmd> Its value is `spec.nodeName`, the node the pod runs on. So each Alloy pod asks the API server only for the pods of its own node.
+5. List the other expressions of the file: <Cmd>{`grep -n 'sys.env\\|convert.nonsensitive\\|argument\\.' alloy-logs.alloy`}</Cmd> You see a function that reads the environment, a function that unwraps a secret, and a reference to the custom component's argument.
+6. Paste the name of the environment variable from action 3 in the check below.
+</Do>
+
+<Done>
+You named every kind of line in the file, and you know why one DaemonSet pod sees only its own node's pods.
+</Done>
+
+<Remember>
+Blocks with labels, attributes with values, and expressions that are worked out at load time. That is the whole syntax; everything else is which components exist.
+</Remember>
+
+<Question id="q-m10-s02" answer="d">
+Which line is valid Alloy syntax?
+
+- `prometheus.scrape 'api' { }`
+
+  Labels must be in double quotes. Single quotes are a syntax error.
+
+- `prometheus.scrape "api-servers" { }`
+
+  A label must be a valid identifier, and a hyphen is not allowed in one.
+
+- `prometheus.scrape "2nd_api" { }`
+
+  An identifier cannot start with a digit, so this label is refused.
+
+- `prometheus.scrape "api_servers" { }`
+
+  Letters and underscores in double quotes make a valid label.
+</Question>

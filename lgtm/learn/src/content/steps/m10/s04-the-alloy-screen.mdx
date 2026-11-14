@@ -1,0 +1,119 @@
+---
+id: m10-s04
+title: The Alloy screen and live debugging
+kind: lab
+minutes: 15
+order: 4
+exam:
+  - cert: none
+tags: [alloy-debugging]
+check:
+  kind: exact
+  prompt: Paste the latest health message of remote.kubernetes.secret.loki, as its component page shows it.
+  answers: ["got secret"]
+outcome: You can open the Alloy screen of a running pod, find a component's health, arguments, exports and debug info, and say when live debugging is available.
+terms:
+  - term: Alloy UI
+    def: The web screen built into every Alloy, served on its HTTP port, 12345 by default.
+  - term: Component detail page
+    def: The page of one component in the UI, with its health, arguments, exports and debug info.
+  - term: Debug info
+    def: Extra state a component reports about itself, such as the files a log reader follows.
+  - term: Live debugging
+    def: A stream of the data passing through one component, shown in the UI; off until the configuration enables it.
+sources:
+  - title: Debug Grafana Alloy (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/troubleshoot/debug/
+    checked: 2026-11-14
+  - title: livedebugging block (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/config-blocks/livedebugging/
+    checked: 2026-11-14
+  - title: alloy run (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/run/
+    checked: 2026-11-14
+  - title: remote.kubernetes.secret (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/remote/remote.kubernetes.secret/
+    checked: 2026-11-14
+  - title: Types and values, secrets (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/get-started/expressions/types_and_values/
+    checked: 2026-11-14
+---
+
+<Problem>
+Logs from one namespace stop arriving in Loki. The Alloy pods are Running and their logs show nothing alarming. You could read the configuration line by line, but it does not tell you what each component is doing right now: which files it follows, which targets it found, whether its last evaluation worked.
+</Problem>
+
+Every Alloy carries a small web screen that answers exactly those questions, for the configuration it is running at that moment.
+
+<Idea>
+The Alloy UI is built into every Alloy and served on its HTTP port. It lists the components with their health, draws them as a graph, and shows each one's evaluated arguments, exports and debug info. Live debugging adds a stream of the data passing through a component, but only when the configuration switches it on.
+</Idea>
+
+## Health first, then arguments and exports
+
+The home page is a table of the top-level components and their health. A custom component such as `pod_logs_via_loki.feature` is one row; its own components appear on its detail page under "Module components". The detail page of any component shows its latest health message, its arguments as Alloy evaluated them, its exports, and its debug info. These are values after evaluation: where the file says `sys.env("HOSTNAME")`, the page shows the node name.
+
+A value of the secret type shows as `(secret)`. The lab's `remote.kubernetes.secret.loki` exports the Secret's keys in its `data` export, each shown that way. `loki.write.loki` then shows its tenant in plain text, because the file wraps it in `convert.nonsensitive`.
+
+## The graph and the debug info
+
+The Graph page, an experimental feature, draws the components and the references between them. On the lab's screen its legend sorts them by stage (collect, transform and process, send) and colours the edges by signal. An edge shows how much data flows over it only when it leaves a component that supports live debugging.
+
+Debug info is where a component reports its working state. For `loki.source.file` it lists every file it follows, whether the reader is running and the last read offset; the lab's screen also shows the labels of each file. When logs go missing, this list tells you at once whether the file was found at all.
+
+<Compare caption="What each part of the screen answers">
+  <Col title="Home">Is any component unhealthy?</Col>
+  <Col title="Component page">What did it evaluate, what does it export, what is it working on?</Col>
+  <Col title="Live debugging" hot>What data passes through it right now?</Col>
+</Compare>
+
+## Live debugging is off unless you ask for it
+
+Live debugging streams the data of a component into the browser: log lines, targets, metric samples, spans. It works for some component families only, among them `loki.process`, `loki.relabel`, `prometheus.scrape`, `prometheus.remote_write`, `discovery.*` and the `otelcol` receivers, processors and connectors. Because it can show sensitive data, it is disabled by default and needs a `livedebugging { enabled = true }` block in the configuration. The lab's Alloys have no such block, so their live debugging pages answer with an error. Your own Alloy in step 5 has it.
+
+<InLab>
+`http://alloy.lab.k8s.local` opens the screen of the event collector `alloy-singleton` without a port-forward. The log collector has one pod per node, so you reach one of them with a port-forward, as below.
+</InLab>
+
+<Trap>
+Each DaemonSet pod has its own screen and sees only its own node. If a file is missing from the debug info, make sure you opened the pod on the node where that pod's logs live.
+</Trap>
+
+<Do>
+1. In a second WSL terminal, forward a port to one pod of the log collector, and leave it running: <Cmd>{`kubectl -n alloy port-forward daemonset/k8s-monitoring-alloy-logs 18100:12345`}</Cmd>
+2. Open http://localhost:18100 in your browser. The home page lists four components, all Healthy.
+3. Click **Graph** in the top bar. Find the box for the custom component and the five components inside it, and follow the edges from `pod_logs_via_loki.feature` to `loki.write.loki`.
+4. Back on the home page, click **View** on `remote.kubernetes.secret.loki`. Read its health message, and see that the key `tenantId` of its `data` export shows as `(secret)`.
+5. Open `loki.write.loki` from its **Dependencies** or the home page. Under Arguments, the endpoint's `tenant_id` shows `lab` in plain text.
+6. Open `pod_logs_via_loki.feature`, then **View** on `loki.source.file.pod_logs` under "Module components". Under Debug info, read two entries: the file path under `/var/log/pods/`, the labels, and the read offset.
+7. On the page of `loki.process.pod_logs`, click **Live debugging**. After a few seconds the page shows an error: the live debugging service is disabled.
+8. Paste the health message from action 4 in the check below, then stop the port-forward with Ctrl+C.
+</Do>
+
+<Done>
+You read a component's health, its evaluated arguments, a secret export and a log reader's debug info on a running lab pod, and you saw that live debugging needs to be switched on.
+</Done>
+
+<Remember>
+Home for health, the component page for what it evaluated and what it is doing, live debugging for the data itself. The last one needs a `livedebugging` block.
+</Remember>
+
+<Question id="q-m10-s04" answer="c">
+On a lab Alloy, the live debugging page of `loki.process` shows an error, while its component page loads fine. Why?
+
+- Live debugging works only on the event collector, not the DaemonSet
+
+  Any Alloy can stream live data; it depends on the configuration, not on the kind of workload.
+
+- `loki.process` is a component that does not support live debugging
+
+  `loki.process` is on the list of components that support it.
+
+- The configuration has no `livedebugging` block that enables it
+
+  Live debugging is disabled by default and needs `livedebugging { enabled = true }`.
+
+- The port-forward carries only HTTP, and live debugging needs gRPC
+
+  The UI and its live stream are both served on the same HTTP port.
+</Question>

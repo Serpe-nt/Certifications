@@ -1,0 +1,224 @@
+---
+id: m10-s06
+title: Scrape metrics and remote-write them to Mimir
+kind: lab
+minutes: 25
+order: 6
+exam:
+  - cert: none
+tags: [alloy-metrics]
+check:
+  kind: exact
+  prompt: Paste the value of the job label on the up series in your tenant.
+  answers: ["prometheus.scrape.app"]
+outcome: You can add a Prometheus scrape to an Alloy pipeline, reuse one discovery for logs and metrics, and remote-write the samples to Mimir under your own tenant.
+terms:
+  - term: prometheus.scrape
+    def: An Alloy component that scrapes Prometheus endpoints and forwards the samples to receivers.
+  - term: prometheus.remote_write
+    def: An Alloy component that stores samples in a write-ahead log and sends them with the remote write protocol.
+  - term: Write-ahead log (WAL)
+    def: A file on disk where samples wait until they are sent; it covers short network failures and restarts.
+  - term: Fan-out
+    def: One export referenced by several components, so the same targets or data feed two pipelines.
+sources:
+  - title: prometheus.scrape (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/prometheus/prometheus.scrape/
+    checked: 2026-11-14
+  - title: prometheus.remote_write (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/prometheus/prometheus.remote_write/
+    checked: 2026-11-14
+  - title: discovery.kubernetes (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/discovery/discovery.kubernetes/
+    checked: 2026-11-14
+  - title: Debug Grafana Alloy, live debugging (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/troubleshoot/debug/
+    checked: 2026-11-14
+  - title: alloy run, storage path (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/run/
+    checked: 2026-11-14
+  - title: Component controller, configuration file updates (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/get-started/components/component-controller/
+    checked: 2026-11-14
+  - title: Deploy Grafana Alloy (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/set-up/deploy/
+    checked: 2026-11-14
+  - title: ConfigMaps, mounted ConfigMaps are updated automatically (Kubernetes 1.35)
+    url: https://v1-35.docs.kubernetes.io/docs/concepts/configuration/configmap/
+    checked: 2026-11-14
+---
+
+<Problem>
+Your Alloy already ships podinfo's logs. Podinfo also serves Prometheus metrics on `/metrics`, and the team wants its request rate in Mimir beside the logs. Running a second collector only for that would double what you just learned to maintain.
+</Problem>
+
+Alloy collects metrics with the same pattern as logs: discover, choose, read, write. Even the discovery can be shared.
+
+<Idea>
+`prometheus.scrape` reads `/metrics` from a list of targets and forwards the samples to the receiver of `prometheus.remote_write`, which sends them to Mimir with a tenant header. The targets come from the same `discovery.kubernetes` as the logs, through a second `discovery.relabel` with its own rules.
+</Idea>
+
+## One discovery, two pipelines
+
+An export can be referenced as often as you like. `discovery.kubernetes.pods.targets` now feeds `discovery.relabel "app_logs"` and a new `discovery.relabel "app_metrics"`. The metrics rules keep every target whose container port is named `http`, because that is a port worth scraping. Each target already has `__address__` set to the pod's IP and that port, and the scraper connects there.
+
+<Flow caption="The metrics pipeline you add">
+  <Stage title="discovery.kubernetes" kicker="Shared">The same pod list the logs use.</Stage>
+  <Stage title="discovery.relabel" kicker="app_metrics">Keeps ports named http; sets namespace and pod.</Stage>
+  <Stage title="prometheus.scrape" kicker="Every 15 s">GET /metrics; job label from the component name.</Stage>
+  <Stage title="prometheus.remote_write" kicker="WAL, then Mimir">Tenant learn-m10.</Stage>
+</Flow>
+
+## What the scraper adds
+
+`prometheus.scrape` scrapes every 60 seconds unless you set `scrape_interval`; the practice file sets 15. It gives every sample an `instance` label from the target's address, and a `job` label that defaults to the component's name, here `prometheus.scrape.app`. It also writes `up` for each target: 1 when the scrape worked, 0 when it failed. That makes `up` the quickest way to count what a scrape job really reached.
+
+## Remote write with a write-ahead log
+
+`prometheus.remote_write` first writes the samples into a write-ahead log (WAL) under Alloy's storage path, then sends them from there. The WAL buffers samples while the network or Mimir has a short failure, and fills the in-memory cache again after a restart. Your Alloy keeps its storage path in `/tmp/alloy` inside the container, so a restarted pod starts with an empty WAL. That is fine for practice; a production Alloy that scrapes many metrics runs as a StatefulSet with a volume for it, which step 10 comes back to.
+
+Mimir's tenant comes from the same header Loki uses. `prometheus.remote_write` has no `tenant_id` argument, so the file sets the header itself in `headers`.
+
+<InLab>
+Your Alloy's own container port is also named `http`, so the rule keeps two targets: podinfo and the Alloy itself. Alloy's metrics, such as `alloy_build_info` and `loki_process_dropped_lines_total`, reach your tenant too. Step 9 uses one of them.
+</InLab>
+
+<Trap>
+The `job` label of a scraped series is the component's name unless the target or `job_name` sets one. Rename the component, or copy the file under another label, and every query and alert that filters on the old `job` stops matching.
+</Trap>
+
+<Do>
+1. Replace `m10-config.yaml` with this version. The log pipeline of step 5 is unchanged; the metrics pipeline is new:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m10-alloy
+     namespace: learn-m10
+   data:
+     config.alloy: |
+       livedebugging {
+         enabled = true
+       }
+
+       discovery.kubernetes "pods" {
+         role = "pod"
+         namespaces {
+           names = ["learn-m10"]
+         }
+       }
+
+       discovery.relabel "app_logs" {
+         targets = discovery.kubernetes.pods.targets
+
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_name"]
+           regex         = "podinfo"
+           action        = "keep"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_namespace"]
+           target_label  = "namespace"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_name"]
+           target_label  = "pod"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_name"]
+           target_label  = "container"
+         }
+       }
+
+       loki.source.kubernetes "app" {
+         targets    = discovery.relabel.app_logs.output
+         forward_to = [loki.write.practice.receiver]
+       }
+
+       loki.write "practice" {
+         endpoint {
+           url       = "http://loki-gateway.loki.svc/loki/api/v1/push"
+           tenant_id = "learn-m10"
+         }
+         external_labels = {
+           cluster = "lgtm-lab",
+         }
+       }
+
+       discovery.relabel "app_metrics" {
+         targets = discovery.kubernetes.pods.targets
+
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_port_name"]
+           regex         = "http"
+           action        = "keep"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_namespace"]
+           target_label  = "namespace"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_name"]
+           target_label  = "pod"
+         }
+       }
+
+       prometheus.scrape "app" {
+         targets         = discovery.relabel.app_metrics.output
+         scrape_interval = "15s"
+         forward_to      = [prometheus.remote_write.practice.receiver]
+       }
+
+       prometheus.remote_write "practice" {
+         endpoint {
+           url     = "http://mimir-gateway.mimir.svc/api/v1/push"
+           headers = {
+             "X-Scope-OrgID" = "learn-m10",
+           }
+         }
+         external_labels = {
+           cluster = "lgtm-lab",
+         }
+       }
+   ```
+
+2. Apply it and restart the Alloy. It reads its file at start, and a changed ConfigMap reaches the pod's volume only after a delay: <Cmd>{`kubectl apply -f m10-config.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout restart deploy/m10-alloy`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout status deploy/m10-alloy`}</Cmd>
+3. Start the port-forward again (the old pod is gone): <Cmd>{`kubectl -n learn-m10 port-forward deploy/m10-alloy 18101:12345`}</Cmd> Open http://localhost:18101, then **Graph**: the two pipelines share one `discovery.kubernetes`.
+4. Open `prometheus.scrape.app`, then **Live debugging**. Samples scroll past, each with `job="prometheus.scrape.app"`. Type `http_requests_total` in **Filter** to see podinfo's request counter.
+5. After half a minute, ask Mimir for `up` in your tenant: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=up'`}</Cmd> Two series, one per target, each with `instance`, `job`, `namespace`, `pod` and `cluster`. For a few minutes after a restart you can see more: the last sample of a pod that is gone stays visible in an instant query for a while.
+6. See podinfo's own traffic: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=sum by (status) (rate(http_requests_total{pod=~"m10-app.*"}[2m]))'`}</Cmd> Two results: status 200 and status 404, from the two calls the traffic container makes.
+7. Paste the value of `job` from action 5 in the check below.
+</Do>
+
+<Done>
+Mimir's tenant `learn-m10` has `up` for two targets, both with `job="prometheus.scrape.app"`, and podinfo's request rate by status. The logs of step 5 still arrive.
+</Done>
+
+<Trap practice>
+If `up` is empty, wait for a second scrape and query again: Mimir answers an instant query only from samples it already has. If it stays empty, read the Alloy's log for lines with `component_id=prometheus.remote_write.practice`: a wrong URL or a refused push shows there.
+</Trap>
+
+<Remember>
+One discovery can feed many pipelines. The scraper names the job after itself, the writer needs the tenant header, and `up` tells you what was really scraped.
+</Remember>
+
+<Question id="q-m10-s06" answer="a">
+A file contains `prometheus.scrape "kube_pods"` with no `job_name`, and targets without a `job` label. Which `job` label do its series get in Mimir?
+
+- `prometheus.scrape.kube_pods`
+
+  The job label defaults to the component's name: its block name and label.
+
+- `kube_pods`
+
+  The label alone is only part of the component's name, and the default uses the whole name.
+
+- `kubernetes-pods`
+
+  That is a common job name in Prometheus examples, not a default of Alloy.
+
+- No job label, because none was set
+
+  Every scraped series gets a job label; when nothing sets one, the component's name is used.
+</Question>

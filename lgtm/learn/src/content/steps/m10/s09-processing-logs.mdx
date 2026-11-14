@@ -1,0 +1,269 @@
+---
+id: m10-s09
+title: "Processing logs: stages, labels, structured metadata, drops"
+kind: lab
+minutes: 30
+order: 9
+exam:
+  - cert: none
+tags: [alloy-logs]
+check:
+  kind: exact
+  prompt: Paste the name of the label that left your stream's label set and became structured metadata.
+  answers: ["pod"]
+outcome: You can parse JSON log lines in loki.process, turn a field into a label or into structured metadata, drop lines you do not want, and watch each change with live debugging.
+terms:
+  - term: Stage
+    def: One step of loki.process, such as parsing, labelling or dropping; stages run in the order they are written.
+  - term: Extracted map
+    def: The set of key-value pairs that parsing stages fill and later stages read.
+  - term: Structured metadata
+    def: Key-value pairs Loki stores with each line without indexing them as labels.
+  - term: stage.drop
+    def: A stage that discards a line when its conditions match; dropped lines are counted by reason.
+sources:
+  - title: loki.process (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.process/
+    checked: 2026-11-14
+  - title: Debug Grafana Alloy, live debugging (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/troubleshoot/debug/
+    checked: 2026-11-14
+  - title: What is structured metadata (Loki)
+    url: https://grafana.com/docs/loki/latest/get-started/labels/structured-metadata/
+    checked: 2026-11-14
+  - title: Querying Loki with the HTTP API, categorize labels (Loki)
+    url: https://grafana.com/docs/loki/latest/reference/loki-http-api/
+    checked: 2026-11-14
+---
+
+<Problem>
+Your podinfo logs reach Loki, but every line is one JSON string. To see only errors you would have to parse each line at query time. A third of the lines are readiness probes nobody reads. And the pod name, which changes with every rollout, sits in the stream's labels.
+</Problem>
+
+All three are fixed before the line leaves Alloy, in one component placed between the source and the writer.
+
+<Idea>
+`loki.process` runs stages on each line, in the order you write them. Parsing stages copy fields of the line into an extracted map; later stages read that map to set labels, attach structured metadata or drop the line. You watch the effect line by line with live debugging.
+</Idea>
+
+## Stages and the extracted map
+
+Each stage sees the line, its labels, its timestamp and a shared map of extracted values. `stage.json` parses the line as JSON and copies the fields you name into the map: `level = ""` means "take the field `level`", because an empty expression reuses the key's name. The line itself is not changed. Other parsers fill the same map: `stage.logfmt` for `key=value` lines, `stage.regex` for anything else, `stage.cri` for the container runtime's own format, which the lab's file collector uses.
+
+## Label or structured metadata
+
+`stage.labels` turns values of the map into labels of the stream. `stage.structured_metadata` attaches them to each line instead, as structured metadata, which Loki stores with the line without indexing it. If the key you list is already a label, the stage moves it: it leaves the label set and becomes structured metadata. That is how the lab's collector keeps `pod` out of its stream labels.
+
+<Compare caption="Where the practice pipeline puts each field">
+  <Col title="Label">level: a few fixed values, used to choose streams.</Col>
+  <Col title="Structured metadata" hot>uri and pod: many values, kept with each line.</Col>
+  <Col title="Dropped">Lines whose uri is /healthz or /readyz.</Col>
+</Compare>
+
+Module m12 explains why a label with many values is expensive in Loki. Here the point is the mechanics: a value with a small, fixed set of values can be a label, and anything that changes per request or per pod belongs in structured metadata.
+
+## Dropping lines before they cost anything
+
+`stage.drop` discards a line when its conditions match. With `source = "uri"` and an `expression`, it tests the extracted value, not the whole line. Several conditions in one `stage.drop` must all match; for "this or that", write several `stage.drop` blocks. Each dropped line raises the counter `loki_process_dropped_lines_total`, labelled with the `drop_counter_reason` you choose. Your Alloy scrapes its own metrics since step 6, so that counter is already in your Mimir tenant.
+
+<InLab>
+The lab's `loki.process "pod_logs"` runs `stage.cri` inside a `stage.match`, makes `flags` and `stream` labels, drops the label `filename` with `stage.label_drop`, and lists `k8s_pod_name`, `pod` and `service_instance_id` in `stage.structured_metadata`, so `pod` and `service_instance_id` leave the label set.
+</InLab>
+
+<Trap>
+Order matters. A `stage.labels` or `stage.drop` that reads `level` must come after the `stage.json` that extracts it. Placed before, it finds nothing in the map and quietly does nothing.
+</Trap>
+
+<Do>
+1. Replace `m10-config.yaml` with this version. Everything is as in step 7, except that `loki.source.kubernetes` now forwards to the new `loki.process "app"`:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m10-alloy
+     namespace: learn-m10
+   data:
+     config.alloy: |
+       livedebugging {
+         enabled = true
+       }
+
+       discovery.kubernetes "pods" {
+         role = "pod"
+         namespaces {
+           names = ["learn-m10"]
+         }
+       }
+
+       discovery.relabel "app_logs" {
+         targets = discovery.kubernetes.pods.targets
+
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_name"]
+           regex         = "podinfo"
+           action        = "keep"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_namespace"]
+           target_label  = "namespace"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_name"]
+           target_label  = "pod"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_name"]
+           target_label  = "container"
+         }
+       }
+
+       loki.source.kubernetes "app" {
+         targets    = discovery.relabel.app_logs.output
+         forward_to = [loki.process.app.receiver]
+       }
+
+       loki.process "app" {
+         stage.json {
+           expressions = {
+             level = "",
+             uri   = "",
+           }
+         }
+
+         stage.drop {
+           source              = "uri"
+           expression          = "^/(healthz|readyz)$"
+           drop_counter_reason = "probe"
+         }
+
+         stage.labels {
+           values = {
+             level = "",
+           }
+         }
+
+         stage.structured_metadata {
+           values = {
+             uri = "",
+             pod = "",
+           }
+         }
+
+         forward_to = [loki.write.practice.receiver]
+       }
+
+       loki.write "practice" {
+         endpoint {
+           url       = "http://loki-gateway.loki.svc/loki/api/v1/push"
+           tenant_id = "learn-m10"
+         }
+         external_labels = {
+           cluster = "lgtm-lab",
+         }
+       }
+
+       discovery.relabel "app_metrics" {
+         targets = discovery.kubernetes.pods.targets
+
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_port_name"]
+           regex         = "http"
+           action        = "keep"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_namespace"]
+           target_label  = "namespace"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_name"]
+           target_label  = "pod"
+         }
+       }
+
+       prometheus.scrape "app" {
+         targets         = discovery.relabel.app_metrics.output
+         scrape_interval = "15s"
+         forward_to      = [prometheus.remote_write.practice.receiver]
+       }
+
+       prometheus.remote_write "practice" {
+         endpoint {
+           url     = "http://mimir-gateway.mimir.svc/api/v1/push"
+           headers = {
+             "X-Scope-OrgID" = "learn-m10",
+           }
+         }
+         external_labels = {
+           cluster = "lgtm-lab",
+         }
+       }
+
+       otelcol.receiver.otlp "default" {
+         grpc {
+           endpoint = "0.0.0.0:4317"
+         }
+         output {
+           traces = [otelcol.processor.batch.default.input]
+         }
+       }
+
+       otelcol.processor.batch "default" {
+         output {
+           traces = [otelcol.exporter.otlp.tempo.input]
+         }
+       }
+
+       otelcol.exporter.otlp "tempo" {
+         client {
+           endpoint = "tempo-distributor.tempo.svc:4317"
+           headers  = {
+             "X-Scope-OrgID" = "learn-m10",
+           }
+           tls {
+             insecure = true
+           }
+         }
+       }
+   ```
+
+2. Apply it and restart the Alloy, then start the port-forward again: <Cmd>{`kubectl apply -f m10-config.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout restart deploy/m10-alloy`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout status deploy/m10-alloy`}</Cmd> <Cmd>{`kubectl -n learn-m10 port-forward deploy/m10-alloy 18101:12345`}</Cmd>
+3. Open http://localhost:18101, click **View** on `loki.process.app`, then **Live debugging**. Each line shows up as `[IN]`, and, unless it was dropped, as `[OUT]` right after.
+4. Compare an `[IN]` and its `[OUT]`: the `[OUT]` line has a `level` label, no `pod` label, and `structured_metadata` with `pod` and `uri`. Type `readyz` in **Filter**: those lines appear only as `[IN]`.
+5. Ask Loki for the labels of your new streams, from the last minute: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/loki/api/v1/series --data-urlencode 'match[]={namespace="learn-m10", level=~".+"}' --data-urlencode 'start='$(( $(date +%s) - 60 ))`}</Cmd> Compare them with the stream of step 5: `level` is new, and one label is gone.
+6. Count the lines per `uri` in the last two minutes. `uri` is structured metadata, so LogQL reads it like a label after the stream selector: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=sum by (uri) (count_over_time({namespace="learn-m10", level="debug"}[2m]))'`}</Cmd> `/` and `/status/404` from the traffic container, and `/metrics` from your own scrape. No `/readyz`.
+7. Read the drop counter from Mimir: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=loki_process_dropped_lines_total'`}</Cmd> One series, with `reason="probe"`.
+8. Paste the name of the label that disappeared in action 5 in the check below. Then stop the port-forward and delete the practice namespace, which ends the module's practice Alloy: <Cmd>{`kubectl delete namespace learn-m10`}</Cmd>
+</Do>
+
+<Done>
+Your lines arrive in Loki with a `level` label, `pod` and `uri` as structured metadata, and no readiness probes. Mimir counts the dropped probes by reason, and `learn-m10` is gone.
+</Done>
+
+<Trap practice>
+After the restart, `loki.source.kubernetes` starts with no saved position, so it can send lines podinfo wrote before. They land in the new streams with a `level` label; that is why action 5 looks only at the last minute.
+</Trap>
+
+<Remember>
+Parse into the map, then decide per field: label for a few fixed values, structured metadata for many values, drop for noise. Live debugging shows each line before and after.
+</Remember>
+
+<Question id="q-m10-s09" answer="b">
+A `loki.process` has `stage.labels { values = { level = "" } }` first and `stage.json { expressions = { level = "" } }` after it. Lines arrive in Loki without a `level` label. Why?
+
+- `stage.labels` can only read structured metadata, not JSON
+
+  It reads the extracted map by default; it simply runs before anything was extracted.
+
+- Stages run in order, so the labels stage ran before `level` was extracted
+
+  When `stage.labels` runs, the map has no `level` yet, so it sets nothing.
+
+- An empty string in `expressions` means "extract nothing"
+
+  An empty expression reuses the key as the field name, so `level` is extracted.
+
+- Loki removes any label named `level` and keeps it as detected_level
+
+  Loki accepts a `level` label; the problem is in the order of the stages.
+</Question>

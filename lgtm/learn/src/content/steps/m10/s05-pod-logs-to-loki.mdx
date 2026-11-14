@@ -1,0 +1,316 @@
+---
+id: m10-s05
+title: Your own Alloy, sending pod logs to Loki
+kind: lab
+minutes: 30
+order: 5
+exam:
+  - cert: none
+tags: [alloy-logs]
+check:
+  kind: exact
+  prompt: Paste the value of the job label on your practice log stream in Loki.
+  answers: ["loki.source.kubernetes.app"]
+outcome: You can deploy a small Alloy that discovers the pods of one namespace, tails their logs through the Kubernetes API and writes them to Loki under a tenant of your choice.
+terms:
+  - term: loki.source.kubernetes
+    def: An Alloy component that tails container logs through the Kubernetes API, with no access to the node's files.
+  - term: discovery.relabel
+    def: An Alloy component that keeps, drops or rewrites targets with relabeling rules, as Prometheus does.
+  - term: Tenant
+    def: The name in the X-Scope-OrgID header that keeps one group's data apart from another's in Loki, Mimir and Tempo.
+  - term: External labels
+    def: Labels that a write component adds to everything it sends.
+sources:
+  - title: loki.source.kubernetes (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.source.kubernetes/
+    checked: 2026-11-14
+  - title: discovery.kubernetes (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/discovery/discovery.kubernetes/
+    checked: 2026-11-14
+  - title: discovery.relabel (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/discovery/discovery.relabel/
+    checked: 2026-11-14
+  - title: loki.write (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/loki/loki.write/
+    checked: 2026-11-14
+  - title: livedebugging block (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/config-blocks/livedebugging/
+    checked: 2026-11-14
+  - title: Run Alloy on Kubernetes, alloy run flags (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/run/
+    checked: 2026-11-14
+  - title: podinfo (GitHub)
+    url: https://github.com/stefanprodan/podinfo
+    checked: 2026-11-14
+---
+
+<Problem>
+A team wants the logs of its new service in Loki, but the platform team will not give them a DaemonSet with access to the nodes' `/var/log`. They have one namespace, the right to create pods in it, and the address of Loki. That has to be enough.
+</Problem>
+
+It is enough, because Kubernetes already serves every container's log through its API. A small Alloy in the team's namespace can read it from there.
+
+<Idea>
+`discovery.kubernetes` finds the pods of a namespace, `discovery.relabel` keeps the containers you want and gives them labels, `loki.source.kubernetes` follows their logs through the Kubernetes API, and `loki.write` pushes the lines to Loki under a tenant. Four components, joined by references, and one Deployment to run them.
+</Idea>
+
+## Logs from the API instead of from files
+
+The lab's own collector reads log files on each node, which needs a DaemonSet and a host mount. `loki.source.kubernetes` asks the API server for the log stream of each target, as `kubectl logs -f` does. It needs no privileged container, no root user and no access to the node's file system, and one Alloy can follow pods on any node. The price is more network traffic and more work for the kubelets, so it suits a namespace or a small cluster better than thousands of pods.
+
+The permissions follow from that: the Alloy's service account needs `get`, `list` and `watch` on `pods` to discover them, and `get` on `pods/log` to read them. A Role in your namespace grants exactly that, and nothing outside it.
+
+## Choosing what to follow, and how to label it
+
+`discovery.kubernetes` with `role = "pod"` makes one target per declared container port, and one target for a container without ports. The `namespaces` block limits it to `learn-m10`, which also keeps the Role enough. `discovery.relabel` then keeps only the `podinfo` container and copies three of the `__meta_kubernetes_*` labels to the names `namespace`, `pod` and `container`. Labels that start with two underscores are dropped before the lines are sent.
+
+<Flow caption="Your practice log pipeline">
+  <Stage title="discovery.kubernetes" kicker="Finds">Pods in learn-m10.</Stage>
+  <Stage title="discovery.relabel" kicker="Keeps, labels">Only the podinfo container; namespace, pod, container.</Stage>
+  <Stage title="loki.source.kubernetes" kicker="Tails">Each container's log through the API.</Stage>
+  <Stage title="loki.write" kicker="Pushes">To Loki as tenant learn-m10.</Stage>
+</Flow>
+
+## A tenant of your own
+
+The lab's Loki is multi-tenant: the header `X-Scope-OrgID` decides whose data a line is, and `loki.write` sets it from `tenant_id`. The lab's Alloy writes as `lab`, the tenant the shop and the cluster logs share. Practice data goes into a tenant of its own, `learn-m10`: it cannot mix with the lab's data, and deleting your work later touches nothing else. A tenant exists as soon as the first line arrives with its name. The price is that Grafana's `loki` data source reads only `lab`, so you query your tenant through Loki's API with the header.
+
+`external_labels` adds `cluster="lgtm-lab"` to every line, as the lab's own writer does.
+
+<InLab>
+The practice app is podinfo 6.17.0, the small Go web app of module m01, started with `--level=debug` so that it writes one JSON line per request. A second container calls it every five seconds. The practice Alloy runs the image the lab pins, `grafana/alloy:v1.21.3`.
+</InLab>
+
+<Trap>
+`loki.write` with no `tenant_id` sends no `X-Scope-OrgID` header at all, because it assumes a single-tenant Loki. The lab's multi-tenant Loki refuses such pushes; set the tenant every time.
+</Trap>
+
+<Do>
+1. In WSL, with `KUBECONFIG` pointing at the lab, create the practice namespace: <Cmd>{`kubectl create namespace learn-m10`}</Cmd>
+2. Save the practice app as `m10-app.yaml` and apply it:
+
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: m10-app
+     namespace: learn-m10
+   spec:
+     replicas: 1
+     selector:
+       matchLabels:
+         app: m10-app
+     template:
+       metadata:
+         labels:
+           app: m10-app
+       spec:
+         containers:
+           - name: podinfo
+             image: ghcr.io/stefanprodan/podinfo:6.17.0
+             command: ["./podinfo", "--port=9898", "--level=debug"]
+             ports:
+               - name: http
+                 containerPort: 9898
+             readinessProbe:
+               httpGet:
+                 path: /readyz
+                 port: 9898
+               periodSeconds: 10
+             resources:
+               requests: { cpu: 10m, memory: 32Mi }
+               limits: { cpu: 100m, memory: 64Mi }
+           - name: traffic
+             image: busybox:1.37
+             command: ["sh", "-c", "while true; do wget -q -O /dev/null http://localhost:9898/; wget -q -O /dev/null http://localhost:9898/status/404; sleep 5; done"]
+             resources:
+               requests: { cpu: 5m, memory: 8Mi }
+               limits: { cpu: 20m, memory: 16Mi }
+   ```
+
+   <Cmd>{`kubectl apply -f m10-app.yaml`}</Cmd>
+3. Save the Alloy's configuration as `m10-config.yaml`. Steps 6, 7 and 9 replace this file with a longer one:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: m10-alloy
+     namespace: learn-m10
+   data:
+     config.alloy: |
+       livedebugging {
+         enabled = true
+       }
+
+       discovery.kubernetes "pods" {
+         role = "pod"
+         namespaces {
+           names = ["learn-m10"]
+         }
+       }
+
+       discovery.relabel "app_logs" {
+         targets = discovery.kubernetes.pods.targets
+
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_name"]
+           regex         = "podinfo"
+           action        = "keep"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_namespace"]
+           target_label  = "namespace"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_name"]
+           target_label  = "pod"
+         }
+         rule {
+           source_labels = ["__meta_kubernetes_pod_container_name"]
+           target_label  = "container"
+         }
+       }
+
+       loki.source.kubernetes "app" {
+         targets    = discovery.relabel.app_logs.output
+         forward_to = [loki.write.practice.receiver]
+       }
+
+       loki.write "practice" {
+         endpoint {
+           url       = "http://loki-gateway.loki.svc/loki/api/v1/push"
+           tenant_id = "learn-m10"
+         }
+         external_labels = {
+           cluster = "lgtm-lab",
+         }
+       }
+   ```
+
+4. Save the Alloy itself as `m10-alloy.yaml`: a service account with a Role limited to the namespace, the Deployment, and a Service that step 7 uses. Then apply both files and wait:
+
+   ```yaml
+   apiVersion: v1
+   kind: ServiceAccount
+   metadata:
+     name: m10-alloy
+     namespace: learn-m10
+   ---
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: Role
+   metadata:
+     name: m10-alloy
+     namespace: learn-m10
+   rules:
+     - apiGroups: [""]
+       resources: ["pods", "pods/log"]
+       verbs: ["get", "list", "watch"]
+   ---
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: RoleBinding
+   metadata:
+     name: m10-alloy
+     namespace: learn-m10
+   roleRef:
+     apiGroup: rbac.authorization.k8s.io
+     kind: Role
+     name: m10-alloy
+   subjects:
+     - kind: ServiceAccount
+       name: m10-alloy
+       namespace: learn-m10
+   ---
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: m10-alloy
+     namespace: learn-m10
+   spec:
+     replicas: 1
+     selector:
+       matchLabels:
+         app: m10-alloy
+     template:
+       metadata:
+         labels:
+           app: m10-alloy
+       spec:
+         serviceAccountName: m10-alloy
+         containers:
+           - name: alloy
+             image: docker.io/grafana/alloy:v1.21.3
+             args:
+               - run
+               - /etc/alloy/config.alloy
+               - --server.http.listen-addr=0.0.0.0:12345
+               - --storage.path=/tmp/alloy
+             ports:
+               - name: http
+                 containerPort: 12345
+               - name: otlp-grpc
+                 containerPort: 4317
+             resources:
+               requests: { cpu: 50m, memory: 96Mi }
+               limits: { cpu: 300m, memory: 256Mi }
+             volumeMounts:
+               - name: config
+                 mountPath: /etc/alloy
+         volumes:
+           - name: config
+             configMap:
+               name: m10-alloy
+   ---
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: m10-alloy
+     namespace: learn-m10
+   spec:
+     selector:
+       app: m10-alloy
+     ports:
+       - name: otlp-grpc
+         port: 4317
+         targetPort: 4317
+   ```
+
+   <Cmd>{`kubectl apply -f m10-config.yaml -f m10-alloy.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m10 rollout status deploy/m10-alloy`}</Cmd>
+5. Read the Alloy's log: <Cmd>{`kubectl -n learn-m10 logs deploy/m10-alloy | grep -E 'tailer running|opened log stream'`}</Cmd> One tailer, for `learn-m10/m10-app-...:podinfo`. The `traffic` container was dropped by the keep rule.
+6. In a second terminal, forward a port to your Alloy: <Cmd>{`kubectl -n learn-m10 port-forward deploy/m10-alloy 18101:12345`}</Cmd> Open http://localhost:18101 and click **View** on `discovery.relabel.app_logs`. Under Exports, `output` holds one target: the podinfo container, with the `__meta_kubernetes_*` labels and your three new ones, `container`, `namespace` and `pod`.
+7. Ask Loki which streams your tenant holds. The `Host` header picks Loki behind the lab's gateway, the `X-Scope-OrgID` header picks the tenant: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m10' http://10.10.0.5/loki/api/v1/series --data-urlencode 'match[]={namespace="learn-m10"}' --data-urlencode 'start='$(( $(date +%s) - 300 ))`}</Cmd> One stream. Besides your three labels and `cluster`, it carries `job` and `instance`, which `loki.source.kubernetes` added itself, and `service_name`, which Loki added.
+8. Paste the value of `job` in the check below. Keep the namespace and the port-forward: steps 6 to 9 extend this Alloy.
+</Do>
+
+<Done>
+Loki's tenant `learn-m10` holds one stream from the podinfo container, labelled with its namespace, pod and container, and your Alloy's screen shows the one target that made it through relabeling.
+</Done>
+
+<Trap practice>
+If `curl` prints `no org id`, the `X-Scope-OrgID` header did not reach Loki: check the quotes. If the stream list is empty, look at the Alloy's log for `forbidden`: the Role or the RoleBinding is missing.
+</Trap>
+
+<Remember>
+Discovery finds targets, relabeling chooses and names them, a source reads them, a writer sends them. The tenant is part of the writer.
+</Remember>
+
+<Question id="q-m10-s05" answer="b">
+A team may not run DaemonSets or mount host paths. Which component lets their Alloy, a single Deployment, collect their pods' logs?
+
+- `loki.source.file`
+
+  It reads files on the node where Alloy runs, which needs a host mount and one Alloy per node.
+
+- `loki.source.kubernetes`
+
+  It follows container logs through the Kubernetes API, with no host access, from any node.
+
+- `local.file_match`
+
+  It only turns path globs into file targets. It reads no log lines.
+
+- `loki.source.kubernetes_events`
+
+  It collects Kubernetes events from the API server, not the logs of containers.
+</Question>
