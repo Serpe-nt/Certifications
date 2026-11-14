@@ -12,10 +12,7 @@ Left alone on purpose: `make reset` (m01 step 20, described from the owner's own
 
 ## Lesson defects
 
-| What | Since | Notes |
-|---|---|---|
-| A manifest copied from a lesson has broken indentation | found 2026-11-14 by card C9, confirmed on the built pages | A multi-line `<Cmd>` inside a numbered action loses the list item's indent on every later line. Twelve blocks in merged modules: m01 step 10 (three), m03 step 8 (two), m06 steps 8 and 11, m09 steps 5, 6, 8, 12 and 13. The lessons were tested from the workers' own files, not from the page, so no walk caught it. Card W3 (`cards/w8-w3-files-keep-indentation.md`) repairs them. Until then a learner types the indentation by hand or takes the file from the step's source in the repository. |
-| A command copied from a lesson has typographic quotes or dashes | found 2026-11-14 by card C10, confirmed on the built pages | A `<Cmd>` written as plain text goes through the site's smart punctuation: `--for` becomes an en dash, straight quotes become curly. Forty-two blocks in eighteen merged steps of m03, m06, m07, m08 and m09. Card W3 repairs them and adds a test that compares every block on the built page with its source. Until then a learner retypes the two hyphens and the quotes. |
+None open. Two faults between a lesson's source and its page were found in wave 8 by cards C9 and C10 and closed by card W3 (pull request 86): a manifest in a multi-line `<Cmd>` lost its indentation, and a command written as plain text got typographic quotes and dashes. Fifty-four blocks in m01, m03 and m06 to m09 were repaired. `npm run build` now ends with `check:pages`, which compares every command, query and fenced block on the built page with its source, and `check:content` refuses both forms.
 
 ## Lab defects
 
@@ -56,5 +53,5 @@ Read on 2026-11-14 at 16:48 UTC.
 - A worker session cannot be started on a turn that an automatic event began (a usage limit reset, another session's message). Wave 7 therefore ran as background agents inside the planner's session. They share one browser pane, so only one of them can use it at a time.
 - A worker is refused changes to the shared cluster unless the owner says so in that worker's own session. A card that changes the cluster should have the worker prepare files and a command list first.
 - Grafana sign-in is per session and needs the owner.
-- Workers test their lessons from their own files and terminals, so a fault between the source and the page escapes them: wave 8 found two (lost indentation, typographic quotes and dashes). Until card W3's test runs in CI, the planner builds each pull request and scans the built pages for both.
+- Workers test their lessons from their own files and terminals, so a fault between the source and the page escapes them: wave 8 found two (lost indentation, typographic quotes and dashes). Since card W3 the build itself compares every block on the page with its source (`check:pages`).
 - An independent fact check of every step and every question, two read-only agents per module, found 7 errors in wave 8 that the workers' own checks of five steps had missed. Three of them were statements the vendor's documentation makes and the software does not do; the lab settled each.
