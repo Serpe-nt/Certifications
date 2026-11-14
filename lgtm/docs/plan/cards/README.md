@@ -133,6 +133,7 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 8 | `w8-c10-mimir.md` | C10 module m11 Mimir |
 | 8 | `w8-c11-loki.md` | C11 module m12 Loki |
 | beside 8 | `w8-w3-files-keep-indentation.md` | W3 what a learner copies is what the lesson tested: 54 blocks in m01, m03 and m06 to m09 (lost indentation, typographic quotes and dashes), a test that compares every block on the built page with its source, a Copy button on fenced blocks |
+| after 8 | `w8-l8-query-limits-and-switches.md` | L8 Loki's query limits, Mimir's cardinality API for tenant `lab`, exemplar storage in Prometheus if a target exposes exemplars; m12 step 15 and m11 steps 9 and 12 follow |
 | beside 8 | `w8-l7-pods-start-after-sleep.md` | L7 new pods start after the PC has slept: Calico's CNI token, a command, a check, the runbook and m00 step 7 |
 
 Cards for wave 9 and later (the other content cards, FG) are written by the planner when the wave before them is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
