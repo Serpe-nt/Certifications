@@ -1,0 +1,114 @@
+---
+id: m14-s10
+title: "Incident: every order fails"
+kind: lab
+minutes: 20
+order: 10
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [incident-dependency]
+flags: [paymentUnreachable]
+check:
+  kind: regex
+  prompt: Paste the status message of the failing client span, as the span details show it.
+  pattern: '.*produced zero addresses.*'
+outcome: You can use the service graph to see which call between two services broke, and tell a call that never reached its server from one the server refused.
+terms:
+  - term: Dependency
+    def: A service that another service calls to do its work, such as payment for checkout.
+  - term: Edge
+    def: A line between two nodes of the service graph, one per pair of services that call each other.
+  - term: Name resolution
+    def: Turning a service name into network addresses, in Kubernetes through the cluster DNS.
+sources:
+  - title: Service Graph and Service Graph view (Grafana)
+    url: https://grafana.com/docs/grafana/latest/datasources/tempo/service-graph/
+    checked: 2026-11-14
+  - title: Service graphs (Tempo)
+    url: https://grafana.com/docs/tempo/latest/metrics-from-traces/service_graphs/
+    checked: 2026-11-14
+  - title: Status codes and their use in gRPC
+    url: https://grpc.io/docs/guides/status-codes/
+    checked: 2026-11-14
+  - title: Semantic conventions for RPC spans (OpenTelemetry)
+    url: https://opentelemetry.io/docs/specs/semconv/rpc/rpc-spans/
+    checked: 2026-11-14
+---
+
+<Problem>
+At 19:34 the shop stops taking orders: every checkout ends with an error page. Browsing, the cart and recommendations still work. Ten services are involved in an order, and you want to know in one look which call between them broke.
+</Problem>
+
+<Idea>
+The service graph shows every call between services with its rate and its failures. When a dependency cannot be reached, the edge to it goes quiet while its caller turns red. The caller's client span then tells whether the request ever left: a span of microseconds with no server span below it never reached the other side.
+</Idea>
+
+## One look at the whole shop
+
+In step 5 you read the service graph as a map. During an incident it is a quick way to compare all calls at once. Each circle's ring shows the share of failed requests in red, and each edge shows its own rate and response time. Set a short time range, such as the last 5 minutes, or the minutes before the fault still dilute the picture.
+
+## A red node and a quiet edge
+
+A failing service turns red. Its callers may turn red too, because the error travels up. What tells you more is an edge that has gone quiet: if a service still receives requests but sends nothing to one of its dependencies, the calls to that dependency are not arriving. The service graph only draws an edge when Tempo can pair a client span with a server span, or name a virtual node from the client span's attributes. A call that never reached its server leaves no new requests on that edge.
+
+## Did the request leave?
+
+Open one failed request from the red node and go to the failed span. Compare it with step 7. There, the client span to the dependency waited for an answer, the dependency had its own server span, and its error message came back from it. A request that never left looks different: the client span lasts microseconds, there is no server span below it, and its status message comes from the client's own network code. gRPC reports such cases with code 14, UNAVAILABLE, which its documentation describes as a service that cannot be reached for now.
+
+<Compare caption="Two ways a call to a dependency fails">
+  <Col title="Refused by the server">Server span present, with its error; client span waits for the answer; message from the server's code.</Col>
+  <Col title="Never reached it" hot>No server span; client span of microseconds; message from the client's network code, code UNAVAILABLE.</Col>
+</Compare>
+
+<InLab>
+Every order calls payment once, and payment logs "Charge request received." for each charge. If those lines stop while orders keep coming, payment is not receiving the calls.
+</InLab>
+
+<Trap>
+A dependency that receives no requests looks healthy on its own dashboard: no errors, no slow requests. Check its incoming rate, not only its error ratio.
+</Trap>
+
+<Do>
+1. Open the <LabLink to="flags" path="/feature">flag screen</LabLink>, set `paymentUnreachable` to `on`, and note the time. Wait three minutes.
+2. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, pick `tempo`, set the time range to the last 5 minutes, choose the query type **Service Graph** and run it.
+3. In the node graph, find `checkout`. Its ring is red. Follow its arrows to its dependencies and read the rate on each edge.
+4. Click the circle of `checkout` and choose **View traces**. A split pane lists checkout's traces. Open the newest one.
+5. In the trace header, click **Go to span**. Read the span's name, its duration, its kind, its **Status Message** and `rpc.response.status_code`. Look for a server span below it.
+6. Check the dependency's side: switch the right pane to `loki` and run: <Query lang="logql">{`{service_name="payment"} |= "Charge request received"`}</Query> Note the time of the newest line.
+7. On the flag screen, set `paymentUnreachable` back to `off`, reload the page and check that it shows `off`. Note the time.
+8. Paste the status message from action 5 in the check below.
+</Do>
+
+<Done>
+checkout's call to payment failed inside checkout in microseconds with UNAVAILABLE, no request reached payment, and payment's last "Charge request received." line is from before the flag. checkout could not resolve the address it was calling.
+</Done>
+
+<Trap practice>
+The ring of `frontend` may turn red too: it gets the error back from checkout. If the edge to payment still shows a small rate, the time range still reaches back before the flag; run the graph again after a minute.
+</Trap>
+
+<Remember>
+A red caller and a quiet edge point to the dependency. A short client span with no server span, and an error from the client's own code, says the request never got there.
+</Remember>
+
+<Question id="q-m14-s10" answer="a">
+A client span to a dependency has status error, a duration of 20 microseconds, the message "connection refused", and no server span below it. Earlier in the day, failed calls to the same dependency took 300 ms and had a server span with an error. What changed?
+
+- The calls no longer reach the dependency at all
+
+  Microseconds and no server span mean the request failed in the client before any answer.
+
+- The dependency now refuses the requests faster
+
+  A refusal by the dependency's code would leave its server span. There is none.
+
+- The dependency's error rate went down
+
+  The calls still fail. They fail in a different place.
+
+- The client's instrumentation stopped recording server spans
+
+  A client does not record the server's spans. The server would send them itself if it got the request.
+</Question>

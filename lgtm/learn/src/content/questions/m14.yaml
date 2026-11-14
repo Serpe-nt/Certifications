@@ -397,3 +397,51 @@
       why: Recent changes are worth checking, but only once you know which service and minute to compare them with.
   answer: [1]
   source: https://sre.google/sre-book/monitoring-distributed-systems/
+
+- id: q-m14-026
+  tags: [incident-queue-lag]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: A consumer group's lag rises by hundreds a minute. A LogQL count over the consumer's lines shows each new order ID about 100 times. What should you look at next?
+  options:
+    - text: The consumer's CPU, to see whether it needs more replicas
+      why: The consumer gets the same order many times. More replicas would only handle the copies faster.
+    - text: The Kafka brokers' disks
+      why: A full disk would stop writes. Here messages arrive in large numbers.
+    - text: The producer, to see why it writes each order many times
+      why: Repeated IDs mean the topic holds copies. The service that writes them is where they come from.
+    - text: The consumer group's members, to see whether one left
+      why: A group without members would read nothing. This one reads, but reads copies.
+  answer: [2]
+  source: https://grafana.com/docs/loki/latest/query/metric_queries/
+
+- id: q-m14-027
+  tags: [incident-queue-lag]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: Which LogQL query counts how often each order ID appears in the consumer's lines over the last 10 minutes?
+  options:
+    - text: '<code>count_over_time({service_name="fraud-detection"} |= "Consumed record" [10m])</code>'
+      why: This counts lines per stream, not per order ID. All orders end up in one number.
+    - text: '<code>sum by (orderId) (count_over_time({service_name="fraud-detection"} |= "Consumed record" | regexp "orderId: (?P<orderId>[0-9a-f-]+)" [10m]))</code>'
+      why: The regexp parser lifts the ID into a label, and the sum by that label gives one count per order.
+    - text: '<code>sum by (orderId) (rate({service_name="fraud-detection"}[10m]))</code>'
+      why: No parser extracts orderId, so the label is empty, and rate gives lines per second.
+    - text: '<code>{service_name="fraud-detection"} |= "orderId" | count</code>'
+      why: LogQL has no count stage in a log query. Counting needs a metric query.
+  answer: [1]
+  source: https://grafana.com/docs/loki/latest/query/log_queries/
+
+- id: q-m14-028
+  tags: [incident-dependency]
+  exam: {cert: otca, domain: O1, competency: Analysis and Outcomes}
+  q: All orders fail. In the service graph, the edge from checkout to payment shows 0 requests per second, while frontend still calls checkout. The payment dashboard shows no errors. What does this tell you?
+  options:
+    - text: Payment is healthy, so the fault is in the frontend
+      why: The frontend still reaches checkout. The break is between checkout and payment.
+    - text: Payment is failing, but its errors are not recorded
+      why: Payment has no errors because it gets no requests at all.
+    - text: The service graph has stopped working
+      why: Other edges still show traffic and failures, so the graph is working.
+    - text: checkout's calls do not reach payment, so payment sees nothing to fail
+      why: A quiet edge with a red caller means the requests do not arrive. An idle service shows no errors.
+  answer: [3]
+  source: https://grafana.com/docs/grafana/latest/datasources/tempo/service-graph/
