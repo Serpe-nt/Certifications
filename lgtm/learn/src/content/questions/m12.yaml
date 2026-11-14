@@ -570,7 +570,7 @@
     - text: Never, because a rate cannot be compared with a number in a rule
       why: A comparison on a metric query is the normal form of an alerting rule.
   answer: [ 2 ]
-  source: https://grafana.com/docs/loki/v3.7.x/alert/
+  source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
 
 - id: q-m12-036
   tags: [ loki-rules ]
@@ -614,7 +614,7 @@
     - text: <code>{namespace="kafka"}</code>
       why: Loki's reference says this limit is not enforced on log queries without filters, so a bare selector passes.
     - text: <code>{namespace="kafka"} |~ "(?i)error"</code>
-      why: A log query with a filter is covered by the limit, so this one is refused before it runs.
+      why: A log query with a filter is covered by the limit, so this one is refused with an error.
     - text: <code>sum(count_over_time({namespace="kafka"}[1h]))</code>
       why: Metric queries are covered by the limit when TSDB is used.
     - text: <code>{namespace="kafka"} |= "error" | logfmt</code>

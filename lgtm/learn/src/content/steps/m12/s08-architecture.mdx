@@ -74,7 +74,7 @@ A query reaches the query frontend. The frontend splits it by time (every 15 min
 
 ## The background workers
 
-The compactor merges the many small index files the ingesters write into one file per tenant and day. It also applies retention and deletes data on request, as steps 10 and 11 show. It runs as a single instance. The ruler evaluates rules on a schedule, as step 13 shows. Two memcached instances cache chunks and query results. In front of all of them, Loki's own nginx gateway sends each path to the right component.
+The compactor merges the many small index files the ingesters write into one file per tenant and day. It also applies retention and deletes data on request, as steps 10 and 11 show. It usually runs as a single instance. The ruler evaluates rules on a schedule, as step 13 shows. Two memcached instances cache chunks and query results. In front of all of them, Loki's own nginx gateway sends each path to the right component.
 
 <InLab>
 The release `loki` runs 2 distributors, 3 ingesters, 2 queriers, and one each of query frontend, query scheduler, index gateway, compactor, ruler and gateway, plus the two caches: 15 pods in the namespace `loki`. Its replication factor is 3.

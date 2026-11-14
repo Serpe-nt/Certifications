@@ -16,11 +16,11 @@ terms:
   - term: Retention period
     def: How long Loki keeps logs before the compactor removes them; 48 hours on the lab.
   - term: Compactor
-    def: The single Loki component that compacts index files, applies retention and carries out delete requests.
+    def: The Loki component, usually run as one instance, that compacts index files, applies retention and carries out delete requests.
   - term: Delete request
     def: A request to the compactor to remove the lines of some streams in a time window, optionally only those that match a line filter.
   - term: Cancellation period
-    def: The time after a delete request is made during which it can still be cancelled; 24 hours by default.
+    def: The time after a delete request is made during which it can be cancelled simply; 24 hours by default.
 sources:
   - title: Log retention
     url: https://grafana.com/docs/loki/v3.7.x/operations/storage/retention/
@@ -48,7 +48,7 @@ Retention removes data older than a period, per tenant or per stream. Deletion r
 
 ## How retention runs
 
-Retention is off until `retention_enabled` is set on the compactor; without it, logs are kept forever. Once on, the compactor works through each day's index table on a schedule, every 10 minutes by default. It finds the chunks older than their retention, removes them from the index, and writes them to a list of marked chunks. A sweeper deletes the marked chunks after `retention_delete_delay`, 2 hours by default. The delay gives the index gateways time to load the new index, so no query asks for a chunk that is gone. It also leaves a short window to stop a deletion caused by a wrong setting. Retention needs the 24-hour index period that TSDB uses, and a store for delete requests.
+Retention is off until `retention_enabled` is set on the compactor; without it, logs are kept forever. Once on, the compactor runs two schedules: compaction every 10 minutes by default, and retention on its own interval, which with that default comes to every 15 minutes. On each retention run it works through each day's index table. It finds the chunks older than their retention, removes them from the index, and writes them to a list of marked chunks. A sweeper deletes the marked chunks after `retention_delete_delay`, 2 hours by default. The delay gives the index gateways time to load the new index, so no query asks for a chunk that is gone. It also leaves a short window to stop a deletion caused by a wrong setting. Retention needs the 24-hour index period that TSDB uses, and a store for delete requests.
 
 ## How long, and for which streams
 
@@ -65,14 +65,14 @@ The period is a limit in `limits_config`. `retention_period` applies to every st
 
 A delete request is a POST to the compactor's `/loki/api/v1/delete`, with a stream selector, an optional line filter, and a start and end time. It runs through the same machinery as retention, so `retention_enabled` must be on. The tenant's `deletion_mode` decides what is allowed: `filter-and-delete`, the default, removes the lines from storage; `filter-only` only hides them from queries; `disabled` refuses requests.
 
-A request can be cancelled during `delete_request_cancel_period`, 24 hours by default; only after that does the compactor process it. On this lab, the lines stayed visible to queries while the request waited. A request with a line filter is split into pieces of at most a day each. Deleting with a line filter is one of the compactor's heaviest jobs.
+A request can be cancelled during `delete_request_cancel_period`, 24 hours by default; only after that does the compactor process it. Once processing has started, cancelling needs `force=true`, and some lines may already be gone. On this lab, the lines stayed visible to queries while the request waited. A request with a line filter is split into pieces of at most a day each. Deleting with a line filter is one of the compactor's heaviest jobs.
 
 <InLab>
 The lab sets `retention_period: 48h`, `retention_enabled: true` and `delete_request_store: s3` in `lgtm/lab/helm/loki/values.yaml`. Its compactor is the StatefulSet `loki-compactor` with one replica, and its deletion mode is the default, `filter-and-delete`.
 </InLab>
 
 <Trap>
-Deleting data is not instant, even though the API answers 204 at once. Nothing is removed during the cancellation period. Plan for a day before the lines are gone from storage.
+Deleting data is not instant, even though the API answers 204 at once. Nothing is removed during the cancellation period. Plan for more than a day: the 24-hour cancellation period, then a compactor run, then the two-hour delete delay.
 </Trap>
 
 <Remember>

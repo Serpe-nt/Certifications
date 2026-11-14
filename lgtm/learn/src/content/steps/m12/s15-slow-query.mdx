@@ -43,7 +43,7 @@ On 2026-11-12 at 11:14 UTC, someone checked this lab's Kafka logs with a regular
 Nothing in Loki stopped those two queries. They were allowed to read as much as they wanted, as fast as the queriers could fetch it.
 
 <Idea>
-A query costs what it reads, and Loki reports that with every answer: bytes, lines and chunks processed. Compare two queries for the same answer by those numbers, and the cheaper one is the one with the narrower selector and the earlier filters. Limits such as `max_query_bytes_read` stop a query that would read too much before it starts.
+A query costs what it reads, and Loki reports that with every answer: bytes, lines and chunks processed. Compare two queries for the same answer by those numbers, and the cheaper one is the one with the narrower selector and the earlier filters. Limits such as `max_query_bytes_read` stop a query that would read too much, with an error.
 </Idea>
 
 ## What the story's numbers say
@@ -65,15 +65,15 @@ The numbers make the rules of steps 4 and 5 visible. A selector that matches eve
 
 ## The limits that bound a query
 
-These limits apply per tenant, and the lab runs them all at their defaults:
+All but one are per-tenant limits; `max_concurrent` is a setting of each querier. The lab runs them at their defaults, apart from `query_timeout`:
 
 - `max_query_bytes_read`, 0 (no limit): the most bytes one query may fetch. It applies to log queries with a filter and to metric queries, with TSDB.
 - `max_querier_bytes_read`, 150GB: the same for each piece after splitting and sharding.
 - `tsdb_max_query_parallelism`, 128, and `max_query_parallelism`, 32: how many pieces of one query the frontend schedules at once.
 - `max_concurrent`, 4 per querier: how many pieces a querier runs at the same time. With two queriers, that is 8 pieces reading chunks from the object store at once.
-- `query_timeout`, 5 minutes on this lab, and `max_query_length`, 30 days and one hour: how long a query may run and how far it may reach.
+- `query_timeout`, 1 minute by default and 5 minutes on this lab, and `max_query_length`, 30 days and one hour: how long a query may run against the backends, and how long its time range may be.
 
-`max_query_bytes_read` would have stopped the story's query with a clear error instead of a slow answer. Lower parallelism would have spread its reads over time.
+`max_query_bytes_read` would have stopped the story's query with an error instead of letting it read on. Lower parallelism would have spread its reads over time.
 
 <Figures caption="Two queries for the same count, over 5 minutes on the lab" unit="Bytes processed">
   <Stat label="All namespaces, then json" value="5.5 MB" amount={5.5} max={5.5} note="17,308 lines processed." />
@@ -89,7 +89,7 @@ A query that returns a small answer is not a cheap query. The cost is what Loki 
 </Trap>
 
 <Remember>
-Read the statistics, not the result. Narrow the selector, filter before parsing, keep the time range short, and set max_query_bytes_read so that a runaway query fails fast.
+Read the statistics, not the result. Narrow the selector, filter before parsing, keep the time range short, and set max_query_bytes_read so that a runaway query fails with an error.
 </Remember>
 
 <Do>

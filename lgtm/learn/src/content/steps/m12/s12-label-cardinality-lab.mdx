@@ -38,7 +38,7 @@ sources:
 ---
 
 <Problem>
-A developer adds the request ID as a label "to make search faster". The service handles a hundred requests a second. Ten minutes later, Loki starts to refuse the service's logs with HTTP 429, and the other services of the same tenant cannot open new streams either.
+A developer adds the request ID as a label "to make search faster". The service handles a hundred requests a second. Within a minute, Loki starts to refuse the service's logs with HTTP 429, and the other services of the same tenant cannot open new streams either.
 </Problem>
 
 Step 2 said that a label with a new value on every line opens a new stream each time. Here you do it on purpose, in a practice tenant, and watch Loki defend itself.
@@ -63,7 +63,7 @@ The cardinality of a stream set is the product of its labels' values. Three stat
 
 The ingesters count active streams per tenant. The limit is `max_global_streams_per_user`, 5000 by default, shared out among the ingesters by the replication factor and the number of healthy ingesters. A push that would create a stream past the limit gets HTTP 429 with the message `maximum active stream limit exceeded`, naming the stream it refused. Lines for streams that are already active are still accepted, so a tenant at its limit can keep writing to its old streams but cannot open new ones. That is why the other services of the tenant in the scene above failed too, as soon as they needed a new stream.
 
-The limit protects the ingesters from running out of memory. It does not remove streams: they stay active until they have been idle for 30 minutes.
+The limit protects the ingesters from running out of memory. On this lab, one run of the burst below took each of the three ingesters from about 135 MiB to between 300 and 520 MiB, and they stayed near 400 MiB for more than half an hour. The limit does not remove streams: they stay active until they have been idle for 30 minutes.
 
 ## Finding the label that did it
 
@@ -128,7 +128,7 @@ The burst stopped at the tenant's limit with HTTP 429. Loki accepted 4,999 of it
 </Done>
 
 <Trap practice>
-Push 10 is accepted in part. Its first 499 streams fit under the limit; the 500th is refused, and the whole push answers 429. Run the burst again within 30 minutes and nothing new gets in.
+Loki's page on limits says a limit error rejects the whole request. On this lab, Loki 3.7.9 kept the first 499 streams of push 10, which fit under the limit, refused the 500th, and answered 429 for the push. Run the burst again within 30 minutes and nothing new gets in.
 </Trap>
 
 <Question id="q-m12-s12" answer="a">
