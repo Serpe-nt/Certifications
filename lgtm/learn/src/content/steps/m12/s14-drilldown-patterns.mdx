@@ -1,0 +1,124 @@
+---
+id: m12-s14
+title: Logs Drilldown and patterns
+kind: lab
+minutes: 16
+order: 14
+exam:
+  - cert: none
+tags: [loki-drilldown]
+check:
+  kind: choice
+  prompt: What does the lab's Loki answer to the patterns request in action 5?
+  options: ["HTTP 404", "HTTP 200 with an empty list of patterns", "HTTP 200 with the beacon's patterns", "HTTP 429"]
+  answer: "HTTP 404"
+outcome: You can say what Logs Drilldown asks of Loki, read log levels and detected fields, and explain why this lab shows no patterns.
+terms:
+  - term: Log pattern
+    def: The shape shared by many lines, with the parts that change replaced by placeholders, such as user loaded <_>.
+  - term: Pattern ingester
+    def: An optional Loki component that reads incoming lines and keeps their patterns for the last three hours.
+  - term: detected_level
+    def: Structured metadata that Loki adds to a line with the log level it found in it, such as info or error.
+  - term: Detected fields
+    def: The fields Loki finds in a selector's recent lines, from structured metadata and from JSON or logfmt bodies.
+sources:
+  - title: Grafana Logs Drilldown
+    url: https://grafana.com/docs/grafana/latest/visualizations/simplified-exploration/logs/
+    checked: 2026-11-14
+  - title: Log patterns (Logs Drilldown)
+    url: https://grafana.com/docs/grafana/latest/visualizations/simplified-exploration/logs/patterns/
+    checked: 2026-11-14
+  - title: Access or install Logs Drilldown
+    url: https://grafana.com/docs/grafana/latest/visualizations/simplified-exploration/logs/access/
+    checked: 2026-11-14
+  - title: Troubleshoot Logs Drilldown
+    url: https://grafana.com/docs/grafana/latest/visualizations/simplified-exploration/logs/troubleshooting/
+    checked: 2026-11-14
+  - title: Loki components, pattern ingester
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/components/
+    checked: 2026-11-14
+  - title: Loki HTTP API, patterns and detected fields
+    url: https://grafana.com/docs/loki/v3.7.x/reference/loki-http-api/
+    checked: 2026-11-14
+---
+
+<Problem>
+A service writes ten thousand lines an hour, and most of them are the same five messages with different numbers in them. You want to see the rare line that does not fit, but every query you write returns the five common messages first.
+</Problem>
+
+Module m05 used Logs Drilldown to find the beacon's slot without a query. Here you look at what it needs from Loki, and at the feature this lab has switched off.
+
+<Idea>
+Logs Drilldown builds its views from Loki's own APIs: log volume, detected fields, detected levels and patterns. Patterns group lines that share a shape, so you can hide the common ones and keep the rare ones. They come from Loki's pattern ingester, which is off by default and off in this lab.
+</Idea>
+
+## What Drilldown asks of Loki
+
+Logs Drilldown is installed with Grafana. To use all of it, Loki needs four settings: `allow_structured_metadata`, `volume_enabled` for the volume panels, `discover_log_levels` for the level filter, and `pattern_ingester.enabled` for patterns. The first three are on in this lab.
+
+With `discover_log_levels`, Loki looks for a level in each line as it arrives, such as `level=error` in logfmt or a `level` key in JSON, and stores it as the structured metadata `detected_level`. The log levels filter and the level colors in Drilldown use it. Its fields view uses the detected fields API, which samples recent lines and reports their structured metadata and the keys of JSON and logfmt bodies, each with its number of distinct values.
+
+## Patterns
+
+A pattern is a line with its changing parts replaced by `<_>`. From `user loaded: 25666` and `user loaded: 14544`, the pattern is `user loaded: <_>`. The pattern ingester receives a copy of the lines from the ingesters, groups them with a clustering method called Drain, and keeps the patterns of the last three hours with their counts over time.
+
+Drilldown shows them on a **Patterns** tab, with a graph per pattern. **Exclude** hides a pattern's lines from the logs view, which removes the noise at once. **Include** keeps only the pattern's lines. When you have found the rare lines, a panel's menu opens the query in Explore.
+
+<Compare caption="What a service's page in Logs Drilldown shows">
+  <Col title="With the pattern ingester">Logs, Labels, Fields and Patterns.</Col>
+  <Col title="On this lab" hot>Logs, Labels and Fields. No Patterns tab, and the patterns API answers 404.</Col>
+</Compare>
+
+## Why the lab runs without it
+
+The pattern ingester is one more component that holds data in memory. The lab's Loki values set `pattern_ingester.enabled: false`. Module m05 noticed the missing tab; this step shows why. A lab that wants patterns turns the setting on and gives the ingesters some memory for it.
+
+<InLab>
+`lgtm/lab/helm/loki/values.yaml` sets `pattern_ingester.enabled: false`. Loki's own default for `discover_log_levels` is true, so the writer's `level=error` lines in tenant `learn-m12` carried `detected_level` error.
+</InLab>
+
+<Trap>
+No patterns is not a Grafana fault. Drilldown's troubleshooting page sends you to Loki's configuration: `pattern_ingester.enabled` and `volume_enabled`. Patterns also exist only for the last three hours, so a time range that ends earlier shows none even when the pattern ingester runs.
+</Trap>
+
+<Remember>
+Drilldown's views come from Loki's APIs. Levels need discover_log_levels, volumes need volume_enabled, and patterns need the pattern ingester, which this lab does not run.
+</Remember>
+
+<Do>
+1. Open **Drilldown** > **Logs** in <LabLink to="grafana" path="/a/grafana-lokiexplore-app/explore">Grafana</LabLink>, keep the data source **Loki**, and set the time range to **Last 15 minutes**.
+2. Find the service `loki` in the list and click **Show logs**. The page has the tabs **Logs**, **Labels** and **Fields**, and no **Patterns**.
+3. Open **Log levels** at the top and pick **error**. Only lines with `detected_level` error stay. Remove the filter again.
+4. Open **Fields**. The list mixes structured metadata, such as `pod`, with keys that Drilldown found inside the logfmt lines.
+5. In WSL, ask Loki for the beacon's patterns of the last 15 minutes, and print only the HTTP status: <Cmd>{`curl -s -o /dev/null -w '%{http_code}\\n' -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/loki/api/v1/patterns --data-urlencode 'query={service_name="beacon"}' --data-urlencode "start=$(( $(date +%s) - 900 ))000000000" --data-urlencode "end=$(date +%s)000000000"`}</Cmd> Pick the answer in the check below.
+6. Ask for the beacon's detected fields instead: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/loki/api/v1/detected_fields --data-urlencode 'query={service_name="beacon"}' --data-urlencode "start=$(( $(date +%s) - 300 ))000000000" --data-urlencode "end=$(date +%s)000000000" | head -c 600`}</Cmd> Among the fields are `slot` and `payload_token`, found by the json parser, with their counts of distinct values.
+</Do>
+
+<Done>
+You found no Patterns tab and a 404 from the patterns API, and the detected fields and levels that Drilldown does get from Loki.
+</Done>
+
+<Trap practice>
+The Fields tab also offers the switch **Extract fields from logs**. With it off, keys inside the line text are not listed; structured metadata always is.
+</Trap>
+
+<Question id="q-m12-s14" answer="d">
+A team's Loki 3.7 shows a Logs Drilldown page without a Patterns tab, while their colleague's Grafana shows one for another Loki. What is the most likely cause?
+
+- Their Grafana is too old for patterns, and the colleague's is newer.
+
+  The Patterns tab depends on what Loki provides. Both Grafanas can show it when their Loki has patterns.
+
+- Their logs carry structured metadata, which the pattern ingester cannot read.
+
+  Structured metadata is one of the settings Logs Drilldown needs, not an obstacle. Patterns come from the pattern ingester.
+
+- Nobody has written a pattern rule yet, so Loki has none to show.
+
+  Patterns are found automatically from incoming lines. No rule has to be written.
+
+- Their Loki runs without the pattern ingester, which is off by default.
+
+  The pattern ingester must be enabled in Loki's configuration. Without it, Drilldown has no patterns to show.
+</Question>

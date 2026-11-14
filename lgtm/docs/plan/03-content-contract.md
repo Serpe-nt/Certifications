@@ -119,11 +119,13 @@ They take the place of pictures. The author fills them with data from the step; 
 
 Every number, name and label in an information part is a fact like any other: it needs its row in the verification log.
 
-Three things the first modules ran into:
+Five things the first modules ran into:
 
 - The page prints the `label` of a `<Stat>` in capitals. Do not put text there whose case matters, such as a label name or a piece of a query (`le="0.1"` would read `LE="0.1"`); put it in `value` or in the text.
 - A practice trap opens with `<Trap practice>` and closes with `</Trap>`. `check:content` does not catch a wrong closing tag; the build does. Open each step in the site after writing it.
 - Inside a `<Cmd>` or `<Query>` template string, a word in angle brackets is read as HTML. Write a placeholder in capitals (`REVISION`) and say what to put there.
+- Every `<Cmd>` and `<Query>` is a template string, `<Cmd>{`kubectl get pods`}</Cmd>`, also when it has no braces (added 2026-11-14). Plain text between the tags goes through the site's smart punctuation like any sentence: `--for=condition=Ready` reaches the page with an en dash and `grep 'name'` with curly quotes, and the copied command fails. After `npm run build`, no command block on your pages may hold one of the characters ‘ ’ “ ” – — ….
+- A file is a fenced code block, never a `<Cmd>` (added 2026-11-14). Inside a numbered action, Markdown removes the list item's indent from every later line of a `<Cmd>`, also inside its template string, so a manifest, a values file, a rule group or a heredoc with YAML in it reaches the page with its indentation broken; neither `check:content` nor the build notices. Name the file in a sentence, give its text as a fenced block under the list item, then the command that uses it in a `<Cmd>`. `<Cmd>` is for one line, or for several lines that all start in the first column. After `npm run build`, compare the block on the built page with the file you tested, byte for byte.
 
 `<Figure id="m05-s03-explore" alt="..." brief="...">` asks for an animated illustration of a screen. The `id` starts with the step id and is never renamed. The author writes `alt` (what the picture shows) and `brief` (the scene, the one thing that happens, what the learner should notice) and does not build it; the site shows a labelled placeholder until a later session builds the scene. At most three per module, and the article must make sense without it.
 

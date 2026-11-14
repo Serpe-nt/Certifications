@@ -1,0 +1,102 @@
+---
+id: m10-s12
+title: "Alloy or the Collector: which one, when"
+kind: concept
+minutes: 12
+order: 12
+exam:
+  - cert: none
+tags: [alloy-or-collector]
+outcome: You can recommend Alloy or the OpenTelemetry Collector for a given team and give the reasons a team would accept, including when to run both.
+terms:
+  - term: Distribution
+    def: A build of the OpenTelemetry Collector with a chosen set of components, made by a project or a vendor.
+  - term: Default Engine
+    def: Alloy as this module used it, started with alloy run, with Alloy syntax, the UI and clustering.
+  - term: OTel Engine
+    def: The upstream Collector runtime inside the Alloy binary, started with alloy otel, which reads Collector YAML.
+sources:
+  - title: Why Grafana Alloy (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/introduction/why-alloy/
+    checked: 2026-11-14
+  - title: OpenTelemetry in Alloy (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/introduction/otel_alloy/
+    checked: 2026-11-14
+  - title: The OpenTelemetry Engine (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/set-up/otel_engine/
+    checked: 2026-11-14
+  - title: Collector distributions (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/distributions/
+    checked: 2026-11-14
+  - title: Migrate from OpenTelemetry Collector to Grafana Alloy (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/set-up/migrate/from-otelcol/
+    checked: 2026-11-14
+---
+
+<Problem>
+In a design review, one engineer wants Alloy everywhere "because it does everything". Another wants the OpenTelemetry Collector everywhere "because it is the standard". Both are partly right, and the lab you have used for nine modules runs one of each.
+</Problem>
+
+The choice is easier once you stop asking which tool is better and ask which data each one is good at, and what the team already runs.
+
+<Idea>
+Alloy is the stronger choice for Prometheus-style and Loki-style collection in a Grafana stack: scraping, service discovery, log files, Kubernetes, with a UI and clustering built in. The Collector is the stronger choice when the pipeline is OpenTelemetry-native, the team already knows its YAML, or the backend is not Grafana's. Many clusters run both, each where it fits.
+</Idea>
+
+## What both share
+
+Alloy is listed by OpenTelemetry as one of the Collector's distributions, and its `otelcol` components wrap the Collector's code. For OTLP, a batch processor or a transform, the code is the same in both, though a few defaults differ (Alloy's batch processor sends at 2000 items, the Collector's at 8192), so set them explicitly when you move a pipeline. The differences are around that core: the configuration language, the extra components, and the tooling.
+
+<Compare caption="Arguments a team would give">
+  <Col title="OpenTelemetry Collector">Vendor-neutral project; the YAML and the components the OTCA exam covers; the widest set of contrib components; already running in many teams.</Col>
+  <Col title="Grafana Alloy" hot>Prometheus scraping, discovery and remote write built in; Loki log pipelines; UI, live debugging and clustering; the k8s-monitoring chart.</Col>
+</Compare>
+
+## When Alloy wins
+
+Choose Alloy when you need several signals in one collector and some of them are Prometheus or Loki shaped: scrape exporters, tail pod logs, watch Kubernetes events, and also receive OTLP. Its configuration can reference one component from another and package pipelines as custom components. Its UI and live debugging make a misbehaving pipeline visible without extra tools. On Kubernetes, the k8s-monitoring chart gives you a full monitoring setup from one values file.
+
+## When the Collector wins, or neither
+
+Grafana's own page names the limits. If you only scrape Prometheus metrics with no other needs, Prometheus Agent may be simpler. If the team is deeply invested in another collector's ecosystem and needs only one signal, staying may make more sense. And if the pipeline is OpenTelemetry from end to end and the backend is not Grafana's, the Collector keeps you on the standard and on the configuration your colleagues and the exam use.
+
+Alloy also contains a second way in. `alloy otel` starts the OTel Engine, the upstream Collector runtime, which reads Collector YAML without conversion. It is a public preview feature. Run on its own, it has no Alloy UI and serves only its own metrics on port 8888; an Alloy Engine extension can run a Default Engine pipeline beside it in the same process. Grafana recommends the Default Engine, `alloy run`, for the stable and complete Alloy experience.
+
+<Timeline caption="Questions to ask, in order">
+  <Event at="1" title="Where does the data come from?">Files and scrapes favour Alloy; OTLP from SDKs fits either.</Event>
+  <Event at="2" title="What does the team already run?">A working Collector is a reason to keep it.</Event>
+  <Event at="3" title="Where does the data go?">Mimir, Loki and Tempo suit Alloy; other backends favour the Collector.</Event>
+  <Event at="4" title="Who maintains it?">One configuration language for the whole team.</Event>
+</Timeline>
+
+<InLab>
+The lab uses both, each where it fits. The shop's SDKs send OTLP to the Collector gateway of module m09, which adds Kubernetes attributes and redacts payment data. Alloy, through the k8s-monitoring chart, reads pod log files on every node and watches Kubernetes events.
+</InLab>
+
+<Trap>
+Picking Alloy does not mean leaving OpenTelemetry. The SDKs, OTLP and the semantic conventions stay the same; only the collector between them and the backend changes.
+</Trap>
+
+<Remember>
+Alloy for Prometheus, Loki and Kubernetes collection in a Grafana stack; the Collector for OpenTelemetry-native pipelines and non-Grafana backends; both together when a cluster needs both.
+</Remember>
+
+<Question id="q-m10-s12" answer="b">
+A team sends OTLP from its services to a vendor's tracing backend through a Collector it has run for two years. It now also wants pod logs in Loki. What is the most sensible plan?
+
+- Replace the Collector with Alloy, because Alloy is a newer Collector
+
+  The working OTLP pipeline gains nothing from a move, and the team would have to learn a new configuration language for it.
+
+- Keep the Collector for traces, and add Alloy for pod logs to Loki
+
+  Each tool does the part it fits best, and nothing that works is rebuilt.
+
+- Run the Collector's YAML in `alloy otel` and drop the Collector
+
+  The OTel Engine is a public preview feature and changes nothing that the team needs.
+
+- Send the pod logs over OTLP from every application instead
+
+  Logs written to stdout by many containers are collected from the nodes, not by changing every application.
+</Question>

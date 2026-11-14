@@ -1,0 +1,128 @@
+---
+id: m12-s15
+title: "A slow query: find out why"
+kind: lab
+minutes: 22
+order: 15
+exam:
+  - cert: none
+tags: [loki-query-performance]
+check:
+  kind: exact
+  prompt: Paste the name of the per-tenant limit that caps the bytes one query may read, which is 0 (off) on this lab.
+  answers: ["max_query_bytes_read"]
+outcome: You can compare two queries for the same answer by the bytes and lines they processed, rewrite a costly one, and name the limits that stop a runaway query.
+terms:
+  - term: Query statistics
+    def: The numbers Loki returns with every query, such as bytes and lines processed, chunks downloaded and time spent.
+  - term: Split
+    def: One of the time slices the query frontend cuts a query into; 15 minutes on this lab.
+  - term: Shard
+    def: One of the parts a split is divided into by the amount of data it covers, planned from the TSDB index.
+  - term: max_query_bytes_read
+    def: A per-tenant limit on the bytes one query may fetch; 0, the default, means no limit.
+sources:
+  - title: Query best practices
+    url: https://grafana.com/docs/loki/v3.7.x/query/bp-query/
+    checked: 2026-11-14
+  - title: Loki HTTP API, statistics
+    url: https://grafana.com/docs/loki/v3.7.x/reference/loki-http-api/
+    checked: 2026-11-14
+  - title: Configuration, limits_config and querier
+    url: https://grafana.com/docs/loki/v3.7.x/configure/
+    checked: 2026-11-14
+  - title: Single Store TSDB, limits and sharding
+    url: https://grafana.com/docs/loki/v3.7.x/operations/storage/tsdb/
+    checked: 2026-11-14
+---
+
+<Problem>
+On 2026-11-12 at 11:14 UTC, someone checked this lab's Kafka logs with a regular expression filter over 90 minutes of the namespace `kafka`, where crash-looping brokers had been logging a lot. Two minutes later they ran it again. The lab's object store went from about 670 to about 900 MiB of memory, and 50 minutes later it still held about 770. Less than an hour later it was killed for using too much.
+</Problem>
+
+Nothing in Loki stopped those two queries. They were allowed to read as much as they wanted, as fast as the queriers could fetch it.
+
+<Idea>
+A query costs what it reads, and Loki reports that with every answer: bytes, lines and chunks processed. Compare two queries for the same answer by those numbers, and the cheaper one is the one with the narrower selector and the earlier filters. Limits such as `max_query_bytes_read` stop a query that would read too much, with an error.
+</Idea>
+
+## What the story's numbers say
+
+The lab's records of that day show 40 warnings in one minute from the object store, all of the same kind: a reader had closed a stream of `loki-chunks/lab/...` before its end. The queries had been sent through a port-forward that was closed as soon as an answer came, which cut off the reads still running. The object store's memory taken for the burst stayed taken, and further work later that day pushed it over its 1 GiB limit. The fix on the object store's side was a higher limit, recorded in `lgtm/docs/adr/l5b-rustfs-memory.md`. The same record points at Loki as the other place to act.
+
+<Timeline caption="2026-11-12, UTC, from the lab's records">
+  <Event at="11:13" title="Read burst">40 warnings in a minute: chunk streams of loki-chunks/lab closed early.</Event>
+  <Event at="11:14 and 11:16" title="Two heavy queries">A regex filter over 90 minutes of the namespace kafka.</Event>
+  <Event at="11:40" title="Memory stays">The object store's memory near 770 MiB, not given back.</Event>
+  <Event at="12:06" title="Killed">The object store hits its 1 GiB limit and restarts.</Event>
+</Timeline>
+
+## Reading the statistics
+
+Every query answer carries statistics. The `summary` gives `totalBytesProcessed`, `totalLinesProcessed`, `execTime` and `queueTime`. The `store` part says how many chunks the index pointed to and how many were downloaded; the `ingester` part says how much came from the ingesters' memory. The query frontend logs the same numbers in its `metrics.go` line, with `splits` and `shards`, as step 8 showed. Explore shows the total as "Total bytes processed" above the logs, and before you run a query it shows an estimate from the index: "This query will process approximately ...". Logs Drilldown shows the total too.
+
+The numbers make the rules of steps 4 and 5 visible. A selector that matches every namespace reads every namespace's lines, even if a filter later throws almost all of them away. A parser before a line filter parses lines that the filter would have dropped. A regular expression costs more per line than a plain filter. And the time range multiplies everything: the 90 minutes of the story were 18 times this step's five.
+
+## The limits that bound a query
+
+All but one are per-tenant limits; `max_concurrent` is a setting of each querier. The lab runs them at their defaults, apart from `query_timeout`:
+
+- `max_query_bytes_read`, 0 (no limit): the most bytes one query may fetch. It applies to log queries with a filter and to metric queries, with TSDB.
+- `max_querier_bytes_read`, 150GB: the same for each piece after splitting and sharding.
+- `tsdb_max_query_parallelism`, 128, and `max_query_parallelism`, 32: how many pieces of one query the frontend schedules at once.
+- `max_concurrent`, 4 per querier: how many pieces a querier runs at the same time. With two queriers, that is 8 pieces reading chunks from the object store at once.
+- `query_timeout`, 1 minute by default and 5 minutes on this lab, and `max_query_length`, 30 days and one hour: how long a query may run against the backends, and how long its time range may be.
+
+`max_query_bytes_read` would have stopped the story's query with an error instead of letting it read on. Lower parallelism would have spread its reads over time.
+
+<Figures caption="Two queries for the same count, over 5 minutes on the lab" unit="Bytes processed">
+  <Stat label="All namespaces, then json" value="5.5 MB" amount={5.5} max={5.5} note="17,308 lines processed." />
+  <Stat label="Envoy only, line filter first" value="0.8 MB" amount={0.8} max={5.5} hot note="806 lines processed." />
+</Figures>
+
+<InLab>
+The lab's Loki runs with the default query limits, apart from `query_timeout` 5 minutes and `split_queries_by_interval` 15 minutes, which its chart sets. Nothing would stop a query from reading the whole bucket.
+</InLab>
+
+<Trap>
+A query that returns a small answer is not a cheap query. The cost is what Loki read to find the answer, so look at the bytes processed, not at the size of the result.
+</Trap>
+
+<Remember>
+Read the statistics, not the result. Narrow the selector, filter before parsing, keep the time range short, and set max_query_bytes_read so that a runaway query fails with an error.
+</Remember>
+
+<Do>
+1. In WSL, run the costly form of a question, over 5 minutes only: how many requests did the lab's gateway pass to Loki? <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=sum(count_over_time({namespace=~".+"} | json | _authority="loki.lab.k8s.local" [5m]))' | grep -o '"value":[^]]*]\\|"totalBytesProcessed":[0-9]*\\|"totalLinesProcessed":[0-9]*' | head -3`}</Cmd> Note the value and the two totals.
+2. Run the cheap form of the same question: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=sum(count_over_time({namespace="gateway", container="envoy"} |= "loki.lab.k8s.local" | json | _authority="loki.lab.k8s.local" [5m]))' | grep -o '"value":[^]]*]\\|"totalBytesProcessed":[0-9]*\\|"totalLinesProcessed":[0-9]*' | head -3`}</Cmd> The value is the same or close; the totals are several times smaller.
+3. Find both queries in the query frontend's log, in <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki` and the time range **Last 15 minutes**: <Query lang="logql">{`{namespace="loki", container="query-frontend"} |= "metrics.go" |= "_authority"`}</Query> Compare `total_bytes`, `total_lines` and `duration` of the two.
+4. Read the query limits the lab's Loki runs with: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/config | grep -E '^ +(max_query_bytes_read|max_querier_bytes_read|tsdb_max_query_parallelism|max_query_parallelism|max_concurrent|query_timeout|max_query_length):'`}</Cmd> Paste in the check the name of the limit that caps the bytes of one whole query.
+</Do>
+
+<Done>
+The two queries gave the same count, the narrow one read a fraction of the bytes and lines, and you found the limit that would stop the wide one.
+</Done>
+
+<Trap practice>
+The first query reads every namespace's logs. Keep it at 5 minutes, as written: the same query over hours is the one from the story.
+</Trap>
+
+<Question id="q-m12-s15" answer="b">
+Two queries return the same count over one hour. Query A processed 2.4 GB and 9 million lines, query B 90 MB and 300,000 lines. Query A is `sum(count_over_time({namespace=~".+"} | logfmt | app="billing" |= "timeout" [1h]))`. Which change explains most of the difference?
+
+- B uses a regular expression filter, which is faster than a plain filter.
+
+  Plain filters are the fast ones; regular expressions cost more per line.
+
+- B selects `{app="billing"}` and filters before parsing, so it reads and parses little.
+
+  A reads every namespace and parses every line before it filters. B lets the index pick one stream and drops lines with a cheap filter first.
+
+- B was served from the results cache, so its statistics count fewer bytes.
+
+  The two queries have different text, so one cannot reuse the other's cached result, and the gap matches what each selector reads.
+
+- B ran with a shorter `split_queries_by_interval`, so each piece read less.
+
+  Splitting changes how the work is divided among queriers, not the total bytes a query reads.
+</Question>

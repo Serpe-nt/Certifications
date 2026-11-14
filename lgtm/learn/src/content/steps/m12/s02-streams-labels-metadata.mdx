@@ -1,0 +1,115 @@
+---
+id: m12-s02
+title: Streams, labels and structured metadata
+kind: lab
+minutes: 18
+order: 2
+exam:
+  - cert: none
+tags: [loki-labels]
+check:
+  kind: token
+  prompt: Paste the token in the beacon's line for the slot log-m12-1 (8 hexadecimal characters).
+  slot: log-m12-1
+outcome: You can tell a stream label from structured metadata on a real log line, and filter on each in the right place of a query.
+terms:
+  - term: Structured metadata
+    def: Key and value pairs stored with each log line, outside the index and outside the line's text.
+  - term: Index label
+    def: Another name for a stream label, used to tell it apart from structured metadata.
+  - term: Label filter
+    def: A LogQL stage after the selector, such as | slot="log-m12-1", that keeps lines whose label or field matches.
+sources:
+  - title: Understand labels
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/
+    checked: 2026-11-14
+  - title: What is structured metadata
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/structured-metadata/
+    checked: 2026-11-14
+  - title: Cardinality
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/cardinality/
+    checked: 2026-11-14
+  - title: Log queries
+    url: https://grafana.com/docs/loki/v3.7.x/query/log_queries/
+    checked: 2026-11-14
+---
+
+<Problem>
+Every log line of a shop request carries a trace ID, and you want to jump from a trace to its lines. Make the trace ID a label, and each request opens a new stream that holds one or two lines. Leave it inside the text, and every lookup has to scan and parse lines. Neither works well.
+</Problem>
+
+Loki has a third place for a value, between the label and the text.
+
+<Idea>
+A log line in Loki has three parts besides its time: stream labels, the text, and structured metadata. Labels are indexed and choose streams. Structured metadata is stored with each line, is not indexed, and is filtered on after the selector, without parsing the text.
+</Idea>
+
+## Labels are few, and every value makes a stream
+
+Each stream needs at least one label. Its labels are in the index, so they are what a selector in braces can use. That is also their cost: each new combination of label values is a new stream, with its own chunks. Loki allows 15 labels on a stream by default, and its docs advise between 10 and 15 at most. Good labels have a small, stable set of values, such as a namespace or a cluster.
+
+A pod name, a trace ID or an order number has a new value all the time. As a label, each value would open a new stream that holds a few lines and then goes quiet. Step 12 shows what that does to Loki.
+
+## Structured metadata travels with the line
+
+Structured metadata is a set of key and value pairs that Loki stores with each line in the chunk. It is not part of the stream's identity, so a new value opens no stream and adds nothing to the index. It needs the TSDB index and schema v13, which the lab uses. A line may carry up to 128 entries, 64 KB in all, by default.
+
+You filter on it with a label filter after the selector: `{service_name="checkout"} | trace_id="..."`. Loki reads the metadata of each line of the selected streams and keeps the lines that match. It does not parse the text to do it, which is why metadata is cheaper than pulling the same value out of the line.
+
+<Layers caption="Where each part of a line is kept">
+  <Layer title="Stream labels">In the index. Few values. Used inside the braces.</Layer>
+  <Layer title="Structured metadata">In the chunk, beside each line. Any number of values. Used in a label filter after the braces.</Layer>
+  <Layer title="Log line" hot>In the chunk. Searched with line filters and parsers at query time.</Layer>
+</Layers>
+
+## In the results, metadata looks like labels
+
+When a query returns lines, Loki adds each line's structured metadata to the labels it returns. Grafana's line details list them in two groups, but the field list beside the logs and the labels of a metric query mix them. That is convenient, but it can mislead you. A field you see on a line is not always a label you can put inside the braces. Before you write a selector, check that the field is a stream label.
+
+<InLab>
+The beacon writes one JSON line a minute for each check slot of the course. Its stream labels include `service_name="beacon"`; the slot is structured metadata called `slot`, and the token sits in the text.
+</InLab>
+
+<Trap>
+`{slot="log-m12-1"}` is a valid query, and it returns nothing. `slot` is not a stream label, so no stream matches. Loki does not say why; you only see an empty result.
+</Trap>
+
+<Remember>
+Labels say where a line came from and live in the index. Structured metadata says something about one line and travels with it. Select by labels, then filter by metadata.
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink>, choose the data source `loki`, set the time range to **Last 5 minutes**, and switch the query editor to **Code**.
+2. Select by the slot as if it were a stream label: <Query lang="logql">{`{slot="log-m12-1"}`}</Query> The result is empty.
+3. Select the beacon by its stream label and filter on the structured metadata: <Query lang="logql">{`{service_name="beacon"} | slot="log-m12-1"`}</Query> One line a minute is left.
+4. Click one line to open its details. Grafana sorts the fields into **Indexed labels**, where you find `service_name`, `k8s_namespace_name` and `cluster`, and **Structured metadata**, where you find `slot`, `severity_text` and `k8s_node_name`.
+5. Read the token in the line's text, `payload.token`, and paste it in the check below.
+</Do>
+
+<Done>
+The selector on `slot` returned nothing, while the selector on `service_name` with a label filter on `slot` returned the slot's lines, one a minute.
+</Done>
+
+<Trap practice>
+If action 3 returns nothing, look at the time range: the beacon writes once a minute, so the range must cover at least the last two minutes.
+</Trap>
+
+<Question id="q-m12-s02" answer="b">
+Your team wants to find all log lines of one HTTP request by its request ID, which changes on every request. Where should the request ID go when the logs are sent to Loki?
+
+- Into a stream label, so that a selector such as `{request_id="..."}` finds the lines through the index.
+
+  Each request ID would open a new stream with a few lines. The index grows with every request, and Loki ends up with many tiny chunks.
+
+- Into structured metadata, and the query becomes `{service_name="api"} | request_id="..."`.
+
+  The value travels with each line without making a stream, and the filter after the selector matches it without parsing the text.
+
+- Into structured metadata, and the query becomes `{request_id="..."}`.
+
+  Structured metadata is not a stream label. A selector on it matches no stream, so this query returns nothing.
+
+- Nowhere: Loki cannot search a value that changes on every line.
+
+  Loki can search any value in the text or in structured metadata. It only cannot use such a value well as a label.
+</Question>

@@ -1,0 +1,121 @@
+---
+id: m12-s07
+title: "Metric queries: counts, rates, unwrap and quantiles"
+kind: drill
+minutes: 25
+order: 7
+exam:
+  - cert: none
+tags: [logql-metrics]
+check:
+  kind: range
+  prompt: How many lines does the beacon write for the slot log-m12-5 in 10 minutes? Paste the value of the query in action 3.
+  min: 9
+  max: 11
+outcome: You can turn log lines into numbers with count_over_time, rate and unwrap, aggregate them by the labels you choose, and keep the series count under control.
+terms:
+  - term: Metric query
+    def: A LogQL query that returns numbers over time instead of log lines.
+  - term: Log range aggregation
+    def: A function such as count_over_time or rate applied to the lines in a time window.
+  - term: unwrap
+    def: A stage that takes a parsed field's value as the sample to aggregate, instead of counting lines.
+  - term: max_query_series
+    def: Loki's limit on the number of series one metric query may return; 500 by default.
+sources:
+  - title: Metric queries
+    url: https://grafana.com/docs/loki/v3.7.x/query/metric_queries/
+    checked: 2026-11-14
+  - title: What is structured metadata
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/structured-metadata/
+    checked: 2026-11-14
+  - title: Configuration, limits_config
+    url: https://grafana.com/docs/loki/v3.7.x/configure/
+    checked: 2026-11-14
+---
+
+<Problem>
+An application that exposes no metrics logs one line per request, with the time it took. You want a graph of requests per second by status code, and the 95th percentile of the time, without changing the application.
+</Problem>
+
+The numbers are already in the logs. LogQL can compute them when you query.
+
+<Idea>
+A metric query wraps a log query in a function over a time window. `count_over_time` and `rate` count lines; `unwrap` takes a field's value instead, for sums, averages and quantiles. Aggregations such as `sum by (...)` then group the results, as in PromQL.
+</Idea>
+
+## Count lines in a window
+
+A log query followed by a range in brackets, such as `[5m]`, is a range vector, the same idea as in PromQL. Functions turn it into numbers:
+
+- `count_over_time` counts the lines in the window, `rate` divides that count by the window's seconds;
+- `bytes_over_time` and `bytes_rate` do the same with the size of the lines;
+- `absent_over_time` returns 1 when the window has no lines, which suits an alert on a source that went quiet.
+
+The window can follow the selector or the end of the pipeline. `offset` shifts it into the past and must come right after the brackets: `count_over_time({job="x"}[5m] offset 1h)`.
+
+## Every label set is a series
+
+A range function returns one series for each distinct set of labels. That includes stream labels, structured metadata and every field a parser extracted. A `| json` on an access log adds a field per key, and some of them, such as a request ID, change on every line. Without care, each line becomes its own series.
+
+Loki stops a metric query that returns more than 500 series, its default `max_query_series`. The error says `maximum number of series (500) reached for a single query`. Two habits avoid it. Aggregate with `sum by (...)` and name only the labels you need. Or remove labels earlier, with `keep`, `drop`, or a parser that extracts only some fields.
+
+<Figures caption="Series returned for the beacon's lines of one slot over 10 minutes" unit="Series">
+  <Stat label="count_over_time alone" value="10" amount={10} max={10} note="One series per line: each line has its own observed_timestamp in structured metadata." />
+  <Stat label="wrapped in sum()" value="1" amount={1} max={10} hot note="One series whose value is 10." />
+</Figures>
+
+## unwrap: numbers from inside the line
+
+To sum or average a value from the line, parse it and then `unwrap` it: `| json | unwrap duration`. The value must be a number. `unwrap duration_seconds(took)` reads a Go duration such as `1.5s`, and `unwrap bytes(size)` reads a size such as `3 MiB`. A line whose value cannot be converted gets `__error__`; drop those with `| __error__=""`.
+
+The functions over unwrapped values include `sum_over_time`, `avg_over_time`, `max_over_time`, `min_over_time` and `quantile_over_time(0.95, ...)`. Most of them accept `by (...)` directly, for example `quantile_over_time(0.95, ... [5m]) by (_authority)`. `sum_over_time`, `rate`, `rate_counter` and `absent_over_time` over unwrapped values do not; wrap them in `sum by (...)` instead.
+
+<InLab>
+The beacon writes 171 lines a minute, one per slot of the course, so a 10-minute window holds 1,710 of them. Each line carries a unique `observed_timestamp` as structured metadata, which is why a bare `count_over_time` on the beacon returns one series per line.
+</InLab>
+
+<Trap>
+A metric query on OTLP logs returns structured metadata as labels too. `count_over_time({service_name="beacon"}[10m])` fails with the 500-series error, although it selects one stream: wrap it in `sum()`.
+</Trap>
+
+<Remember>
+Count with count_over_time and rate, measure with unwrap, and always decide which labels the result keeps: sum by, keep or drop.
+</Remember>
+
+<Do>
+1. Open <LabLink to="grafana" path="/explore">Explore</LabLink> with the data source `loki` and the Code editor. Open **Options** under the query and set **Type** to **Instant**, so each query returns one value per series.
+2. Count the beacon's lines of one slot over 10 minutes: <Query lang="logql">{`count_over_time({service_name="beacon"} | slot="log-m12-5" [10m])`}</Query> About ten series come back, each with the value 1. Open the table view: their labels differ only in `observed_timestamp`.
+3. Add them up: <Query lang="logql">{`sum(count_over_time({service_name="beacon"} | slot="log-m12-5" [10m]))`}</Query> One series is left. Paste its value in the check below.
+4. Request rate through the lab's gateway, by status code: <Query lang="logql">{`sum by (response_code) (rate({namespace="gateway", container="envoy"} | json | __error__="" [5m]))`}</Query> Remove `sum by (response_code)` and run it again: dozens of series appear, one for each combination of Envoy's fields.
+5. The 95th percentile of Envoy's request time, in milliseconds, per host: <Query lang="logql">{`quantile_over_time(0.95, {namespace="gateway", container="envoy"} | json | __error__="" | unwrap duration [5m]) by (_authority)`}</Query>
+6. Which of three namespaces wrote the most log bytes in the last 5 minutes: <Query lang="logql">{`topk(3, sum by (namespace) (bytes_over_time({namespace=~"loki|mimir|tempo"}[5m])))`}</Query>
+</Do>
+
+<Done>
+You counted lines, saw one series per line turn into one series with `sum`, computed a rate by status code and a percentile from a value inside the line.
+</Done>
+
+<Trap practice>
+If action 3 returns 11, the window caught the line of the minute twice at its edges; 9 is possible for the same reason. Both pass the check. With **Type** set to **Range**, Explore draws a graph instead of one number.
+</Trap>
+
+<Question id="q-m12-s07" answer="d">
+You run `rate({app="api"} | json [5m])` on a JSON access log and Loki answers `maximum number of series (500) reached for a single query`. The selector matches one stream. What is the best fix?
+
+- Shorten the window from `[5m]` to `[1m]`, so each series holds fewer lines.
+
+  The number of series depends on the distinct label sets, not on the window. A shorter window can still hold hundreds of distinct requests.
+
+- Replace `rate` with `count_over_time`, which returns fewer series.
+
+  Both functions return one series per distinct label set. The count is the same.
+
+- Move `| json` after `[5m]`, so the parser runs only once per window.
+
+  The window may follow the pipeline, but the parser still runs on every line and extracts the same fields.
+
+- Aggregate, such as `sum by (status) (rate({app="api"} | json [5m]))`.
+
+  `| json` made each request's fields labels, so every line became a series. The aggregation keeps only `status`.
+</Question>

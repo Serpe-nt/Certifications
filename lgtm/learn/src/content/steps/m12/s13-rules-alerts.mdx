@@ -1,0 +1,133 @@
+---
+id: m12-s13
+title: Rules and alerts on logs
+kind: lab
+minutes: 22
+order: 13
+exam:
+  - cert: none
+tags: [loki-rules]
+check:
+  kind: exact
+  prompt: Paste the state of the alert WriterLogsErrors that the rules endpoint reports in action 5.
+  answers: ["firing"]
+outcome: You can write a Loki alerting rule in LogQL, load it for one tenant through the ruler API, read its state, and remove it.
+terms:
+  - term: Ruler
+    def: The Loki component that evaluates alerting and recording rules on a schedule.
+  - term: Rule group
+    def: A named list of rules evaluated together at one interval; the unit you load and delete.
+  - term: Rule namespace
+    def: In Loki's ruler API, a name that groups rule groups, standing in for the rule file of Prometheus.
+  - term: Recording rule
+    def: A rule that runs a metric query on a schedule and writes the result as a new series to a metrics store.
+sources:
+  - title: Alerting and recording rules (Loki)
+    url: https://grafana.com/docs/loki/v3.7.x/alert/
+    checked: 2026-11-14
+  - title: Loki HTTP API, ruler
+    url: https://grafana.com/docs/loki/v3.7.x/reference/loki-http-api/
+    checked: 2026-11-14
+  - title: Loki components, ruler
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/components/
+    checked: 2026-11-14
+  - title: Configuration, ruler
+    url: https://grafana.com/docs/loki/v3.7.x/configure/
+    checked: 2026-11-14
+---
+
+<Problem>
+A third-party load balancer exposes no metrics, but it logs every failed health check. You want a page when it logs more than five of them in five minutes. Opening Explore every morning to count them is not monitoring.
+</Problem>
+
+Step 7 turned lines into numbers. A rule does the same on a schedule and acts on the result.
+
+<Idea>
+Loki's ruler evaluates LogQL metric queries on a schedule, in the same rule format as Prometheus. An alerting rule fires when its expression returns a result, and a recording rule writes its result to a metrics store. Rules are stored per tenant and loaded through the ruler's API.
+</Idea>
+
+## Alerting rules in LogQL
+
+A Loki rule file looks like a Prometheus one: groups with a `name` and an `interval`, each holding rules. An alerting rule has an `alert` name, an `expr`, an optional `for`, and `labels` and `annotations`. The only difference is the expression, which is a LogQL metric query, for example `sum(count_over_time({app="lb"} |= "health check failed" [5m])) > 5`. An expression that returns at least one series puts the alert in pending; after `for`, it fires.
+
+Logs suit two kinds of alerts in particular. Event alerts, where one occurrence matters, such as a leaked credential in a line. And alerts on sources too varied to be metrics, such as per-customer errors, because the labels are extracted at query time and never stored as series.
+
+## Recording rules
+
+A recording rule has `record` instead of `alert`: the name of the series to create. The ruler runs the query at each interval and sends the result by remote write to a Prometheus-compatible store such as Mimir, with the rule's tenant in `X-Scope-OrgID`. Loki's query guide suggests recording rules for queries too heavy to run on every dashboard refresh.
+
+## Where rules live and how they are loaded
+
+The ruler keeps rule groups in object storage, per tenant, and checks for changes every minute. You load a group with `POST /loki/api/v1/rules/NAMESPACE`, with the group as YAML; the namespace stands in for a file name. `GET /loki/api/v1/rules` lists the tenant's groups, and `/prometheus/api/v1/rules` and `/prometheus/api/v1/alerts` show their state in the Prometheus format. `DELETE` on the namespace or on a group removes it. The tool `lokitool rules` does the same from a folder of files, and can diff and sync them in a pipeline.
+
+The ruler sends firing alerts to the Alertmanager at `alertmanager_url`. That can be a Prometheus Alertmanager or Grafana's. Grafana calls these rules data-source-managed, as opposed to its own Grafana-managed rules.
+
+<Flow caption="From a rule to a notification">
+  <Stage title="Ruler API" kicker="POST">The group is stored for the tenant.</Stage>
+  <Stage title="Ruler" kicker="Every minute">Runs the LogQL expression.</Stage>
+  <Stage title="Alert state" kicker="pending, firing">Shown at /prometheus/api/v1/alerts.</Stage>
+  <Stage title="Alertmanager" kicker="alertmanager_url">Sends the notification, if one is set.</Stage>
+</Flow>
+
+<InLab>
+The lab runs one ruler, which stores rules in the bucket `loki-ruler` and evaluates them every minute. Its `alertmanager_url` is empty and it has no remote write, so alerts are visible through the API but notify nobody, and recording rules have nowhere to send their series.
+</InLab>
+
+<Trap>
+A rule whose expression is a log query, such as `{app="lb"} |= "failed"`, is accepted when you load it. It only fails when the ruler runs it: the rule shows `health` `err` with `rule result is not a vector or scalar`, and never fires. Wrap the query in `count_over_time` or `rate` and compare.
+</Trap>
+
+<Remember>
+Loki rules are Prometheus rules with LogQL expressions. Load them per tenant through the ruler API, read their state at /prometheus/api/v1/alerts, and point the ruler at an Alertmanager for them to notify anyone.
+</Remember>
+
+<Do>
+1. Check that the writer of step 11 still runs and writes an error line every 25 seconds: <Cmd>{`kubectl -n learn-m12 get pod writer`}</Cmd>
+2. Save this rule group as `m12-rule.yaml`:
+
+   ```yaml
+   name: m12-practice
+   interval: 1m
+   rules:
+     - alert: WriterLogsErrors
+       expr: sum(count_over_time({app="m12-writer"} |= "level=error" [2m])) > 0
+       labels:
+         severity: info
+       annotations:
+         summary: The practice writer logged errors in the last two minutes.
+   ```
+
+3. Load it for tenant `learn-m12`, in the rule namespace `m12`: <Cmd>{`curl -s -X POST -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' -H 'Content-Type: application/yaml' --data-binary @m12-rule.yaml http://10.10.0.5/loki/api/v1/rules/m12`}</Cmd> Loki answers `{"status":"success"...}`. List the tenant's groups: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/rules`}</Cmd>
+4. Read the rule's state: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/prometheus/api/v1/rules`}</Cmd> At first, `health` is `unknown` and `lastEvaluation` is `0001-01-01`: the ruler has not picked up the group yet. Repeat every 30 seconds; within about two minutes `health` turns `ok`.
+5. When `health` is `ok`, read the `state` of the rule in the same answer, and look at the alert itself: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/prometheus/api/v1/alerts`}</Cmd> Its `value` is the number of error lines in the last two minutes. Paste the state in the check below.
+6. Remove the rule namespace and check that it is gone: <Cmd>{`curl -s -X DELETE -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/rules/m12`}</Cmd> <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/rules`}</Cmd> The last answer is `no rule groups found`.
+7. The practice workloads of this module are done. Delete the namespace: <Cmd>{`kubectl delete namespace learn-m12`}</Cmd> The tenant's logs stay in Loki until the 48 hours of retention have passed.
+</Do>
+
+<Done>
+Your rule was stored for tenant `learn-m12`, evaluated every minute, fired on the writer's error lines, and was removed again.
+</Done>
+
+<Trap practice>
+The rule has no `for`, so it fires at its first evaluation with a result. With `for: 5m` it would stay `pending` for five minutes first. If the state is `inactive`, the writer is not running: no error line arrived in the last two minutes.
+</Trap>
+
+<Question id="q-m12-s13" answer="b">
+You want a dashboard panel with the rate of 5xx responses from a busy nginx log, and its query takes 20 seconds over 24 hours. What does Loki offer for this?
+
+- An alerting rule with that query, because the ruler caches the result for dashboards.
+
+  An alerting rule only produces alert states, not series a panel can read, and the ruler does not cache results for dashboards.
+
+- A recording rule that writes the result to Mimir every minute for the panel to read.
+
+  The ruler computes the expensive query once per interval and stores the result as a metric, so the panel reads a cheap series.
+
+- A larger `split_queries_by_interval`, so the query frontend runs fewer pieces.
+
+  Fewer, larger pieces run with less parallelism. It does not make an expensive query cheap.
+
+- A label `status` on the nginx stream, so the query reads the index instead of the lines.
+
+  Labels only pick streams. The query would still read and count the lines, and the new label adds streams.
+</Question>

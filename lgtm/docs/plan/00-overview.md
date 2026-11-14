@@ -186,6 +186,8 @@ Workers run in waves. No two sessions in a wave own the same file. Cards are in 
 | before 8 | W1 the lessons follow the new lab | modules m00 to m06, where the new shape or a failed check requires it | m00 builds the lab a learner now builds; every lab check of m00 to m06 is run again on the rebuilt lab |
 | before 8 | W2 walk of the OpenTelemetry modules | modules m07 to m09, where the walk shows a step wrong | Every action still marked unverified is done as a learner does it, with the owner signed in to Grafana and a go-ahead for `learn-m09` |
 | 8 | C9, C10, C11 | modules m10, m11, m12 | Grafana Alloy; Mimir; Loki. The first wave on the lab's version 3, with practice namespaces and practice tenants |
+| beside 8 | W3 what is copied is what was tested | the site's checks and code blocks; 54 blocks in m01, m03 and m06 to m09 | A command or file copied from a lesson is the text the lesson tested: a test compares every block on the built page with its source; fenced blocks get a Copy button |
+| beside 8 | L7 pods start after a sleep | `lgtm/lab/**`, module m00 step 7 | Calico renews its CNI token often enough to outlast a night's pause; one command for after a longer one; the lab's check names the fault; the runbook and the lesson tell the learner |
 | 9 and later | FG figures | `lgtm/learn/src/figures/**` | Stageshow scenes for the figures the content cards asked for, and the overview hero; one or two sessions |
 | 9 to 10 | C12 to C16 content | one module each | Modules m13 to m17, three sessions at a time, in order |
 | 11 | C17 capstone | module m18 | Game days, interview bank, the exam steps (the mock pools exist since wave 4) |

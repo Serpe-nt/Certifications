@@ -1,0 +1,6 @@
+id: m10
+title: Grafana Alloy
+goal: Write an Alloy pipeline for logs, metrics and OTLP, and say when to choose Alloy or the Collector.
+order: 10
+quiz: true
+exams: []

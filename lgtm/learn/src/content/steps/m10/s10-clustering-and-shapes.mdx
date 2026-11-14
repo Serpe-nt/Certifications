@@ -1,0 +1,111 @@
+---
+id: m10-s10
+title: Clustering and deployment shapes
+kind: concept
+minutes: 15
+order: 10
+exam:
+  - cert: none
+tags: [alloy-clustering]
+outcome: You can choose between a DaemonSet, a central StatefulSet or Deployment and a sidecar for an Alloy workload, and say when clustering helps and when it only adds cost.
+terms:
+  - term: Clustering
+    def: Alloy instances that find each other by gossip and share work, such as scrape targets, by consistent hashing.
+  - term: Consistent hashing
+    def: A way to assign targets to nodes so that a node joining or leaving moves only about 1/N of them.
+  - term: Host daemon
+    def: One Alloy per machine, as a DaemonSet on Kubernetes, for node-level metrics and logs.
+  - term: Centralized collection
+    def: A few Alloy replicas, often a StatefulSet, that discover and collect from applications over the network.
+sources:
+  - title: Clustering (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/get-started/clustering/
+    checked: 2026-11-14
+  - title: Deploy Grafana Alloy (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/set-up/deploy/
+    checked: 2026-11-14
+  - title: alloy run, clustering flags (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/run/
+    checked: 2026-11-14
+  - title: Debug Grafana Alloy, clustering page (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/troubleshoot/debug/
+    checked: 2026-11-14
+  - title: prometheus.scrape, clustering (v1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/components/prometheus/prometheus.scrape/
+    checked: 2026-11-14
+  - title: Clustered preset (k8s-monitoring 4.6.0, GitHub)
+    url: https://github.com/grafana/k8s-monitoring-helm/blob/k8s-monitoring-4.6.0/charts/k8s-monitoring/docs/collectors/presets/clustered.md
+    checked: 2026-11-14
+---
+
+<Problem>
+One Alloy scrapes every pod in a growing cluster. Its memory climbs past its limit, it restarts, and while it is down nothing is scraped. Adding a second replica with the same configuration would scrape everything twice. A DaemonSet would put a scraper on every node, including the many nodes with nothing to scrape.
+</Problem>
+
+There is no single right shape for Alloy. The data decides: where it lives, whether you pull or receive it, and how much there is.
+
+<Idea>
+Run Alloy where the data is. Node files and node metrics need one Alloy per node; application metrics and traces can go to a few central replicas. When one replica cannot carry a scrape load, clustering lets several identical replicas split the targets between them.
+</Idea>
+
+## Three shapes
+
+A host daemon is one Alloy per machine, a DaemonSet on Kubernetes. It is required for pod log files and machine-level metrics such as node exporter's, because only an Alloy on that node can read them. Its weak points: you cannot scale it apart from the nodes, and every instance opens its own connections to every backend.
+
+Centralized collection runs a few Alloys apart from the applications, which discover their targets over the network. Grafana's deployment page calls it the recommended topology for collecting application telemetry, and a StatefulSet the recommended option for Prometheus metrics, because each pod keeps its own volume for the write-ahead log. A Deployment is enough where no state is kept on disk, for example a traces-only pipeline. Its rule of thumb for size is about 10 KB of memory per active series, and it suggests looking at horizontal scaling around one million series.
+
+A sidecar runs Alloy as an extra container in the application's pod. It suits short-lived jobs, serverless functions and pods that nothing can reach over the network, and fits long-lived services badly: it cannot scale on its own and makes resource use hard to predict.
+
+<Compare caption="Which shape for which data">
+  <Col title="DaemonSet">Pod log files, node metrics. One per node; clustering adds nothing for node-local data.</Col>
+  <Col title="StatefulSet or Deployment" hot>Scraping applications, receiving OTLP. A few replicas, clustered when large.</Col>
+  <Col title="Sidecar">Batch jobs, serverless, unreachable pods.</Col>
+</Compare>
+
+## How clustering splits the work
+
+Clustering is turned on with flags of `alloy run`: `--cluster.enabled`, and `--cluster.join-addresses` or `--cluster.discover-peers` to find the other nodes. The nodes find each other by gossip and assume they all run the same configuration. Each component must opt in with a `clustering { enabled = true }` block; among those that can are `prometheus.scrape` and `loki.source.kubernetes`. Every node then hashes each target onto a ring, where each node holds 512 tokens, and scrapes only the targets it owns. When a node joins or leaves, only about 1/N of the targets move, and nobody needs to send ownership over the network. An Alloy without clustering behaves as a cluster of one.
+
+<Figures caption="A clustered scrape of 600 targets" unit="Targets per replica">
+  <Stat label="1 replica" value="600" amount={600} max={600} />
+  <Stat label="2 replicas" value="about 300" amount={300} max={600} />
+  <Stat label="3 replicas" value="about 200" amount={200} max={600} hot />
+</Figures>
+
+Push is scaled differently. A component that receives data, such as `otelcol.receiver.otlp`, is scaled with a load balancer in front of the replicas. If the pipeline keeps state per trace, such as tail sampling or span metrics, all spans of a trace must reach the same replica, which `otelcol.exporter.loadbalancing` arranges, as in module m09.
+
+## When clustering only costs
+
+Clustering adds gossip traffic, logs and metrics. It helps nothing when each instance already has its own share of the work. A common mistake is to enable it on a log-collecting DaemonSet: each pod reads only its own node's files, so there is nothing to split. With `--cluster.wait-for-size`, a cluster refuses work until enough nodes have joined; keep that number well below what your autoscaler and disruption budget allow, or a rolling update can stop collection.
+
+<InLab>
+The lab follows these rules. `alloy-logs` is a DaemonSet that reads each node's files without clustering, and `alloy-singleton` is one replica because two would send every event twice. The chart's `clustered` preset would set `alloy.clustering.enabled: true` for a collector that needs it.
+</InLab>
+
+<Trap>
+Two replicas with the same scrape configuration and no clustering do not share the load: both scrape every target, and every series is sent twice.
+</Trap>
+
+<Remember>
+Put Alloy where the data is: per node for node data, central for application data, sidecar for the odd case. Cluster only pull work that one replica cannot carry.
+</Remember>
+
+<Question id="q-m10-s10" answer="a">
+A team enables clustering on its Alloy DaemonSet, which only tails pod log files on each node. What does it gain?
+
+- Nothing; each pod already reads only its own node's files
+
+  There is no shared work to split, so clustering only adds gossip, logs and metrics.
+
+- Each log line is sent once instead of five times
+
+  Without clustering, each node's lines are already read and sent once, by that node's pod.
+
+- A pod can take over another node's files if that node's Alloy fails
+
+  A pod cannot read another node's files, because they are on another machine's disk.
+
+- Lower memory, because the log tailers are spread over fewer pods
+
+  A DaemonSet runs one pod per node whatever the clustering setting is.
+</Question>

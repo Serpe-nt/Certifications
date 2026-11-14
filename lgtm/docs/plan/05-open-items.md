@@ -8,14 +8,25 @@ None. Every action of m00 to m09 has been done on the lab as a learner would do 
 
 Left alone on purpose: `make reset` (m01 step 20, described from the owner's own run), pushing a delta metric into Mimir (m08), and changing a lab release to settle the inferences of m06, which stay marked `inference` in its log.
 
+## Lesson defects
+
+| What | Since | Notes |
+|---|---|---|
+| A manifest copied from a lesson has broken indentation | found 2026-11-14 by card C9, confirmed on the built pages | A multi-line `<Cmd>` inside a numbered action loses the list item's indent on every later line. Twelve blocks in merged modules: m01 step 10 (three), m03 step 8 (two), m06 steps 8 and 11, m09 steps 5, 6, 8, 12 and 13. The lessons were tested from the workers' own files, not from the page, so no walk caught it. Card W3 (`cards/w8-w3-files-keep-indentation.md`) repairs them. Until then a learner types the indentation by hand or takes the file from the step's source in the repository. |
+| A command copied from a lesson has typographic quotes or dashes | found 2026-11-14 by card C10, confirmed on the built pages | A `<Cmd>` written as plain text goes through the site's smart punctuation: `--for` becomes an en dash, straight quotes become curly. Forty-two blocks in eighteen merged steps of m03, m06, m07, m08 and m09. Card W3 repairs them and adds a test that compares every block on the built page with its source. Until then a learner retypes the two hyphens and the quotes. |
+
 ## Lab defects
 
-None open. The five of 2026-11-13 were closed by card L6 in pull requests 67 and 70: the object store killed for memory about every four hours, the collector gateway unable to scrape the shop's Kafka, the workshop service not stopping on Ctrl+C on Windows, `lgtm/lab/workshop/.venv` not git-ignored, and the workers close to their memory limit.
+| What | Since | Notes |
+|---|---|---|
+| After the PC sleeps, new pods cannot start on some nodes | found 2026-11-14, 12:50 UTC, by card C11 | New pods stay in ContainerCreating with `plugin type="calico" failed (add): error getting ClusterInformation: connection is unauthorized`. Running pods are not affected. calico-node (v3.31.4) writes a token for the CNI plugin that is valid 24 hours and renews it after 6 to 12 hours (`node/pkg/cni/token_watch.go`: a quarter of the validity plus as much again at random), counted by a timer that stands still while a VM is paused. The VMs were paused about 14 hours overnight, so on worker2, worker3 and worker4 the token ran out before the renewal came; master1 and worker1 renewed 30 and 15 minutes before theirs ran out. It heals by itself when each node's timer fires, and at once when calico-node is restarted on the node: the planner did that on the three nodes at 13:13 to 13:15 UTC with the owner's word, and no pod has failed to start since. It will come back after any long sleep until card L7 (`cards/w8-l7-pods-start-after-sleep.md`) is done: a shorter renewal (calico-node reads `CNI_TOKEN_REFRESH_INTERVAL`), a `make` target to run after the PC wakes, a check in `make lab-check`, and a line in the runbook and in module m00 step 7. Until then, after a sleep: `kubectl -n calico-system delete pod -l k8s-app=calico-node`. |
+
+The five of 2026-11-13 were closed by card L6 in pull requests 67 and 70: the object store killed for memory about every four hours, the collector gateway unable to scrape the shop's Kafka, the workshop service not stopping on Ctrl+C on Windows, `lgtm/lab/workshop/.venv` not git-ignored, and the workers close to their memory limit.
 
 To watch:
 
 - The object store. RustFS 1.0.5 has run 23 hours without a restart. Its resident memory went 69, 128, 139, 142, 144 MiB and levelled off, with 157 MiB the highest reading, where 1.0.4 reached 1.5 GiB in about four hours. The PC slept part of that time. Look again after wave 8, the first wave that loads Mimir and Loki with practice data.
-- cert-manager's controller restarted once on 2026-11-14 at 11:49 UTC with exit code 0, a clean shutdown. Nothing else restarted. If it happens again, look at the control-plane node first: there is only one, and 65% of its memory is in use.
+- cert-manager's controller restarted once on 2026-11-14 at 11:49 UTC with exit code 0, a clean shutdown. Nothing else restarted. It happened two minutes after the VMs came back from the night's pause (Prometheus has no samples from 22:10 UTC on 2026-11-13 to 11:47 UTC on 2026-11-14), which fits a leader lease that ran out while the VM stood still.
 
 ## The lab before wave 8
 

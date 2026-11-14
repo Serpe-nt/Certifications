@@ -1,0 +1,157 @@
+---
+id: m12-s12
+title: "Label cardinality: the classic mistake, on purpose"
+kind: lab
+minutes: 25
+order: 12
+exam:
+  - cert: none
+tags: [loki-labels, cardinality]
+check:
+  kind: range
+  prompt: How many of the burst's streams did Loki accept? Paste the number that the query of action 5 returns.
+  min: 4990
+  max: 5000
+outcome: You can recognize a label that makes a new stream per line, count a tenant's streams, and read the error Loki returns when the stream limit is reached.
+terms:
+  - term: Cardinality
+    def: The number of distinct values a label has; in Loki, the number of streams its combinations create.
+  - term: Active stream
+    def: A stream that has received a line within chunk_idle_period, 30 minutes by default, and is held in the ingesters.
+  - term: max_global_streams_per_user
+    def: The limit on active streams per tenant across the cluster; 5000 by default.
+  - term: HTTP 429
+    def: Too Many Requests. Loki returns it when a tenant hits a rate or stream limit; the sender may retry later.
+sources:
+  - title: Cardinality
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/cardinality/
+    checked: 2026-11-14
+  - title: Label best practices
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/labels/bp-labels/
+    checked: 2026-11-14
+  - title: Enforce rate limits and push request validation
+    url: https://grafana.com/docs/loki/v3.7.x/operations/request-validation-rate-limits/
+    checked: 2026-11-14
+  - title: Configuration, limits_config
+    url: https://grafana.com/docs/loki/v3.7.x/configure/
+    checked: 2026-11-14
+---
+
+<Problem>
+A developer adds the request ID as a label "to make search faster". The service handles a hundred requests a second. Within a minute, Loki starts to refuse the service's logs with HTTP 429, and the other services of the same tenant cannot open new streams either.
+</Problem>
+
+Step 2 said that a label with a new value on every line opens a new stream each time. Here you do it on purpose, in a practice tenant, and watch Loki defend itself.
+
+<Idea>
+Every distinct label set is a stream, and every active stream costs memory in the ingesters, an entry in the index and, later, a small chunk in the object store. To protect itself, Loki limits active streams per tenant, 5000 by default. Past the limit, it refuses new streams with HTTP 429.
+</Idea>
+
+## What many streams cost
+
+A stream with one line still needs its own chunk in the ingesters' memory, its own entry in the index, and its own object when the chunk is flushed. With a request ID as a label, each request makes a stream with one line. After 30 minutes without new lines, each of those streams is flushed as a tiny chunk. Loki's docs describe the result as a huge index and thousands of tiny chunks. Queries suffer too: they have to open many small chunks instead of a few full ones.
+
+The cardinality of a stream set is the product of its labels' values. Three status codes and five methods are 15 streams. Add an endpoint label with three values, and there are 45. A label with a value per request has no upper bound at all.
+
+<Figures caption="Streams in tenant learn-m12 during this step's burst" unit="Active streams">
+  <Stat label="The writer of step 11" value="1" amount={1} max={5000} />
+  <Stat label="Accepted from the burst" value="4,999" amount={4999} max={5000} />
+  <Stat label="Limit per tenant" value="5,000" amount={5000} max={5000} hot note="max_global_streams_per_user, the default." />
+</Figures>
+
+## How Loki stops it
+
+The ingesters count active streams per tenant. The limit is `max_global_streams_per_user`, 5000 by default, shared out among the ingesters by the replication factor and the number of healthy ingesters. A push that would create a stream past the limit gets HTTP 429 with the message `maximum active stream limit exceeded`, naming the stream it refused. Lines for streams that are already active are still accepted, so a tenant at its limit can keep writing to its old streams but cannot open new ones. That is why the other services of the tenant in the scene above failed too, as soon as they needed a new stream.
+
+The limit protects the ingesters from running out of memory. On this lab, one run of the burst below took each of the three ingesters from about 135 MiB to between 300 and 520 MiB, and they stayed near 400 MiB for more than half an hour. The limit does not remove streams: they stay active until they have been idle for 30 minutes.
+
+## Finding the label that did it
+
+Count the streams of a selector with a metric query: `count(count_over_time({app="x"}[15m]))` returns one number, even for thousands of streams. Strictly it counts series, so a stream whose lines carry different structured metadata, such as `detected_level` info and error, counts more than once. Without `count`, the query would return a series per stream and fail at the 500-series limit of step 7. To find which label has the most values, the series API lists a selector's streams with their labels, and `logcli series --analyze-labels` counts the values per label. A label whose number of values is close to the number of streams is the one to move into structured metadata or into the line.
+
+<InLab>
+The lab runs Loki with the default stream limit of 5000 per tenant. The burst below creates up to 6000 streams in tenant `learn-m12`, never in `lab`, so that the shop, the beacon and the other lessons are not affected.
+</InLab>
+
+<Trap>
+Streams stay active for 30 minutes after their last line. After the burst, `learn-m12` stays at its limit for half an hour, and any new stream in that tenant is refused, even a well-labelled one.
+</Trap>
+
+<Remember>
+A label with a value per request makes a stream per request. Loki refuses new streams past 5000 per tenant with HTTP 429, and the streams it accepted cost memory for 30 minutes and leave tiny chunks behind.
+</Remember>
+
+<Do>
+1. Check that the writer from step 11 is running: <Cmd>{`kubectl -n learn-m12 get pod writer`}</Cmd> If the namespace is gone, apply `m12-writer.yaml` from step 11 again first.
+2. Save this Job as `m12-burst.yaml`. It sends 12 pushes of 500 streams each to tenant `learn-m12`. Every stream has the label `request_id` with a new value, the classic mistake:
+
+   ```yaml
+   apiVersion: batch/v1
+   kind: Job
+   metadata:
+     name: burst
+     namespace: learn-m12
+   spec:
+     backoffLimit: 0
+     template:
+       spec:
+         restartPolicy: Never
+         containers:
+           - name: burst
+             image: curlimages/curl:8.23.0
+             command: [/bin/sh, -c]
+             args:
+               - |
+                 id=0
+                 for push in 1 2 3 4 5 6 7 8 9 10 11 12; do
+                   ts="$(date +%s)000000000"
+                   streams=""
+                   sep=""
+                   n=0
+                   while [ $n -lt 500 ]; do
+                     n=$((n+1)); id=$((id+1))
+                     streams="$streams$sep$(printf '{"stream":{"app":"m12-burst","request_id":"req-%s"},"values":[["%s","handled request req-%s"]]}' $id $ts $id)"; sep=","
+                   done
+                   body=$(printf '{"streams":[%s]}' "$streams")
+                   code=$(curl -s -o /tmp/answer -w '%{http_code}' -H 'Content-Type: application/json' -H 'X-Scope-OrgID: learn-m12' --data-raw "$body" http://loki-gateway.loki.svc/loki/api/v1/push)
+                   echo "push $push, streams up to req-$id: HTTP $code $(head -c 160 /tmp/answer)"
+                 done
+             resources:
+               requests: { cpu: 50m, memory: 32Mi }
+               limits: { cpu: 500m, memory: 64Mi }
+   ```
+
+3. Run it and wait for it to finish, about a minute: <Cmd>{`kubectl apply -f m12-burst.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m12 wait --for=condition=Complete job/burst --timeout=300s`}</Cmd>
+4. Read what Loki answered: <Cmd>{`kubectl -n learn-m12 logs job/burst`}</Cmd> The first pushes get `HTTP 204`. Push 10 gets `HTTP 429` and `maximum active stream limit exceeded when trying to create stream`, and so do the pushes after it.
+5. Count the burst's streams with a metric query: <Cmd>{`curl -s -G -H 'Host: loki.lab.k8s.local' -H 'X-Scope-OrgID: learn-m12' http://10.10.0.5/loki/api/v1/query --data-urlencode 'query=count(count_over_time({app="m12-burst"}[15m]))'`}</Cmd> Paste the number at the end of the answer in the check below.
+6. Run the same query without the outer `count( )`, and read the error: the result would have one series per stream, far above 500.
+7. Delete the Job, and keep the writer for step 13: <Cmd>{`kubectl -n learn-m12 delete job burst`}</Cmd>
+</Do>
+
+<Done>
+The burst stopped at the tenant's limit with HTTP 429. Loki accepted 4,999 of its streams: with the writer's stream, that is the limit of 5,000.
+</Done>
+
+<Trap practice>
+Loki's page on limits says a limit error rejects the whole request. On this lab, Loki 3.7.9 kept the first 499 streams of push 10, which fit under the limit, refused the 500th, and answered 429 for the push. Run the burst again within 30 minutes and nothing new gets in.
+</Trap>
+
+<Question id="q-m12-s12" answer="a">
+A tenant has reached Loki's stream limit. Its service `api` keeps writing to the streams it already has. A new service `billing` starts in the same tenant. What happens?
+
+- `api` keeps writing; `billing` gets HTTP 429 for its new streams.
+
+  The limit blocks only new streams. Lines for active streams are still accepted.
+
+- Both are refused, because the tenant is over its limit.
+
+  Lines for streams that are already active are accepted. Only the creation of new streams is refused.
+
+- Both keep writing, and Loki drops the oldest streams to make room.
+
+  Loki does not drop active streams. A stream stays active until it has been idle for the idle period.
+
+- `billing` is accepted, and `api` is refused, because the newest streams have priority.
+
+  Loki gives no priority to new streams. It refuses the push that would go past the limit.
+</Question>
