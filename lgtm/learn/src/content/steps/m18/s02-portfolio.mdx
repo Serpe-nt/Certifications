@@ -100,7 +100,7 @@ per component, driven by Ansible.
    no failed charge after that minute.
 3. The shop was ten times slower after a worker restart. Found: an alert on major
    page faults for one node; product-catalog sat at its 20Mi memory limit and read
-   its own code back from disk. Fix: a higher memory limit.
+   its own code back from disk. Fix: a 40Mi limit for it and for checkout.
 
 ## What I would change
 - A second control-plane node, so that an upgrade does not stop the API.
