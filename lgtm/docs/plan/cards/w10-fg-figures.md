@@ -4,6 +4,8 @@ Wave 10. Model Opus 5.5, high effort. Skills: `caveman`, `humanizer`, `ponytail`
 
 Six lesson steps ask for an animated illustration and show a placeholder, "Figure to come", until someone builds it. This card builds the six scenes.
 
+Changed by the owner on 2026-11-15, in the worker's session: the scenes copy Grafana's dark look and do not take the site's ink and paper. Wherever this card says the site's tokens or colours, read Grafana's look; no logo, product icon or brand mark, as before. The record is `lgtm/docs/adr/fg-figures.md` (pull request 102).
+
 ## Owns
 
 - `lgtm/learn/src/figures/**`: one folder per scene, and the Stageshow kit copied in beside them.
