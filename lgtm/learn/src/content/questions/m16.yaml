@@ -386,8 +386,8 @@
       why: "validate stops before that point: the file is refused."
     - text: "An error about the batch processor, which every pipeline needs"
       why: "Processors are optional in a pipeline."
-    - text: "An error: receiver otlp is not configured"
-      why: "There is no <code>receivers:</code> section, so the reference to otlp cannot be resolved."
+    - text: "An error: the file configures no receiver"
+      why: "There is no <code>receivers:</code> section. The Collector 0.165.0 answers <code>no receiver configuration specified in config</code>."
   answer: [3]
   source: https://opentelemetry.io/docs/collector/configuration/
 

@@ -110,7 +110,7 @@ A dashboard program is code: it needs a pinned version of its library and its ow
 
    print(JSONEncoder(sort_keys=True, indent=2).encode(dashboard.build()))
    ```
-2. Run it in a throw-away Python pod of the lab, which installs the pinned SDK first, and keep the JSON it prints: <Cmd>{`kubectl -n learn-m16 run fsdk --rm -i --quiet --restart=Never --image=python:3.14.7-alpine3.24 -- sh -c 'pip install -q --root-user-action=ignore grafana_foundation_sdk==0.0.22 && python -' < ~/m16_dashboard.py > ~/m16-generated.json`}</Cmd>
+2. Run it in a throw-away Python pod of the lab, which installs the pinned SDK first, and keep the JSON it prints: <Cmd>{`kubectl -n learn-m16 run fsdk --rm -i --quiet --restart=Never --image=python:3.14.7-alpine3.24 -- sh -c 'pip install -q --root-user-action=ignore --disable-pip-version-check grafana_foundation_sdk==0.0.22 && python -' < ~/m16_dashboard.py > ~/m16-generated.json`}</Cmd>
 3. Count the panels and read their titles: <Cmd>{`grep -c '"type": "timeseries"' ~/m16-generated.json`}</Cmd> <Cmd>{`grep '"title"' ~/m16-generated.json`}</Cmd> One panel per service in the list, and the dashboard's own title last.
 4. Add `"frontend"` to `SERVICES`, run action 2 again and count once more. One line of code gave a fourth panel. Then set the list back to three services and run action 2 again.
 5. Keep `~/m16-generated.json`. Step 11 delivers it to Grafana.

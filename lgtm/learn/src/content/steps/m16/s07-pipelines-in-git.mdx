@@ -116,7 +116,7 @@ Both pipeline files passed their tool's own validate with the lab's image versio
 </Done>
 
 <Trap practice>
-Validate a file with the image version the cluster runs. A newer Collector may accept a file that the running one refuses, or the other way round.
+When validate fails, kubectl may also print `couldn't attach to pod/otelcol, falling back to streaming logs` and show the error twice: the Collector ended before kubectl could attach. The error line is the same.
 </Trap>
 
 <Remember>

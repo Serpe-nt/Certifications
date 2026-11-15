@@ -68,7 +68,7 @@ Prometheus, Mimir's ruler and Loki's ruler all read the same rule file: groups, 
 
 `mimirtool rules load FILE` replaces each group of the file in the tenant. `mimirtool rules diff` and `sync` work on a whole folder: diff shows what would change, and sync makes the tenant's rules equal to the folder, deleting groups that are no longer there. A pipeline runs diff on the pull request and sync after the merge.
 
-Loki's ruler takes the same file format with LogQL instead of PromQL. Its tool is `lokitool`, with the same `rules diff`, `sync` and `print` commands. Grafana Labs ships it as a binary on the Loki release page, not as an image, so the lesson downloads it inside a pod and checks it against the release's checksum file.
+Loki's ruler takes the same file format with LogQL instead of PromQL. Its tool is `lokitool`, with the same `rules diff`, `sync` and `print` commands. It needs the tenant in `--id` or `LOKI_TENANT_ID`. Grafana Labs ships it as a binary on the Loki release page, with a file of checksums, not as an image; a pipeline downloads it, checks the checksum and runs `lokitool rules diff` and `sync`. The practice below uses the Mimir side; Loki's works the same way with LogQL.
 
 <InLab>
 The practice tenant `learn-m16` exists in Mimir and Loki as soon as something writes to it; the lab's gateway sends the rule paths to each ruler. The rules here use `vector(1)`, so they need no data in the tenant.
@@ -144,7 +144,7 @@ A passing `promtool check rules` is not proof that a rule works. An alert on a m
 
    <Cmd>{`kubectl apply -f m16-mimirtool.yaml && kubectl -n learn-m16 wait --for=jsonpath='{.status.phase}'=Succeeded pod/mimirtool --timeout=120s && kubectl -n learn-m16 logs mimirtool`}</Cmd> The group lands in the namespace `m16-rules`, the file's name.
 6. After a minute or two, read the recorded series from the tenant: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m16' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=m16:watchdog:value'; echo`}</Cmd> The value is the number for the check. The alert is in `/prometheus/api/v1/alerts` of the same tenant.
-7. Remove the rules from the tenant and the helper objects: <Cmd>{`kubectl -n learn-m16 run mimirtool-del --rm -i --quiet --restart=Never --image=grafana/mimirtool:3.2.4 --env=MIMIR_ADDRESS=http://mimir-gateway.mimir.svc --env=MIMIR_TENANT_ID=learn-m16 -- rules delete-namespace m16-rules --force`}</Cmd> <Cmd>{`kubectl -n learn-m16 delete pod/mimirtool configmap/m16-rules`}</Cmd>
+7. Remove the rules from the tenant and the helper objects: <Cmd>{`kubectl -n learn-m16 run mimirtool-del --rm -i --quiet --restart=Never --image=grafana/mimirtool:3.2.4 --env=MIMIR_ADDRESS=http://mimir-gateway.mimir.svc --env=MIMIR_TENANT_ID=learn-m16 -- rules delete-namespace m16-rules`}</Cmd> <Cmd>{`kubectl -n learn-m16 delete pod/mimirtool configmap/m16-rules`}</Cmd> <Cmd>{`curl -s -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m16' http://10.10.0.5/prometheus/config/v1/rules; echo`}</Cmd> The tenant's rules are `{}` again.
 </Do>
 
 <Done>
