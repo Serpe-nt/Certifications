@@ -39,7 +39,7 @@ sources:
 ---
 
 <Problem>
-On 2026-11-11 at 17:57 UTC the lab's three Kafka brokers ran out of disk and stopped. Mimir and Tempo stored nothing for 18 hours. Loki, which does not use Kafka, carried on. Kafka was only kept 24 hours of records, so how did it fill its disks in seven?
+On 2026-11-11 at 17:57 UTC the lab's three Kafka brokers ran out of disk and stopped. Mimir and Tempo stored nothing for 18 hours. Loki, which does not use Kafka, carried on. Kafka kept only 24 hours of records, so how did it fill its disks in seven?
 </Problem>
 
 <Idea>
