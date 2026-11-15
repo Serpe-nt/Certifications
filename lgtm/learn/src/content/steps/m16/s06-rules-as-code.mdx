@@ -1,0 +1,180 @@
+---
+id: m16-s06
+title: "Rules as code: promtool, mimirtool and lokitool"
+kind: lab
+minutes: 30
+order: 6
+outcome: You can keep metric and log rules as files in Git, check and unit-test them offline, and load them into a tenant from those files.
+terms:
+  - term: Rule unit test
+    def: A file of made-up input series and expected results that promtool runs against a rule file, with no Prometheus.
+  - term: Watchdog alert
+    def: An alert that always fires, to prove that the path from rule to notification works.
+  - term: Sync
+    def: Making a tenant's rules in the ruler equal to a folder of files, adding, changing and deleting groups.
+exam:
+  - cert: none
+tags: [ascode-rules]
+check:
+  kind: exact
+  prompt: What value does the recorded series m16:watchdog:value have in tenant learn-m16 (action 6)?
+  answers: ["1"]
+sources:
+  - title: promtool command line (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/command-line/promtool/
+    checked: 2026-11-15
+  - title: Unit testing for rules (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/
+    checked: 2026-11-15
+  - title: Mimirtool
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+    checked: 2026-11-15
+  - title: Alerting and recording rules, Lokitool (Loki 3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/alert/
+    checked: 2026-11-15
+  - title: Mimir's rule file parser (namespace from the file name)
+    url: https://github.com/grafana/mimir/blob/mimir-3.2.4/pkg/mimirtool/rules/parser.go
+    checked: 2026-11-15
+---
+
+<Problem>
+In modules m11, m12 and m15 you loaded rules by hand: a curl to a ruler, a `mimirtool` pod, a PrometheusRule applied from a file in your home folder. Each worked. None of them says where the rule lives, who reviewed it, or how to load the same rules into a second tenant tomorrow.
+</Problem>
+
+<Idea>
+Rules belong in Git as plain Prometheus rule files. Three offline checks run before the merge: `promtool check rules` parses the file, `promtool test rules` proves that the alerts fire when they should, and `mimirtool rules check` holds the names to the naming practice. After the merge, a tool loads the folder into the tenant: `mimirtool` for Mimir, `lokitool` for Loki.
+</Idea>
+
+## One file format, three tools
+
+Prometheus, Mimir's ruler and Loki's ruler all read the same rule file: groups, each with a name, an interval and a list of recording and alerting rules. Mimir and Loki add one thing, a namespace per tenant, which plays the part of a file. `mimirtool` reads it from a `namespace:` key at the top of the file. Without the key, it takes the file's name without the extension. That keeps the file in the plain Prometheus format, which `promtool` insists on.
+
+## Offline checks before the merge
+
+`promtool check rules` reads every group and parses every expression. A missing bracket or an unknown function fails here. It does not know whether a metric exists, because it has no data.
+
+`promtool test rules` closes part of that gap. A test file names the rule files, gives input series as compact value lists, and lists the alerts expected at given times, with their labels and annotations. promtool evaluates the rules over the made-up series and compares. A rule that never fires, or fires too early because of a wrong `for`, fails the test.
+
+`mimirtool rules check` adds the naming practice: a recorded name must have the shape `level:metric:operations`, with at least one colon. `mimirtool rules lint` rewrites expressions into a standard form, so a later diff shows only real changes.
+
+<Layers caption="Rule files from Git to a ruler">
+  <Layer title="promtool check rules">The file parses; every expression is valid PromQL.</Layer>
+  <Layer title="promtool test rules">The alerts fire at the expected times with the expected labels.</Layer>
+  <Layer title="mimirtool rules check">Recorded names follow level:metric:operations.</Layer>
+  <Layer title="mimirtool or lokitool" hot>load, diff or sync the folder into the tenant.</Layer>
+</Layers>
+
+## Loading from the folder
+
+`mimirtool rules load FILE` replaces each group of the file in the tenant. `mimirtool rules diff` and `sync` work on a whole folder: diff shows what would change, and sync makes the tenant's rules equal to the folder, deleting groups that are no longer there. A pipeline runs diff on the pull request and sync after the merge.
+
+Loki's ruler takes the same file format with LogQL instead of PromQL. Its tool is `lokitool`, with the same `rules diff`, `sync` and `print` commands. Grafana Labs ships it as a binary on the Loki release page, not as an image, so the lesson downloads it inside a pod and checks it against the release's checksum file.
+
+<InLab>
+The practice tenant `learn-m16` exists in Mimir and Loki as soon as something writes to it; the lab's gateway sends the rule paths to each ruler. The rules here use `vector(1)`, so they need no data in the tenant.
+</InLab>
+
+<Trap>
+A passing `promtool check rules` is not proof that a rule works. An alert on a misspelled metric is valid PromQL and never fires; only a unit test or real data shows it.
+</Trap>
+
+<Do>
+1. In WSL, save this rule file as `~/m16/rules/m16-rules.yaml`. A recording rule writes a constant 1, and a watchdog alert fires whenever that series exists.
+
+   ```yaml
+   groups:
+     - name: m16-watchdog
+       interval: 1m
+       rules:
+         - record: m16:watchdog:value
+           expr: vector(1)
+         - alert: M16Watchdog
+           expr: m16:watchdog:value == 1
+           labels:
+             severity: none
+           annotations:
+             summary: Always firing. Proves that rules from Git are evaluated.
+   ```
+2. Save its unit test as `~/m16/rules/m16-rules.test.yaml`. At minute 2 the alert must be firing with this label and summary.
+
+   ```yaml
+   rule_files:
+     - m16-rules.yaml
+   evaluation_interval: 1m
+   tests:
+     - interval: 1m
+       input_series: []
+       alert_rule_test:
+         - eval_time: 2m
+           alertname: M16Watchdog
+           exp_alerts:
+             - exp_labels:
+                 severity: none
+               exp_annotations:
+                 summary: Always firing. Proves that rules from Git are evaluated.
+   ```
+3. Check and test both files with `promtool` from the lab's Prometheus image. The folder goes into the pod as a tar stream: <Cmd>{`tar -C ~/m16/rules -cf - . | kubectl -n learn-m16 run promtool --rm -i --quiet --restart=Never --image=quay.io/prometheus/prometheus:v3.13.5 --command -- sh -c 'mkdir /tmp/r && cd /tmp/r && tar -xf - && promtool check rules m16-rules.yaml && promtool test rules m16-rules.test.yaml'`}</Cmd> It reports `SUCCESS: 2 rules found` and then `SUCCESS` for the test.
+4. Break the test on purpose: change `severity: none` to `severity: page` in the test only, and run action 3 again: <Cmd>{`sed -i 's/severity: none/severity: page/' ~/m16/rules/m16-rules.test.yaml`}</Cmd> The test fails and prints the expected and the actual alert side by side. Set it back: <Cmd>{`sed -i 's/severity: page/severity: none/' ~/m16/rules/m16-rules.test.yaml`}</Cmd>
+5. Commit the folder, put it into a ConfigMap, and load it into tenant `learn-m16` of Mimir with `mimirtool` (its image has no shell, so a small pod mounts the files): <Cmd>{`cd ~/m16 && git add rules && git commit -q -m "Watchdog rule with a unit test" && git push -q origin main`}</Cmd> <Cmd>{`kubectl -n learn-m16 create configmap m16-rules --from-file=m16-rules.yaml=$HOME/m16/rules/m16-rules.yaml`}</Cmd> Save this as `m16-mimirtool.yaml`, then apply it and read the log:
+
+   ```yaml
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: mimirtool
+     namespace: learn-m16
+   spec:
+     restartPolicy: Never
+     containers:
+       - name: mimirtool
+         image: grafana/mimirtool:3.2.4
+         args: [rules, load, /rules/m16-rules.yaml]
+         env:
+           - { name: MIMIR_ADDRESS, value: "http://mimir-gateway.mimir.svc" }
+           - { name: MIMIR_TENANT_ID, value: learn-m16 }
+         volumeMounts:
+           - { name: rules, mountPath: /rules }
+         resources:
+           requests: { cpu: 10m, memory: 32Mi }
+           limits: { cpu: 100m, memory: 128Mi }
+     volumes:
+       - name: rules
+         configMap: { name: m16-rules }
+   ```
+
+   <Cmd>{`kubectl apply -f m16-mimirtool.yaml && kubectl -n learn-m16 wait --for=jsonpath='{.status.phase}'=Succeeded pod/mimirtool --timeout=120s && kubectl -n learn-m16 logs mimirtool`}</Cmd> The group lands in the namespace `m16-rules`, the file's name.
+6. After a minute or two, read the recorded series from the tenant: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m16' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=m16:watchdog:value'; echo`}</Cmd> The value is the number for the check. The alert is in `/prometheus/api/v1/alerts` of the same tenant.
+7. Remove the rules from the tenant and the helper objects: <Cmd>{`kubectl -n learn-m16 run mimirtool-del --rm -i --quiet --restart=Never --image=grafana/mimirtool:3.2.4 --env=MIMIR_ADDRESS=http://mimir-gateway.mimir.svc --env=MIMIR_TENANT_ID=learn-m16 -- rules delete-namespace m16-rules --force`}</Cmd> <Cmd>{`kubectl -n learn-m16 delete pod/mimirtool configmap/m16-rules`}</Cmd>
+</Do>
+
+<Done>
+One rule file in Git passed promtool's check and unit test, was loaded into tenant `learn-m16` by mimirtool, wrote its series, and was removed again.
+</Done>
+
+<Trap practice>
+If action 6 returns an empty `result`, the ruler has not evaluated the group yet; wait another minute. If it stays empty, read the log of the pod `mimirtool` for an error.
+</Trap>
+
+<Remember>
+One Prometheus rule file serves promtool, mimirtool and lokitool. Check and test it offline before the merge; load or sync it from the folder after.
+</Remember>
+
+<Question id="q-m16-s06" answer="c">
+A rule file has no `namespace:` key and is named `slo-checkout.yaml`. `mimirtool rules load slo-checkout.yaml` runs for tenant `team-a`. Where do its groups land?
+
+- In the namespace `default`
+
+  mimirtool has no namespace called default. It takes the namespace from the file.
+
+- Nowhere, the load fails without a namespace key
+
+  The key is optional for mimirtool.
+
+- In the namespace `slo-checkout`
+
+  Without the key, mimirtool uses the file name without its extension as the namespace.
+
+- In a namespace named after the tenant, `team-a`
+
+  The tenant is a separate thing, given by `MIMIR_TENANT_ID` or `--id`.
+</Question>

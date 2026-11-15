@@ -1,0 +1,144 @@
+---
+id: m16-s07
+title: Collector and Alloy configuration in Git, validated first
+kind: lab
+minutes: 20
+order: 7
+outcome: You can keep Collector and Alloy pipelines in Git and refuse a broken one with the tools' own validate commands before it reaches a cluster.
+terms:
+  - term: Validate
+    def: A tool's own offline check that a configuration file parses and that every component it uses exists and is wired correctly.
+  - term: Rollout
+    def: Kubernetes replacing the pods of a workload one by one with pods that run the new configuration.
+exam:
+  - cert: none
+tags: [ascode-pipelines]
+check:
+  kind: regex
+  prompt: Paste the line of the Collector's error from action 3 that names the missing component.
+  pattern: ".*otlp_http/loki.*"
+sources:
+  - title: Collector configuration (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/configuration/
+    checked: 2026-11-15
+  - title: The validate command (Grafana Alloy)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/validate/
+    checked: 2026-11-15
+---
+
+<Problem>
+A colleague adds an exporter for Loki to the Collector's values and names it in the logs pipeline, but writes the name differently in the two places. The upgrade starts a new gateway pod, which exits at once. The old pods keep running only because the rollout waits; one more node drain and the shop has nowhere to send its telemetry.
+</Problem>
+
+<Idea>
+A Collector or Alloy configuration is code, and both tools ship an offline check for it. `otelcol validate` and `alloy validate` parse the file, build the pipelines and refuse a component that is missing, unknown or wired wrong, without sending any data. Run them in CI on every change, with the same image version the cluster runs.
+</Idea>
+
+## What validate catches
+
+The Collector refuses a file in which a pipeline names a receiver, processor or exporter that is not defined in its own section, a component type that the binary does not contain, or a setting that does not exist for that component. Alloy's validate does the same for its own syntax: unknown blocks, wrong arguments, references to components that do not exist, and components above the allowed stability level. Neither sends data or connects to a backend, so a wrong address or a backend that is down passes.
+
+<Compare caption="What a validate run can and cannot tell you">
+  <Col title="Refused by validate" hot>A pipeline that names an undefined exporter; a component the binary lacks; a misspelled setting.</Col>
+  <Col title="Passes validate">An endpoint that does not answer, a wrong tenant header, a filter that drops everything.</Col>
+</Compare>
+
+## The same version as the cluster
+
+A component exists in one Collector release and not in the next, and names change: the lab's shop uses `otlp_http` where older guides write `otlphttp`. So the check runs with the image the cluster runs, pinned by the same tag. In this lab that is `otel/opentelemetry-collector-contrib:0.165.0` for the gateway and `grafana/alloy:v1.21.3` for Alloy, both read from the release folders in `lab/helm/`.
+
+## Where the files live
+
+The lab keeps its gateway's configuration inside the Helm values of the release `otel-gateway`, and Alloy's inside the values of `k8s-monitoring`. Both are in Git and reach the cluster only through `make lab`, and the Helm check in CI renders them. Keeping a pipeline as its own file, as you do here, makes it easy to run validate on it alone; a chart can read the file into its values.
+
+<InLab>
+The gateway's Collector configuration is under `config:` in `lab/helm/otel-gateway/values.yaml`. Module m09 explained it; this step only checks files before they ship.
+</InLab>
+
+<Trap>
+A configuration that passes validate can still lose all data. A wrong endpoint or tenant header shows only at run time, in the exporter's error counters and logs.
+</Trap>
+
+<Do>
+1. In WSL, save a small gateway pipeline as `~/m16/pipelines/collector.yaml`: OTLP in, a batch processor, OTLP over HTTP to tenant `learn-m16` of Mimir.
+
+   ```yaml
+   receivers:
+     otlp:
+       protocols:
+         grpc:
+           endpoint: 0.0.0.0:4317
+   processors:
+     batch: {}
+   exporters:
+     otlp_http/mimir:
+       endpoint: http://mimir-gateway.mimir.svc/otlp
+       headers:
+         X-Scope-OrgID: learn-m16
+   service:
+     pipelines:
+       metrics:
+         receivers: [otlp]
+         processors: [batch]
+         exporters: [otlp_http/mimir]
+   ```
+2. Validate it with the lab's Collector image. The file goes in as an environment variable, which the Collector reads with `env:`: <Cmd>{`kubectl -n learn-m16 run otelcol --rm -i --quiet --restart=Never --image=otel/opentelemetry-collector-contrib:0.165.0 --env="CFG=$(cat ~/m16/pipelines/collector.yaml)" -- validate --config=env:CFG && echo valid`}</Cmd> It prints `valid`.
+3. Break it the way the colleague did: add a logs pipeline that names an exporter `otlp_http/loki`, which is not defined, and validate again: <Cmd>{`cp ~/m16/pipelines/collector.yaml /tmp/m16-broken.yaml && { echo '    logs:'; echo '      receivers: [otlp]'; echo '      exporters: [otlp_http/loki]'; } >> /tmp/m16-broken.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m16 run otelcol --rm -i --quiet --restart=Never --image=otel/opentelemetry-collector-contrib:0.165.0 --env="CFG=$(cat /tmp/m16-broken.yaml)" -- validate --config=env:CFG`}</Cmd> The Collector refuses the file and names the missing exporter. Copy that line for the check.
+4. Save the same pipeline for Alloy as `~/m16/pipelines/gateway.alloy`:
+
+   ```alloy
+   otelcol.receiver.otlp "default" {
+     grpc { }
+     output {
+       metrics = [otelcol.processor.batch.default.input]
+     }
+   }
+
+   otelcol.processor.batch "default" {
+     output {
+       metrics = [otelcol.exporter.otlphttp.mimir.input]
+     }
+   }
+
+   otelcol.exporter.otlphttp "mimir" {
+     client {
+       endpoint = "http://mimir-gateway.mimir.svc/otlp"
+       headers  = { "X-Scope-OrgID" = "learn-m16" }
+     }
+   }
+   ```
+5. Validate it with the lab's Alloy image: <Cmd>{`kubectl -n learn-m16 run alloy --rm -i --quiet --restart=Never --image=docker.io/grafana/alloy:v1.21.3 --command -- sh -c 'cat > /tmp/c.alloy && alloy validate /tmp/c.alloy && echo valid' < ~/m16/pipelines/gateway.alloy`}</Cmd> It prints `valid`.
+6. Commit both valid files and remove the broken copy: <Cmd>{`cd ~/m16 && git add pipelines && git commit -q -m "Gateway pipeline for Collector and Alloy, validated" && git push -q origin main && rm /tmp/m16-broken.yaml`}</Cmd>
+</Do>
+
+<Done>
+Both pipeline files passed their tool's own validate with the lab's image versions, and the broken copy was refused with the name of the missing exporter.
+</Done>
+
+<Trap practice>
+Validate a file with the image version the cluster runs. A newer Collector may accept a file that the running one refuses, or the other way round.
+</Trap>
+
+<Remember>
+Pipelines are files in Git. `otelcol validate` and `alloy validate`, with the cluster's own image versions, refuse a broken one before the rollout.
+</Remember>
+
+<Question id="q-m16-s07" answer="a">
+A Collector file passes `otelcol validate`, yet after the rollout no metrics reach Mimir. Which fault is the most likely?
+
+- The exporter's endpoint or tenant header is wrong
+
+  validate never connects to a backend, so an address or header that is wrong passes and fails only at run time.
+
+- The metrics pipeline names an exporter that is not defined
+
+  validate refuses a pipeline that names an undefined component.
+
+- The file uses a processor that the binary does not contain
+
+  validate builds every component and refuses an unknown type.
+
+- The file has a YAML indentation error
+
+  A file that does not parse never passes validate.
+</Question>
