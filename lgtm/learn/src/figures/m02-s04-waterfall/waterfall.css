@@ -1,0 +1,283 @@
+/* m02-s04-waterfall: a trace view drawn in the site's own ink and paper (DESIGN.md), not in Grafana's colours. */
+.wf .ss-stage {
+  overflow: hidden;
+  font-family: var(--lg-font-sans);
+  color: var(--lg-ink-2);
+  --name: 220px;
+  --gut: 24px;
+  --row: 36px;
+  --pad: 16px;
+  --indent: 16px;
+}
+.wf .ss-stage[data-layout="compact"] {
+  --name: 124px;
+  --indent: 8px;
+  --pad: 10px;
+}
+
+/* The panel: paper, a 2px ink frame and a cut top-right corner; it runs off the bottom edge over filler. */
+.wf .wf-panel {
+  position: absolute;
+  left: var(--gut);
+  right: var(--gut);
+  top: var(--gut);
+  height: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--lg-ink);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+  padding: 2px;
+}
+.wf .wf-panel > * {
+  background: var(--lg-paper);
+}
+
+.wf .wf-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 calc(var(--pad) + 6px) 0 var(--pad);
+  background: var(--lg-ink);
+  color: var(--lg-ink-on-dark);
+}
+.wf .wf-label {
+  flex: none;
+  font-family: var(--lg-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lg-ink);
+  background: var(--lg-paper);
+  padding: 3px 8px;
+}
+.wf .wf-id {
+  white-space: nowrap;
+  font-family: var(--lg-font-mono);
+  font-size: 12px;
+}
+/* On a phone the trace ID shows its first eight characters, as a narrow trace view would. */
+.wf .ss-stage[data-layout="compact"] .wf-id-rest {
+  display: none;
+}
+.wf .ss-stage[data-layout="compact"] .wf-id::after {
+  content: "\2026";
+}
+.wf .wf-total {
+  flex: none;
+  margin-left: auto;
+  padding-left: 12px;
+  font-family: var(--lg-font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Column heads and the time ruler */
+.wf .wf-ruler,
+.wf .wf-row {
+  display: grid;
+  grid-template-columns: var(--name) 1fr;
+  gap: var(--pad);
+  padding: 0 calc(var(--pad) + 6px) 0 var(--pad);
+}
+.wf .wf-ruler {
+  height: 28px;
+  align-items: center;
+  border-bottom: 1px solid var(--lg-rule);
+  font-family: var(--lg-font-mono);
+  font-size: 11px;
+  color: var(--lg-ink-3);
+}
+.wf .wf-col {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.wf .wf-track {
+  position: relative;
+  height: 100%;
+}
+.wf .wf-tick {
+  position: absolute;
+  top: 50%;
+  left: var(--at);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+.wf .wf-tick:first-child {
+  transform: translate(0, -50%);
+}
+.wf .wf-tick:last-child {
+  transform: translate(-100%, -50%);
+}
+
+/* Rows: the grid lines behind them, then one row per span */
+.wf .wf-rows {
+  flex: 1;
+  position: relative;
+  padding-top: 4px;
+}
+.wf .wf-grid {
+  position: absolute;
+  inset: 0 calc(var(--pad) + 6px) 0 calc(var(--pad) * 2 + var(--name));
+}
+.wf .wf-grid > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--at);
+  border-left: 1px dashed var(--lg-rule);
+}
+.wf .wf-row {
+  position: relative;
+  height: var(--row);
+  align-items: center;
+}
+.wf .wf-row::before {
+  /* the selected row: a screen-2 fill with one yellow tab, wiped in from the left */
+  content: "";
+  position: absolute;
+  inset: 2px 0;
+  background: var(--lg-screen-2);
+  border-left: 4px solid var(--lg-signal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 420ms var(--lg-ease-out);
+}
+.wf .wf-row[data-sel]::before {
+  transform: scaleX(1);
+}
+
+.wf .wf-name {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: calc(var(--depth) * var(--indent));
+  font-size: 13px;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-6px);
+  will-change: transform;
+  transition: opacity 260ms var(--lg-ease-out), transform 260ms var(--lg-ease-out);
+}
+.wf .wf-row[data-in] .wf-name {
+  opacity: 1;
+  transform: none;
+}
+.wf .wf-svc {
+  font-weight: 600;
+  color: var(--lg-ink);
+}
+.wf .wf-op {
+  color: var(--lg-ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wf .ss-stage[data-layout="compact"] :is(.wf-op, .wf-op-head) {
+  display: none;
+}
+.wf .ss-stage[data-layout="compact"] .wf-name {
+  font-size: 12px;
+}
+.wf .wf-filler {
+  width: 88px;
+  height: 6px;
+  background: var(--lg-rule);
+}
+
+/* The error mark: a red frame, a cross and a word, so the error does not rest on colour alone */
+.wf .wf-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 48px;
+  height: 18px;
+  border: 1px solid var(--lg-bad);
+  color: var(--lg-bad);
+  background: var(--lg-paper);
+  font-family: var(--lg-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(1.8);
+  will-change: transform;
+}
+.wf .wf-chip svg {
+  width: 8px;
+  height: 8px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.wf .wf-row[data-err] .wf-chip {
+  opacity: 1;
+  transform: none;
+  transition: transform 220ms cubic-bezier(0.3, 1.4, 0.5, 1), opacity 120ms linear;
+}
+
+/* Bars wipe in from the left, each inside its parent's time */
+.wf .wf-bar {
+  position: absolute;
+  top: 50%;
+  left: var(--at);
+  width: max(var(--w), 3px);
+  height: 16px;
+  margin-top: -8px;
+  background: var(--lg-ink-2);
+  transform: scaleX(0);
+  transform-origin: left;
+  will-change: transform;
+  transition: transform var(--wipe) cubic-bezier(0.4, 0, 0.3, 1), background-color 260ms linear;
+}
+.wf .wf-row[data-in] .wf-bar {
+  transform: scaleX(1);
+}
+.wf .wf-row:last-child .wf-bar {
+  background: var(--lg-rule);
+}
+.wf .wf-row[data-err] .wf-bar {
+  background-color: var(--lg-bad);
+  background-image: repeating-linear-gradient(135deg, transparent 0 7px, rgb(0 0 0 / 0.22) 7px 11px);
+}
+.wf .wf-dur {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0 4px;
+  background: var(--lg-bad);
+  color: var(--lg-paper);
+  font-family: var(--lg-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  opacity: 0;
+  transition: opacity 200ms linear 160ms;
+}
+.wf .wf-row[data-err] .wf-dur {
+  opacity: 1;
+}
+
+/* A thin line drops from the parent's bar to where the child starts */
+.wf .wf-guide {
+  position: absolute;
+  left: var(--at);
+  bottom: calc(50% + 8px);
+  height: calc(var(--reach) * var(--row) - 16px);
+  border-left: 1px solid var(--lg-ink-3);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 240ms var(--lg-ease-out);
+}
+.wf .wf-row[data-in] .wf-guide {
+  transform: scaleY(1);
+}
