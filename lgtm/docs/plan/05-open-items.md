@@ -1,6 +1,6 @@
 # Open items
 
-What is known to be unfinished, unverified or broken. Owned by the planner; a line leaves this file when a pull request closes it. Rewritten on 2026-11-14, before wave 8; brought up to date that day after wave 8 and again after wave 9, and on 2026-11-15 during wave 10.
+What is known to be unfinished, unverified or broken. Owned by the planner; a line leaves this file when a pull request closes it. Rewritten on 2026-11-14, before wave 8; brought up to date that day after wave 8 and again after wave 9, and on 2026-11-15 during wave 10 and at its end.
 
 ## Lesson actions not yet walked on the lab
 
@@ -11,6 +11,8 @@ Modules m10, m11 and m12 (wave 8, pull requests 79, 82 and 81) were run on the l
 Modules m13, m14 and m15 (wave 9, pull requests 93, 94 and 95) were run on the lab by their own workers, fault flags included; no row in their logs is unverified. One statement of m14 step 5 rests on Grafana's source and not on a walk: that Grafana 13.3 offers the trace-to-metrics buttons also on a span that has none of the mapped tags, with an empty filter, where Grafana's page says no link appears. It is marked `inference`; a data source of one's own with a tag no span has would settle it in five minutes with a Grafana sign-in.
 
 Module m16 (wave 10, pull request 104) was run on the lab by its worker from the built pages, in a practice namespace that is gone again. One part is `lab-unverified`: step 6 describes lokitool from Loki's documentation and does not run it, because lokitool has no image and the worker's session refused a second download of the binary. The step's practice loads the rules into Mimir only.
+
+Module m17 (wave 10, pull request 107) was run on the lab by its worker from the built pages. Every value change and every drill was done once with the owner's go-ahead and taken back; no row of its log is unverified. Step 13 describes the slow shop that drill 3 left behind as it is today; card L11 makes those sentences true again after its fix.
 
 Left alone on purpose: `make reset` (m01 step 20, described from the owner's own run), pushing a delta metric into Mimir (m08), and changing a lab release to settle the inferences of m06, which stay marked `inference` in its log.
 
@@ -36,7 +38,7 @@ The five of 2026-11-13 were closed by card L6 in pull requests 67 and 70: the ob
 
 To watch:
 
-- The object store. RustFS 1.0.5 has run two days without a restart. Its resident memory rose with use, 144 MiB before wave 8, 180 after it, 247 after wave 9, and was back at 206 MiB the next afternoon after a quiet night (limit 1536Mi). It gives memory back, so it is not the old leak.
+- The object store. RustFS 1.0.5 ran two days without a restart, between 144 and 247 MiB of resident memory, and gave memory back after a quiet night, so it is not the old leak. Card C16's drill 2 stopped it for three minutes on 2026-11-15 at 18:54 UTC; the new pod held 306 MiB seventy minutes later (limit 1536Mi). Look again after a day.
 - flagd answers every flag evaluation since card L9: its CPU went from 0.004 to 0.011 cores (limit 200m). Look again after a day of load.
 - The control-plane node uses about 70% of its memory.
 - Since card C16's drill 3 the pods are spread unevenly: worker4 holds about 21 pods and the other workers 38 to 41, with worker1 and worker2 at 68% of their memory. Pods that moved while a node was away do not move back.
@@ -46,16 +48,19 @@ To watch:
 - Mimir discarded about 60,000 samples of tenant `prom` (`new-value-for-timestamp` and `sample-out-of-order` on two ingesters). Card L8 found that all of it happened in the one minute the VMs came back from the night's pause, when Prometheus's first scrapes and staleness markers met samples with the same timestamps; the counters have not moved since. A burst at each wake, not a steady loss. Nothing to fix.
 - cert-manager's controller restarted once on 2026-11-14 at 11:49 UTC with exit code 0, a clean shutdown. Nothing else restarted. It happened two minutes after the VMs came back from the night's pause (Prometheus has no samples from 22:10 UTC on 2026-11-13 to 11:47 UTC on 2026-11-14), which fits a leader lease that ran out while the VM stood still. Card L7 looks at what else a pause touches.
 
-## The lab after wave 9
+## The lab after wave 10
 
-Read on 2026-11-14 at 22:22 UTC.
+Read on 2026-11-15 at 20:09 UTC.
 
-- Five nodes Ready, every pod ready, no alert firing, every fault flag off, no `learn-` namespace, no rule group left in the rulers of Mimir or Loki, the shop at zero errors.
-- Nine flag windows ran in the wave, one at a time, each within the 15 minutes allowed. One pod restarted because of them, as its lesson says it will: recommendation, killed for memory twice by `recommendationCacheFailure`.
-- Memory in use: 55 to 58% on the workers, 71% on the control-plane node. Each worker has 2.7 to 3.2 GiB that no pod requests.
-- The fullest volume is at 31%.
+- Five nodes Ready, every pod running, every fault flag off, no `learn-` namespace, no rule group left in the rulers of Mimir or Loki.
+- The shop is about ten times slower than a healthy lab (the lab defect above): product-catalog's server p95 is 202 ms and checkout's 234 ms. `NodeMemoryMajorPagesFaults` fires for the node that holds product-catalog, on and off; no other alert fires besides Watchdog.
+- The releases are as `main` installs them. The shop is at version `3.1.0-lab.2` (chart 0.3.0, revision 3, card L10). Mimir is at revision 6 from 18:44 UTC, after card C16 took its two value changes back; `make lab` from `main` reported `changed=0` at 18:53 UTC, and no release changed after that.
+- Three drills ran once each (card C16): a Kafka broker pod deleted, the object store at zero replicas for three minutes, and worker4 stopped for twelve minutes by the owner. `make lab-check` passed after each. Left by the third: a failed Job of Longhorn's `kafka-trim` and its alert, removed at 19:53 UTC with the owner's go-ahead; the slow shop; and the uneven spread of pods.
+- Memory in use: 64 to 67% on worker1 and worker2, 55% on worker3, 59% on worker4, 70% on the control-plane node. Pods: 39, 40, 37 and 23 on the four workers.
+- The fullest volume is at 33% (a Kafka broker's).
+- The practice tenants `learn-m16`, `learn-m17`, `team-a` and `team-b` hold a few series in Mimir until retention removes them (7 days). The practice dashboards of m16 sit in Grafana's Recently deleted.
+- The old growing trace of payment, `1b9843164d5423b88ba041cee6303b88`, leaves Tempo at about 20:15 UTC on 2026-11-17. Nobody opens it by its ID before that.
 - The fault flags cannot be read from the ConfigMap `shop/shop-flags`, which only holds the defaults. The flag screen's API shows the real state.
-- The practice tenants `learn-m10` to `learn-m13` and the recorded series `learn_m15:*` in tenant `lab` exist until retention removes them (48 hours for logs and traces, 7 days for metrics).
 
 ## Decisions not taken yet
 
@@ -82,4 +87,6 @@ Read on 2026-11-14 at 22:22 UTC.
 - The approval cards of the browser pane belong to the app. The lab's sites are saved there as allowed and trusted; the planner cannot change the owner's permission settings, and gave the owner one command to add an allow rule for the browser tools.
 - A command counts as run from the built page only when its text came out of the page's `<pre>` element. Card C15 saved every `<pre>` to a file and ran it, which found seven faults; two commands still slipped through, because their log rows were taken from the source.
 - When a look or a rule of a card is changed by the owner in a worker's session, the planner checks the owner's words in that session's transcript before accepting it, and then changes the plan to match (card FG: Grafana's look for the figures).
-- An independent fact check of every step and every question, two read-only agents per module, found 7 errors in wave 8 and 6 in wave 9 that the workers' own checks of five steps had missed; in m16 of wave 10 it found 4 small errors and 5 doubtful sentences, and every answer key was right. Four of the thirteen were statements the vendor's documentation makes and the software does not do; the lab or the source settled each. For a module that leans on a demo application, give the checker the application's source: half of wave 9's findings in m14 came from reading it.
+- After a card that changes the lab, the planner reads the firing alerts and the shop's latencies, not only the lab check. After card C16's node drill `make lab-check` passed, and the planner's read found a failed Job with its alert and a shop ten times slower; the worker's hint about a second alert led to the cause.
+- A cause the planner guesses is tested before it is written into a lesson. The first reading of the slow product-catalog (a leftover of its crash loop) was wrong; the restart the owner allowed showed it within ten minutes, and the memory accounting then gave the cause.
+- An independent fact check of every step and every question, two read-only agents per module, found 7 errors in wave 8 and 6 in wave 9 that the workers' own checks of five steps had missed; in wave 10 it found 4 small errors and 5 doubtful sentences in m16, where every answer key was right, and 9 errors and 7 smaller points in m17, where three card questions had a wrong or a second right answer. Four of the thirteen were statements the vendor's documentation makes and the software does not do; the lab or the source settled each. For a module that leans on a demo application, give the checker the application's source: half of wave 9's findings in m14 came from reading it.
