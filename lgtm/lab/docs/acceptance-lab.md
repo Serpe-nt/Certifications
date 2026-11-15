@@ -826,9 +826,9 @@ code, this is the trace every later stream would have joined. Looked up by its I
 | 18:20:16 | HTTP 200 in 0.029 s | 96 spans from 18:17:10.724 to 18:17:10.937; no `EventStream` span; payment's spans: `oteldemo.PaymentService/Charge`, `charge`, `ResolveFloat`, `ResolveBoolean`, `tcp.connect` | 65Mi, 67Mi |
 | 18:48:00, 30 minutes after the upgrade | HTTP 200 in 0.129 s | the same: 96 spans, same first and last time, no `EventStream` span | 184Mi, 201Mi |
 
-A fresh order at 18:48:16, trace `beec1c9c0b263ce2d74fab76bb794c7` (looked up by ID): HTTP 200 in
-0.024 s, 77 spans within 32 ms from 18:44:39.647, no `EventStream` span; querier 201Mi before and
-after. The querier's restart count stayed at 2 throughout. Between 18:20 and 18:48 its memory rose
+A fresh order at 18:44:39, trace `0beec1c9c0b263ce2d74fab76bb794c7`, looked up by ID at 18:48:16:
+HTTP 200 in 0.024 s, 77 spans within 32 ms from 18:44:39.647, no `EventStream` span; querier 201Mi
+before and after. The querier's restart count stayed at 2 throughout. Between 18:20 and 18:48 its memory rose
 from 67Mi to 184Mi while other cards ran their own queries; the limit is 768Mi.
 
 Card C16 ran its value changes and failure drills from 18:33 to 19:02 UTC, inside this window: Mimir's
