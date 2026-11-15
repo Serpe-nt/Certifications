@@ -1,0 +1,139 @@
+---
+id: m17-s13
+title: "Failure drills: a broker, the object store, a node"
+kind: drill
+minutes: 45
+order: 13
+outcome: You can predict what a lost Kafka broker, a lost object store and a lost node do to writes and reads of each store, run each drill, read the stack's own signals during it, and check that it recovered.
+exam:
+  - cert: none
+tags: [scale-failure-drills]
+check:
+  kind: choice
+  prompt: In drill 2, with the object store at zero for three minutes, what happened to new writes?
+  options:
+    - They failed with errors at the distributors
+    - They went on; uploads to the store waited and were retried
+    - They were lost for the three minutes
+    - They were refused by Kafka
+  answer: 1
+terms:
+  - term: Drill
+    def: A failure caused on purpose, with a prediction written down before and a check after.
+  - term: Blast radius
+    def: Everything a single failure takes down with it.
+  - term: Under-replicated partition
+    def: A Kafka partition with fewer in-sync copies than its replication factor.
+  - term: Taint-based eviction
+    def: Kubernetes removing pods from a node that is not ready, after their toleration runs out.
+sources:
+  - title: About ingest storage architecture (Mimir 3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-15
+  - title: Kafka 4.3 topic configurations, min.insync.replicas
+    url: https://kafka.apache.org/43/configuration/topic-configs/
+    checked: 2026-11-15
+  - title: Taints and tolerations, taint-based evictions (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+    checked: 2026-11-15
+  - title: Nodes, node status and heartbeats (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/architecture/nodes/
+    checked: 2026-11-15
+---
+
+<Problem>
+Every part of the stack has a story about what happens when it fails, written in this module and in the documentation. None of it is proven until you break the part and watch. The first real outage is a bad time to learn that the story was wrong.
+</Problem>
+
+<Idea>
+A drill is a failure on purpose: write down what you expect, cause it, watch the stack's own signals, and check that it came back by itself. Lose the parts whose loss you can predict first: one Kafka broker, then the object store for a few minutes, then a whole node.
+</Idea>
+
+## Before each drill, a prediction
+
+Write the prediction per store, writes and reads apart, and how long the store can ride it out. Then compare.
+
+<Compare caption="Predictions for the lab">
+  <Col title="One Kafka broker">Writes go on: two in-sync replicas remain, and at least two are needed. Reads go on. The broker returns as the same pod name with its volume.</Col>
+  <Col title="Object store, 3 minutes" hot>Writes go on: Mimir and Tempo end at Kafka, Loki's ingesters keep chunks in memory. Reads of recent data go on; reads of older blocks and chunks fail. Uploads wait and retry.</Col>
+  <Col title="One worker node">Every pod on it is lost. What breaks depends on what ran there: a Mimir ingester means failed recent reads for its partition; a Loki ingester costs nothing visible.</Col>
+</Compare>
+
+## Drill 1: one Kafka broker
+
+Kafka keeps three replicas of every partition. A write with `acks=all`, which Mimir and Tempo use, needs every in-sync replica, and at least two. Losing one broker therefore stops nothing. Strimzi recreates the pod with the same name and volume, and the broker catches up what it missed.
+
+The lab agreed. On 2026-11-15 broker 1 was deleted at 18:47:50 and was ready again at 18:48:20. A query every five seconds got `200` all through, and Mimir's and Tempo's distributors logged no failed write to Kafka.
+
+## Drill 2: the object store for three minutes
+
+No store writes to the object store on the path of a request. Mimir's ingesters upload blocks in the background, Tempo's block-builders once per cycle, Loki's ingesters when a chunk is full or old, and each retries. What fails at once is a read that needs an object: a Mimir query of data older than 12 hours, which the queriers send to the store-gateways, a Tempo search of old blocks, a Loki query past what the ingesters still hold.
+
+The lab scaled RustFS to zero from 18:54:29 to 18:57:29. A Mimir query of 20 hours ago failed with `504` until 18:57:50 and answered again at 18:58:15, while RustFS was starting; a query of the last minutes never failed. Loki answered queries of now and of three hours ago all through, from what its ingesters held. Loki's ingesters logged `failed to flush` with `PutObject` errors and Tempo's block-builders `consumeCycle failed`; both retried and carried on. No distributor refused a write.
+
+## Drill 3: one node
+
+A stopped VM takes every pod on it. The node turns `Unknown` once its kubelet stops reporting. Pods tolerate a not-ready or unreachable node for 300 seconds by default; then Kubernetes marks them for deletion, and Deployments start new pods elsewhere. A StatefulSet pod on a lost node is marked Terminating too, but no replacement starts, because Kubernetes cannot tell whether it still runs. It runs again when the node returns, or after an operator deletes the Node object or force-deletes the pod.
+
+<Timeline caption="worker4 stopped on 2026-11-15 (UTC)">
+  <Event at="19:05:29" title="Reads fail">Mimir answers partition 1: too many unhealthy instances in the ring.</Event>
+  <Event at="19:05:44" title="Node Unknown">The kubelet stops reporting.</Event>
+  <Event at="19:11:05" title="Pods Terminating">The 300 seconds have run out; Deployments start pods elsewhere.</Event>
+  <Event at="19:17:31" title="Node Ready">The VM is back; the node was away about 12 minutes in all.</Event>
+  <Event at="19:18:33" title="Reads back">mimir-ingester-1 runs again on worker4.</Event>
+  <Event at="19:22:05" title="Check passed">make lab-check passes; nothing was repaired by hand.</Event>
+</Timeline>
+
+Loki answered every query of the drill: two of its three ingesters held each stream. In the shop, product-catalog restarted seven times while its database `astronomy-db-0`, a StatefulSet on worker4, was away. As predicted, the pods with a fixed identity stayed bound to worker4 until it came back: the StatefulSet pods `mimir-ingester-1` and `loki-ingester-2`, and Kafka broker 1, which Strimzi manages the same way.
+
+One thing did not heal by itself. Longhorn's hourly CronJob `kafka-trim` started a Job at 19:07, while worker4 was away; the Job failed, and Prometheus fired `KubeJobFailed` for it. A failed Job object stays until someone deletes it, and the alert stays with it. The second thing was quieter. The product-catalog pod that started on worker2 during the outage, and crash-looped while its database was away, then ran at 16 MiB of its 20 MiB limit with about 560 major page faults a second. Its p95 latency rose from about 6.5 ms to about 210 ms, and checkout's PlaceOrder p95 from about 27 ms to about 240 ms, with every fault flag off. `make lab-check` passed all the same. Prometheus fired `NodeMemoryMajorPagesFaults` for worker2. The Go process itself had not grown. What changed was the page cache charged to the container: about 0.1 MiB before the drill, about 8.5 MiB after, which put the pod at its 20Mi limit. The kernel then drops pages of the program's own code and reads them back from disk, hundreds of times a second. A restart at 19:53 did not help; the new pod was at its limit again within minutes. The fix is a larger memory limit for product-catalog, which lab card L11 makes. Until then the shop answers about ten times slower than a healthy lab. Afterwards worker4 held 21 pods and the other workers 38 to 41: pods that moved during the outage do not move back.
+
+<InLab>
+In this lab, the one RustFS pod and the one ingester of each Mimir partition are single points of failure on their own. A Kafka broker is not: two of three replicas are enough. During the drill, worker4 ran Kafka broker 1, `mimir-ingester-1`, `mimir-compactor-0`, `loki-ingester-2`, `tempo-live-store-0`, a Mimir distributor and querier, and in the shop `astronomy-db-0`, `kafka-0`, `valkey-cart-0`, checkout and product-catalog.
+</InLab>
+
+<Trap>
+Do not judge a drill by the senders. Under ingest storage they get `200` while reads fail; watch reads, lag and the components' own logs.
+</Trap>
+
+<Do>
+1. In WSL, start a query loop in a second terminal. It asks Mimir for recent data every five seconds: <Cmd>{`while true; do echo "$(date -u +%T) $(curl -s -o /dev/null -w '%{http_code}' -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(up)')"; sleep 5; done`}</Cmd>
+2. Drill 1. Note the time and delete one broker: <Cmd>{`date -u +%T; kubectl -n kafka delete pod telemetry-dual-role-1`}</Cmd> Watch it come back: <Cmd>{`kubectl -n kafka get pods -l strimzi.io/pool-name=dual-role -w`}</Cmd> Stop the watch with Ctrl+C when it is `1/1 Running`. Check that Mimir's distributors logged no failed write, each of them: <Cmd>{`for p in $(kubectl -n mimir get pods -l app.kubernetes.io/component=distributor -o name); do kubectl -n mimir logs $p --since=5m | grep -c 'failed to write'; done`}</Cmd>
+3. Drill 2. Note the time, scale the object store to zero, and wait three minutes: <Cmd>{`date -u +%T; kubectl -n s3 scale deployment/rustfs --replicas=0`}</Cmd> During the wait, query old data, older than 13 hours, and recent data: <Cmd>{`for q in 'count(up offset 20h)' 'count(up)'; do curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab' http://10.10.0.5/prometheus/api/v1/query --data-urlencode "query=$q" | head -c 200; echo; done`}</Cmd> Then bring it back: <Cmd>{`kubectl -n s3 scale deployment/rustfs --replicas=1 && kubectl -n s3 rollout status deployment/rustfs; date -u +%T`}</Cmd>
+4. Drill 3 needs the person who runs the VMs: stop one worker for ten minutes in an elevated PowerShell, with `Stop-VM -Name worker4`, then `Start-VM -Name worker4`. A shorter stop shows the failed reads and the return, but the pods turn Terminating only about five minutes after the node goes Unknown. Meanwhile watch the node and its pods: <Cmd>{`kubectl get nodes -w`}</Cmd> <Cmd>{`kubectl get pods -A -o wide --field-selector spec.nodeName=worker4`}</Cmd>
+5. After drill 3, look for Jobs that failed while the node was away: <Cmd>{`kubectl get jobs -A | grep -v Complete`}</Cmd> Delete such a finished, failed Job, and only that, with its namespace and name: <Cmd>{`kubectl -n NAMESPACE delete job JOB`}</Cmd> Its `KubeJobFailed` alert then ends.
+6. After each drill, run the lab's check before you begin the next: <Cmd>{`make lab-check`}</Cmd> It must end with `LAB CHECK PASSED`.
+7. Stop the query loop with Ctrl+C, and answer the check below from drill 2.
+</Do>
+
+<Done>
+Each drill matched or corrected its prediction, the lab came back by itself, and `make lab-check` passed after each. The lab is healthy, not identical: pods that moved during drill 3 stay where they moved.
+</Done>
+
+<Trap practice>
+Run one drill at a time, and only on a lab nobody else needs at that moment. If the lab does not come back by itself within fifteen minutes, follow `lab/docs/runbook.md`; do not try other repairs.
+</Trap>
+
+<Remember>
+Predict, break, watch, check. A part you have never lost on purpose has a failure story nobody has tested.
+</Remember>
+
+<Question id="q-m17-s13" answer="c">
+A worker VM stops. Its StatefulSet pod `mimir-ingester-1` shows `Terminating` after five minutes and no new pod starts. Why?
+
+- The PodDisruptionBudget allows no more ingesters down
+
+  A budget limits evictions on purpose, such as drains. It does not stop a replacement after a failure.
+
+- Kafka holds the partition until the old pod lets go
+
+  Kafka does not lock partitions to pods; any ingester with the right ID reads it.
+
+- Kubernetes cannot confirm the old pod stopped, so the StatefulSet waits for the node
+
+  A StatefulSet keeps one pod per name; while the node is unreachable, the old pod may still run.
+
+- Taint-based eviction is off by default
+
+  It is on: pods tolerate a lost node for 300 seconds, then they are evicted.
+</Question>

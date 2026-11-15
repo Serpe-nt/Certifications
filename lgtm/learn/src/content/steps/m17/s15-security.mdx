@@ -1,0 +1,201 @@
+---
+id: m17-s15
+title: "Security: network policies, TLS and authentication"
+kind: lab
+minutes: 30
+order: 15
+outcome: You can name what the lab leaves open on purpose, close one path with a NetworkPolicy and prove it with a test, and name the settings that turn on TLS between the stores' components.
+exam:
+  - cert: none
+tags: [scale-security]
+check:
+  kind: exact
+  prompt: Which exit code did curl give in action 4, from the pod the policy does not allow?
+  answers: ["28"]
+terms:
+  - term: NetworkPolicy
+    def: A Kubernetes object that says which pods may connect to a pod; the network plugin enforces it.
+  - term: Isolated pod
+    def: A pod selected by at least one policy for a direction; only allowed connections reach it.
+  - term: Mutual TLS
+    def: TLS in which the server also checks a certificate from the client.
+sources:
+  - title: Network Policies (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+    checked: 2026-11-15
+  - title: Securing Grafana Mimir communications with TLS (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/secure/securing-communications-with-tls/
+    checked: 2026-11-15
+  - title: Configure TLS communication (Tempo)
+    url: https://grafana.com/docs/tempo/v3.1.x/configuration/network/tls/
+    checked: 2026-11-15
+  - title: Grafana Mimir authentication and authorization (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+    checked: 2026-11-15
+---
+
+<Problem>
+Any pod in the lab can open a connection to Kafka on port 9092 and write to `mimir-ingest`; Kafka asks for no credentials. A compromised shop pod could fill Kafka. The object store at least wants keys, but they travel without TLS, and nothing limits which pod talks to which.
+</Problem>
+
+<Idea>
+Three layers close the stack. Network policies decide which pods may connect at all. TLS encrypts the traffic between components and, with client certificates, proves who is on the other end. An authenticating proxy in front of the stores decides which caller may use which tenant. The lab leaves all three open on purpose; you close one path here and name the settings for the rest.
+</Idea>
+
+## What the lab leaves open
+
+The lab's platform document lists its simplifications: Kafka and the object store take plain-text connections inside the cluster, metrics-server skips the check of the kubelets' certificates, and the lab's certificate authority keeps its root key in a Secret of the cluster. Step 6 added one more: the stores take any tenant header from anyone who reaches their gateways. Strimzi installs a NetworkPolicy for the brokers. It limits the internal ports to Strimzi's own pods, and has one rule for port 9092 with no source at all: any source may connect there, every pod of the cluster included. No namespace of the stores has a policy.
+
+## Network policies: allow, do not deny
+
+By default a pod accepts connections from everywhere. As soon as one NetworkPolicy selects a pod for ingress, the pod is isolated: only the connections that some policy allows reach it. Policies add up; there is no deny rule. So a typical policy for a store says "only the pods of this namespace and the gateway may connect", and everything else is cut. Kubernetes stores the object; the network plugin enforces it, Calico in the lab.
+
+## TLS between components
+
+Mimir's servers take a certificate and a key for HTTP and gRPC with `-server.http-tls-cert-path` and `-server.grpc-tls-cert-path` and their key and CA flags, and `-server.http-tls-client-auth` and `-server.grpc-tls-client-auth` set to `RequireAndVerifyClientCert` make them demand a valid client certificate. Each client of another component has its own flags ending in `.tls-enabled`, such as `-querier.frontend-client.tls-enabled=true`. Tempo has the same in YAML: `http_tls_config` and `grpc_tls_config` under `server`, and `tls_enabled` with `tls_cert_path` on its clients. A real setup gets the certificates from cert-manager, which the lab already runs.
+
+<Layers caption="Three layers, from the outside in">
+  <Layer title="Authenticating proxy">Checks the caller and sets the tenant (step 6).</Layer>
+  <Layer title="NetworkPolicy" hot>Cuts every connection a policy does not allow.</Layer>
+  <Layer title="TLS, mutual">Encrypts and proves both ends of each connection.</Layer>
+</Layers>
+
+<InLab>
+Your practice in this step lives in the namespace `learn-m17`: a small web server, two client pods and one policy, deleted at the end.
+</InLab>
+
+<Trap>
+A NetworkPolicy without a network plugin that enforces it is accepted by the API server and does nothing. Always test a policy from a pod that should be refused.
+</Trap>
+
+<Do>
+1. In WSL, create the namespace: <Cmd>{`kubectl create namespace learn-m17`}</Cmd> Save this file as `m17-net.yaml`. It holds a small web server with its Service, and two client pods, one labelled `role=client`:
+
+   ```yaml
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: web
+     namespace: learn-m17
+     labels:
+       app: web
+   spec:
+     containers:
+       - name: web
+         image: python:3.14.7-alpine3.24
+         command: ["python", "-m", "http.server", "8080"]
+         ports:
+           - containerPort: 8080
+         readinessProbe:
+           tcpSocket:
+             port: 8080
+         resources:
+           requests: { cpu: 10m, memory: 32Mi }
+           limits: { memory: 64Mi }
+   ---
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: web
+     namespace: learn-m17
+   spec:
+     selector:
+       app: web
+     ports:
+       - port: 8080
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: client
+     namespace: learn-m17
+     labels:
+       role: client
+   spec:
+     containers:
+       - name: curl
+         image: curlimages/curl:8.23.0
+         command: ["sleep", "3600"]
+         resources:
+           requests: { cpu: 10m, memory: 16Mi }
+           limits: { memory: 32Mi }
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: other
+     namespace: learn-m17
+   spec:
+     containers:
+       - name: curl
+         image: curlimages/curl:8.23.0
+         command: ["sleep", "3600"]
+         resources:
+           requests: { cpu: 10m, memory: 16Mi }
+           limits: { memory: 32Mi }
+   ```
+
+   Apply it and wait for the pods: <Cmd>{`kubectl apply -f m17-net.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m17 wait --for=condition=Ready pod/web pod/client pod/other --timeout=120s`}</Cmd>
+2. Before any policy, both clients reach the server: <Cmd>{`for p in client other; do echo "$p: $(kubectl -n learn-m17 exec $p -- curl -s -m 3 -o /dev/null -w '%{http_code}' http://web:8080/)"; done`}</Cmd> Both print `200`.
+3. Save this policy as `web-policy.yaml`. It selects the web server and allows only pods labelled `role=client`, on port 8080:
+
+   ```yaml
+   apiVersion: networking.k8s.io/v1
+   kind: NetworkPolicy
+   metadata:
+     name: web-from-clients
+     namespace: learn-m17
+   spec:
+     podSelector:
+       matchLabels:
+         app: web
+     policyTypes:
+       - Ingress
+     ingress:
+       - from:
+           - podSelector:
+               matchLabels:
+                 role: client
+         ports:
+           - protocol: TCP
+             port: 8080
+   ```
+
+   Apply it: <Cmd>{`kubectl apply -f web-policy.yaml`}</Cmd>
+4. Test both again, and print curl's exit code: <Cmd>{`for p in client other; do kubectl -n learn-m17 exec $p -- curl -s -m 3 -o /dev/null -w "$p: %{http_code}" http://web:8080/; echo " exit $?"; done`}</Cmd> `client` still gets `200` with exit 0. `other` waits three seconds and gives up: it prints `000`, kubectl reports `command terminated with exit code 28`, and the line ends with that exit code.
+5. Read the broker policy Strimzi installed, and find the rule for port 9092: <Cmd>{`kubectl -n kafka get networkpolicy telemetry-network-policy-kafka -o yaml | grep -B3 'port: 9092'`}</Cmd> The rule has `ports` and no `from`: any source may connect.
+6. Delete the namespace with everything in it: <Cmd>{`kubectl delete namespace learn-m17`}</Cmd>
+7. Paste the exit code `other` got in action 4 in the check below.
+</Do>
+
+<Done>
+The policy let the labelled client through and cut the other pod, and Calico enforced it within seconds of the apply.
+</Done>
+
+<Trap practice>
+The refused pod does not get an error, it gets silence: Calico drops the packets. Without `-m 3`, curl would wait for minutes. An exit code of 28 means curl's time ran out.
+</Trap>
+
+<Remember>
+Close the stack in layers: a policy that allows only the pods that need each store, mutual TLS between components, and an authenticating proxy in front. Test each from the side that must be refused.
+</Remember>
+
+<Question id="q-m17-s15" answer="c">
+Strimzi's policy for the brokers allows port 9092 from any pod. You add a second policy that allows port 9092 only from the namespaces `mimir` and `tempo`. Can a test pod in the namespace `shop` still connect to port 9092?
+
+- No, because the newer policy replaces the older one
+
+  Kubernetes does not order or replace policies. Every policy that selects a pod applies at once.
+
+- No, because the stricter of the two policies wins
+
+  There is no deny rule and nothing is "stricter": the allowed connections of all policies add up.
+
+- Yes, because Strimzi's rule still allows port 9092 from everywhere
+
+  Policies add up. To limit port 9092, the open rule itself must change, in Strimzi's Kafka resource.
+
+- Yes, until the brokers restart and load the new policy
+
+  The network plugin enforces policies at once. The brokers never read them.
+</Question>

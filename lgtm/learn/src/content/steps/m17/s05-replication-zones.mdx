@@ -1,0 +1,120 @@
+---
+id: m17-s05
+title: "Replication, zones and rolling updates"
+kind: lab
+minutes: 20
+order: 5
+outcome: You can read how many copies each part of the lab keeps and how many pods a rollout may take down, and say what two zones would buy and cost.
+exam:
+  - cert: none
+tags: [scale-replication]
+check:
+  kind: choice
+  prompt: In the lab as it runs, deleting one pod of which component makes queries of recent data fail for a while?
+  options:
+    - A Mimir ingester
+    - A Loki ingester
+    - A Kafka broker
+    - A Tempo distributor
+  answer: 0
+terms:
+  - term: PodDisruptionBudget
+    def: A Kubernetes object that limits how many pods of a set a voluntary disruption, such as a drain, may take down at once.
+  - term: Voluntary disruption
+    def: A pod removed on purpose, by a drain or a rollout; a node that fails is an involuntary one.
+  - term: Rolling update
+    def: Replacing the pods of a set a few at a time, so that the rest keep serving.
+  - term: rollout-operator
+    def: Grafana's Kubernetes operator that rolls a zone-aware component one zone at a time.
+sources:
+  - title: Perform a rolling update to Grafana Mimir (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/run-production-environment/perform-a-rolling-update/
+    checked: 2026-11-15
+  - title: Configure Grafana Mimir zone-aware replication (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configure-zone-aware-replication/
+    checked: 2026-11-15
+  - title: Speed up ingester rollout using zone awareness (Loki 3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/operations/zone-ingesters/
+    checked: 2026-11-15
+  - title: Disruptions (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
+    checked: 2026-11-15
+  - title: Deployments, rolling update (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+    checked: 2026-11-15
+---
+
+<Problem>
+Your Mimir has three ingesters and Kafka keeps three copies of everything. Someone says the store is therefore safe to roll at any time. In module m11 you deleted one ingester and dashboards on recent data failed for ten seconds. Three copies of the data did not mean three readers.
+</Problem>
+
+<Idea>
+Each part of the stack keeps its own number of copies, and that number says what one lost pod costs. Kafka and Loki keep three copies of what they take in; Mimir and Tempo read each partition with one pod. A PodDisruptionBudget stops a drain from taking too many pods at once. Zones go one step further: they place the copies in different failure domains, so that a whole zone can go down or be rolled at once.
+</Idea>
+
+## Copies, layer by layer
+
+Kafka keeps three replicas of each partition. A write needs every replica that is in sync, and at least two, so one broker may be away. Loki's distributors write each stream to three ingesters and need two of them, so one Loki ingester can go without anyone noticing. Mimir with ingest storage has no write replication of its own: Kafka does it. On the read side, each partition of `mimir-ingest` has one ingester in the lab. Losing it fails recent reads for that partition until a new ingester has caught up from Kafka: ten seconds in m11 step 13. Tempo is the same: each partition has one live-store per zone, and the lab has one zone.
+
+<Layers caption="What one lost pod costs in the lab">
+  <Layer title="Kafka broker">Writes go on: two of three replicas remain, and two are enough.</Layer>
+  <Layer title="Loki ingester">Writes and reads go on: two of three ingesters hold each stream.</Layer>
+  <Layer title="Mimir ingester" hot>Writes go on; recent reads of its partition fail until an ingester reads it again.</Layer>
+  <Layer title="Tempo live-store">Writes go on; recent traces of its partition are missing until it is back.</Layer>
+</Layers>
+
+## Rolling without failures
+
+A rolling update replaces pods a few at a time. Kubernetes' default for a Deployment is 25% unavailable and 25% surge. Mimir's documentation adds rules for the stateful parts: one ingester at a time, at most two store-gateways and two Alertmanagers at a time. For stateless components, many at once is fine.
+
+A PodDisruptionBudget protects these rules from voluntary disruptions, such as `kubectl drain` before a node update. It does not protect against a node that fails, and deleting a pod by hand bypasses it. The lab's charts set `maxUnavailable: 1` on the ingesters of Mimir and Loki and on Tempo's live-stores; Strimzi keeps at least two of the three brokers.
+
+## What two zones buy and cost
+
+With zone-aware replication, Mimir puts the ingesters of one partition in different zones: an availability zone, a data center, a rack, or an anti-affinity group of nodes. Two ingesters per partition is the usual choice. Then a whole zone can go down, or be rolled at once, and every partition still has a reader. Loki's zone-aware ingesters do the same with one copy of each stream per zone. Mimir's documentation asks that rollouts touch one zone at a time and points to the rollout-operator for that.
+
+The cost is a second set of the stateful pods. In the lab, two ingesters per partition would double Mimir's three ingesters to six, each requesting 512 MiB; the budget of the lab notes that such a lesson would add 1.5 GiB of requests. Kafka's disk does not grow, because both zones read the same records; but every record is now read twice, once per zone.
+
+<InLab>
+The lab's nodes carry no zone labels, so zone awareness is off and the rollout-operator is not installed. Each Mimir partition has one owner: `mimir-ingester-0`, `-1` and `-2`.
+</InLab>
+
+<Trap>
+Three copies of the data are not three readers. Count who can answer a query for the newest data, not how many disks hold it.
+</Trap>
+
+<Do>
+1. In WSL, read the disruption budgets of the stateful parts: <Cmd>{`kubectl get pdb -A | grep -E 'NAME|mimir-ingester|loki-ingester|telemetry-kafka|tempo-live-store'`}</Cmd> Mimir's and Loki's ingesters and Tempo's live-stores allow one pod down; Kafka keeps at least two brokers.
+2. Read who owns each Mimir partition: <Cmd>{`D=$(kubectl -n mimir get pods -l app.kubernetes.io/component=distributor -o jsonpath='{.items[0].metadata.name}')`}</Cmd> <Cmd>{`kubectl get --raw /api/v1/namespaces/mimir/pods/$D:8080/proxy/ingester/partition-ring | grep -o '"id":[0-9]*\\|"owner_ids":\\[[^]]*\\]'`}</Cmd> Each partition lists one owner.
+3. Read Loki's replication factor: <Cmd>{`kubectl -n loki get configmap loki -o jsonpath='{.data.config\\.yaml}' | grep -m1 replication_factor`}</Cmd> It is 3.
+4. Read Kafka's topics once more: <Cmd>{`kubectl -n kafka get kafkatopic`}</Cmd> Both have three replicas.
+5. Answer the check below from what you read.
+</Do>
+
+<Done>
+You found three copies in Kafka and Loki, one reader per partition in Mimir, and a budget of one pod on each stateful set.
+</Done>
+
+<Remember>
+Count readers per partition, not copies of data. One reader per partition means a rollout or a lost pod costs reads; two in different zones make both harmless.
+</Remember>
+
+<Question id="q-m17-s05" answer="d">
+A cluster runs Mimir with ingest storage, two zones and two ingesters per partition. You must roll a new version to every ingester. What is the fastest order that keeps every query working?
+
+- All ingesters of both zones at once, because Kafka keeps the data
+
+  Kafka keeps the records, but with both zones down no partition has a reader, so recent queries fail.
+
+- One ingester at a time across both zones, never two in a row from one zone
+
+  This works, but it is far slower than needed. With zones, a whole zone may be rolled at once.
+
+- Delete the PodDisruptionBudget first, so that the rollout is not blocked
+
+  The budget does not block a rollout of a StatefulSet. It limits voluntary disruptions such as drains.
+
+- All ingesters of zone A, then all of zone B once zone A is ready
+
+  Every partition keeps a reader in the other zone while one zone rolls. Mimir's page allows rolling a whole zone at once.
+</Question>

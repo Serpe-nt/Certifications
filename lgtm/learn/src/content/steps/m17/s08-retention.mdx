@@ -1,0 +1,117 @@
+---
+id: m17-s08
+title: "Retention per signal and per tenant"
+kind: lab
+minutes: 20
+order: 8
+outcome: You can read how long each signal is kept in the lab from the running stores, and set retention per tenant and, in Loki, per stream.
+exam:
+  - cert: none
+tags: [scale-retention]
+check:
+  kind: exact
+  prompt: Action 3 shows a label on Loki's distributor counter that holds the tenant's retention. What is its value for tenant lab?
+  answers: ["48"]
+terms:
+  - term: Retention period
+    def: How long a store keeps data before its background workers delete it.
+  - term: Per-stream retention
+    def: A Loki rule that keeps the streams matching a label selector for their own period.
+  - term: Override
+    def: A per-tenant value in the store's runtime configuration that replaces the default.
+sources:
+  - title: Configure Grafana Mimir metrics storage retention (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configure-metrics-storage-retention/
+    checked: 2026-11-15
+  - title: Loki log retention (3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/operations/storage/retention/
+    checked: 2026-11-15
+  - title: Tempo configuration, compaction and overrides
+    url: https://grafana.com/docs/tempo/v3.1.x/configuration/
+    checked: 2026-11-15
+---
+
+<Problem>
+The security team wants a year of audit logs. The developers want 14 days of debug logs and a week of traces. Finance wants the storage bill to stop growing. You run one Loki, one Mimir and one Tempo for all of them. One retention setting per store will make at least two of them unhappy.
+</Problem>
+
+<Idea>
+Each store has a default retention and per-tenant overrides, and Loki can also keep chosen streams longer or shorter. Retention is applied in the background, by the compactors of Mimir and Loki and by Tempo's backend scheduler and workers, so it costs nothing at write time. Keep the default short and give the few that need it a longer period, per tenant or per stream.
+</Idea>
+
+## Three stores, three settings
+
+Mimir deletes blocks older than `compactor_blocks_retention_period`. Its default is to keep everything forever. Mimir cannot delete single series by retention, only whole blocks of a tenant.
+
+Loki keeps everything forever as well unless its compactor has retention switched on. Then `retention_period` applies to all streams, and `retention_stream` rules apply a period to the streams that match a label selector. A stream rule must be at least 24 hours.
+
+Tempo deletes blocks older than `block_retention`, by default 336 hours, 14 days. A tenant's override `compaction.block_retention` replaces it.
+
+<Compare caption="Where retention is set">
+  <Col title="Mimir">Default in limits, `compactor_blocks_retention_period`; per tenant in the runtime overrides.</Col>
+  <Col title="Loki" hot>Default `retention_period`; per tenant in the overrides; per stream with `retention_stream`.</Col>
+  <Col title="Tempo">Default `block_retention` of the compaction block; per tenant `compaction.block_retention`.</Col>
+</Compare>
+
+## Per tenant, per stream
+
+Per-tenant overrides sit in the same runtime file as the other limits of step 7. The store reloads it, so no restart is needed. In Loki, the most specific rule wins: a per-tenant stream rule before a global stream rule, and a stream rule before the tenant's period. That is how the audit logs of the scene get a year while the rest of the tenant keeps 14 days.
+
+Retention is also the cheapest way to free disk in the lab: the runbook lists a shorter retention first among the ways to free space.
+
+## The other places that keep data
+
+The stores are not the only ones. Kafka keeps its own records, by time and by size (step 4). Prometheus keeps one day locally. Ingesters keep recent blocks on their disks for a while after upload. Each needs its own setting, and none of them follows the stores' retention.
+
+<Figures caption="How long the lab keeps each signal" unit="hours">
+  <Stat label="Metrics, Mimir" value="7 days" amount={168} max={168} hot />
+  <Stat label="Logs, Loki" value="48 hours" amount={48} max={168} />
+  <Stat label="Traces, Tempo" value="48 hours" amount={48} max={168} />
+  <Stat label="Kafka records" value="24 hours or 640 MiB" amount={24} max={168} />
+  <Stat label="Prometheus, local" value="1 day" amount={24} max={168} />
+</Figures>
+
+<InLab>
+The lab sets 7 days for metrics, 48 hours for logs and traces, and no per-tenant or per-stream rules. Loki's distributor even labels its byte counter with the retention of each tenant.
+</InLab>
+
+<Trap>
+Mimir and Loki keep data forever unless you set retention. A store that "has retention" by default is the exception; check the running configuration.
+</Trap>
+
+<Do>
+1. In WSL, read Mimir's retention from a distributor's running configuration: <Cmd>{`D=$(kubectl -n mimir get pods -l app.kubernetes.io/component=distributor -o jsonpath='{.items[0].metadata.name}')`}</Cmd> <Cmd>{`kubectl get --raw /api/v1/namespaces/mimir/pods/$D:8080/proxy/config | grep compactor_blocks_retention_period`}</Cmd> Mimir prints `1w`.
+2. Read Loki's retention and delete delay: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/config | grep -E '^\\s+(retention_period|retention_delete_delay|retention_enabled):'`}</Cmd> You see `true`, `2h0m0s` and `2d` from the compactor and the limits, then a `retention_period: 0s` of the deprecated table manager; with the TSDB index, retention is the compactor's job.
+3. Read the retention Loki applies to what it receives, per tenant and format: <Cmd>{`L=$(kubectl -n loki get pods -l app.kubernetes.io/component=distributor -o jsonpath='{.items[0].metadata.name}')`}</Cmd> <Cmd>{`kubectl get --raw /api/v1/namespaces/loki/pods/$L:3100/proxy/metrics | grep '^loki_distributor_bytes_received_total'`}</Cmd> Each line carries a label `retention_hours`.
+4. Read Tempo's retention from its backend scheduler: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-backend-scheduler-0:3200/proxy/status/config | grep -m1 block_retention`}</Cmd> It is `48h0m0s`.
+5. Read Prometheus's own local retention: <Cmd>{`kubectl -n prom get prometheus -o jsonpath='{.items[0].spec.retention}'; echo`}</Cmd>
+6. Paste the value of `retention_hours` for tenant `lab` in the check below.
+</Do>
+
+<Done>
+You read five retention settings from five running components, not from files: 1 week, 2 days, 48 hours, and 1 day for Prometheus.
+</Done>
+
+<Remember>
+Keep the default short and lengthen it where someone needs it: per tenant in all three stores, per stream in Loki. Then set Kafka and the local disks on purpose too.
+</Remember>
+
+<Question id="q-m17-s08" answer="a">
+Loki keeps 14 days by default. Audit logs carry the label `stream="audit"` and must be kept 365 days; everything else stays at 14. What do you set?
+
+- A `retention_stream` rule for `{stream="audit"}` with a period of 365 days
+
+  A stream rule keeps the matching streams for their own period while the rest keep the default.
+
+- `retention_period: 365d`, so nothing is lost
+
+  That keeps every stream a year, and the storage cost grows by the same factor.
+
+- A lifecycle rule on the bucket that keeps the audit prefix for a year
+
+  Objects in the bucket are kept per tenant, not per stream, and Loki's compactor would still delete the chunks after 14 days.
+
+- A separate Loki cluster for the audit logs
+
+  It works, but Loki can do it in one cluster with a stream rule, which is far less to run.
+</Question>

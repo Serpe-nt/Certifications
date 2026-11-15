@@ -1,0 +1,119 @@
+---
+id: m17-s04
+title: "Kafka for ingest: partitions, lag and retention"
+kind: lab
+minutes: 20
+order: 4
+outcome: You can read a topic's partitions, its retention by time and by size, and each consumer's lag, and work out how long a consumer may be down before it loses data.
+exam:
+  - cert: none
+tags: [scale-kafka]
+check:
+  kind: exact
+  prompt: How many MiB does Kafka keep at most in one partition of the lab, by the size limit alone?
+  answers: ["640", "640 MiB", "640mib"]
+terms:
+  - term: Partition
+    def: One ordered log inside a Kafka topic; each Mimir ingester or Tempo block-builder reads one.
+  - term: Consumer group
+    def: A name under which Kafka stores how far a consumer has read in each partition.
+  - term: Consumer lag
+    def: How far a consumer is behind the newest record of its partition, in records or seconds.
+  - term: Retention
+    def: How long, or how many bytes, Kafka keeps a partition's records before it deletes the oldest segment.
+  - term: In-sync replica
+    def: A copy of a partition that is up to date with its leader; min.insync.replicas sets how many a write needs.
+sources:
+  - title: About ingest storage architecture (Mimir 3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-15
+  - title: Kafka in Tempo's architecture
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/kafka/
+    checked: 2026-11-15
+  - title: Kafka 4.3 topic configurations
+    url: https://kafka.apache.org/43/configuration/topic-configs/
+    checked: 2026-11-15
+  - title: Kafka 4.3 broker configurations
+    url: https://kafka.apache.org/43/configuration/broker-configs/
+    checked: 2026-11-15
+---
+
+<Problem>
+On 2026-11-11 at 17:57 UTC the lab's three Kafka brokers ran out of disk and stopped. Mimir and Tempo stored nothing for 18 hours. Loki, which does not use Kafka, carried on. Kafka kept only 24 hours of records, so how did it fill its disks in under six?
+</Problem>
+
+<Idea>
+Mimir and Tempo write into Kafka first, and their consumers read from it at their own pace. Kafka must keep every record until the slowest consumer has read it, and it must not keep so much that its disks fill. Retention by time alone does neither when the write rate changes, so set a size limit too, and watch each consumer's lag against what retention keeps.
+</Idea>
+
+## Partitions set the parallelism
+
+A topic is split into partitions. Mimir's distributors spread series over the partitions of `mimir-ingest`, and each ingester reads exactly one partition, chosen by the number at the end of its name. Tempo's distributors pick a partition by trace ID, and each active partition has exactly one block-builder and one live-store per zone. So the partition count is the most readers you can run; Kafka can add partitions to a topic, but never remove them.
+
+Every partition has replicas on several brokers. With `acks=all`, which Mimir and Tempo use, a write is accepted when every in-sync copy has it, and `min.insync.replicas: 2` refuses it when fewer than two are in sync. So one broker may be away without stopping writes.
+
+## Lag is how far behind a reader is
+
+Each consumer stores its position in a consumer group. Lag is the gap between that position and the newest record, counted in records or in seconds. Tempo exposes it directly as `tempo_ingest_group_partition_lag` and `..._lag_seconds`, per consumer group. A block-builder works in cycles, 5 minutes by default, so its lag rises and falls; a live-store should stay near zero.
+
+Lag is fine while it stays well inside retention. A consumer that falls further behind than Kafka keeps can no longer read what it missed, and that data is lost for the store.
+
+## Retention by time and by size
+
+Kafka deletes old data one segment file at a time. `log.retention.hours` deletes segments older than a time, `log.retention.bytes` deletes the oldest segment while a partition is over a size; whichever limit is reached first wins. The size limit is per partition, so a node holds up to the limit times the number of partitions it carries, plus one open segment each.
+
+That is what went wrong on 2026-11-11. Prometheus's remote write started at 12:15 UTC, and each broker's volume grew from about 90 to about 640 MiB an hour. Every broker holds a copy of every partition, so an empty 5 GiB would last about eight hours, far less than 24. The volumes already held older data, and they filled in under six hours, at 17:57. The fix was larger volumes, 10 GiB, and a size limit of 640 MiB per partition.
+
+<Figures caption="mimir-ingest on one broker, measured 2026-11-12" unit="MiB per hour">
+  <Stat label="Whole topic" value="590" amount={590} max={640} hot note="Six partitions; three get data" />
+  <Stat label="One busy partition" value="197" amount={197} max={640} note="640 MiB keeps about 3.2 hours" />
+  <Stat label="tempo-traces" value="89" amount={89} max={640} note="Two partitions" />
+</Figures>
+
+## What the size limit costs
+
+With the size limit, a busy partition of `mimir-ingest` keeps about 3.2 hours, measured on 2026-11-12. An ingester that is down longer than that loses the oldest records it had not read. Tempo's documentation asks that retention cover the block-builder's consume cycle plus room for failures, and the live-store's replay window at start. In the lab those are 5 and 20 minutes, far inside 3 hours.
+
+<InLab>
+The lab's Kafka cluster `telemetry` has three brokers. `mimir-ingest` has 6 partitions and `tempo-traces` 2, each with three replicas. Mimir runs three ingesters, so partitions 3 to 5 of `mimir-ingest` receive nothing.
+</InLab>
+
+<Trap>
+A retention of 24 hours does not mean Kafka keeps 24 hours. When the size limit is reached first, it keeps less, and the time it keeps shrinks as the write rate grows.
+</Trap>
+
+<Do>
+1. In WSL, list the two ingest topics with their partitions and replicas: <Cmd>{`kubectl -n kafka get kafkatopic`}</Cmd> You see `mimir-ingest` with 6 partitions and `tempo-traces` with 2, each with replication factor 3.
+2. Read the cluster's retention and replica settings: <Cmd>{`kubectl -n kafka get kafka telemetry -o jsonpath='{.spec.kafka.config}'; echo`}</Cmd> Find `log.retention.hours`, `log.retention.bytes`, `log.segment.bytes` and `min.insync.replicas`.
+3. Read the lag of Tempo's two consumer groups, per partition: <Cmd>{`for p in tempo-block-builder-0 tempo-block-builder-1 tempo-live-store-0 tempo-live-store-1; do kubectl get --raw /api/v1/namespaces/tempo/pods/$p:3200/proxy/metrics | grep '^tempo_ingest_group_partition_lag' | sed "s/^/$p /"; done`}</Cmd> Each line gives a group, a partition and the lag in records or seconds. Run it again a minute later: the block-builders' lag moves, the live-stores' stays small.
+4. Read how late Mimir's ingester 0 receives records, on average since it started: <Cmd>{`kubectl get --raw /api/v1/namespaces/mimir/pods/mimir-ingester-0:8080/proxy/metrics | grep -E '^cortex_ingest_storage_reader_receive_delay_seconds_(sum|count)\\{phase="running"'`}</Cmd> Divide the sum by the count. On 2026-11-15 it was about 0.05 seconds.
+5. Turn `log.retention.bytes` into MiB: divide it by 1048576. Paste the result in the check below.
+</Do>
+
+<Done>
+You know the size limit of one partition and the lag of every consumer. All lags are seconds, and Kafka keeps hours: the lab has room.
+</Done>
+
+<Remember>
+Size Kafka's disks from the write rate and the size limit, not from the time limit. Then compare every consumer's lag with what that limit keeps.
+</Remember>
+
+<Question id="q-m17-s04" answer="a">
+A Mimir cluster with ingest storage keeps 24 hours or 2 GiB per partition in Kafka. A busy partition receives 500 MiB an hour. Its ingester is stuck for 6 hours. What happens?
+
+- The ingester loses about two hours of records, because Kafka kept only about four
+
+  2 GiB at 500 MiB an hour is about four hours, so the size limit deleted records the ingester had not read.
+
+- Nothing is lost, because the time limit keeps 24 hours
+
+  The size limit is reached after about four hours and deletes segments first. Whichever limit is reached first wins.
+
+- Writes fail for the six hours, because the ingester does not read them
+
+  Writes end at Kafka. No ingester takes part in a write.
+
+- Kafka keeps the records until the ingester has read them
+
+  Kafka does not wait for consumers. Retention deletes segments whatever the consumers' positions are.
+</Question>

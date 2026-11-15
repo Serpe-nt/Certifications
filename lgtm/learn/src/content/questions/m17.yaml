@@ -1,0 +1,643 @@
+# Quiz pool for module m17, Running it at scale. Card C16, 2026-11-15. The module serves no exam (cert none).
+# Sources: the documentation of Mimir 3.2, Loki 3.7 and Tempo 3.1 on grafana.com, Kafka 4.3,
+# kubernetes.io, Grafana Cloud and Amazon's pages, fetched on 2026-11-15, and the lab runs logged
+# in lgtm/docs/verification/m17.md. No mock pool question carries these tags.
+
+# scale-deployment-modes
+- id: q-m17-001
+  tags: [scale-deployment-modes]
+  exam: { cert: none }
+  q: 'A team plans a new Loki for about 15 GB of logs a day and has one person to run it. Which setup does Loki''s documentation point them to?'
+  options:
+    - text: 'Monolithic mode, one process for everything'
+      why: 'Monolithic mode runs every component in one process and suits small volumes, with the least to operate.'
+    - text: 'Simple scalable mode, the chart''s old middle ground'
+      why: 'Simple scalable mode is being deprecated and is removed in Loki 4.0, so a new setup should not start with it.'
+    - text: 'Microservices mode, because it is the production default'
+      why: 'Loki recommends microservices mode for very large clusters or precise control; at 15 GB a day it is mostly work.'
+    - text: 'Two monolithic processes with their own object stores'
+      why: 'Scaled-out monolithic processes share one object store and one ring; separate stores would split the data.'
+  answer: [0]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/deployment-modes/
+
+- id: q-m17-002
+  tags: [scale-deployment-modes]
+  exam: { cert: none }
+  q: 'You want Tempo to stay available while one process restarts. Why does running three copies of Tempo with <code>-target=all</code> not give you that?'
+  options:
+    - text: 'Monolithic mode cannot write blocks to object storage'
+      why: 'Monolithic mode writes to object storage too; Tempo recommends object storage for production.'
+    - text: 'The backend scheduler is a single instance and cannot run three times'
+      why: 'Tempo''s page says more than one -target=all instance is not supported for this reason, and points to microservices mode.'
+    - text: 'Three processes would each need their own Kafka cluster'
+      why: 'Monolithic mode needs no Kafka at all; the distributor hands data to the other components in-process.'
+    - text: 'Monolithic mode limits each process to 25 MB/s of spans'
+      why: 'The 25 to 35 MB/s is the page''s guide for when one process is enough, not a hard cap per process.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/set-up-for-tracing/setup-tempo/plan/deployment-modes/
+
+- id: q-m17-003
+  tags: [scale-deployment-modes]
+  exam: { cert: none }
+  q: 'Which change comes with moving Tempo from monolithic to microservices mode, apart from more pods?'
+  options:
+    - text: 'The query language changes from TraceQL to a sharded form'
+      why: 'TraceQL is the same in both modes; only how components are grouped into processes changes.'
+    - text: 'Traces must be sent through a gateway instead of to the distributor'
+      why: 'Senders still write to the distributor; Tempo does not require a gateway in either mode.'
+    - text: 'A Kafka-compatible queue must run between the distributor and the rest'
+      why: 'Microservices mode needs Kafka, Redpanda or WarpStream as the durable queue; monolithic mode needs none.'
+    - text: 'Retention moves from the backend scheduler to the querier'
+      why: 'The backend scheduler and workers apply retention in both modes.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/set-up-for-tracing/setup-tempo/plan/deployment-modes/
+
+# scale-chart-values
+- id: q-m17-004
+  tags: [scale-chart-values]
+  exam: { cert: none }
+  q: 'During an incident you must know which values a Mimir release changed from its chart. Which command shows only those?'
+  options:
+    - text: '<code>helm get values mimir -n mimir --all</code>'
+      why: 'With --all, Helm prints the chart''s defaults merged in, thousands of lines for this chart.'
+    - text: '<code>helm show values mimir-distributed</code>'
+      why: 'This prints the chart''s defaults, not what the release set.'
+    - text: '<code>helm get manifest mimir -n mimir</code>'
+      why: 'This prints the rendered Kubernetes objects, not the values that produced them.'
+    - text: '<code>helm get values mimir -n mimir</code>'
+      why: 'Without --all, Helm prints only the user-supplied values of the release.'
+  answer: [3]
+  source: https://helm.sh/docs/helm/helm_get_values/
+
+- id: q-m17-005
+  tags: [scale-chart-values]
+  exam: { cert: none }
+  q: '<code>helm list</code> shows the Mimir release with APP VERSION 3.2.3, but a bug fixed in 3.2.4 does not happen. What is the likely explanation?'
+  options:
+    - text: 'The release overrides the image tag, so the pods run 3.2.4'
+      why: 'APP VERSION is the chart''s appVersion; an image tag in the values decides what runs. The lab does exactly this.'
+    - text: 'Helm upgrades the image by itself when a patch is published'
+      why: 'Helm installs what the chart and values name; it does not follow new releases on its own.'
+    - text: 'The bug only shows in monolithic mode'
+      why: 'Nothing points to the mode. The version column is the thing to check.'
+    - text: 'APP VERSION is updated only after a restart of the pods'
+      why: 'APP VERSION comes from the chart, whatever the pods run or when they started.'
+  answer: [0]
+  source: https://helm.sh/docs/helm/helm_get_values/
+
+- id: q-m17-006
+  tags: [scale-chart-values]
+  exam: { cert: none }
+  q: 'In the mimir-distributed chart, where do you set Mimir''s own configuration, such as the Kafka address of ingest storage?'
+  options:
+    - text: 'Under <code>ingester</code>, next to its replicas'
+      why: 'The component blocks set what Kubernetes needs: replicas, resources, volumes.'
+    - text: 'Under <code>mimir.structuredConfig</code>'
+      why: 'This block is merged into Mimir''s configuration file; the lab sets ingest_storage there.'
+    - text: 'Under <code>runtimeConfig</code>'
+      why: 'The runtime configuration holds per-tenant overrides that Mimir reloads, not the Kafka wiring.'
+    - text: 'Under <code>kafka</code>, which installs and configures the broker'
+      why: 'The chart''s kafka block installs a Kafka of its own; the lab switches it off and points Mimir at the platform''s.'
+  answer: [1]
+  source: https://grafana.com/docs/helm-charts/mimir-distributed/latest/
+
+# scale-object-storage
+- id: q-m17-007
+  tags: [scale-object-storage]
+  exam: { cert: none }
+  q: 'A colleague adds a bucket rule "delete objects older than 30 days, whole bucket" to Loki''s bucket, where retention is also 30 days. What breaks first?'
+  options:
+    - text: 'Nothing, because both periods are 30 days'
+      why: 'The rule also deletes the index, the cluster seed and delete requests, which Loki must keep.'
+    - text: 'Writes, because Loki cannot create new chunks'
+      why: 'New chunks are written as before. The damage is to objects Loki already relies on.'
+    - text: 'Queries, once index files are deleted'
+      why: 'Loki''s page warns that a rule with an empty prefix will remove the index and cause query failures.'
+    - text: 'The compactor, which refuses to run with a lifecycle rule'
+      why: 'The compactor does not read lifecycle rules; it simply finds objects missing.'
+  answer: [2]
+  source: https://grafana.com/docs/loki/v3.7.x/operations/storage/retention/
+
+- id: q-m17-008
+  tags: [scale-object-storage]
+  exam: { cert: none }
+  q: 'Why does Mimir refuse to start when its blocks storage and its ruler storage use the same bucket with the same prefix?'
+  options:
+    - text: 'Rule files would mix with tenants'' blocks'
+      why: 'Mimir''s page says it fails to start in this case, which keeps rule files out of the blocks layout.'
+    - text: 'S3 does not let two clients write one bucket'
+      why: 'Many clients can write one bucket; the check is Mimir''s own.'
+    - text: 'The ruler needs a bucket in another region'
+      why: 'Nothing requires another region; a different bucket or prefix is enough.'
+    - text: 'Mimir needs a separate bucket for every tenant'
+      why: 'Mimir keeps all tenants of one kind in one bucket, one prefix per tenant.'
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configure-object-storage-backend/
+
+- id: q-m17-009
+  tags: [scale-object-storage]
+  exam: { cert: none }
+  q: 'The lab''s object store was killed for memory after two Loki queries read 90 minutes of a busy namespace. Which change protects it from the next such query?'
+  options:
+    - text: 'A larger volume for the object store'
+      why: 'The store ran out of memory, not disk. A larger volume does not change how much one read burst takes.'
+    - text: 'More ingesters for Loki'
+      why: 'Ingesters write and serve recent data; the heavy reads came from queriers reading chunks.'
+    - text: 'A lifecycle rule that keeps only one hour of logs'
+      why: 'It would delete most of the logs the lab must keep, and a lifecycle rule must stay longer than retention.'
+    - text: 'Loki query limits on the bytes a query may read'
+      why: 'The lab added max_query_bytes_read of 500MB after this outage, so such a query is refused before it reads.'
+  answer: [3]
+  source: https://grafana.com/docs/loki/v3.7.x/configure/
+
+# scale-kafka
+- id: q-m17-010
+  tags: [scale-kafka]
+  exam: { cert: none }
+  q: 'Kafka keeps 24 hours or 640 MiB per partition. Mimir''s write rate doubles after a new team joins. What happens to the time Kafka keeps?'
+  options:
+    - text: 'It stays 24 hours, because the time limit is fixed'
+      why: 'Whichever limit is reached first wins; with more data per hour, the size limit is reached sooner.'
+    - text: 'It about halves, because the size limit is reached twice as fast'
+      why: 'The same 640 MiB now holds half as many hours of records per partition.'
+    - text: 'It doubles, because Kafka adds partitions'
+      why: 'Kafka never adds partitions by itself; an operator does.'
+    - text: 'It stays the same, because Mimir compresses more'
+      why: 'Nothing in the change makes records smaller; more samples mean more bytes.'
+  answer: [1]
+  source: https://kafka.apache.org/43/configuration/topic-configs/
+
+- id: q-m17-011
+  tags: [scale-kafka]
+  exam: { cert: none }
+  q: 'A Tempo block-builder shows a lag of 240 seconds, rising and falling every few minutes. Is that a problem?'
+  options:
+    - text: 'Yes, any lag over a few seconds means lost spans'
+      why: 'Lag is lost data only when it passes what Kafka keeps; seconds or minutes are far inside it.'
+    - text: 'Yes, the block-builder should read every record at once'
+      why: 'Block-builders consume in cycles by design; they do not stream like a live-store.'
+    - text: 'No, a block-builder consumes in 5-minute cycles'
+      why: 'Its lag rises during a cycle and drops when it consumes; it matters only against Kafka''s retention.'
+    - text: 'No, block-builders are not consumers of Kafka'
+      why: 'They are: block-builders form one consumer group of the Tempo topic.'
+  answer: [2]
+  source: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/kafka/
+
+- id: q-m17-012
+  tags: [scale-kafka]
+  exam: { cert: none }
+  q: 'Mimir''s topic has 6 partitions and you want to run 8 ingesters per zone. What must happen first?'
+  options:
+    - text: 'Nothing, two ingesters will share each extra partition'
+      why: 'Each ingester reads exactly one partition, chosen by its number; ingesters 6 and 7 would have none.'
+    - text: 'Remove the topic and create it again with 8 partitions'
+      why: 'Deleting the topic drops the records the ingesters have not read. Partitions can be added in place.'
+    - text: 'Lower the topic''s replication factor to free brokers'
+      why: 'Replicas are about durability, not about how many consumers can read.'
+    - text: 'Add partitions to the topic until it has at least 8'
+      why: 'Kafka can add partitions to a topic; Mimir needs at least as many partitions as ingesters per zone.'
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+
+- id: q-m17-013
+  tags: [scale-kafka]
+  exam: { cert: none }
+  q: 'Kafka has replication factor 3 and <code>min.insync.replicas: 2</code>. Two of the three brokers are down. What happens to writes that use acks=all?'
+  options:
+    - text: 'They are refused with NotEnoughReplicas'
+      why: 'With one in-sync replica, fewer than min.insync.replicas, the producer gets NotEnoughReplicas.'
+    - text: 'They succeed on the one broker that is left'
+      why: 'That would hold with min.insync.replicas of 1, not 2.'
+    - text: 'They are queued on the broker until the others return'
+      why: 'Kafka refuses such a write; the producer must retry.'
+    - text: 'They succeed, and Kafka copies them to the others later'
+      why: 'A write with acks=all is accepted only when enough replicas have it.'
+  answer: [0]
+  source: https://kafka.apache.org/43/configuration/topic-configs/
+
+# scale-replication
+- id: q-m17-014
+  tags: [scale-replication]
+  exam: { cert: none }
+  q: 'The lab''s Loki runs three ingesters with replication factor 3. One ingester is killed. What do users see?'
+  options:
+    - text: 'Recent log queries fail until the ingester is back'
+      why: 'The two other ingesters hold every stream, so reads can still be answered.'
+    - text: 'Pushes fail, because every write needs all three'
+      why: 'A write needs a quorum of two of three, which the remaining ingesters give.'
+    - text: 'Nothing, because two of three ingesters still hold each stream'
+      why: 'With replication factor 3, writes and reads need two healthy ingesters, and two are left.'
+    - text: 'The lines of the last hour are lost'
+      why: 'The other two ingesters hold the same lines.'
+  answer: [2]
+  source: https://grafana.com/docs/loki/v3.7.x/get-started/architecture/
+
+- id: q-m17-015
+  tags: [scale-replication]
+  exam: { cert: none }
+  q: 'An admin runs <code>kubectl drain</code> on a worker that runs two Mimir ingesters, while the PodDisruptionBudget allows one ingester down. What happens?'
+  options:
+    - text: 'Both ingesters are evicted at once, because drains ignore budgets'
+      why: 'A drain uses the Eviction API, which respects PodDisruptionBudgets.'
+    - text: 'One is evicted; the drain waits for it to be back before the second'
+      why: 'The budget lets one ingester be disrupted at a time, so the drain evicts them one after the other.'
+    - text: 'The drain fails at once and changes nothing'
+      why: 'The drain retries a refused eviction and goes on once the budget allows it.'
+    - text: 'The ingesters move with their memory to another node'
+      why: 'Evicted pods are recreated elsewhere and start again; they replay their WAL and Kafka.'
+  answer: [1]
+  source: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
+
+- id: q-m17-016
+  tags: [scale-replication]
+  exam: { cert: none }
+  q: 'You plan zone-aware Mimir with ingest storage on three racks. What is the fastest rollout of a new version that keeps every query working?'
+  options:
+    - text: 'One ingester at a time, across all racks'
+      why: 'Safe but slow. With zones, a whole zone can roll at once.'
+    - text: 'All ingesters at once, since Kafka holds the data'
+      why: 'With every zone down at once, no partition has a reader and recent queries fail.'
+    - text: 'One zone at a time, all its ingesters together'
+      why: 'Mimir''s documentation allows rolling all instances of one zone together and asks for one zone at a time.'
+    - text: 'Distributors first, because they hold the ring'
+      why: 'Distributors are stateless and can roll any time; the order of zones is what matters for ingesters.'
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/run-production-environment/perform-a-rolling-update/
+
+# scale-multi-tenancy
+- id: q-m17-017
+  tags: [scale-multi-tenancy]
+  exam: { cert: none }
+  q: 'A query to Mimir with the header <code>X-Scope-OrgID: lab|prom</code> returns "too many tenant IDs present in the request". Why?'
+  options:
+    - text: 'The pipe is not allowed in a tenant ID'
+      why: 'The pipe is the separator for federation; Mimir read two tenants, which is why it refused.'
+    - text: 'The tenant prom does not exist yet in Mimir'
+      why: 'The error names the count of tenants, not a missing one.'
+    - text: 'Tenant federation is off in this Mimir'
+      why: 'With tenant_federation.enabled false, Mimir allows one tenant per request.'
+    - text: 'The gateway strips the header and adds its own'
+      why: 'The lab''s gateway passes the header on as it is.'
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+
+- id: q-m17-018
+  tags: [scale-multi-tenancy]
+  exam: { cert: none }
+  q: 'A batch job of tenant team-b sends 300,000 samples in one request every hour, far over its burst size of 20,000. Other tenants'' writes stay fast. What did the distributors do with the request?'
+  options:
+    - text: 'Accepted it and slowed down every other tenant'
+      why: 'The request is over team-b''s burst, and the other tenants stay fast: it was not accepted.'
+    - text: 'Refused the whole request with 429'
+      why: 'A request over the tenant''s rate or burst is dropped whole at the distributors, without touching the other tenants.'
+    - text: 'Wrote it to Kafka and let the ingesters refuse it'
+      why: 'Rate limits are checked by the distributors before Kafka; ingesters check other limits.'
+    - text: 'Moved team-b to an ingester of its own for an hour'
+      why: 'Mimir does not move a tenant on its own; shuffle sharding is configured, not automatic.'
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/distributor/
+
+- id: q-m17-019
+  tags: [scale-multi-tenancy]
+  exam: { cert: none }
+  q: 'You raise one tenant''s <code>ingestion_rate</code> in Mimir''s runtime configuration. When does the change take effect?'
+  options:
+    - text: 'After the next rolling restart of the distributors'
+      why: 'No restart is needed; that is the point of the runtime configuration.'
+    - text: 'At once, as soon as you save the values file'
+      why: 'The release must be applied, and the file must reach the pods, before Mimir can read it.'
+    - text: 'Only for series that are created after the change'
+      why: 'A rate limit is per tenant, not per series.'
+    - text: 'Soon after the new file reaches the pods'
+      why: 'Mimir reloads the runtime file every 10 seconds by default; the kubelet first has to update the ConfigMap in the pods.'
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/about-runtime-configuration/
+
+- id: q-m17-020
+  tags: [scale-multi-tenancy]
+  exam: { cert: none }
+  q: 'A pod sends a write to the lab''s Mimir gateway without any <code>X-Scope-OrgID</code> header. What happens to the samples?'
+  options:
+    - text: 'They are refused with 401 no org id'
+      why: 'That is what Loki answers when the header is missing; the lab''s Mimir gateway fills one in instead.'
+    - text: 'They are stored in tenant lab, the lab''s default'
+      why: 'lab is only the tenant the senders choose; nothing makes it a default.'
+    - text: 'They are stored in tenant anonymous'
+      why: 'The lab''s Mimir gateway turns a missing header into anonymous, so the data lands there.'
+    - text: 'They are dropped by the distributor without an answer'
+      why: 'The write goes through; it just lands in a tenant nobody reads.'
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+
+# scale-retention
+- id: q-m17-021
+  tags: [scale-retention]
+  exam: { cert: none }
+  q: 'A new Mimir runs for a year with <code>compactor_blocks_retention_period</code> never set. What does the bucket hold?'
+  options:
+    - text: 'Every block written during the year'
+      why: 'Mimir''s page says stored metrics are never deleted by default.'
+    - text: 'The last 13 hours, the ingesters'' window'
+      why: '13 hours is how long queriers ask ingesters, not how long blocks are kept.'
+    - text: 'The last 7 days, the chart''s own default'
+      why: '7 days is the lab''s own setting, not a default of Mimir.'
+    - text: 'The last 30 days, the compactor''s default'
+      why: 'The compactor deletes nothing until a retention period is set.'
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/configure/configure-metrics-storage-retention/
+
+- id: q-m17-022
+  tags: [scale-retention]
+  exam: { cert: none }
+  q: 'Tempo''s <code>block_retention</code> is 48 hours. One tenant needs traces for 14 days. What do you set?'
+  options:
+    - text: 'block_retention: 336h, for every tenant'
+      why: 'That keeps every tenant 14 days and multiplies the storage of all of them.'
+    - text: 'A per-tenant compaction.block_retention'
+      why: 'A per-tenant override replaces the default retention for that tenant only.'
+    - text: 'A longer Kafka retention for the trace topic'
+      why: 'Kafka keeps records only for its own retention, hours in the lab; it is not long-term trace storage.'
+    - text: 'A lifecycle rule on the tenant''s prefix of 14 days'
+      why: 'Tempo''s compaction would still delete the blocks after 48 hours.'
+  answer: [1]
+  source: https://grafana.com/docs/tempo/v3.1.x/configuration/
+
+- id: q-m17-023
+  tags: [scale-retention]
+  exam: { cert: none }
+  q: 'A team asks Loki to keep the debug stream of one service only 6 hours, to save space. Why can''t a retention_stream rule do this?'
+  options:
+    - text: 'Stream rules only work in microservices mode'
+      why: 'Retention runs in the compactor in every mode.'
+    - text: 'Stream rules can only lengthen retention'
+      why: 'A stream rule can shorten or lengthen; the limit is a minimum period.'
+    - text: 'Loki needs a per-tenant rule for every stream'
+      why: 'Global stream rules exist too; a tenant rule is not required.'
+    - text: 'A stream rule must be at least 24 hours'
+      why: 'Loki refuses a retention_stream period below 24h, globally and per tenant.'
+  answer: [3]
+  source: https://grafana.com/docs/loki/v3.7.x/operations/storage/retention/
+
+# scale-cost-control and cardinality
+- id: q-m17-024
+  tags: [scale-cost-control, cardinality]
+  exam: { cert: none }
+  q: 'A service exports a histogram with 20 buckets and a label <code>customer_id</code> with 5,000 values. Which change cuts the most series while the team keeps its latency percentiles per endpoint?'
+  options:
+    - text: 'Drop the whole histogram at the collector'
+      why: 'It cuts the most, but the percentiles per endpoint would be gone too.'
+    - text: 'Scrape the service every 60 seconds instead of 15'
+      why: 'Fewer samples per series, but the number of series stays the same.'
+    - text: 'Sum customer_id away before the data leaves the collector'
+      why: 'Each customer value multiplied every bucket; summed away, the series shrink by up to 5,000 times and the percentiles per endpoint stay.'
+    - text: 'Keep only 5 of the 20 buckets'
+      why: 'Fewer buckets save a factor of about three, far less than summing away a 5,000-value label.'
+  answer: [2]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+- id: q-m17-025
+  tags: [scale-cost-control]
+  exam: { cert: none }
+  q: 'Your bill is driven by active series. Which of these lowers it the least?'
+  options:
+    - text: 'Dropping metrics that no dashboard, rule or query reads'
+      why: 'Each dropped series stops costing at once.'
+    - text: 'Aggregating away a high-cardinality label before storage'
+      why: 'Fewer label values mean fewer series.'
+    - text: 'Grouping one label''s thousands of values into a few'
+      why: 'Fewer distinct values fold many series into few.'
+    - text: 'Halving the scrape interval of every target'
+      why: 'Scraping twice as often doubles the samples and keeps every series, so the series bill does not drop.'
+  answer: [3]
+  source: https://grafana.com/docs/grafana-cloud/adaptive-telemetry/adaptive-metrics/
+
+# scale-meta-monitoring
+- id: q-m17-026
+  tags: [scale-meta-monitoring]
+  exam: { cert: none }
+  q: 'Where should the alerts that watch your production Loki run, according to Loki''s meta-monitoring page?'
+  options:
+    - text: 'In Loki''s own ruler, on Loki''s own logs'
+      why: 'A broken Loki would also break the rules that watch it.'
+    - text: 'In a separate stack or a hosted account'
+      why: 'Loki recommends watching it from a separate stack, so a broken cluster can be investigated from a working one.'
+    - text: 'In the application''s collector, next to its exporters'
+      why: 'The collector sends data; it does not evaluate alerts on the store.'
+    - text: 'On the object store, as lifecycle notifications'
+      why: 'Object store events say nothing about Loki''s health.'
+  answer: [1]
+  source: https://grafana.com/docs/loki/v3.7.x/operations/meta-monitoring/
+
+- id: q-m17-027
+  tags: [scale-meta-monitoring]
+  exam: { cert: none }
+  q: 'Senders get 200 from Mimir, yet a series has gaps. With ingest storage, which metric shows samples dropped after the write was accepted?'
+  options:
+    - text: 'cortex_distributor_received_samples_total'
+      why: 'It counts what the distributors accepted, including the samples dropped later.'
+    - text: 'cortex_ingester_active_series'
+      why: 'It counts series in memory, not samples that were refused.'
+    - text: 'cortex_discarded_samples_total on the ingesters'
+      why: 'The ingesters count samples they reject after Kafka, by tenant and reason.'
+    - text: 'cortex_request_duration_seconds_count on the gateway'
+      why: 'Request counts show the 200s, which is the problem here, not the answer.'
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/distributor/
+
+# scale-capacity
+- id: q-m17-028
+  tags: [scale-capacity]
+  exam: { cert: none }
+  q: 'By Mimir''s sizing page, how many distributor cores does a cluster need for 100,000 samples per second, before any headroom?'
+  options:
+    - text: 'About 1 core'
+      why: 'The page gives one core per 25,000 samples per second, so 100,000 needs four.'
+    - text: 'About 4 cores'
+      why: 'One core per 25,000 samples per second gives four cores.'
+    - text: 'About 10 cores'
+      why: 'Ten would be the querier ratio applied to queries, not samples.'
+    - text: 'About 40 cores'
+      why: 'That is ten times the page''s ratio.'
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/run-production-environment/planning-capacity/
+
+- id: q-m17-029
+  tags: [scale-capacity]
+  exam: { cert: none }
+  q: 'A new team brings no new targets but adds a label with 50 values to its existing metrics. Which Mimir component needs more memory first?'
+  options:
+    - text: 'The distributors, because the samples per second grow'
+      why: 'Samples per second grow too, but the sizing page gives an ingester 2.5 GB per 300,000 series against a distributor''s 1 GB per 25,000 samples per second; the ingesters grow far more.'
+    - text: 'The query frontend, because there are more series to list'
+      why: 'The query frontend scales with queries per second, not with series.'
+    - text: 'The ingesters, because series in memory grow'
+      why: 'Ingesters are sized by series in memory, and a 50-value label multiplies the series.'
+    - text: 'The compactor, because blocks get more samples'
+      why: 'The compactor grows with series too, but in steps of millions; the ingesters feel it first.'
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/run-production-environment/planning-capacity/
+
+# scale-upgrades
+- id: q-m17-030
+  tags: [scale-upgrades]
+  exam: { cert: none }
+  q: 'You will raise the querier''s memory request in the Mimir release. What should you look at before you apply it?'
+  options:
+    - text: 'The rendered diff of the release'
+      why: 'A diff of the rendered manifests shows every object that will change, so a surprise is caught before the rollout.'
+    - text: 'The chart''s README, to see the default for the querier'
+      why: 'The default is not the question; what changes in the cluster is.'
+    - text: 'The ingesters'' logs, to see that they are idle'
+      why: 'The ingesters are not touched by a querier change.'
+    - text: 'Kafka''s lag, to make sure the queue is empty'
+      why: 'Queriers do not read Kafka; their rollout does not depend on the queue.'
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/run-production-environment/perform-a-rolling-update/
+
+- id: q-m17-031
+  tags: [scale-upgrades]
+  exam: { cert: none }
+  q: 'A Deployment of two queriers uses Kubernetes'' default rolling update. How does it replace the pods?'
+  options:
+    - text: 'It deletes both, then starts two new ones'
+      why: 'That is the Recreate strategy, not the default.'
+    - text: 'It starts one new pod above the count, then removes an old one, and so on'
+      why: 'With 25% surge, rounded up to one, and 25% unavailable, rounded down to zero, it adds one before it removes one.'
+    - text: 'It waits for a PodDisruptionBudget to allow each step'
+      why: 'Rolling updates of a Deployment are not limited by PodDisruptionBudgets.'
+    - text: 'It replaces the pods in alphabetical order, one per minute'
+      why: 'There is no fixed order or interval; readiness decides the pace.'
+  answer: [1]
+  source: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+
+- id: q-m17-032
+  tags: [scale-upgrades]
+  exam: { cert: none }
+  q: 'After an upgrade of one release and a check that passed, how do you prove the cluster matches the repository again?'
+  options:
+    - text: 'Run make lab-check once more and see it pass'
+      why: 'The check tests the signals, not whether the release equals the repository''s values.'
+    - text: 'Compare helm list before and after the change'
+      why: 'helm list shows versions and revisions, not the values each release holds.'
+    - text: 'Restart every pod of the release once'
+      why: 'A restart proves nothing about the values; it only takes the pods away for a while.'
+    - text: 'Run make lab for it again: changed=0'
+      why: 'The playbook compares chart and values with the installed release; no change means they match.'
+  answer: [3]
+  source: https://helm.sh/docs/helm/helm_get_values/
+
+# scale-failure-drills
+- id: q-m17-033
+  tags: [scale-failure-drills]
+  exam: { cert: none }
+  q: 'The object store is down for three minutes. What happens to Mimir''s writes with ingest storage?'
+  options:
+    - text: 'They fail at once, because blocks cannot be uploaded'
+      why: 'Writes end at Kafka. Ingesters keep samples in memory and upload blocks later.'
+    - text: 'They go on, and ingesters upload their blocks once the store is back'
+      why: 'Writes need Kafka, not the object store; block uploads wait and retry.'
+    - text: 'They go on, but the samples of those minutes are lost'
+      why: 'The samples are in Kafka and in the ingesters; nothing forces their loss.'
+    - text: 'They fail until the store-gateway reloads the bucket index'
+      why: 'The store-gateway serves reads of old blocks; it is not on the write path.'
+  answer: [1]
+  source: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+
+- id: q-m17-034
+  tags: [scale-failure-drills]
+  exam: { cert: none }
+  q: 'A worker VM stops without warning. How long does Kubernetes wait, by default, before it starts evicting the pods that were on it?'
+  options:
+    - text: 'About 5 seconds, as soon as the kubelet misses one heartbeat'
+      why: 'The node is marked Unknown after it misses heartbeats for a while; eviction comes later still.'
+    - text: 'About 5 minutes after the node is marked unreachable'
+      why: 'Pods tolerate the not-ready and unreachable taints for 300 seconds by default.'
+    - text: 'Never, until an admin deletes the node'
+      why: 'Taint-based eviction removes the pods after the toleration ends.'
+    - text: 'About an hour, to wait for the node to return'
+      why: 'The default toleration is 300 seconds, not an hour.'
+  answer: [1]
+  source: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+
+# scale-backup
+- id: q-m17-035
+  tags: [scale-backup]
+  exam: { cert: none }
+  q: 'Every dashboard of a team is provisioned from ConfigMaps built from Git. What does a backup of Grafana''s database still protect?'
+  options:
+    - text: 'The provisioned dashboards, which exist only in the database'
+      why: 'They come back from the ConfigMaps when Grafana starts.'
+    - text: 'The metrics shown on the dashboards'
+      why: 'Metrics live in Mimir, not in Grafana''s database.'
+    - text: 'The data source passwords stored in the Helm values'
+      why: 'Values are in the release and the repository, not only in the database.'
+    - text: 'Users, stars and anything someone changed in the UI'
+      why: 'Grafana''s database holds what the UI changes; provisioned files do not.'
+  answer: [3]
+  source: https://grafana.com/docs/grafana/latest/administration/back-up-grafana/
+
+- id: q-m17-036
+  tags: [scale-backup]
+  exam: { cert: none }
+  q: 'You take etcd snapshots of a cluster every night. Why does Kubernetes'' documentation ask you to encrypt them?'
+  options:
+    - text: 'They contain the cluster''s Secrets'
+      why: 'A snapshot holds every object of the cluster, Secrets included.'
+    - text: 'An unencrypted snapshot cannot be restored'
+      why: 'Encryption protects the data; restore works either way.'
+    - text: 'etcd refuses to write a snapshot without a key'
+      why: 'etcdctl writes a plain snapshot file by default.'
+    - text: 'Encryption makes the snapshot smaller'
+      why: 'Encryption does not compress the data.'
+  answer: [0]
+  source: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/
+
+# scale-security
+- id: q-m17-037
+  tags: [scale-security]
+  exam: { cert: none }
+  q: 'You apply a NetworkPolicy that allows ingress to a store from its own namespace only. A pod of another namespace still connects. What is the most likely cause?'
+  options:
+    - text: 'Policies take effect only after the store''s pods restart'
+      why: 'The network plugin applies a policy to running pods.'
+    - text: 'Another policy that selects the same pods still allows it'
+      why: 'Policies add up; any one that allows the connection lets it through, as Strimzi''s open 9092 rule does.'
+    - text: 'NetworkPolicies cannot select pods by label'
+      why: 'Selecting pods by label is what podSelector does.'
+    - text: 'Ingress rules apply only to traffic from outside the cluster'
+      why: 'They apply to every connection into the selected pods, also from inside.'
+  answer: [1]
+  source: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+
+- id: q-m17-038
+  tags: [scale-security]
+  exam: { cert: none }
+  q: 'Which Mimir setting makes its HTTP server demand a valid client certificate from every caller?'
+  options:
+    - text: '<code>-server.http-tls-client-auth=RequireAndVerifyClientCert</code>'
+      why: 'This makes the server require and verify a client certificate.'
+    - text: '<code>-querier.frontend-client.tls-enabled=true</code>'
+      why: 'This makes the querier use TLS as a client; it does not make a server check certificates.'
+    - text: '<code>-server.http-tls-client-auth=VerifyClientCertIfGiven</code>'
+      why: 'With this, a caller without a certificate is still accepted.'
+    - text: '<code>-auth.multitenancy-enabled=true</code>'
+      why: 'This turns on tenants by header; it checks no certificate.'
+  answer: [0]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/secure/securing-communications-with-tls/
+
+# scale-managed
+- id: q-m17-039
+  tags: [scale-managed]
+  exam: { cert: none }
+  q: 'A team moves to Amazon Managed Service for Prometheus and keeps metrics 150 days today. What must they check about retention?'
+  options:
+    - text: 'Nothing, because a managed service keeps metrics forever'
+      why: 'The service deletes metrics after its retention period.'
+    - text: '150 days by default, up to 1,095 days'
+      why: 'Amazon''s page gives 150 days by default, configurable per workspace up to three years.'
+    - text: 'That retention is set per series with a label'
+      why: 'Retention is set per workspace, not per series.'
+    - text: 'That retention follows their Prometheus servers'' setting'
+      why: 'The workspace has its own retention, independent of the senders.'
+  answer: [1]
+  source: https://docs.aws.amazon.com/prometheus/latest/userguide/what-is-Amazon-Managed-Service-Prometheus.html

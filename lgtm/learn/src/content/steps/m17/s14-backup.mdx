@@ -1,0 +1,104 @@
+---
+id: m17-s14
+title: "Backup and recovery: where the state is"
+kind: concept
+minutes: 15
+order: 14
+outcome: You can list where an LGTM stack keeps its state, say what each copy protects against and what it does not, and plan what to back up and how to restore it.
+exam:
+  - cert: none
+tags: [scale-backup]
+terms:
+  - term: State
+    def: Data a system needs to come back as it was; a pod can be recreated, its state cannot.
+  - term: Replica
+    def: A live copy of data that protects against a lost disk or pod, not against a wrong delete.
+  - term: Backup
+    def: A separate, older copy that can be restored after data was deleted or damaged.
+  - term: Object versioning
+    def: An object store feature that keeps earlier versions of an object when it is overwritten or deleted.
+sources:
+  - title: Back up Grafana
+    url: https://grafana.com/docs/grafana/latest/administration/back-up-grafana/
+    checked: 2026-11-15
+  - title: Operating etcd clusters for Kubernetes, backing up
+    url: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/
+    checked: 2026-11-15
+  - title: Retaining multiple versions of objects with S3 Versioning
+    url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html
+    checked: 2026-11-15
+  - title: Replicating objects within and across Regions (Amazon S3)
+    url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html
+    checked: 2026-11-15
+  - title: What does Amazon S3 replicate?
+    url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication-what-is-isnot-replicated.html
+    checked: 2026-11-15
+---
+
+<Problem>
+A script meant for a test cluster empties the production metrics bucket. Kafka has three copies of every record, Longhorn two copies of every volume. Neither helps: the blocks were in the bucket, and the bucket had one copy. What would you restore, from where?
+</Problem>
+
+<Idea>
+Replicas protect against a lost disk, node or pod. They do not protect against a wrong delete, a bad upgrade or a lost cluster, because they copy those too. A backup is a separate, older copy. So list the places that hold state, decide for each how much loss is acceptable, and back up only what cannot be rebuilt.
+</Idea>
+
+## Where the state of the lab is
+
+Most of the stack's pods hold no state worth saving: they can be recreated from Helm values. The state sits in a few places.
+
+| Place | What it holds | Lost when |
+|---|---|---|
+| Object store, six buckets | Metrics blocks, log chunks and index, trace blocks; recording rules and Alertmanager state | The bucket is emptied or the RustFS volume is lost |
+| Kafka, three brokers | Records not yet in a block: up to 24 hours or 640 MiB per partition | All three volumes are lost; a delete of the topic |
+| Longhorn volumes of the stores | Ingesters' WAL and recent blocks, compactor and store-gateway work files | Mostly rebuilt from Kafka and the buckets after a loss |
+| Grafana's volume | SQLite database: users, stars, edits made in the UI | The volume is lost; dashboards from ConfigMaps come back |
+| etcd on master1 | Every Kubernetes object, Secrets included | The master's disk is lost; the lab has no etcd backup |
+| Lab's Git repository | Values, charts, dashboards, rules as code | Never, if it is pushed |
+
+## What `make reset` destroys, and what survives
+
+The lab's own reset shows the line between state and code. `make reset` uninstalls every lab release, deletes their volumes, empties the six buckets and deletes the two ingest topics. It keeps the cluster, the platform, the Grafana password and the lab seed. `make lab` then installs everything again from the repository: every dashboard, data source and rule returns, because they are code. What does not return is the data, and anything someone clicked in Grafana's UI.
+
+## What a real setup backs up
+
+The data of the three stores lives in the object store, so that is the main backup target. A managed object store offers versioning, which keeps the earlier version of an object that was overwritten or deleted, and replication to another bucket or region. Amazon S3's replication needs versioning on both buckets; by default it does not replicate a delete marker, and it never replicates the deletion of a specific version. Replication protects against a lost region; versioning, or a backup kept apart, brings back a deleted object.
+
+Grafana's documentation asks to back up its configuration, its plugin data and its database; for SQLite, a copy of the file taken with Grafana stopped. Kubernetes' documentation recommends regular etcd snapshots, and asks to encrypt them, because they hold the cluster's Secrets. Kafka is usually not backed up: it holds hours of data that the stores have already turned into blocks.
+
+<Compare caption="Two kinds of copies">
+  <Col title="Replicas">Kafka's three, Longhorn's two, Loki's three ingesters. Survive a lost node. Copy a wrong delete at once.</Col>
+  <Col title="Backups" hot>Object versioning, bucket backups, etcd snapshots, Grafana's database. Survive a wrong delete, if kept apart.</Col>
+</Compare>
+
+<InLab>
+The lab keeps its code in Git and backs up no data. Losing the RustFS volume, or master1's disk, would lose the lab's data or its cluster state for good.
+</InLab>
+
+<Trap>
+Three replicas are not a backup. Every replica receives the delete within seconds.
+</Trap>
+
+<Remember>
+Keep configuration as code so that it needs no backup. Back up the buckets with versioning or a separate copy, Grafana's database and etcd; restore them on purpose once, before you need to.
+</Remember>
+
+<Question id="q-m17-s14" answer="d">
+A script could delete Loki's chunks from the bucket by mistake. Which of these lets you bring them back afterwards?
+
+- Loki's three ingesters with replication factor 3
+
+  Ingesters hold only recent data, in memory and in their WAL, not weeks of chunks.
+
+- Kafka with three replicas of every record
+
+  This Loki does not write through Kafka, and Kafka keeps hours of records, not weeks.
+
+- A lifecycle rule that keeps chunks for 30 days
+
+  A lifecycle rule deletes or moves objects by age. It keeps nothing that someone deletes.
+
+- Versioning on the bucket, switched on before the delete
+
+  Versioning keeps the version that a delete or an overwrite replaced, so the chunks can be restored.
+</Question>

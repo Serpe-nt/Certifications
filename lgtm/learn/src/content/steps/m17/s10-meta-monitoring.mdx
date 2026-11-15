@@ -1,0 +1,109 @@
+---
+id: m17-s10
+title: "Monitoring the monitoring"
+kind: lab
+minutes: 20
+order: 10
+outcome: You can read the health of Mimir, Loki and Tempo from their own metrics and rings, and say what a production setup adds so that a broken stack can still be seen.
+exam:
+  - cert: none
+tags: [scale-meta-monitoring]
+check:
+  kind: exact
+  prompt: How many Loki ingesters does the ring of action 1 show as ACTIVE?
+  answers: ["3"]
+terms:
+  - term: Meta-monitoring
+    def: Collecting the stack's own metrics and logs, ideally into a separate stack, to watch its health.
+  - term: Mixin
+    def: A package of dashboards, recording rules and alerts for one system, built from Jsonnet.
+  - term: Ring
+    def: The list of a component's instances with their state, which the others read to find them.
+sources:
+  - title: Loki meta-monitoring (3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/operations/meta-monitoring/
+    checked: 2026-11-15
+  - title: Installing Grafana Mimir dashboards and alerts (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/monitor-grafana-mimir/installing-dashboards-and-alerts/
+    checked: 2026-11-15
+  - title: Monitor Tempo
+    url: https://grafana.com/docs/tempo/v3.1.x/operations/monitor/
+    checked: 2026-11-15
+  - title: Kafka in Tempo's architecture, consumer lag
+    url: https://grafana.com/docs/tempo/v3.1.x/reference-tempo-architecture/components/kafka/
+    checked: 2026-11-15
+---
+
+<Problem>
+Mimir stops storing samples at 02:00. The alert that should tell you runs in the ruler of the same Mimir and queries the same Mimir. Its queries fail with the store, so it never fires. Nobody is woken. In the morning, the graphs of the night are empty, including the graph that would have shown the problem.
+</Problem>
+
+<Idea>
+The stack must be watched from outside itself. Each component exposes its own metrics and logs; a separate collector and a separate store, a second small stack or a hosted one, keep them where a broken stack cannot lose them. The vendors ship mixins: dashboards and alerts that already know which of those metrics matter.
+</Idea>
+
+## What each store tells about itself
+
+Every pod of Mimir, Loki and Tempo serves `/metrics` and logs every request it handles. Under ingest storage, a few numbers carry most of the health. The distributors count what they accepted and refused. The ingesters, live-stores and block-builders show how far behind Kafka they are. The rings show which instances are `ACTIVE`. And every store counts what it discarded: Mimir's `cortex_discarded_samples_total`, Loki's `loki_discarded_samples_total`, Tempo's `tempo_discarded_spans_total`. They do not all mean the same. On Mimir's ingesters the counter is a silent drop: the sender heard `200` long before. Loki counts its refusals there, each answered with an error such as 429 or 400. Tempo's counter holds both: refusals at the distributor, and spans that live-stores and block-builders dropped after the sender heard `200`.
+
+<Layers caption="Health signals worth an alert, from the outside in">
+  <Layer title="Ring state">Every instance ACTIVE; a LEAVING or UNHEALTHY one costs replicas or reads.</Layer>
+  <Layer title="Consumer lag">Seconds behind Kafka, compared with what Kafka keeps.</Layer>
+  <Layer title="Discards" hot>Samples, lines or spans refused or dropped; some only after the sender heard 200.</Layer>
+  <Layer title="Request errors and latency">RED on each component's own HTTP and gRPC routes.</Layer>
+</Layers>
+
+## Watch from a separate place
+
+Loki's documentation recommends collecting Loki's own data into a separate Loki, Prometheus and Grafana, or into a hosted account, so that a broken cluster can be investigated from a working one. It names the Kubernetes Monitoring Helm chart as the collector and the Loki mixin for dashboards, alerts and recording rules. Mimir ships its mixin as ready-to-import dashboards, recording rules and alerts, or as Jsonnet to build with your own label names. Tempo's repository has a mixin with ten dashboards.
+
+A production setup therefore adds three things to what the lab has: a collector that scrapes every component, a store outside the stack being watched, and the mixins' alerts routed to a person.
+
+## The lab watches nothing of itself
+
+The lab's Prometheus scrapes Kubernetes and itself, not Mimir, Loki or Tempo, and their metrics reach no tenant. You read them straight from the pods through the API server, as in modules m11 to m13. That is enough to learn, and it shows the gap: on 2026-11-15 Mimir's ingesters had discarded about 160,000 samples, almost all of tenant `prom` since they started, mostly `new-value-for-timestamp`, and no graph or alert showed it. An earlier check traced such discards to the minute the VMs came back from a long pause; a counter cannot tell when it grew unless something scrapes it over time.
+
+<InLab>
+The Mimir release sets `metaMonitoring.serviceMonitor.enabled: false`; the Prometheus in `prom` has ServiceMonitors only for itself, its Alertmanager, the Kubernetes components, node exporter and kube-state-metrics.
+</InLab>
+
+<Trap>
+An alert that runs inside the store it watches cannot fire when that store stops. Put the alerts about the stack somewhere the stack's failure cannot reach.
+</Trap>
+
+<Do>
+1. In WSL, read Loki's ingester ring and count the states: <Cmd>{`curl -s -H 'Host: loki.lab.k8s.local' http://10.10.0.5/ring | grep -o 'ACTIVE\\|LEAVING\\|UNHEALTHY\\|JOINING' | sort | uniq -c`}</Cmd>
+2. Read what Mimir's ingesters dropped after the senders heard `200`: <Cmd>{`for p in $(kubectl -n mimir get pods -l app.kubernetes.io/component=ingester -o name | cut -d/ -f2); do kubectl get --raw /api/v1/namespaces/mimir/pods/$p:8080/proxy/metrics | grep '^cortex_discarded_samples_total' | sed "s/^/$p /"; done`}</Cmd> Each line gives a tenant and a reason.
+3. Do the same for Tempo's distributors and Loki's distributors: <Cmd>{`for p in $(kubectl -n tempo get pods -l app.kubernetes.io/component=distributor -o name | cut -d/ -f2); do kubectl get --raw /api/v1/namespaces/tempo/pods/$p:3200/proxy/metrics | grep '^tempo_discarded_spans_total' | sed "s/^/$p /"; done`}</Cmd> <Cmd>{`for p in $(kubectl -n loki get pods -l app.kubernetes.io/component=distributor -o name | cut -d/ -f2); do kubectl get --raw /api/v1/namespaces/loki/pods/$p:3100/proxy/metrics | grep '^loki_discarded_samples_total' | sed "s/^/$p /"; done`}</Cmd> Loki's lines are refusals its senders were told about; Tempo's may be either. No line means nothing was discarded there since the pod started.
+4. Read Tempo's consumer lag, the number that warns before Kafka's retention is reached: <Cmd>{`kubectl get --raw /api/v1/namespaces/tempo/pods/tempo-block-builder-0:3200/proxy/metrics | grep '^tempo_ingest_group_partition_lag_seconds'`}</Cmd>
+5. Check what the lab's Prometheus scrapes: <Cmd>{`kubectl get servicemonitors,podmonitors -A`}</Cmd> None of them points at Mimir, Loki or Tempo.
+6. Paste the number of `ACTIVE` ingesters from action 1 in the check below.
+</Do>
+
+<Done>
+You read the ring, the discards and the lag of the stores straight from their pods, and confirmed that nothing in the lab keeps these numbers over time.
+</Done>
+
+<Remember>
+Watch the stack from outside it: scrape every component into a separate store, install the vendors' mixins, and alert on ring state, lag and discards.
+</Remember>
+
+<Question id="q-m17-s10" answer="b">
+Your team's only alert for Mimir is `absent(up{job="checkout"})`, evaluated by Mimir's own ruler on Mimir's data. All three ingesters crash and stay down. What happens?
+
+- The alert fires within minutes, because checkout's `up` series stops
+
+  The ruler's query needs an ingester for each partition. With none, the query fails with an error, and a rule that cannot evaluate does not fire.
+
+- Probably nothing reaches you, because the rule's query fails with the store
+
+  Every query of recent data needs one ingester per partition, as drill 3 of step 13 shows. The rule cannot evaluate, so it cannot fire.
+
+- The distributors refuse writes, and the senders alert you
+
+  With ingest storage, writes end at Kafka and still succeed while the ingesters are down.
+
+- Kafka alerts you when its retention is reached
+
+  Kafka has no alert of its own. Something must watch consumer lag and alert on it.
+</Question>
