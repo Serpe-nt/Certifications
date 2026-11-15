@@ -251,7 +251,7 @@
 - id: q-m17-016
   tags: [scale-replication]
   exam: { cert: none }
-  q: 'You plan zone-aware Mimir with ingest storage on three racks. What must the rollout of a new version respect?'
+  q: 'You plan zone-aware Mimir with ingest storage on three racks. What is the fastest rollout of a new version that keeps every query working?'
   options:
     - text: 'One ingester at a time, across all racks'
       why: 'Safe but slow. With zones, a whole zone can roll at once.'
@@ -284,12 +284,12 @@
 - id: q-m17-018
   tags: [scale-multi-tenancy]
   exam: { cert: none }
-  q: 'A batch job of tenant team-b sends 300,000 samples in a burst every hour, and other tenants'' writes stay fast. What did the distributors most likely do with the burst?'
+  q: 'A batch job of tenant team-b sends 300,000 samples in one request every hour, far over its burst size of 20,000. Other tenants'' writes stay fast. What did the distributors do with the request?'
   options:
     - text: 'Accepted it and slowed down every other tenant'
-      why: 'The other tenants stay fast, so the distributors did not let the burst reach their share of the work.'
-    - text: 'Refused what went over its limits with 429'
-      why: 'Per-tenant ingestion limits stop one tenant''s burst at the distributors without touching the others.'
+      why: 'The request is over team-b''s burst, and the other tenants stay fast: it was not accepted.'
+    - text: 'Refused the whole request with 429'
+      why: 'A request over the tenant''s rate or burst is dropped whole at the distributors, without touching the other tenants.'
     - text: 'Wrote it to Kafka and let the ingesters refuse it'
       why: 'Rate limits are checked by the distributors before Kafka; ingesters check other limits.'
     - text: 'Moved team-b to an ingester of its own for an hour'

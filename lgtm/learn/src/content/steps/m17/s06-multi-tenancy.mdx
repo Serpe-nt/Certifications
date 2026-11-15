@@ -48,7 +48,7 @@ In modules m11 to m13 you sent data as practice tenants just by changing a heade
 
 <Flow caption="Where the tenant is set in the lab">
   <Stage title="Sender" kicker="Collector, Prometheus, Alloy">Each writes a fixed X-Scope-OrgID from its own configuration.</Stage>
-  <Stage title="Gateway" kicker="nginx in front of each store">Passes the header on and checks nothing.</Stage>
+  <Stage title="Gateway" kicker="nginx in front of Mimir and Loki">Passes the header on and checks nothing. Tempo has none; senders reach its distributor.</Stage>
   <Stage title="Store" kicker="Mimir, Loki, Tempo">Keeps and limits each tenant apart.</Stage>
   <Stage title="Grafana" kicker="One data source per tenant">Reads with a header set in the data source.</Stage>
 </Flow>

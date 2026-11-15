@@ -30,6 +30,9 @@ sources:
   - title: Replicating objects within and across Regions (Amazon S3)
     url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html
     checked: 2026-11-15
+  - title: What does Amazon S3 replicate?
+    url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication-what-is-isnot-replicated.html
+    checked: 2026-11-15
 ---
 
 <Problem>
@@ -59,7 +62,7 @@ The lab's own reset shows the line between state and code. `make reset` uninstal
 
 ## What a real setup backs up
 
-The data of the three stores lives in the object store, so that is the main backup target. A managed object store offers versioning, which keeps the earlier version of an object that was overwritten or deleted, and replication to another bucket or region. A replicated bucket also copies a delete; versioning or a separate backup account is what brings data back.
+The data of the three stores lives in the object store, so that is the main backup target. A managed object store offers versioning, which keeps the earlier version of an object that was overwritten or deleted, and replication to another bucket or region. Amazon S3's replication needs versioning on both buckets; by default it does not replicate a delete marker, and it never replicates the deletion of a specific version. Replication protects against a lost region; versioning, or a backup kept apart, brings back a deleted object.
 
 Grafana's documentation asks to back up its configuration, its plugin data and its database; for SQLite, a copy of the file taken with Grafana stopped. Kubernetes' documentation recommends regular etcd snapshots, and asks to encrypt them, because they hold the cluster's Secrets. Kafka is usually not backed up: it holds hours of data that the stores have already turned into blocks.
 
@@ -81,21 +84,21 @@ Keep configuration as code so that it needs no backup. Back up the buckets with 
 </Remember>
 
 <Question id="q-m17-s14" answer="d">
-Someone deletes a Loki tenant's chunks from the bucket by mistake. The bucket is replicated to a second region in real time. What brings the logs back?
+A script could delete Loki's chunks from the bucket by mistake. Which of these lets you bring them back afterwards?
 
-- The replica in the second region
-
-  Replication copies the delete too, so the second region has lost the same chunks.
-
-- Loki's three ingesters, which hold copies of the data
+- Loki's three ingesters with replication factor 3
 
   Ingesters hold only recent data, in memory and in their WAL, not weeks of chunks.
 
-- Kafka, which keeps every record Loki wrote
+- Kafka with three replicas of every record
 
   This Loki does not write through Kafka, and Kafka keeps hours of records, not weeks.
 
-- Earlier versions of the objects, if versioning was on before the delete
+- A lifecycle rule that keeps chunks for 30 days
 
-  Versioning keeps the version that a delete or overwrite replaced, so the chunks can be restored.
+  A lifecycle rule deletes or moves objects by age. It keeps nothing that someone deletes.
+
+- Versioning on the bucket, switched on before the delete
+
+  Versioning keeps the version that a delete or an overwrite replaced, so the chunks can be restored.
 </Question>

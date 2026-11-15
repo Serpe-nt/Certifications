@@ -39,7 +39,7 @@ sources:
 ---
 
 <Problem>
-On 2026-11-11 at 17:57 UTC the lab's three Kafka brokers ran out of disk and stopped. Mimir and Tempo stored nothing for 18 hours. Loki, which does not use Kafka, carried on. Kafka kept only 24 hours of records, so how did it fill its disks in seven?
+On 2026-11-11 at 17:57 UTC the lab's three Kafka brokers ran out of disk and stopped. Mimir and Tempo stored nothing for 18 hours. Loki, which does not use Kafka, carried on. Kafka kept only 24 hours of records, so how did it fill its disks in under six?
 </Problem>
 
 <Idea>
@@ -62,7 +62,7 @@ Lag is fine while it stays well inside retention. A consumer that falls further 
 
 Kafka deletes old data one segment file at a time. `log.retention.hours` deletes segments older than a time, `log.retention.bytes` deletes the oldest segment while a partition is over a size; whichever limit is reached first wins. The size limit is per partition, so a node holds up to the limit times the number of partitions it carries, plus one open segment each.
 
-That is what went wrong on 2026-11-11. Prometheus's remote write started at 12:15 UTC, and each broker's volume grew from about 90 to about 640 MiB an hour. Every broker holds a copy of every partition, so 5 GiB lasted about seven hours, far less than 24. The fix was larger volumes, 10 GiB, and a size limit of 640 MiB per partition.
+That is what went wrong on 2026-11-11. Prometheus's remote write started at 12:15 UTC, and each broker's volume grew from about 90 to about 640 MiB an hour. Every broker holds a copy of every partition, so an empty 5 GiB would last about eight hours, far less than 24. The volumes already held older data, and they filled in under six hours, at 17:57. The fix was larger volumes, 10 GiB, and a size limit of 640 MiB per partition.
 
 <Figures caption="mimir-ingest on one broker, measured 2026-11-12" unit="MiB per hour">
   <Stat label="Whole topic" value="590" amount={590} max={640} hot note="Six partitions; three get data" />

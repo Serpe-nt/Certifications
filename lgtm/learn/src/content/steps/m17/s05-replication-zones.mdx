@@ -73,7 +73,7 @@ A PodDisruptionBudget protects these rules from voluntary disruptions, such as `
 
 With zone-aware replication, Mimir puts the ingesters of one partition in different zones: an availability zone, a data center, a rack, or an anti-affinity group of nodes. Two ingesters per partition is the usual choice. Then a whole zone can go down, or be rolled at once, and every partition still has a reader. Loki's zone-aware ingesters do the same with one copy of each stream per zone. Mimir's documentation asks that rollouts touch one zone at a time and points to the rollout-operator for that.
 
-The cost is a second set of the stateful pods. In the lab, two ingesters per partition would double Mimir's three ingesters to six, each requesting 512 MiB; the budget of the lab notes that such a lesson would add 1.5 GiB of requests. Kafka's work does not grow, because both zones read the same records.
+The cost is a second set of the stateful pods. In the lab, two ingesters per partition would double Mimir's three ingesters to six, each requesting 512 MiB; the budget of the lab notes that such a lesson would add 1.5 GiB of requests. Kafka's disk does not grow, because both zones read the same records; but every record is now read twice, once per zone.
 
 <InLab>
 The lab's nodes carry no zone labels, so zone awareness is off and the rollout-operator is not installed. Each Mimir partition has one owner: `mimir-ingester-0`, `-1` and `-2`.
@@ -100,7 +100,7 @@ Count readers per partition, not copies of data. One reader per partition means 
 </Remember>
 
 <Question id="q-m17-s05" answer="d">
-A cluster runs Mimir with ingest storage, two zones and two ingesters per partition. You must roll a new version to every ingester. What order keeps every query working?
+A cluster runs Mimir with ingest storage, two zones and two ingesters per partition. You must roll a new version to every ingester. What is the fastest order that keeps every query working?
 
 - All ingesters of both zones at once, because Kafka keeps the data
 

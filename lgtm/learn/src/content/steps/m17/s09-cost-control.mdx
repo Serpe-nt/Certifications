@@ -138,7 +138,7 @@ Do not drop what an alert reads. Before any cut, search the rules and dashboards
                name: collector
    ```
 
-   Apply it: <Cmd>{`kubectl apply -f m17-collector.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m17 rollout status deployment/collector`}</Cmd>
+   The exporter's name `otlphttp` is the older spelling; version 0.165.0 also accepts `otlp_http`, which the lab's collector gateway uses. Apply it: <Cmd>{`kubectl apply -f m17-collector.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m17 rollout status deployment/collector`}</Cmd>
 2. Wait two minutes, then count the series the tenant received in the last minute: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m17' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(last_over_time({__name__=~".+"}[1m]))'; echo`}</Cmd> Note the number, and the number of histogram bucket series: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m17' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(last_over_time({__name__=~".+_bucket"}[1m]))'; echo`}</Cmd>
 3. Add a filter that drops every histogram. Save this new version of the collector's configuration as `m17-filter.yaml`; it adds the processor `filter/histograms` and puts it first in the pipeline:
 

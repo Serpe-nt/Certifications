@@ -58,7 +58,7 @@ The ratios on Mimir's page are rough minimums for one tenant and the default con
 
 The page counts series in memory as active series times the replication factor, 3 by default in the classic architecture. With ingest storage, each partition is held by one ingester per zone, so the factor is the number of zones; the lab has one. That is an inference from how ingest storage works, not a sentence of the sizing page.
 
-For the lab: 5,300 samples per second needs about 0.2 cores and 0.2 GB of distributors. 120,500 series need about 0.4 cores, 1 GB of memory and 2 GB of disk in ingesters, 1.5 GB and 3 GB with the 50%. The lab's three ingesters request 512 MiB each, 1.5 GiB together, with 3 GiB volumes. The deployment matches the arithmetic.
+For the lab: 5,300 samples per second needs about 0.2 cores and 0.2 GB of distributors. 120,500 series need about 0.4 cores, 1 GB of memory and 2 GB of disk in ingesters, 1.5 GB and 3 GB with the 50%. The lab's three ingesters request 512 MiB each, 1.5 GiB together, which matches the memory. Each has a 3 GiB volume, 9 GiB together, three times the disk the arithmetic asks.
 
 ## Loki and Tempo size by volume
 

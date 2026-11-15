@@ -63,7 +63,7 @@ Loki's retention page lists which objects a lifecycle rule may expire: only the 
 
 ## When the object store is the weak part
 
-Every store needs the object store to finish its work, so a weak object store hurts all three at once. The lab learned this twice. On 2026-11-12 RustFS was killed for memory at its 1 GiB limit, after two heavy Loki queries over 90 minutes of logs had taken it from about 670 to about 900 MiB, and it never gave the memory back. With a limit of 1.5 GiB, version 1.0.4 was still killed three times in 36 hours, always at the limit. The lab moved to RustFS 1.0.5, which fixed some of the memory it kept, and Loki got query limits so that one query cannot read more than 500 MB. On 2026-11-15 the RustFS pod had run two days without a restart.
+Every store needs the object store to finish its work, so a weak object store hurts all three at once. The lab learned this twice. On 2026-11-12 RustFS was killed for memory at its 1 GiB limit. A heavy Loki query over 90 minutes of logs had taken it from about 670 to about 900 MiB, and it never gave the memory back; the ingest that came back at 12:02 added the rest, and it was killed at 12:06. With a limit of 1.5 GiB, version 1.0.4 was still killed three times in 36 hours, always at the limit. The lab moved to RustFS 1.0.5, which fixed some of the memory it kept, and Loki got query limits so that one query cannot read more than 500 MB. On 2026-11-15 the RustFS pod had run two days without a restart.
 
 The lesson for a real setup: a managed object store, or a self-hosted one with several nodes, is not optional. One process on one volume is a single point of failure for every signal.
 

@@ -27,6 +27,9 @@ sources:
   - title: Tempo deployment modes
     url: https://grafana.com/docs/tempo/v3.1.x/set-up-for-tracing/setup-tempo/plan/deployment-modes/
     checked: 2026-11-15
+  - title: Size the Tempo cluster
+    url: https://grafana.com/docs/tempo/v3.1.x/set-up-for-tracing/setup-tempo/plan/size/
+    checked: 2026-11-15
 ---
 
 <Problem>
@@ -87,5 +90,5 @@ A team runs Tempo in monolithic mode at 5 MB/s. Twice this week, a large TraceQL
 
 - It lets one process run the backend scheduler twice for high availability
 
-  The backend scheduler is a single instance in both modes. Tempo's page says only one should run at a time.
+  Tempo's sizing page gives the backend scheduler one replica in microservices mode too: only one scheduler should run at a time.
 </Question>

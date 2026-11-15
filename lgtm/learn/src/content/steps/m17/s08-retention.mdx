@@ -14,7 +14,7 @@ check:
   answers: ["48"]
 terms:
   - term: Retention period
-    def: How long a store keeps data before its compactor deletes it.
+    def: How long a store keeps data before its background workers delete it.
   - term: Per-stream retention
     def: A Loki rule that keeps the streams matching a label selector for their own period.
   - term: Override
@@ -36,10 +36,10 @@ The security team wants a year of audit logs. The developers want 14 days of deb
 </Problem>
 
 <Idea>
-Each store has a default retention and per-tenant overrides, and Loki can also keep chosen streams longer or shorter. Retention is applied by each store's compactor, so it costs nothing at write time. Keep the default short and give the few that need it a longer period, per tenant or per stream.
+Each store has a default retention and per-tenant overrides, and Loki can also keep chosen streams longer or shorter. Retention is applied in the background, by the compactors of Mimir and Loki and by Tempo's backend scheduler and workers, so it costs nothing at write time. Keep the default short and give the few that need it a longer period, per tenant or per stream.
 </Idea>
 
-## Three stores, three settings, one compactor each
+## Three stores, three settings
 
 Mimir deletes blocks older than `compactor_blocks_retention_period`. Its default is to keep everything forever. Mimir cannot delete single series by retention, only whole blocks of a tenant.
 
