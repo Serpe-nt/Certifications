@@ -116,7 +116,7 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - A token is a secret. Card C15 creates one Grafana service account token with the owner's go-ahead; it goes straight into a Secret of its namespace and is never printed, logged or committed. No card uses an account, a token or a key of the owner's outside the lab.
 - Tools run from their official images in pods of your namespace, pinned by tag. Earlier sessions were refused when they tried to download a binary and run it on the PC.
 - Give your independent checker the source of whatever your lessons lean on: the lab's values, the demo's code, the repository's workflows. In wave 9 half of one module's findings came from reading the demo's source.
-- Host ports, all on 127.0.0.1: C15 uses 8097, C16 8098, FG 8105 for the site; card L10, if it runs, 8106. Port-forwards: C15 18100 to 18109, C16 18110 to 18119.
+- Host ports, all on 127.0.0.1: C15 uses 8097, C16 8098, FG 8105 for the site; card L10, if it runs, 8106; card L11 8107. Port-forwards: C15 18100 to 18109, C16 18110 to 18119, L11 18170 to 18179.
 
 ## Pull request text
 
@@ -166,6 +166,7 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 10 | `w10-c15-observability-as-code.md` | C15 module m16 Observability as code |
 | 10 | `w10-c16-running-at-scale.md` | C16 module m17 Running it at scale, with failure drills on the lab |
 | 10 | `w10-fg-figures.md` | FG the six figures the lessons ask for, built with `stageshow` |
+| after 10 | `w10-l11-shop-after-node-restart.md` | L11 the shop keeps its speed after a worker restarts; the lab check sees a container at its memory limit; the runbook on a stopped worker |
 | beside 10 | `w10-l10-payment-trace.md` | L10 an order's trace no longer grows for days; what a quiet shop shows; the lessons of m13 to m15 follow |
 | after 9 | `w9-l9-flags-reach-every-service.md` | L9 a fault flag reaches every service of the shop; a wrong name in `lgtm.md`; the memory kills of Tempo's querier |
 | after 8 | `w8-l8-query-limits-and-switches.md` | L8 Loki's query limits, Mimir's cardinality API for tenant `lab`, exemplar storage in Prometheus if a target exposes exemplars; m12 step 15 and m11 steps 9 and 12 follow |
