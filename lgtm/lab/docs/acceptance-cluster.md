@@ -331,3 +331,61 @@ on its service account token and a new CNI token, for example on worker3:
 2026-11-14 18:12:05.666 [INFO][64] cni-config-monitor/token_watch.go 240: Watching service account token directory for rotation
 2026-11-14 18:12:05.674 [INFO][64] cni-config-monitor/token_watch.go 483: Wrote updated CNI kubeconfig file.
 ```
+
+### Renewals while the lab runs, 2026-11-14
+
+Read at 20:05 UTC with the command in `runbook.md`, "After the PC has slept". Each renewal after
+the first is a pair of lines: `Projected service account token changed; refreshing CNI kubeconfig
+immediately` (kubelet has rotated calico-node's own token), then `Wrote updated CNI kubeconfig
+file.` a few milliseconds later. Times are UTC; the gap is from the line before.
+
+| Node | calico-node started (first token) | First renewal | Gap | Second renewal | Gap |
+|---|---|---|---|---|---|
+| master1 | 18:12:41 | 19:00:54 | 48 min 13 s | 19:49:35 | 48 min 41 s |
+| worker1 | 18:13:16 | 19:02:03 | 48 min 47 s | 19:50:37 | 48 min 34 s |
+| worker2 | 18:13:51 | 19:02:06 | 48 min 15 s | 19:50:49 | 48 min 43 s |
+| worker3 | 18:12:05 | 19:01:14 | 49 min 9 s | 19:49:13 | 47 min 59 s |
+| worker4 | 18:14:27 | 19:02:29 | 48 min 2 s | 19:51:15 | 48 min 46 s |
+
+Every gap is within about a minute of kubelet's rotation at 80% of the token's 3,607 seconds
+(48 minutes 6 seconds); kubelet checks the token on its own passes, so a late renewal is followed
+by a shorter gap. At 20:05 UTC there was no `FailedCreatePodSandBox`
+event in any namespace and no calico-node had restarted.
+
+### The morning after a sleep, 2026-11-15
+
+The PC slept overnight with the lab running; the owner said so on 2026-11-15. Worker L7 read
+the lab at 16:55 UTC with the four commands of `runbook.md`, "After the PC has slept", and
+changed nothing on it. Times are UTC.
+
+1. The pause. The query of `max(up{job="apiserver"})` at one-minute steps has no value from
+   23:23 on 2026-11-14 to 11:52 on 2026-11-15 (12.48 hours) and from 12:22 to 12:31 on
+   2026-11-15 (9 minutes).
+2. The renewals. Before the sleep, every node wrote its last CNI token between 23:04:01 and
+   23:05:39. After the wake, every node wrote a new one within 39 seconds of the others, each
+   after a `Projected service account token changed` line, and then about every 48 to 49
+   minutes again:
+
+   | Node | Last renewal before the sleep | First renewal after the wake | Next renewal |
+   |---|---|---|---|
+   | worker3 | 23:04:01 | 11:51:41 | 12:39:56 |
+   | worker1 | 23:05:39 | 11:51:52 | 12:40:21 |
+   | worker4 | 23:05:25 | 11:52:02 | 12:40:41 |
+   | master1 | 23:04:43 | 11:52:11 | 12:40:17 |
+   | worker2 | 23:04:55 | 11:52:20 | 12:41:28 |
+
+3. `kubectl get events -A --field-selector reason=FailedCreatePodSandBox`: `No resources found`.
+4. `tests/lab/cni-token.sh`: `PASS` for master1 and worker1 to worker4, each renewed 0.2 hours
+   before, exit 0.
+
+Every calico-node still ran the container started on 2026-11-14 (18:12:04 to 18:14:26) with 0
+restarts. The only containers that ended on 2026-11-15 are cert-manager's controller (last at
+12:31:09, `Completed`) and Strimzi's cluster operator (last at 12:29:57, `Error`), both of which
+lose their leader lease across a pause, as on 2026-11-14 (ADR `l7-calico-cni-token.md`, "What
+else the pause touched").
+
+So kubelet's first pass after the wake rotated calico-node's token, and Calico renewed the CNI
+token within seconds of it. The sentences in `runbook.md` and in m00 step 7 ("again soon after
+a wake", "again at kubelet's first pass after a wake") hold as written. This sleep lasted about
+12.5 hours, so the old token was still valid at the wake; a sleep longer than about 23 hours has
+not been recorded.

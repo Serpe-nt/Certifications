@@ -111,11 +111,12 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - Worktrees are cut from `main`. Everything in the notes of waves 8 and 9 still holds: practice namespaces and practice tenants, the cap on practice memory (1 GiB of requests per module, 0.5 GiB on one worker), the owner's go-ahead said in your own session, no password typed or read, numbers read from the lab on the day, every `<Cmd>` and `<Query>` a template string and every file a fenced block, practice run from the built page, and the lab deciding where a page of documentation and the software disagree.
 - The lab since wave 9: Calico 3.31.7; Loki refuses a query that would read more than 500 MiB, run longer than a minute or span more than 49 hours; Mimir's cardinality API answers for tenant `lab`; nobody hears an alert of the lab (every route ends at an empty receiver). `lgtm/docs/plan/05-open-items.md` has the rest.
 - **Card C16 breaks parts of the lab on purpose**, each once and for a few minutes: one Kafka broker, the object store, one worker node, and before those two changes of a release's values that it takes back. It messages the other cards before each and again when `make lab-check` has passed. If a request of yours fails in such a window, wait for that word and run the action again; a drill is not a finding of yours.
-- No fault flags in this wave. If card L9 runs beside you, it switches a few flags for two minutes each to prove its fix, and says so first.
+- No fault flags in this wave. Card L9 is done: a flag reaches every service of the shop within about 15 seconds. If card L10 runs beside you, it restarts the shop or the collector gateway once and says so first.
+- Do not open by its ID the trace of payment's flagd event stream (`<root span not yet received>`, spans named `flagd.evaluation.v2.Service/EventStream` of 600 seconds): the lookup can kill Tempo's querier until card L10 is done (`lgtm/lab/docs/runbook.md`).
 - A token is a secret. Card C15 creates one Grafana service account token with the owner's go-ahead; it goes straight into a Secret of its namespace and is never printed, logged or committed. No card uses an account, a token or a key of the owner's outside the lab.
 - Tools run from their official images in pods of your namespace, pinned by tag. Earlier sessions were refused when they tried to download a binary and run it on the PC.
 - Give your independent checker the source of whatever your lessons lean on: the lab's values, the demo's code, the repository's workflows. In wave 9 half of one module's findings came from reading the demo's source.
-- Host ports, all on 127.0.0.1: C15 uses 8097, C16 8098, FG 8105 for the site; card L9, if it runs, 8104. Port-forwards: C15 18100 to 18109, C16 18110 to 18119.
+- Host ports, all on 127.0.0.1: C15 uses 8097, C16 8098, FG 8105 for the site; card L10, if it runs, 8106. Port-forwards: C15 18100 to 18109, C16 18110 to 18119.
 
 ## Pull request text
 
@@ -165,6 +166,7 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 10 | `w10-c15-observability-as-code.md` | C15 module m16 Observability as code |
 | 10 | `w10-c16-running-at-scale.md` | C16 module m17 Running it at scale, with failure drills on the lab |
 | 10 | `w10-fg-figures.md` | FG the six figures the lessons ask for, built with `stageshow` |
+| beside 10 | `w10-l10-payment-trace.md` | L10 an order's trace no longer grows for days; what a quiet shop shows; the lessons of m13 to m15 follow |
 | after 9 | `w9-l9-flags-reach-every-service.md` | L9 a fault flag reaches every service of the shop; a wrong name in `lgtm.md`; the memory kills of Tempo's querier |
 | after 8 | `w8-l8-query-limits-and-switches.md` | L8 Loki's query limits, Mimir's cardinality API for tenant `lab`, exemplar storage in Prometheus if a target exposes exemplars; m12 step 15 and m11 steps 9 and 12 follow |
 | beside 8 | `w8-l7-pods-start-after-sleep.md` | L7 new pods start after the PC has slept: Calico's CNI token, a command, a check, the runbook and m00 step 7 |

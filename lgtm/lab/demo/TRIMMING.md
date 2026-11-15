@@ -70,6 +70,7 @@ Paths are relative to `lgtm/lab/demo`.
 | `src/cart/src/Program.cs`, `src/cart/src/cartstore/ValkeyCartStore.cs` | Backport of upstream `a5c52c7`: `cartMetricCardinalityOverflow`. | Card: bring it over if small (it is about 25 lines). |
 | `src/fraud-detection/src/main/kotlin/frauddetection/main.kt` | Backport of upstream `258466e`: `kafkaConsumerDead` and `max.poll.records=30`. The commit's new meaning for `kafkaQueueProblems` was left out. | Card: bring it over if small (about 40 lines). |
 | `src/ad/gradlew.bat`, `src/fraud-detection/gradlew.bat` | Not copied. | Builds run in Docker. |
+| `src/payment/charge.js`, `package.json`, `package-lock.json` | Card L10, version `3.1.0-lab.2`: the flagd provider is started once when the module loads, with `OpenFeature.setProvider` inside `context.with(suppressTracing(ROOT_CONTEXT), ...)`, and `charge` no longer calls `setProviderAndWait`. `@opentelemetry/core` 2.11.0 became a dependency (it was in the lock as a development dependency). | Upstream starts the provider inside the first `charge` span, and the provider opens each new event stream from the callback of the stream before, so every stream joined the first order's trace and that trace grew for the life of the pod. A lookup of it killed Tempo's querier on the lab (`lgtm/docs/adr/l10-payment-flag-stream.md`). |
 
 New files: `compose.yaml`, `.env`, `Makefile`, `VERSION`, `scripts/`, `chart/`, `test/kind/`, `NOTICE`, `UPSTREAM.md`, this file.
 

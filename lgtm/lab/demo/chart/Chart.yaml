@@ -5,8 +5,8 @@ description: >-
   eleven services, flagd with its flag screen, Kafka, PostgreSQL and Valkey.
   Telemetry goes to an OTLP endpoint outside the chart.
 type: application
-version: 0.2.0
-appVersion: "3.1.0-lab.1"
+version: 0.3.0
+appVersion: "3.1.0-lab.2"
 kubeVersion: ">=1.29.0-0"
 home: https://github.com/Serpe-nt/Certifications/tree/main/lgtm/lab/demo
 sources:

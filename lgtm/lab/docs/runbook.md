@@ -191,18 +191,41 @@ query-frontend is 0`, its liveness probe fails once, and the query that was runn
 
 On 2026-11-14 at 18:26 UTC the querier (limit 768Mi) was killed twice within seconds while it looked
 up one trace by its id: `69c22a0fcce4dfdf1184996cdc4cc838`, tenant `lab`. Before that request it
-used 62 MiB. The trace was payment's flagd event stream: payment starts its flagd provider inside
-its first `charge` span, so the spans of that stream all belong to the trace of the shop's first
-order after payment started. The provider ends the stream every 10 minutes (its stream deadline)
-and opens a new one. Each stream leaves a span `flagd.evaluation.v2.Service/EventStream` of about
-600 seconds in payment, always with status error, and one in flagd, often with status error. Such a
-trace grows by a few spans every 10 minutes for the life of the payment pod, and soon has spans in
-every block Tempo keeps. A search over a recent window does not reach its root span, so Tempo shows
-`<root span not yet received>`. A search for payment's errors finds it; adding
-`&& name != "flagd.evaluation.v2.Service/EventStream"` to the search leaves it out.
+used 62 MiB. A lookup by trace id reads every block that holds a span of the trace, and this trace
+had spans in every block Tempo kept. It was payment's flagd event stream. Until shop version
+`3.1.0-lab.2` payment started its flagd provider inside its first order, and the provider opens each
+new stream (one every 10 minutes, its stream deadline) from the callback of the stream before, so
+every stream's span was the child of the one before and the trace grew for the life of the pod.
+Since `3.1.0-lab.2` payment starts the provider once, with tracing suppressed, and no trace of the
+shop outlives its request (`lgtm/docs/adr/l10-payment-flag-stream.md`). The streams of ad,
+fraud-detection and recommendation are traces of their own that end after 10 minutes
+(`demo.md`, "Error spans with every flag off").
 
-Do not open that trace. If the querier was killed, it comes back by itself within seconds; nothing
-else needs doing. A restart of payment starts a new trace of this kind, which grows again.
+How to recognise such a trace without opening it:
+
+- In a search it shows `<root span not yet received>`, and its duration is far longer than any
+  request: hours or days instead of seconds.
+- Its spans are long and the same each time, for example 600-second spans named
+  `flagd.evaluation.v2.Service/EventStream`, and each has the one before as its parent. A search
+  shows that without a lookup by id, for example over the last hour:
+  `{ name = "flagd.evaluation.v2.Service/EventStream" } | select(resource.service.name, span:parentID)`.
+  A service's stream span should have the parent id `0000000000000000`, and flagd's span of the
+  same stream that service span as its parent. A stream span whose parent is another stream of the
+  same service, or a span of an order, is the chain again.
+
+What to do:
+
+1. Do not open that trace by its id, in Grafana or with `/api/v2/traces/<id>`. If the querier was
+   killed, it comes back by itself within seconds; nothing else needs doing.
+2. Leave it out of searches: `&& name != "flagd.evaluation.v2.Service/EventStream"`, or a name that
+   matches what the chained spans are called.
+3. Find the service whose spans chain (`resource.service.name` in the search above) and its image:
+   `kubectl -n shop get deploy <service> -o jsonpath='{.spec.template.spec.containers[0].image}'; echo`.
+   For payment, an image older than `3.1.0-lab.2` brings the chain back; `make lab TAGS=shop` from
+   `main` installs the current one. A restart alone ends one chain and starts the next.
+4. The trace stays in Tempo until retention removes its blocks, about 48 to 50 hours after its last
+   span. The trace of 2026-11-14 23:03 UTC stopped growing when payment was upgraded (the date is in
+   `acceptance-lab.md`) and is gone two days after that.
 
 ## Kafka's disks are full
 

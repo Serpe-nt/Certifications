@@ -1,6 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
-const { context, propagation, trace, metrics, SpanStatusCode } = require('@opentelemetry/api');
+const { context, propagation, trace, metrics, SpanStatusCode, ROOT_CONTEXT } = require('@opentelemetry/api');
+const { suppressTracing } = require('@opentelemetry/core');
 const { ATTR_ERROR_TYPE } = require('@opentelemetry/semantic-conventions');
 const cardValidator = require('simple-card-validator');
 const { v4: uuidv4 } = require('uuid');
@@ -8,6 +9,12 @@ const { v4: uuidv4 } = require('uuid');
 const { OpenFeature } = require('@openfeature/server-sdk');
 const { FlagdProvider } = require('@openfeature/flagd-provider');
 const flagProvider = new FlagdProvider();
+
+// Start the flag provider once, outside any request, with tracing suppressed. The provider
+// reopens its event stream to flagd from the callback of the stream before, so traced streams
+// would chain into one trace that grows for the life of the pod (lgtm/docs/adr/l10-payment-flag-stream.md).
+// Evaluations still run in the request's context and are traced as before.
+context.with(suppressTracing(ROOT_CONTEXT), () => OpenFeature.setProvider(flagProvider));
 
 const logger = require('./logger');
 const tracer = trace.getTracer('payment');
@@ -34,8 +41,6 @@ module.exports.charge = async request => {
     if (syntheticRequest) {
       span.setAttribute('user_agent.synthetic.type', 'test');
     }
-
-    await OpenFeature.setProviderAndWait(flagProvider);
 
     const numberVariant = await OpenFeature.getClient().getNumberValue("paymentFailure", 0);
     const emitRawPii = await OpenFeature.getClient().getBooleanValue("emitRawPii", false);
