@@ -45,7 +45,7 @@ The Collector refuses a file in which a pipeline names a receiver, processor or 
 
 ## The same version as the cluster
 
-A component exists in one Collector release and not in the next, and names change: the lab's gateway values use `otlp_http` where older guides write `otlphttp`. So the check runs with the image the cluster runs, pinned by the same tag. In this lab that is `otel/opentelemetry-collector-contrib:0.165.0` for the gateway, as `lab/helm/otel-gateway/VERSION` pins it, and `grafana/alloy:v1.21.3` for Alloy, the version the lab's Alloy pods run.
+A component exists in one Collector release and not in the next, and names change: the lab's gateway values use `otlp_http` where older guides write `otlphttp`. So the check runs with the image the cluster runs, pinned by the same tag. In this lab that is `otel/opentelemetry-collector-contrib:0.165.0` for the gateway, set by `image.tag` in `lab/helm/otel-gateway/values.yaml` and recorded in its `VERSION`, and `grafana/alloy:v1.21.3` for Alloy, the version the lab's Alloy pods run.
 
 ## Where the files live
 

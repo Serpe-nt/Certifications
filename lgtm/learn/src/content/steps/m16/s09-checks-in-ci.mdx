@@ -42,9 +42,9 @@ CI runs the same checks on every pull request, before anyone merges. Each check 
 
 ## This repository's own workflows
 
-The repository has a workflow file per part of the course, under `.github/workflows/`. Each one runs only when a pull request touches its paths.
+The repository has six workflow files for the course under `.github/workflows/`: `lgtm-beacon`, `lgtm-demo`, `lgtm-lab-cluster`, `lgtm-lab-helm`, `lgtm-lab-platform` and `lgtm-learn`. Each one runs only when a pull request touches its paths. Three of them are closest to this module.
 
-<Layers caption="What runs on a pull request in this repository">
+<Layers caption="Three of the checks that run on a pull request here">
   <Layer title="lgtm lab cluster">yamllint, ansible-lint and syntax checks of the playbooks; PowerShell analysis and tests of the VM script; a printed plan.</Layer>
   <Layer title="lgtm lab helm">yamllint and helm lint; every release rendered for the full and the kind profile; a schema check of the result; requests and limits on every container.</Layer>
   <Layer title="lgtm-learn" hot>Unit tests, a type check, the end-to-end tests, then the build, which checks every lesson file and then every built page.</Layer>
@@ -60,7 +60,7 @@ So the site gained `check:pages`. After every build it takes each command, query
 
 ## Checks for the files of this module
 
-Every kind of file in an observability repository has a tool that checks it without a running system. `promtool check rules` reads a Prometheus rule file and its PromQL, and `promtool test rules` runs unit tests against made-up series. `mimirtool rules check` and `lint` do the same for rules bound for Mimir. A Collector checks its own configuration with `validate`, and Alloy has `alloy validate`. `helm template` renders a chart, and a diff against what runs shows a reviewer what an upgrade will do. `terraform validate` checks the files, and a `terraform plan` on the pull request shows what will change in Grafana. Steps 6 to 8 run them.
+Every kind of file in an observability repository has a tool that checks it without a running system. `promtool check rules` reads a Prometheus rule file and its PromQL, and `promtool test rules` runs unit tests against made-up series. For rules bound for Mimir, `mimirtool rules check` holds recorded names to the naming practice, and `lint` puts the file into a standard form. A Collector checks its own configuration with `validate`, and Alloy has `alloy validate`. `helm template` renders a chart, and a diff against what runs shows a reviewer what an upgrade will do. `terraform validate` checks the files, and a `terraform plan` on the pull request shows what will change in Grafana. Steps 6 to 8 run the rule, pipeline and Helm checks; steps 4 and 11 run `terraform plan`.
 
 <Compare caption="What a check can and cannot see">
   <Col title="Caught by a check" hot>A file that does not parse, a field that does not exist, a query with a syntax error, a missing limit.</Col>

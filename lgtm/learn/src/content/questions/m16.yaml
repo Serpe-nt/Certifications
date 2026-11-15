@@ -8,7 +8,7 @@
 - id: q-m16-001
   tags: [ascode-why]
   exam: { cert: none }
-  q: "A team keeps its alert rules in Git but builds dashboards by hand. After a database restore, which of the three benefits of as code do the dashboards still lack?"
+  q: "A team keeps its alert rules in Git but builds dashboards by hand. After a database restore they must build the same dashboards in a second Grafana and go back to a chosen version of last month. Which benefits of as code do the dashboards still lack?"
   options:
     - text: "All three, since each needs the dashboards kept as files"
       why: "A restore brings back the dashboards as they were, but there is no reviewed change, no way to build them elsewhere from files, and no history to go back to."
@@ -394,10 +394,10 @@
 - id: q-m16-025
   tags: [ascode-pipelines, ascode-ci]
   exam: { cert: none }
-  q: "Why validate a Collector or Alloy file in CI when the pod would refuse it at start-up anyway?"
+  q: "Why validate a Collector file in CI when the Collector would refuse it at start-up anyway?"
   options:
-    - text: "A broken file in a rollout leaves pods crashing"
-      why: "Validation in CI refuses the file before the merge, so no rollout with a broken file ever starts."
+    - text: "A refused file stalls the rollout on pods that fail to start"
+      why: "The Collector refuses an invalid file at start-up, so a rollout stalls on crashing pods. Validation in CI refuses the file before the merge. (Alloy keeps its last valid configuration on a reload; only a starting Alloy pod fails.)"
     - text: "validate also tests that every backend is reachable"
       why: "validate checks the file offline; it does not connect to exporters."
     - text: "The pod accepts invalid files and only logs a warning"
@@ -431,7 +431,7 @@
     - text: "The chart has a bug that changes replicas on every upgrade"
       why: "A chart renders what the values say. The difference comes from the values."
     - text: "Someone changed the release outside Git"
-      why: "Someone scaled it with a value Git does not hold. The diff reveals drift before it is undone."
+      why: "Someone upgraded the release with a value Git does not hold. The diff reveals that drift before it is undone."
     - text: "<code>helm template</code> ignores the replica count value"
       why: "helm template renders the replica count like any other value."
     - text: "The diff compares two different charts by mistake"

@@ -39,7 +39,7 @@ An engineer raises a limit of Loki with `helm upgrade --set` from a laptop, at n
 </Problem>
 
 <Idea>
-A release is fully described by three things: the chart, its pinned version and its values. Keep all three in Git and upgrade only from there, never with a `--set` typed by hand. Before every upgrade, render the chart with the new values and compare it with what the release runs, so the reviewer reads the change to the objects in the cluster.
+A release is fully described by three things: the chart, its pinned version and its values. Keep all three in Git and upgrade only from there, never with a `--set` typed by hand. Before every upgrade, render the chart with the new values and compare it with what Helm applied last time, so the reviewer reads the change to the objects Helm owns.
 </Idea>
 
 ## The lab already works this way
@@ -85,7 +85,7 @@ Many teams use the plugin helm-diff for the same job: `helm diff upgrade` takes 
    ```
 3. Commit the file, then install the release from it, with the chart version pinned on the command line: <Cmd>{`cd ~/m16 && git add helm && git commit -q -m "podinfo practice release" && git push -q origin main`}</Cmd> <Cmd>{`helm install m16-podinfo oci://ghcr.io/stefanprodan/charts/podinfo --version 6.17.0 -n learn-m16 -f ~/m16/helm/podinfo/values.yaml --wait`}</Cmd>
 4. Change the values in Git: two replicas and a new message. <Cmd>{`sed -i 's/^replicaCount: 1/replicaCount: 2/; s/deployed from Git/upgraded from Git/' ~/m16/helm/podinfo/values.yaml && git -C ~/m16 diff`}</Cmd> The Git diff shows two changed values, nothing about Kubernetes objects.
-5. Render the chart with the new values and compare it with what the release runs: <Cmd>{`helm get manifest m16-podinfo -n learn-m16 > /tmp/m16-live.yaml`}</Cmd> <Cmd>{`helm template m16-podinfo oci://ghcr.io/stefanprodan/charts/podinfo --version 6.17.0 -n learn-m16 -f ~/m16/helm/podinfo/values.yaml --skip-tests --no-hooks > /tmp/m16-next.yaml`}</Cmd> <Cmd>{`diff -u /tmp/m16-live.yaml /tmp/m16-next.yaml`}</Cmd> The diff touches only the Deployment: the replica count and the value of the message variable. Two empty lines at the end come from how Helm stores the manifest and mean nothing. Copy the line with the new replica count for the check.
+5. Render the chart with the new values and compare it with what Helm applied at the last install or upgrade: <Cmd>{`helm get manifest m16-podinfo -n learn-m16 > /tmp/m16-live.yaml`}</Cmd> <Cmd>{`helm template m16-podinfo oci://ghcr.io/stefanprodan/charts/podinfo --version 6.17.0 -n learn-m16 -f ~/m16/helm/podinfo/values.yaml --skip-tests --no-hooks > /tmp/m16-next.yaml`}</Cmd> <Cmd>{`diff -u /tmp/m16-live.yaml /tmp/m16-next.yaml`}</Cmd> The diff touches only the Deployment: the replica count and the value of the message variable. Two empty lines at the end come from how Helm stores the manifest and mean nothing. Copy the line with the new replica count for the check.
 6. Commit the change and upgrade from the file, then prove the release holds the values from Git: <Cmd>{`git -C ~/m16 commit -q -am "podinfo: two replicas" && git -C ~/m16 push -q origin main`}</Cmd> <Cmd>{`helm upgrade m16-podinfo oci://ghcr.io/stefanprodan/charts/podinfo --version 6.17.0 -n learn-m16 -f ~/m16/helm/podinfo/values.yaml --wait && helm get values m16-podinfo -n learn-m16`}</Cmd> The user-supplied values are those of the file.
 7. Remove the practice release and the two temporary files: <Cmd>{`helm uninstall m16-podinfo -n learn-m16 && rm /tmp/m16-live.yaml /tmp/m16-next.yaml`}</Cmd>
 </Do>
@@ -111,7 +111,7 @@ Before an upgrade, a reviewer wants to see exactly which Kubernetes objects will
 
 - `diff` of `helm get manifest` and `helm template` output
 
-  The stored manifest is what runs; the rendering is what the upgrade will apply. Their difference is the change.
+  The stored manifest is what Helm applied last time; the rendering is what the upgrade will apply. Their difference is the change. A `kubectl scale` made outside Helm never shows in it.
 
 - `helm history` of the release, then `helm rollback --dry-run`
 

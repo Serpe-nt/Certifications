@@ -74,8 +74,8 @@ A provisioned dashboard that someone saved with `allowUiUpdates: true` is change
 <Do>
 1. In WSL (bash), select the lab: <Cmd>{`export KUBECONFIG=~/.kube/lgtm-lab.config`}</Cmd>
 2. List the dashboards the sidecar picks up from the namespace `grafana`: <Cmd>{`kubectl get configmap -n grafana -l grafana_dashboard=1`}</Cmd> Count them. Each one came from a JSON file of `lab-glue`.
-3. Read where one of them goes: <Cmd>{`kubectl -n grafana get configmap dashboard-shop-red-checkout -o jsonpath='{.metadata.annotations.grafana_folder}{"\n"}'`}</Cmd> The answer is `Shop`, the folder you see in Grafana.
-4. Read the dashboard provider that the chart wrote: <Cmd>{`kubectl -n grafana get configmap grafana-config-dashboards -o jsonpath='{.data.provider\\.yaml}{"\n"}'`}</Cmd> Find `allowUiUpdates`, `updateIntervalSeconds` and `path`.
+3. Read where one of them goes: <Cmd>{`kubectl -n grafana get configmap dashboard-shop-red-checkout -o jsonpath='{.metadata.annotations.grafana_folder}{"\\n"}'`}</Cmd> The answer is `Shop`, the folder you see in Grafana.
+4. Read the dashboard provider that the chart wrote: <Cmd>{`kubectl -n grafana get configmap grafana-config-dashboards -o jsonpath='{.data.provider\\.yaml}{"\\n"}'`}</Cmd> Find `allowUiUpdates`, `updateIntervalSeconds` and `path`.
 5. Read the names and UIDs of the provisioned data sources: <Cmd>{`kubectl -n grafana get configmap grafana -o jsonpath='{.data.datasources\\.yaml}' | grep -E '^  (name|uid):'`}</Cmd> Six names with their UIDs. They match the list under <LabLink to="grafana" path="/connections/datasources">Connections > Data sources</LabLink>.
 6. Open <LabLink to="grafana" path="/dashboards">Dashboards</LabLink>, the folder **Shop** and **Shop / checkout (RED)**. Click **Edit**, then **Save**. The drawer says the dashboard cannot be saved from the Grafana UI. Click **Cancel**, then **Exit edit**.
 </Do>
