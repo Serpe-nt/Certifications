@@ -42,7 +42,7 @@ Step 11 told you what Mimir costs per series. Now a team asks for room for twice
 </Problem>
 
 <Idea>
-Four tools cut what a store must keep, and each has a different price. Dropping removes data nobody reads. Relabelling removes a label that splits series without telling anyone anything. Aggregating keeps a summary instead of every series. Sampling keeps a share of traces or log lines. Apply them as close to the source as you can, in the collector, and measure before and after.
+Four tools cut what a store must keep, and each has a different price. Dropping removes data nobody reads. Relabelling rewrites or removes a label that splits series without telling anyone anything. Aggregating keeps a summary instead of every series. Sampling keeps a share of traces or log lines. Apply them as close to the source as you can, in the collector, and measure before and after.
 </Idea>
 
 ## Four tools, four prices
@@ -51,7 +51,7 @@ Each tool loses something different, so choose by what the readers need.
 
 <Compare caption="Cutting what the store keeps">
   <Col title="Drop">Whole metrics or series. Lose them completely. Best for data no dashboard, rule or query reads.</Col>
-  <Col title="Relabel">Remove or rewrite a label. Series fold together. Best for an ID-like label nobody filters on.</Col>
+  <Col title="Relabel">Rewrite a label's values into a few groups, or remove the label and sum what then collides. Best for an ID-like label nobody filters on.</Col>
   <Col title="Aggregate" hot>Keep a sum over a label. Totals stay, the detail goes. Best for a breakdown nobody uses.</Col>
   <Col title="Sample">Keep a share of spans or lines. Counts made from the stored data shrink. Best for high volumes of similar traces.</Col>
 </Compare>

@@ -50,7 +50,7 @@ Mimir and Tempo write into Kafka first, and their consumers read from it at thei
 
 A topic is split into partitions. Mimir's distributors spread series over the partitions of `mimir-ingest`, and each ingester reads exactly one partition, chosen by the number at the end of its name. Tempo's distributors pick a partition by trace ID, and each active partition has exactly one block-builder and one live-store per zone. So the partition count is the most readers you can run; Kafka can add partitions to a topic, but never remove them.
 
-Every partition has replicas on several brokers. With `min.insync.replicas: 2`, a write is accepted only when two copies have it, so one broker may be away without stopping writes.
+Every partition has replicas on several brokers. With `acks=all`, which Mimir and Tempo use, a write is accepted when every in-sync copy has it, and `min.insync.replicas: 2` refuses it when fewer than two are in sync. So one broker may be away without stopping writes.
 
 ## Lag is how far behind a reader is
 

@@ -108,7 +108,7 @@
   q: 'A colleague adds a bucket rule "delete objects older than 30 days, whole bucket" to Loki''s bucket, where retention is also 30 days. What breaks first?'
   options:
     - text: 'Nothing, because both periods are 30 days'
-      why: 'The rule also deletes the index, the cluster seed and delete requests, which Loki keeps longer than any chunk.'
+      why: 'The rule also deletes the index, the cluster seed and delete requests, which Loki must keep.'
     - text: 'Writes, because Loki cannot create new chunks'
       why: 'New chunks are written as before. The damage is to objects Loki already relies on.'
     - text: 'Queries, once index files are deleted'
@@ -356,7 +356,7 @@
     - text: 'A per-tenant compaction.block_retention'
       why: 'A per-tenant override replaces the default retention for that tenant only.'
     - text: 'A longer Kafka retention for the trace topic'
-      why: 'Kafka keeps records until block-builders write blocks; it is not long-term trace storage.'
+      why: 'Kafka keeps records only for its own retention, hours in the lab; it is not long-term trace storage.'
     - text: 'A lifecycle rule on the tenant''s prefix of 14 days'
       why: 'Tempo''s compaction would still delete the blocks after 48 hours.'
   answer: [1]
@@ -388,10 +388,10 @@
       why: 'It cuts the most, but the percentiles per endpoint would be gone too.'
     - text: 'Scrape the service every 60 seconds instead of 15'
       why: 'Fewer samples per series, but the number of series stays the same.'
-    - text: 'Remove the label customer_id before the data leaves the collector'
-      why: 'Each customer value multiplied every bucket; without it the series shrink by up to 5,000 times.'
+    - text: 'Sum customer_id away before the data leaves the collector'
+      why: 'Each customer value multiplied every bucket; summed away, the series shrink by up to 5,000 times and the percentiles per endpoint stay.'
     - text: 'Keep only 5 of the 20 buckets'
-      why: 'Fewer buckets save a factor of four, far less than removing a 5,000-value label.'
+      why: 'Fewer buckets save a factor of about three, far less than summing away a 5,000-value label.'
   answer: [2]
   source: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 
@@ -404,8 +404,8 @@
       why: 'Each dropped series stops costing at once.'
     - text: 'Aggregating away a high-cardinality label before storage'
       why: 'Fewer label values mean fewer series.'
-    - text: 'Dropping one label with thousands of values at the collector'
-      why: 'Removing such a label folds many series into few.'
+    - text: 'Grouping one label''s thousands of values into a few'
+      why: 'Fewer distinct values fold many series into few.'
     - text: 'Halving the scrape interval of every target'
       why: 'Scraping twice as often doubles the samples and keeps every series, so the series bill does not drop.'
   answer: [3]
@@ -467,7 +467,7 @@
   q: 'A new team brings no new targets but adds a label with 50 values to its existing metrics. Which Mimir component needs more memory first?'
   options:
     - text: 'The distributors, because the samples per second grow'
-      why: 'The same targets send at the same interval; samples per series stay, but series multiply.'
+      why: 'Samples per second grow too, but the sizing page gives an ingester 2.5 GB per 300,000 series against a distributor''s 1 GB per 25,000 samples per second; the ingesters grow far more.'
     - text: 'The query frontend, because there are more series to list'
       why: 'The query frontend scales with queries per second, not with series.'
     - text: 'The ingesters, because series in memory grow'

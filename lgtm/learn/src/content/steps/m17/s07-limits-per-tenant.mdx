@@ -18,7 +18,7 @@ terms:
   - term: Ingestion rate
     def: A tenant's limit in samples per second, checked by the distributors.
   - term: Burst size
-    def: How many samples a tenant may send at once above its rate before the distributor refuses.
+    def: How many samples a tenant may send in one go; the rate refills this allowance over time.
   - term: Runtime overrides
     def: Per-tenant limits in a file Mimir reloads every 10 seconds, without a restart.
 sources:

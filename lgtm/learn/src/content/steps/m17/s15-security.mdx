@@ -35,7 +35,7 @@ sources:
 ---
 
 <Problem>
-Any pod in the lab can open a connection to Kafka on port 9092 and write to `mimir-ingest`, or to RustFS on port 9000. A compromised shop pod could fill Kafka or read every bucket. Nothing checks who connects, nothing encrypts the traffic, and nothing limits which pod talks to which.
+Any pod in the lab can open a connection to Kafka on port 9092 and write to `mimir-ingest`; Kafka asks for no credentials. A compromised shop pod could fill Kafka. The object store at least wants keys, but they travel without TLS, and nothing limits which pod talks to which.
 </Problem>
 
 <Idea>
@@ -44,7 +44,7 @@ Three layers close the stack. Network policies decide which pods may connect at 
 
 ## What the lab leaves open
 
-The lab's platform document lists its simplifications: Kafka and the object store take plain-text connections inside the cluster, metrics-server skips the check of the kubelets' certificates, and the lab's certificate authority keeps its root key in a Secret of the cluster. Step 6 added one more: the stores take any tenant header from anyone who reaches their gateways. Strimzi installs a NetworkPolicy for the brokers. It limits the internal ports to Strimzi's own pods, and has one rule for port 9092 with no source at all: every pod in the cluster may connect there. No namespace of the stores has a policy.
+The lab's platform document lists its simplifications: Kafka and the object store take plain-text connections inside the cluster, metrics-server skips the check of the kubelets' certificates, and the lab's certificate authority keeps its root key in a Secret of the cluster. Step 6 added one more: the stores take any tenant header from anyone who reaches their gateways. Strimzi installs a NetworkPolicy for the brokers. It limits the internal ports to Strimzi's own pods, and has one rule for port 9092 with no source at all: any source may connect there, every pod of the cluster included. No namespace of the stores has a policy.
 
 ## Network policies: allow, do not deny
 
@@ -52,7 +52,7 @@ By default a pod accepts connections from everywhere. As soon as one NetworkPoli
 
 ## TLS between components
 
-Mimir's servers take a certificate and a key for HTTP and gRPC with `-server.http-tls-cert-path` and `-server.grpc-tls-cert-path` and their key and CA flags, and `-server.http-tls-client-auth` set to `RequireAndVerifyClientCert` makes them demand a valid client certificate. Each client of another component has its own flags ending in `.tls-enabled`, such as `-querier.frontend-client.tls-enabled=true`. Tempo has the same in YAML: `http_tls_config` and `grpc_tls_config` under `server`, and `tls_enabled` with `tls_cert_path` on its clients. A real setup gets the certificates from cert-manager, which the lab already runs.
+Mimir's servers take a certificate and a key for HTTP and gRPC with `-server.http-tls-cert-path` and `-server.grpc-tls-cert-path` and their key and CA flags, and `-server.http-tls-client-auth` and `-server.grpc-tls-client-auth` set to `RequireAndVerifyClientCert` make them demand a valid client certificate. Each client of another component has its own flags ending in `.tls-enabled`, such as `-querier.frontend-client.tls-enabled=true`. Tempo has the same in YAML: `http_tls_config` and `grpc_tls_config` under `server`, and `tls_enabled` with `tls_cert_path` on its clients. A real setup gets the certificates from cert-manager, which the lab already runs.
 
 <Layers caption="Three layers, from the outside in">
   <Layer title="Authenticating proxy">Checks the caller and sets the tenant (step 6).</Layer>
@@ -163,7 +163,7 @@ A NetworkPolicy without a network plugin that enforces it is accepted by the API
 
    Apply it: <Cmd>{`kubectl apply -f web-policy.yaml`}</Cmd>
 4. Test both again, and print curl's exit code: <Cmd>{`for p in client other; do kubectl -n learn-m17 exec $p -- curl -s -m 3 -o /dev/null -w "$p: %{http_code}" http://web:8080/; echo " exit $?"; done`}</Cmd> `client` still gets `200` with exit 0. `other` waits three seconds and gives up: it prints `000`, kubectl reports `command terminated with exit code 28`, and the line ends with that exit code.
-5. Read the broker policy Strimzi installed, and find the rule for port 9092: <Cmd>{`kubectl -n kafka get networkpolicy telemetry-network-policy-kafka -o yaml | grep -B3 'port: 9092'`}</Cmd> The rule has `ports` and no `from`: any pod may connect.
+5. Read the broker policy Strimzi installed, and find the rule for port 9092: <Cmd>{`kubectl -n kafka get networkpolicy telemetry-network-policy-kafka -o yaml | grep -B3 'port: 9092'`}</Cmd> The rule has `ports` and no `from`: any source may connect.
 6. Delete the namespace with everything in it: <Cmd>{`kubectl delete namespace learn-m17`}</Cmd>
 7. Paste the exit code `other` got in action 4 in the check below.
 </Do>

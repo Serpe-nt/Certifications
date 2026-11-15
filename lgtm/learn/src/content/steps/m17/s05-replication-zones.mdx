@@ -10,7 +10,7 @@ exam:
 tags: [scale-replication]
 check:
   kind: choice
-  prompt: In the lab as it runs, deleting one pod of which component makes queries of recent data fail until the pod is back?
+  prompt: In the lab as it runs, deleting one pod of which component makes queries of recent data fail for a while?
   options:
     - A Mimir ingester
     - A Loki ingester
@@ -54,12 +54,12 @@ Each part of the stack keeps its own number of copies, and that number says what
 
 ## Copies, layer by layer
 
-Kafka keeps three replicas of each partition and accepts a write when two have it. Loki's distributors write each stream to three ingesters and need two of them, so one Loki ingester can go without anyone noticing. Mimir with ingest storage has no write replication of its own: Kafka does it. On the read side, each partition of `mimir-ingest` has one ingester in the lab. Losing it fails recent reads for that partition until it is back, as you saw in m11 step 13. Tempo is the same: each partition has one live-store per zone, and the lab has one zone.
+Kafka keeps three replicas of each partition. A write needs every replica that is in sync, and at least two, so one broker may be away. Loki's distributors write each stream to three ingesters and need two of them, so one Loki ingester can go without anyone noticing. Mimir with ingest storage has no write replication of its own: Kafka does it. On the read side, each partition of `mimir-ingest` has one ingester in the lab. Losing it fails recent reads for that partition until a new ingester has caught up from Kafka: ten seconds in m11 step 13. Tempo is the same: each partition has one live-store per zone, and the lab has one zone.
 
 <Layers caption="What one lost pod costs in the lab">
   <Layer title="Kafka broker">Writes go on: two of three replicas remain, and two are enough.</Layer>
   <Layer title="Loki ingester">Writes and reads go on: two of three ingesters hold each stream.</Layer>
-  <Layer title="Mimir ingester" hot>Writes go on; recent reads of its partition fail until it is back.</Layer>
+  <Layer title="Mimir ingester" hot>Writes go on; recent reads of its partition fail until an ingester reads it again.</Layer>
   <Layer title="Tempo live-store">Writes go on; recent traces of its partition are missing until it is back.</Layer>
 </Layers>
 
@@ -71,7 +71,7 @@ A PodDisruptionBudget protects these rules from voluntary disruptions, such as `
 
 ## What two zones buy and cost
 
-With zone-aware replication, Mimir puts the ingesters of one partition in different zones: an availability zone, a rack, or a group of nodes. Two ingesters per partition is the usual choice. Then a whole zone can go down, or be rolled at once, and every partition still has a reader. Loki's zone-aware ingesters do the same with one copy of each stream per zone. Mimir's documentation asks that rollouts touch one zone at a time and points to the rollout-operator for that.
+With zone-aware replication, Mimir puts the ingesters of one partition in different zones: an availability zone, a data center, a rack, or an anti-affinity group of nodes. Two ingesters per partition is the usual choice. Then a whole zone can go down, or be rolled at once, and every partition still has a reader. Loki's zone-aware ingesters do the same with one copy of each stream per zone. Mimir's documentation asks that rollouts touch one zone at a time and points to the rollout-operator for that.
 
 The cost is a second set of the stateful pods. In the lab, two ingesters per partition would double Mimir's three ingesters to six, each requesting 512 MiB; the budget of the lab notes that such a lesson would add 1.5 GiB of requests. Kafka's work does not grow, because both zones read the same records.
 
