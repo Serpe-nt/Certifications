@@ -121,9 +121,9 @@ A plan that wants to replace (`-/+`) a dashboard or folder destroys it first. Re
    }
    ```
 3. Commit and push it: <Cmd>{`cd ~/m16 && git add terraform/main.tf && git commit -q -m "Grafana folder, dashboard and contact point for m16" && git push -q origin main`}</Cmd>
-4. In the pod, pull the commit and initialise Terraform. It downloads the pinned provider: <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && git pull -q && terraform init -input=false -no-color | tail -3'`}</Cmd> The last lines say that Terraform has been successfully initialized.
+4. In the pod, pull the commit and initialise Terraform. It downloads the pinned provider: <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16 && git pull -q && cd terraform && terraform init -input=false -no-color | grep initialized'`}</Cmd> It prints `Terraform has been successfully initialized!`
 5. Plan and save the plan, then apply exactly that plan: <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && terraform plan -no-color -out=m16.plan'`}</Cmd> Read the three `+` resources and the line `Plan: 3 to add, 0 to change, 0 to destroy.` <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && terraform apply -no-color m16.plan'`}</Cmd> Open <LabLink to="grafana" path="/dashboards">Dashboards</LabLink>: the folder **Learn m16** holds **m16 checkout orders**. The contact point **m16 webhook** is under <LabLink to="grafana" path="/alerting/notifications">Alerting > Contact points</LabLink>, marked as provisioned.
-6. Change the panel's title in `main.tf` from `Orders per second` to `PlaceOrder calls per second`, commit, push and plan again: <Cmd>{`cd ~/m16 && sed -i 's/Orders per second/PlaceOrder calls per second/' terraform/main.tf && git commit -q -am "Clearer panel title" && git push -q origin main`}</Cmd> <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && git pull -q && terraform plan -no-color -out=m16.plan'`}</Cmd> The dashboard is changed in place (`~`), and the plan prints the old and new JSON. Copy the summary line for the check.
+6. Change the panel's title in `main.tf` from `Orders per second` to `PlaceOrder calls per second`, commit, push and plan again: <Cmd>{`cd ~/m16 && sed -i 's/Orders per second/PlaceOrder calls per second/' terraform/main.tf && git commit -q -am "Clearer panel title" && git push -q origin main`}</Cmd> <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && git pull -q && terraform plan -no-color -out=m16.plan'`}</Cmd> The dashboard is changed in place (`~`). Inside its JSON the plan shows only the line that differs, `title = "Orders per second" -> "PlaceOrder calls per second"`, and hides the unchanged rest. Copy the summary line for the check.
 7. Apply the change, then destroy everything this step made, and read the summary: <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && terraform apply -no-color m16.plan && terraform destroy -no-color -auto-approve | tail -1'`}</Cmd> It ends with `Destroy complete! Resources: 3 destroyed.` The folder and the contact point are gone from Grafana. Keep `main.tf` in the repository; step 11 uses it again.
 </Do>
 
@@ -132,7 +132,7 @@ Terraform created a folder, a dashboard and a contact point from a file in your 
 </Done>
 
 <Trap practice>
-`Error: the server has asked for the client to provide credentials` or a 401 from Grafana means the token in the Secret is wrong or expired. Make a new token and a new Secret as in step 3, then delete the pod `work` and apply its manifest again so it reads the new Secret.
+A 401 or 403 from Grafana in the plan means the token in the Secret is wrong or expired. Make a new token and a new Secret as in step 3, then delete the pod `work` and apply its manifest again so it reads the new Secret.
 </Trap>
 
 <Remember>

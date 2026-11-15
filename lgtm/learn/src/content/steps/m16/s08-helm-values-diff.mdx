@@ -39,7 +39,7 @@ An engineer raises a limit of Loki with `helm upgrade --set` from a laptop, at n
 </Problem>
 
 <Idea>
-A release is fully described by three things: the chart, its pinned version and its values. Keep all three in Git and upgrade only from there, never with a `--set` typed by hand. Before every upgrade, render the chart with the new values and compare it with what the release runs, so the reviewer reads the real change to the cluster, not just a change of a value.
+A release is fully described by three things: the chart, its pinned version and its values. Keep all three in Git and upgrade only from there, never with a `--set` typed by hand. Before every upgrade, render the chart with the new values and compare it with what the release runs, so the reviewer reads the change to the objects in the cluster.
 </Idea>
 
 ## The lab already works this way
@@ -99,7 +99,7 @@ If the diff is empty, the values file was not changed before action 5, or the re
 </Trap>
 
 <Remember>
-Chart, version and values live in Git; upgrades use `-f` with that file; the reviewer reads the rendered diff, not only the values diff.
+Chart, version and values live in Git; upgrades use `-f` with that file; the reviewer reads the rendered diff as well as the values diff.
 </Remember>
 
 <Question id="q-m16-s08" answer="b">

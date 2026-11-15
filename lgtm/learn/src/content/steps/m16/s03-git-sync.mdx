@@ -20,7 +20,7 @@ tags: [ascode-git-sync]
 check:
   kind: regex
   prompt: Paste the message of the refusal from action 8.
-  pattern: ".*(private|internal|not allowed|insecure).*"
+  pattern: ".*(public or allowed address|not allowed when a token is configured).*"
 sources:
   - title: Introduction to Git Sync (Grafana 13.3)
     url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/
@@ -96,8 +96,8 @@ Allowing a whole private range such as `10.0.0.0/8` in `allowed_git_urls` gives 
 
 <Do>
 1. Create the practice namespace of this module: <Cmd>{`kubectl create namespace learn-m16`}</Cmd>
-2. In <LabLink to="grafana" path="/org/serviceaccounts">Administration > Users and access > Service accounts</LabLink>, click **Add service account**, name it `learn-m16`, choose the role **Admin** and click **Create**. Click **Add service account token**, name it `m16`, set an expiry of one day, and click **Generate token**. Leave the window open; the token is shown only once.
-3. Store the token in a Secret without showing or saving it anywhere else. Run this, paste the token when the cursor waits (nothing is echoed) and press Enter: <Cmd>{`read -rs TOKEN && printf %s "$TOKEN" | kubectl -n learn-m16 create secret generic grafana-m16 --from-file=token=/dev/stdin; unset TOKEN`}</Cmd> It prints `secret/grafana-m16 created`. Now close the token window.
+2. In <LabLink to="grafana" path="/org/serviceaccounts">Administration > Users and access > Service accounts</LabLink>, click **Add service account**, name it `learn-m16`, choose the role **Admin** and click **Create**. Click **Add service account token**, give it the display name `m16`, under **Expiration** choose **Set expiration date** and pick tomorrow, and click **Generate token**. Leave the window open; the token is shown only once.
+3. Store the token in a Secret without showing or saving it anywhere else. This is bash; if your WSL shell is fish or zsh, type `bash` first. Run this, paste the token when the cursor waits (nothing is echoed) and press Enter: <Cmd>{`read -rs TOKEN && printf %s "$TOKEN" | kubectl -n learn-m16 create secret generic grafana-m16 --from-file=token=/dev/stdin; unset TOKEN`}</Cmd> It prints `secret/grafana-m16 created`. Now close the token window.
 4. Save this as `m16-workbench.yaml`. It runs the Git server with anonymous read and write access, which is acceptable only inside a practice namespace, and a pod `work` with two tool containers that read the token from the Secret.
 
    ```yaml
@@ -197,7 +197,7 @@ Allowing a whole private range such as `10.0.0.0/8` in `allowed_git_urls` gives 
      "secure": { "token": { "create": "placeholder" } }
    }
    ```
-8. Send it to Grafana's API with the token from the Secret, from the pod's `curl` container: <Cmd>{`kubectl -n learn-m16 exec -i work -c curl -- sh -c 'curl -s -X POST -H "Authorization: Bearer $GRAFANA_AUTH" -H "Content-Type: application/json" --data-binary @- "$GRAFANA_URL/apis/provisioning.grafana.app/v0alpha1/namespaces/default/repositories"' < m16-repository.json; echo`}</Cmd> Grafana answers with a `Status` object whose `message` explains the refusal. Copy that message for the check.
+8. Send it to Grafana's API with the token from the Secret, from the pod's `curl` container: <Cmd>{`kubectl -n learn-m16 exec -i work -c curl -- sh -c 'curl -s -X POST -H "Authorization: Bearer $GRAFANA_AUTH" -H "Content-Type: application/json" --data-binary @- "$GRAFANA_URL/apis/provisioning.grafana.app/v0alpha1/namespaces/default/repositories"' < m16-repository.json; echo`}</Cmd> Grafana answers HTTP 422 with a `Status` object. Its `message` gives two reasons: `http:// is not allowed when a token is configured`, and `repository URL host must resolve to a public or allowed address`. Copy one of them for the check.
 9. Confirm that nothing was created: <Cmd>{`kubectl -n learn-m16 exec work -c curl -- sh -c 'curl -s -H "Authorization: Bearer $GRAFANA_AUTH" "$GRAFANA_URL/apis/provisioning.grafana.app/v0alpha1/namespaces/default/repositories"'; echo`}</Cmd> The list `items` is empty. Keep the namespace, the Secret and the workbench; the next steps use them.
 </Do>
 
