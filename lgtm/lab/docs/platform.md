@@ -220,4 +220,15 @@ open-iscsi 2.1.12; Ubuntu 24.04 ships 2.1.9.
 - metrics-server runs with `--kubelet-insecure-tls`, because the kubelets serve self-signed
   certificates (kubeadm's default).
 - Kafka and the S3 store take plain-text connections inside the cluster without TLS.
+- Strimzi's NetworkPolicy `telemetry-network-policy-kafka` in `kafka` opens the client port 9092
+  to any pod and any namespace, because the listener sets no `networkPolicyPeers`. Its other ports
+  are limited: 9090 and 9091 to the Kafka nodes and Strimzi's own components, 8443 to the cluster
+  operator (read on the lab on 2026-11-15). With no authentication either, any pod in the cluster
+  can read and write the telemetry topics.
+- While the S3 store is down, the stores log errors that need no action. Card C16 scaled RustFS
+  to zero for three minutes on 2026-11-15: Loki's ingesters logged `failed to flush ... PutObject`
+  and Tempo's block-builders logged `consumeCycle failed`, and both retried and caught up once
+  RustFS was back. Mimir answered queries of the present, but a query 20 hours back, which only
+  the object store can answer, failed with 504 until RustFS was back. Loki answered throughout, and
+  no write to Mimir's distributors failed (`lgtm/docs/verification/m17.md`, drill 2).
 - The lab CA's root key lives in a Secret in the cluster; it is a study CA, not a real one.

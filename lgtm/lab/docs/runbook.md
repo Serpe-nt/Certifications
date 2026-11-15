@@ -1,7 +1,7 @@
 # Lab runbook
 
 How to run the lab from day to day: start and stop it with the VMs, bring it back after the PC
-has slept, upgrade Calico or one release, reset it, find a missing signal, free disk. Commands
+has slept or after one worker was down, upgrade Calico or one release, reset it, find a missing signal, free disk. Commands
 run from `lgtm/lab` in WSL with `export KUBECONFIG=~/.kube/lgtm-lab.config`, except the VM
 commands, which run in an elevated PowerShell in `lgtm\lab\vm\hyperv`. Addresses and passwords: `reference.md`.
 
@@ -74,6 +74,69 @@ kubectl -n calico-system logs -l k8s-app=calico-node -c calico-node --prefix --t
 
 Shutting Windows down is different: the VMs shut down with it and stay off until
 `lab-vms.ps1 start`, and every calico-node writes a new token when it starts.
+
+## One worker is down or was restarted
+
+This is what card C16's third drill showed on 2026-11-15, when the owner stopped worker4 at 19:05
+UTC and started it again; the node was away about 12 minutes in all (module m17 step 13, `lgtm/docs/verification/m17.md`).
+To stop or start one worker, in an elevated PowerShell: `Stop-VM -Name worker4`,
+`Start-VM -Name worker4` (the VM's name is the node's name; `lab-vms.ps1` stops and starts all VMs only).
+
+What happens, in order:
+
+- The node turns `Unknown` within about 40 seconds (19:05:44). Its pods stay bound to it for 5
+  minutes: Kubernetes gives every pod that sets no toleration of its own a toleration of 300 seconds
+  for `node.kubernetes.io/unreachable`; DaemonSet pods are never evicted for it
+  (https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/). Then they are
+  marked `Terminating` (19:11:05). A Deployment's pod starts again on another worker. A StatefulSet's
+  pod does not: its name is free only when the node answers again, when the Node object is deleted,
+  or when someone force-deletes the pod
+  (https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/). Do not
+  force-delete them; wait for the node.
+- **Recent Mimir reads fail for the whole outage** if the worker holds a Mimir ingester. Each
+  partition of `mimir-ingest` has one ingester, which is a StatefulSet pod, so nothing else can
+  answer for that partition. On 2026-11-15 worker4 held `mimir-ingester-1`, and queries over the
+  last 13 hours failed from 19:05:29 to 19:18:22 with `partition 1: too many unhealthy instances
+  in the ring`. Loki answered throughout.
+- **product-catalog restarts until its database is back** when the worker holds `astronomy-db-0`
+  (a StatefulSet). It restarted 7 times and went into `CrashLoopBackOff`; it recovered by itself
+  once the node returned. checkout restarted once.
+- worker4 was `Ready` again at 19:17:31. The StatefulSet pods started there again, and every check passed at 19:22:05 with nothing done by hand.
+
+What does not heal by itself:
+
+- **A Job that failed during the outage stays failed**, and Prometheus's `KubeJobFailed` fires until
+  the Job object is gone. On 2026-11-15 Longhorn's hourly `kafka-trim` started `kafka-trim-29912827`
+  at 19:07 while worker4 was away. The next hour's run is a new Job and does its work; the failed one
+  only keeps the alert. Delete it:
+
+  ```bash
+  kubectl get jobs -A --field-selector status.successful=0     # failed and running Jobs
+  kubectl -n longhorn-system delete job kafka-trim-29912827      # the name from the list
+  ```
+
+- **Pods that moved do not move back.** After the drill worker4 held 21 pods and the other workers 38
+  to 41. Nothing is wrong with that, but the other workers carry more memory than the budget planned
+  (`budget.md`), and Prometheus fired `NodeMemoryMajorPagesFaults` for worker2 at 19:40. To spread the
+  pods again, restart the Deployments that moved one at a time with `kubectl -n <namespace> rollout
+  restart deployment/<name>`; the scheduler tends to place the new pods on the emptier worker.
+- **Until card L11, product-catalog stayed ten times slower.** A pod that starts on a node whose page
+  cache does not hold its program, for example after the node restarted, is charged for its own code.
+  With the old 20Mi limit that did not fit, and the pod read its code back from disk hundreds of times
+  a second. The limit is 40Mi since shop chart 0.3.1, and check 10 of `make lab-check` fails when any
+  container of the shop is at its limit and reading its pages back from disk
+  (`lgtm/docs/adr/l11-shop-memory-limits.md`).
+
+Check afterwards:
+
+```bash
+kubectl get nodes                                      # 5 nodes Ready
+kubectl get pods -A | grep -vE 'Running|Completed'     # only the header line
+kubectl get jobs -A --field-selector status.successful=0
+make lab-check                                         # LAB CHECK PASSED
+```
+
+Then look at Alertmanager (`reference.md`) for anything besides `Watchdog`.
 
 ## Upgrade Calico
 

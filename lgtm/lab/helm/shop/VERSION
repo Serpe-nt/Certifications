@@ -5,5 +5,5 @@
 # A chart in this repository (lgtm/lab/demo/chart, card D1), not a chart repository.
 path: demo/chart
 chart: shop
-version: 0.3.0
+version: 0.3.1
 app_version: 3.1.0-lab.2

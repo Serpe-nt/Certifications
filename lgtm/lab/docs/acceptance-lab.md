@@ -856,3 +856,106 @@ That is what `demo.md`, "Error spans with every flag off", says.
 `make lab-check` 18:49:09 to 18:49:16: `LAB CHECK PASSED`. `make lab` from `main`, every release,
 18:52:18 to 18:53:29: `ok=29 changed=0 unreachable=0 failed=0`. `make lab-check` 18:53:36:
 `LAB CHECK PASSED`.
+
+## The shop keeps its speed after a worker restarts (2026-11-15, card L11)
+
+After card C16 stopped worker4 (19:05 to about 19:17 UTC), product-catalog was charged for the page
+cache of its own program, sat at its 20Mi memory limit, and read its code back from disk hundreds of
+times a second. The cause, the measurements and the new limits are in
+`lgtm/docs/adr/l11-shop-memory-limits.md`. Applied with the owner's go-ahead. p95 values below are
+from Tempo's span metrics in Mimir, tenant `lab`
+(`histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{...}[W])))`, server
+spans of product-catalog, and checkout's server spans whose name ends in `PlaceOrder`); memory and
+page faults from cAdvisor through Prometheus.
+
+### Before
+
+| Time | product-catalog p95 | checkout `PlaceOrder` p95 | Window |
+|---|---|---|---|
+| 12:00, 15:00, 17:00, 18:15, 19:00 | 6.4 to 6.6 ms | 18.7 to 28.5 ms | 30 minutes |
+| 20:30 | 198.5 ms | 232.2 ms | 30 minutes |
+| 22:01:19 | 177.5 ms | 185.6 ms | 5 minutes |
+
+At 20:18 the pod `product-catalog-78f8879865-ckrm8` on worker4 used 19.64 MiB of its 20 MiB: 10.48
+MiB RSS and 8.46 MiB of file pages, with about 690 major page faults a second.
+
+`make lab-check` with the new check 10, 20:27:43 to 20:27:50, `LAB CHECK FAILED: 1 check(s)`:
+
+```
+==> 10. No container of the shop is at its memory limit and reading its pages back from disk
+  FAIL  container product-catalog (pod product-catalog-78f8879865-ckrm8) uses 99% of its memory limit and reads back 11.76% of it a second: at its limit and reading its pages back from disk
+```
+
+Every other check passed, and every other container of the shop passed check 10; the load
+generator, for example, read back 0.02% of its limit a second.
+
+### Upgrade
+
+`make lab TAGS=shop` from the card's branch, 22:01:31 to 22:03:24 UTC: `ok=9 changed=1`; release
+`shop` revision 4, chart `shop-0.3.1`, app version `3.1.0-lab.2` unchanged. Every pod of the shop
+restarted, because the chart's version is in every pod template; the scheduler placed all of them on
+worker4, the emptiest worker since drill 3. checkout restarted once and product-catalog twice until
+Kafka and PostgreSQL took connections; the load generator once (a gRPC error at start).
+
+The new checkout pod showed the case the card is about: at 22:03:48 it held 20.96 MiB of file pages,
+almost all of its 22.18 MiB program, and used 29.8 MiB. With the old 20Mi limit it would have
+thrashed like product-catalog.
+
+### Thirty minutes after
+
+Every two minutes from 22:07:49 to 22:36:01 (p95 over 5 minutes):
+
+| | Range |
+|---|---|
+| product-catalog p95 | 8.0 to 10.8 ms |
+| checkout `PlaceOrder` p95 | 15.6 to 28.5 ms |
+| product-catalog usage | 15.1 to 17.9 MiB of 40 MiB (RSS 10.5 to 11.5, file pages 4.0 to 5.8) |
+| checkout usage | 30.0 to 31.3 MiB of 40 MiB (RSS 9.2 to 10.6, file pages 18.9 to 21.0) |
+| Major page faults, both | 0.18 a second at most at 22:07:49 (a window that still held the start), 0 to 0.04 from 22:09:50 |
+| Alerts firing | `Watchdog` only (`NodeMemoryMajorPagesFaults` cleared before 22:05:48, `InfoInhibitor` before 22:07:49) |
+
+Over 30 minutes at 22:36, the same queries give 9.3 ms and 17.6 ms. checkout is back in its old
+range. product-catalog is about 3 ms slower than before the drill, and the page cache does not
+explain it: it has no major faults, no CPU throttling, and worker4 used 0.66 of its 4 CPUs. The
+difference is in its database calls: the p95 of its `astronomy-db` client spans went from 1.9 ms
+(19:00) to 2.9 ms (22:36), and the share of its server spans under 2 ms from 78% to 52%. PostgreSQL
+read nothing from disk and had no major faults. This is not explained.
+
+`make lab-check` 22:39:36 to 22:39:45: `LAB CHECK PASSED`; check 10 shows checkout at 74% of its
+limit and product-catalog at 42%, both reading back 0.00% a second.
+
+### The cold case
+
+The owner restarted worker4 at about 22:50 (`Restart-VM`), with every pod of the shop on it. The
+node came back fast enough that its pods stayed bound to it, and the kubelet started their
+containers again on worker4 with an empty page cache. Every pod of the shop was Running at 22:54:15.
+`astronomy-db-0` came back on worker2.
+
+- checkout's first container after the restart (from 22:51:19) was charged for its program: at most
+  21.19 MiB of file pages and 28.96 MiB of usage, under the 40Mi limit. It exited while Kafka was not
+  ready yet; the next container (from 22:52:33) found the program in the page cache and holds 0.95
+  MiB of file pages.
+- product-catalog's containers after the restart crash-looped while its database moved to worker2,
+  each for less than a scrape interval, so no reading of a cold product-catalog exists after the fix.
+  Its container from 22:54:04 holds about 1.3 MiB of file pages. For product-catalog the cold case
+  rests on the pod measured before the fix (12.6 MiB of its program charged at 19:22, `ckrm8` 10.7
+  MiB at 19:54) and on its program's size, 21.15 MiB, which 40Mi holds beside `GOMEMLIMIT`.
+
+Every two minutes from 22:55:51 to 23:15:59 (p95 over 5 minutes), with every fault flag off:
+
+| | Range |
+|---|---|
+| product-catalog p95 | 7.8 to 9.9 ms |
+| checkout `PlaceOrder` p95 | 74.2 and 76.8 ms at 22:55:51 and 22:57:52, windows that still held the restart; 15.6 to 27.2 ms from 22:59:53 |
+| product-catalog usage | 11.8 to 13.4 MiB of 40 MiB |
+| checkout usage | 10.6 to 12.1 MiB of 40 MiB |
+| Major page faults, both | 0.70 a second at most at 22:55:51, 0.06 or less from 22:57:52 |
+| Alerts firing | `Watchdog` only |
+
+`make lab-check` 23:18:11 to 23:18:18: `LAB CHECK PASSED`; check 10 shows checkout at 33% of its
+limit and product-catalog at 32%.
+
+### Afterwards
+
+`make lab` from the card's branch, every release, 22:54:35 to 22:55:46: `ok=29 changed=0
+unreachable=0 failed=0`.
