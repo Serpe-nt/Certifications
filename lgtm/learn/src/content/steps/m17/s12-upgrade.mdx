@@ -1,0 +1,124 @@
+---
+id: m17-s12
+title: "Upgrade one component, and take it back"
+kind: lab
+minutes: 30
+order: 12
+outcome: You can change one component of a lab release safely. You read the rendered diff first, apply it with the runbook's command, watch the rollout, check the lab, and take the change back until the release matches the repository.
+exam:
+  - cert: none
+tags: [scale-upgrades]
+check:
+  kind: exact
+  prompt: Which memory request did the new querier pods show in action 7?
+  answers: ["256Mi"]
+terms:
+  - term: Rendered diff
+    def: The difference between the Kubernetes objects a release makes before and after a change.
+  - term: Rollout
+    def: Kubernetes replacing the pods of a Deployment or StatefulSet after its pod template changed.
+  - term: Max surge
+    def: How many extra pods a rolling update may start above the wanted count; 25% by default.
+  - term: Idempotent apply
+    def: An apply that changes nothing when run again; the playbook reports changed=0.
+sources:
+  - title: Perform a rolling update to Grafana Mimir (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/run-production-environment/perform-a-rolling-update/
+    checked: 2026-11-15
+  - title: Deployments, rolling update (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+    checked: 2026-11-15
+  - title: Disruptions (Kubernetes)
+    url: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
+    checked: 2026-11-15
+---
+
+<Problem>
+A one-line change to a values file, meant for the queriers, also changed a label that every Mimir component carries. The upgrade rolled forty pods instead of two, ingesters included, and recent queries failed for minutes. Nobody had looked at what the change would render before it ran.
+</Problem>
+
+<Idea>
+An upgrade is four moves: read what will change, apply it with the command the team always uses, watch it roll, and check the system. Then keep a way back. The lab's runbook does exactly this: `make lab-lint` renders every release, `make lab TAGS=<release>` applies one, `make lab-check` tests the signals, and a second `make lab` must report `changed=0`.
+</Idea>
+
+## Read the diff before you apply
+
+The lab renders each release with the same chart, values and computed values the playbook installs. Render once before the change and once after, and compare the two files. The diff shows every object that will change. A change that should touch only the queriers must show only the querier Deployment; anything more is a reason to stop and ask why.
+
+## How the pods roll
+
+For a Deployment, Kubernetes uses a rolling update with 25% surge and 25% unavailable by default. With two queriers, that is one extra pod and none unavailable: a new pod starts, becomes ready, and an old one goes, twice. Mimir's documentation says stateless components may roll many at a time; ingesters roll one at a time, store-gateways and Alertmanagers two at a time. A rolling update is not held back by a PodDisruptionBudget; the budget limits drains and other evictions.
+
+<Timeline caption="The upgrade loop of this step">
+  <Event at="1" title="Render and diff">Only the querier Deployment changes.</Event>
+  <Event at="2" title="Apply one release">make lab TAGS=mimir.</Event>
+  <Event at="3" title="Watch the rollout">Two new querier pods, one at a time.</Event>
+  <Event at="4" title="Check">make lab-check passes.</Event>
+  <Event at="5" title="Take it back">git checkout, apply, then changed=0.</Event>
+</Timeline>
+
+## Taking it back is part of the change
+
+In this lab the repository is the truth. A change that worked is either committed, or taken back. Taking back is the same loop in reverse: restore the file, apply, check. The last proof is a second apply that changes nothing: the playbook compares the chart and the values with the installed release and reports `changed=0` only when they match.
+
+<InLab>
+The change of this step raises the memory request of Mimir's queriers from 192Mi to 256Mi. It is the mildest real change the lab offers: one Deployment of two stateless pods, no data, no ring.
+</InLab>
+
+<Trap>
+A diff of the values file is not the diff of the cluster. One line in a values file can change many objects; read the rendered objects.
+</Trap>
+
+<Do>
+1. In WSL, go to the lab's folder of your checkout, as in step 7: <Cmd>{`cd /mnt/c/CHECKOUT/lgtm/lab`}</Cmd> Render every release as it is now; it takes about two minutes: <Cmd>{`make lab-lint LAB_RENDER_DIR=$PWD/.bin/m17-before`}</Cmd>
+2. Open `helm/mimir/values.yaml` and change the querier's memory request from `192Mi` to `256Mi`. The block then reads:
+
+   ```yaml
+   querier:
+     replicas: 2
+     resources:
+       requests: { cpu: 100m, memory: 256Mi }
+       limits: { cpu: "1", memory: 512Mi }
+   ```
+
+3. Render again and compare Mimir's two renders: <Cmd>{`make lab-lint LAB_RENDER_DIR=$PWD/.bin/m17-after`}</Cmd> <Cmd>{`diff .bin/m17-before/full/mimir.yaml .bin/m17-after/full/mimir.yaml`}</Cmd> One line changes: `memory: 192Mi` becomes `memory: 256Mi`. To see which object it belongs to, look at the lines above it: <Cmd>{`grep -n -B40 'memory: 256Mi' .bin/m17-after/full/mimir.yaml | grep -E 'kind:|name: mimir-'`}</Cmd>
+4. In a second WSL terminal, watch the querier pods: <Cmd>{`kubectl -n mimir get pods -l app.kubernetes.io/component=querier -w`}</Cmd>
+5. In the first terminal, note the time and apply the Mimir release only: <Cmd>{`date -u +%T; make lab TAGS=mimir`}</Cmd> In the second terminal, a new querier pod appears and becomes ready before an old one terminates, then the same again.
+6. Wait for the rollout to finish: <Cmd>{`kubectl -n mimir rollout status deployment/mimir-querier`}</Cmd> Then stop the watch with Ctrl+C.
+7. Read the memory request the running queriers have now: <Cmd>{`kubectl -n mimir get pods -l app.kubernetes.io/component=querier -o jsonpath='{range .items[*]}{.metadata.name} {.spec.containers[0].resources.requests.memory}{"\\n"}{end}'`}</Cmd>
+8. Check the lab: <Cmd>{`make lab-check`}</Cmd> It ends with `LAB CHECK PASSED`.
+9. Take the change back, apply, and apply once more: <Cmd>{`git checkout -- helm/mimir/values.yaml && make lab TAGS=mimir`}</Cmd> <Cmd>{`make lab TAGS=mimir`}</Cmd> The second run ends with `changed=0`.
+10. Paste the memory request of action 7 in the check below.
+</Do>
+
+<Done>
+The diff showed one line in one Deployment, the two queriers rolled one at a time, the lab check passed, and the release is back to the repository's values.
+</Done>
+
+<Trap practice>
+`make lab-lint` needs the tools of `make venv collections lab-tools`, and it renders every release, so it takes minutes. Do not skip it: the diff of action 3 is the point of the step.
+</Trap>
+
+<Remember>
+Render, diff, apply one release, watch, check, and keep the way back. The last apply reports `changed=0`, or the cluster is not what the repository says.
+</Remember>
+
+<Question id="q-m17-s12" answer="b">
+You change one value for Mimir's queriers. The rendered diff also shows a changed annotation on the ingester StatefulSet. What do you do?
+
+- Apply it; ingesters roll one at a time anyway
+
+  An ingester rollout is a bigger change than the one you planned. Find out why it is in the diff before you apply.
+
+- Stop and find out why the ingesters change, before you apply
+
+  The diff shows more than the change you meant. That is exactly what reading it first is for.
+
+- Apply it, then roll back if queries fail
+
+  Under ingest storage with one ingester per partition, each ingester restart already fails some reads.
+
+- Delete the PodDisruptionBudget so that the rollout cannot hang
+
+  Budgets do not hold back a rolling update, and removing one weakens drains, not this change.
+</Question>
