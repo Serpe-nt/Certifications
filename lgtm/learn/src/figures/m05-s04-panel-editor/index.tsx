@@ -102,7 +102,7 @@ export default function PanelEditor({ playing, still }: SceneProps) {
                   <span className="gf-btn pe-time">Last 1 hour</span>
                 </div>
                 <div className="pe-preview">
-                  <div className="gf-label">Panel Title</div>
+                  <div className="gf-label">New panel</div>
                   <div className="pe-view" data-table={s.table || undefined}>
                     <div className="pe-graph" data-in={s.ran || undefined}>
                       <span className="gf-dim pe-y">0.04</span>
