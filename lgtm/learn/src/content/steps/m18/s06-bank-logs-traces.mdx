@@ -113,7 +113,7 @@ A team wants to keep every trace that contains an error and 5% of the others. Wh
 
   A head sampler decides before any error has happened, so it cannot promise to keep every trace with one.
 
-- Tail sampling behind a load-balancing exporter that routes by trace ID
+- Tail sampling behind a load-balancing exporter keyed on trace ID
 
   Tail sampling sees the finished trace, and routing by trace ID brings all its spans to one collector.
 

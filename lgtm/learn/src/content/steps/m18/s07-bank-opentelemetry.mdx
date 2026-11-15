@@ -132,7 +132,7 @@ In a Collector pipeline, where does the memory limiter belong, and why?
 
   The batch processor's README puts batching after the memory limiter, not before it.
 
-- First, so that refused data is pushed back to the receivers and the senders retry
+- First, so that refused data goes back to the receivers to retry
 
   The README recommends it as the first processor, so that back-pressure reaches the receivers.
 

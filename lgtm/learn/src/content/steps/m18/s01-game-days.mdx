@@ -249,7 +249,7 @@ If `reveal` prints that the guard had already switched the fault off, your round
 </Trap>
 
 <Remember>
-A game day trains what a scripted incident cannot: finding the place of a fault you did not choose. Write your line before the reveal, and score the evidence, not the guess.
+A game day trains what a scripted incident cannot: finding the place of a fault you did not choose. Write your line before the reveal, and score it by its evidence.
 </Remember>
 
 <Question id="q-m18-s01" answer="c">
@@ -263,7 +263,7 @@ During a round, checkout's dashboard shows failed orders. In an order's trace th
 
   If payment had refused them, a payment server span with its own error would be in the trace.
 
-- checkout to payment: orders fail, because the call never reaches payment
+- checkout to payment: orders fail, the calls never arrive
 
   A client span of microseconds with UNAVAILABLE and no server span means the call never arrived.
 
