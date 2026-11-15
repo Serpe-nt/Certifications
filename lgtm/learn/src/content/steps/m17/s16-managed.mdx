@@ -1,0 +1,90 @@
+---
+id: m17-s16
+title: "Managed alternatives and their trade-offs"
+kind: concept
+minutes: 15
+order: 16
+outcome: You can say which of this module's jobs a managed service takes off a team, which it leaves, and what to check on the vendor's own pages before choosing one.
+exam:
+  - cert: none
+tags: [scale-managed]
+terms:
+  - term: Managed service
+    def: A store that the vendor deploys, scales, upgrades and keeps available; you send data and query it.
+  - term: Quota
+    def: A limit the vendor sets per account or workspace, such as active series or samples per second.
+  - term: Data residency
+    def: Where, in which region or country, the provider stores your data.
+sources:
+  - title: Introduction to Grafana Cloud
+    url: https://grafana.com/docs/grafana-cloud/introduction/
+    checked: 2026-11-15
+  - title: Adaptive Metrics (Grafana Cloud)
+    url: https://grafana.com/docs/grafana-cloud/adaptive-telemetry/adaptive-metrics/
+    checked: 2026-11-15
+  - title: What is Amazon Managed Service for Prometheus?
+    url: https://docs.aws.amazon.com/prometheus/latest/userguide/what-is-Amazon-Managed-Service-Prometheus.html
+    checked: 2026-11-15
+  - title: Amazon Managed Service for Prometheus service quotas
+    url: https://docs.aws.amazon.com/prometheus/latest/userguide/AMP_quotas.html
+    checked: 2026-11-15
+---
+
+<Problem>
+You have now sized, split, limited, upgraded and broken a stack of more than forty pods, a Kafka cluster and an object store. Your manager reads the list and asks the obvious question: why not pay someone to run it? To answer, you need to know exactly which of those jobs would go away.
+</Problem>
+
+<Idea>
+A managed service runs the stores for you: deployment, scaling, upgrades, replication across zones, the object store and Kafka. You still decide what to send, how many series and labels, who may read what, and how long to keep it, and you pay by what you send and keep instead of by the nodes you run. Read the vendor's own pages for quotas, retention and where your data lives before you compare.
+</Idea>
+
+## What a managed service takes off a team
+
+Grafana Cloud describes itself as the same open source stack, run as a service so that you do not deploy, scale, upgrade or operate it. It runs the storage for every signal, keeps the query languages PromQL, LogQL and TraceQL, accepts OpenTelemetry and Prometheus data, and adds access policies, single sign-on, audit logs and a cost view. Amazon Managed Service for Prometheus is a metrics-only service: it keeps the Prometheus data model and PromQL, scales ingestion, storage and queries by itself, and replicates each workspace's data across three availability zones.
+
+Compared with this module, the deployment modes, chart values, object store, Kafka, replication, zones, rolling updates, meta-monitoring of the stores and their backups all move to the vendor.
+
+## What stays with you
+
+Cost now follows what you send and keep, so cardinality and retention, steps 8 and 9, matter more, not less. Grafana Cloud sells a tool for exactly that, Adaptive Metrics, which suggests aggregating series that no dashboard, alert or query uses. Tenancy and access still need design: which team gets which stack or workspace and which token. Your collectors, their configuration and their failure modes stay yours too.
+
+## Quotas and retention are the vendor's
+
+A managed store has limits you cannot raise by editing a values file. Amazon's service, for example, adjusts a workspace's active series limit between 2 and 50 million from the last 30 minutes of use, sets the ingestion rate to a thirtieth of that, and keeps metrics 150 days by default, up to 1,095 days. Grafana Cloud's free plan has lower ingestion and storage limits and shorter retention than its paid plans. Read these pages for the vendor and plan you consider, and read the price list on the vendor's site on the day you decide; prices change, and no price in a course stays right.
+
+<Compare caption="Who does what">
+  <Col title="Self-hosted, like this lab">You run every store, Kafka and the object store. Full control of versions, limits and location. Cost follows nodes and people.</Col>
+  <Col title="Managed" hot>The vendor runs the stores, zones and upgrades. You still own what you send, labels, retention, tenants and access. Cost follows volume.</Col>
+</Compare>
+
+<InLab>
+Grafana Cloud takes data through an OTLP endpoint, so the lab's collector gateway could send there: its three exporters would point at that endpoint, with the account's credentials, instead of at the lab's gateways.
+</InLab>
+
+<Trap>
+Managed does not mean unlimited. The quotas are real, and a cardinality mistake that the lab's limits would stop becomes a bill or a refused write.
+</Trap>
+
+<Remember>
+A managed service removes the work of running the stores, not the work of deciding what goes into them. Compare quotas, retention, data location and the price list, read on the vendor's own pages.
+</Remember>
+
+<Question id="q-m17-s16" answer="a">
+A team moves its metrics from a self-hosted Mimir to a managed service. Which of these jobs is still theirs?
+
+- Keeping the number of series down, because cost and quotas follow it
+
+  The vendor runs the store, but what you send decides the series count, and the series count decides cost and quota.
+
+- Rolling the ingesters one zone at a time during upgrades
+
+  The vendor runs and upgrades the store, its ingesters and its zones.
+
+- Sizing Kafka's retention against the ingesters' lag
+
+  Any queue inside the managed store is the vendor's to run and size.
+
+- Setting up lifecycle rules on the metrics bucket
+
+  The vendor owns the object storage behind the service.
+</Question>

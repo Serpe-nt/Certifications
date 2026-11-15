@@ -1,0 +1,109 @@
+---
+id: m17-s11
+title: "Capacity planning from three numbers"
+kind: lab
+minutes: 25
+order: 11
+outcome: You can read a Mimir cluster's ingest rate, active series and query load, turn them into CPU, memory and disk with the vendor's sizing rules, and compare the result with what is deployed.
+exam:
+  - cert: none
+tags: [scale-capacity]
+check:
+  kind: range
+  prompt: Paste the total of active series that action 2 printed for the three ingesters.
+  min: 60000
+  max: 300000
+terms:
+  - term: Ingest rate
+    def: Samples per second that the distributors receive, over all tenants.
+  - term: Active series
+    def: Series that received a sample recently and are held in the ingesters' memory.
+  - term: Query load
+    def: Queries per second that reach the query frontend, including dashboards and rules.
+  - term: Headroom
+    def: Capacity kept free above the measured need, for peaks and for growth.
+sources:
+  - title: Planning Grafana Mimir capacity (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/run-production-environment/planning-capacity/
+    checked: 2026-11-15
+  - title: Size the Loki cluster (3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/setup/size/
+    checked: 2026-11-15
+  - title: Size the Tempo cluster
+    url: https://grafana.com/docs/tempo/latest/set-up-for-tracing/setup-tempo/plan/size/
+    checked: 2026-11-15
+---
+
+<Problem>
+A new team will double the number of metrics next quarter. Your manager asks how many more nodes Mimir needs, by Friday. You could guess, or you could add up what Mimir does today and scale it. Three numbers are enough to start.
+</Problem>
+
+<Idea>
+Mimir's sizing page ties each component to one driver: distributors to samples per second, ingesters to series in memory, queriers and query frontends to queries per second. Read the three numbers from the running cluster, apply the page's ratios, add 50% for memory and disk as the page asks, and compare with what is deployed. Loki and Tempo publish their own tables, driven by bytes per day or per second.
+</Idea>
+
+## Three numbers, three drivers
+
+The ingest rate is what the distributors receive, in samples per second, over all tenants. Active series are what the ingesters hold in memory. Query load is what the query frontend receives, in queries per second, from people, dashboards and rules.
+
+<Figures caption="The lab's Mimir, measured 2026-11-15" unit="per unit">
+  <Stat label="Ingest" value="about 5,300 samples/s" amount={5300} max={25000} note="One distributor core per 25,000" />
+  <Stat label="Active series" value="about 120,500" amount={120500} max={300000} hot note="One ingester core per 300,000" />
+  <Stat label="Query load" value="near 0 queries/s" amount={0} max={10} note="One querier core per 10" />
+</Figures>
+
+## From numbers to resources
+
+The ratios on Mimir's page are rough minimums for one tenant and the default configuration. Distributors need 1 core and 1 GB for every 25,000 samples per second. Ingesters need 1 core, 2.5 GB of memory and 5 GB of disk for every 300,000 series in memory. Queriers need 1 core and 1 GB for every 10 queries per second, query frontends the same for every 250. On top, the page asks for 50% more memory and disk to handle peaks.
+
+The page counts series in memory as active series times the replication factor, 3 by default in the classic architecture. With ingest storage, each partition is held by one ingester per zone, so the factor is the number of zones; the lab has one. That is an inference from how ingest storage works, not a sentence of the sizing page.
+
+For the lab: 5,300 samples per second needs about 0.2 cores and 0.2 GB of distributors. 120,500 series need about 0.4 cores, 1 GB of memory and 2 GB of disk in ingesters, 1.5 GB and 3 GB with the 50%. The lab's three ingesters request 512 MiB each, 1.5 GiB together, with 3 GiB volumes. The deployment matches the arithmetic.
+
+## Loki and Tempo size by volume
+
+Loki's page gives tiers by bytes ingested per day; its smallest tier is under 3 TB a day and starts at six ingesters and ten queriers. Tempo's page gives one distributor per 10 MB/s and one querier per 1 to 2 MB/s of received traffic. The lab received about 24 KB/s of logs and 82 KB/s of traces on 2026-11-15, far under both, so neither table applies; the lab's sizes come from measured memory instead (`budget.md`).
+
+<InLab>
+None of these numbers is stored in the lab: the stores are not scraped (step 10). You read counters from the pods twice, a minute apart, and divide.
+</InLab>
+
+<Trap>
+Size the ingesters from series, not from samples. A tenant that adds one label with many values multiplies series while its sample rate per series stays the same.
+</Trap>
+
+<Do>
+1. In WSL, measure the ingest rate over one minute, all tenants: <Cmd>{`sum() { for p in $(kubectl -n mimir get pods -l app.kubernetes.io/component=distributor -o name | cut -d/ -f2); do kubectl get --raw /api/v1/namespaces/mimir/pods/$p:8080/proxy/metrics | grep '^cortex_distributor_received_samples_total'; done | awk '{s+=$2} END {printf "%.0f", s}'; }`}</Cmd> <Cmd>{`a=$(sum); sleep 60; b=$(sum); echo "samples per second: $(( (b-a)/60 ))"`}</Cmd>
+2. Add up the active series of the three ingesters: <Cmd>{`for i in 0 1 2; do kubectl get --raw /api/v1/namespaces/mimir/pods/mimir-ingester-$i:8080/proxy/metrics | grep '^cortex_ingester_active_series{'; done | awk '{s+=$2} END {print "active series:", s}'`}</Cmd>
+3. Measure the query load over two minutes at the query frontend: <Cmd>{`F=$(kubectl -n mimir get pods -l app.kubernetes.io/component=query-frontend -o name | cut -d/ -f2)`}</Cmd> <Cmd>{`q() { kubectl get --raw /api/v1/namespaces/mimir/pods/$F:8080/proxy/metrics | grep '^cortex_request_duration_seconds_count{.*route="prometheus_api_v1_query' | awk '{s+=$2} END {print s}'; }`}</Cmd> <Cmd>{`a=$(q); sleep 120; b=$(q); echo "queries in two minutes: $((b-a))"`}</Cmd> With no dashboard open, it is close to zero. Open a Grafana dashboard and run it again to see your own load.
+4. Apply the ingester rule: divide your active series by 300,000, then multiply by 2.5 GB of memory and by 5 GB of disk; add 50%. Compare with the ingesters' requests: <Cmd>{`kubectl -n mimir get statefulset mimir-ingester -o jsonpath='{.spec.replicas} x {.spec.template.spec.containers[0].resources.requests.memory}'; echo`}</Cmd>
+5. Paste the active series total of action 2 in the check below.
+</Do>
+
+<Done>
+You have three measured numbers and a size for each component computed from them, and you compared the ingesters' result with what the release requests.
+</Done>
+
+<Remember>
+Distributors follow samples per second, ingesters follow series in memory, queriers follow queries per second. Measure all three, apply the vendor's ratios, add 50% for memory and disk.
+</Remember>
+
+<Question id="q-m17-s11" answer="c">
+A Mimir cluster with ingest storage and two zones holds 900,000 active series. By the sizing page's ratio of 2.5 GB per 300,000 series in memory, plus the 50% it asks for, how much ingester memory do you plan in total?
+
+- 7.5 GB
+
+  That is one zone without headroom. Each zone holds every series once, and the page asks for 50% more memory.
+
+- 11.25 GB
+
+  That is one zone with headroom. With two zones, each series is held twice.
+
+- 22.5 GB
+
+  1.8 million series in memory, two zones of 900,000, need 15 GB, and 50% more is 22.5 GB.
+
+- 33.75 GB
+
+  That uses a factor of three, the classic architecture's default replication. With ingest storage the factor is the number of zones.
+</Question>
