@@ -21,7 +21,7 @@ and `VERSION` (where the chart comes from, the chart version and the application
 | `alloy` | `k8s-monitoring` | `alloy` | Grafana Alloy through the k8s-monitoring chart: a DaemonSet that tails pod log files and one replica that watches Kubernetes events, both to Loki, tenant `lab`. Cluster metrics are off (the Prometheus stack has them). The shop namespace is left out of file-based logs because its services already send their logs over OTLP. |
 | `grafana` | `grafana` | `grafana` | Grafana 13 with the data sources of the lab contract and the links between them; dashboards from ConfigMaps; the admin password in Secret `grafana/grafana-admin`. |
 | `glue` | `lab-glue` | `lab-tools` | Our own chart (`charts/lab-glue`): the Gateway API routes, a RED dashboard per shop service, a dashboard for the collector gateway, and the switch for the check-token beacon (off until card D2). |
-| `shop` | `shop` | `shop` | The trimmed OpenTelemetry Demo (`demo/chart`, card D1), pulling `ghcr.io/serpe-nt/lgtm-demo:3.1.0-lab.1-<service>`, sending OTLP to `otel-gateway.otel.svc`. |
+| `shop` | `shop` | `shop` | The trimmed OpenTelemetry Demo (`demo/chart`, card D1), pulling `ghcr.io/serpe-nt/lgtm-demo:3.1.0-lab.2-<service>`, sending OTLP to `otel-gateway.otel.svc`. |
 
 The platform (card L2) provides the StorageClass, the S3 store with Secret `lab-s3` in `mimir`,
 `loki` and `tempo`, the Kafka cluster `telemetry` and the Gateway `lab`; see `platform.md`.

@@ -91,6 +91,19 @@ To change a flag without the screen:
 
 `productCatalogFailure` has a targeting rule (fail only for product `OLJCESPC7Z`), so its `defaultVariant` does nothing: the flag screen and `make flag` switch the rule's first branch (`"if": [<condition>, "on", "off"]`). Edit that branch when you change the ConfigMap by hand. Services see a change within seconds: every service whose flagd provider would cache flag values runs with `FLAGD_CACHE=disabled` and asks flagd at each evaluation, so a change applies at the service's next evaluation, within about 15 seconds on the lab (`acceptance-lab.md`, "Fault flags reach every service"; why: `lgtm/docs/adr/l9-flag-cache.md`). The browser and the headless-browser load generator read flags less often, so `imageSlowLoad` takes effect (and wears off) up to a minute late.
 
+### Error spans with every flag off
+
+A quiet shop still has error spans: those of the flag providers' event streams. Each provider keeps a gRPC stream open to flagd to hear about flag changes, and ends it after 10 minutes, its stream deadline. The stream then ends with gRPC status 4, DEADLINE_EXCEEDED, and its span with status error. The provider opens a new stream at once.
+
+| Service | What Tempo holds, every 10 minutes |
+|---|---|
+| ad, fraud-detection, recommendation | One trace of two spans named `flagd.evaluation.v2.Service/EventStream`, about 600 seconds long: the client span in the service, with status error, and the server span in flagd |
+| payment | Nothing of payment's own: since shop version `3.1.0-lab.2` payment starts its provider with tracing suppressed (`lgtm/docs/adr/l10-payment-flag-stream.md`). flagd still records its server span, a trace of one span |
+
+So a search for the errors of ad, fraud-detection or recommendation on a quiet shop lists one such trace for every 10 minutes of its time range, and `{ status = error }` lists those of all three and of flagd. They are expected. To leave them out, add `&& name != "flagd.evaluation.v2.Service/EventStream"`. Each of these traces ends with its stream, so none of them grows. Checkout, cart, product-catalog, the frontend and payment show no error spans while every flag is off; on 2026-11-15 two hours of the lab's quiet shop held one other error span, a `GET` of frontend-proxy.
+
+Before shop version `3.1.0-lab.2`, payment's streams were the exception: each joined the trace of the stream before, so one trace grew for as long as the pod lived (`runbook.md`, "Tempo's querier is killed for memory").
+
 On a fresh install product-catalog restarts a few times until PostgreSQL accepts connections, as upstream's does; the pods settle within about a minute.
 
 ## Build and test
