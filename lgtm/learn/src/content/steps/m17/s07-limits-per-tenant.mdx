@@ -1,0 +1,130 @@
+---
+id: m17-s07
+title: "Limits per tenant: protect the store from its users"
+kind: lab
+minutes: 30
+order: 7
+outcome: You can give two tenants different limits in Mimir's runtime overrides, apply the change through the release, see one tenant refused where the other is not, and take the change back.
+exam:
+  - cert: none
+tags: [scale-multi-tenancy]
+check:
+  kind: exact
+  prompt: Which HTTP status did team-a get in action 7, after the overrides were applied?
+  answers: ["429"]
+terms:
+  - term: Noisy neighbour
+    def: A tenant whose load slows down or breaks a store that other tenants share.
+  - term: Ingestion rate
+    def: A tenant's limit in samples per second, checked by the distributors.
+  - term: Burst size
+    def: How many samples a tenant may send at once above its rate before the distributor refuses.
+  - term: Runtime overrides
+    def: Per-tenant limits in a file Mimir reloads every 10 seconds, without a restart.
+sources:
+  - title: Grafana Mimir distributor, rate limiting (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/components/distributor/
+    checked: 2026-11-15
+  - title: About Grafana Mimir runtime configuration (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/about-runtime-configuration/
+    checked: 2026-11-15
+  - title: Grafana Mimir configuration parameters, limits (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configuration-parameters/
+    checked: 2026-11-15
+---
+
+<Problem>
+Team B starts a batch job that sends a million samples in a minute. The distributors are busy with it, and team A's dashboards stutter, although team A changed nothing. Both teams share one Mimir and one set of defaults. A store shared by teams needs to tell them apart, and say no to the one that sends too much.
+</Problem>
+
+<Idea>
+Each tenant gets its own limits: the defaults for everyone, and an override for each tenant that needs another value. The distributors check a tenant's ingestion rate and burst before Kafka, and refuse the excess with HTTP 429, so one tenant's flood stops at the door. Overrides live in the runtime configuration, which Mimir reloads every 10 seconds.
+</Idea>
+
+## Defaults for everyone, overrides for some
+
+In module m11 you read the limits; here you change them. The `limits` block of the release holds the defaults. The release's `runtimeConfig` becomes a ConfigMap that Mimir reads as its runtime configuration, with one entry per tenant under `overrides`. A tenant with no entry gets the defaults. Mimir's page on the runtime configuration says the file is reloaded every 10 seconds by default, so a change needs no restart; the kubelet takes up to about a minute or two to put a new ConfigMap into the pods.
+
+## How the distributors say no
+
+Two limiters apply to each tenant: requests per second and samples per second, each with a burst. Mimir divides the tenant's limit by the number of healthy distributors and gives each its share, so writes must be spread evenly over the distributors. A request that would go over is dropped whole, and the sender gets 429. The other tenants are not touched.
+
+<Compare caption="Two tenants after the change">
+  <Col title="team-a">10 samples per second, a burst of 20. One request with 50 samples is refused with 429.</Col>
+  <Col title="team-b" hot>1,000 samples per second, a burst of 2,000. The same request is accepted with 200.</Col>
+</Compare>
+
+## Choosing values for real teams
+
+Start from what each tenant sends today, the ingest rate of step 11 split by the `user` label of `cortex_distributor_received_samples_total`, and give each a ceiling well above it. The goal is to stop the accident, not the normal day. Then watch for 429s per tenant: a sender that hits them every day needs a higher limit or a smaller job.
+
+<InLab>
+The lab's defaults are 50,000 samples per second and a burst of 500,000, and the overrides hold only `lab` and `prom`. This step adds `team-a` and `team-b` and removes them again at the end.
+</InLab>
+
+<Trap>
+A 429 is a decision, not a failure of Mimir. Prometheus's remote write does not retry it by default, so samples refused at the door are lost unless the sender retries.
+</Trap>
+
+<Do>
+1. In WSL, go to the lab's folder of your checkout, as in module m00; put your checkout's path for `CHECKOUT`: <Cmd>{`cd /mnt/c/CHECKOUT/lgtm/lab`}</Cmd> Build one OTLP request with 50 samples, one per series: <Cmd>{`P=$(for i in $(seq 1 50); do printf '{"asDouble":1,"timeUnixNano":"%s000000000","attributes":[{"key":"n","value":{"stringValue":"%s"}}]},' "$(date +%s)" $i; done | sed 's/,$//')`}</Cmd> <Cmd>{`printf '{"resourceMetrics":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"m17"}}]},"scopeMetrics":[{"metrics":[{"name":"learn_m17_burst","gauge":{"dataPoints":[%s]}}]}]}]}' "$P" > /tmp/burst.json`}</Cmd>
+2. Send it as both tenants, before any change: <Cmd>{`for t in team-a team-b; do echo "$t: $(curl -s -o /dev/null -w '%{http_code}' -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $t" -H 'Content-Type: application/json' --data @/tmp/burst.json http://10.10.0.5/otlp/v1/metrics)"; done`}</Cmd> Both get `200`: they share the defaults.
+3. Open `helm/mimir/values.yaml` and add the two tenants under `runtimeConfig.overrides`, below `prom`. The block then reads:
+
+   ```yaml
+   runtimeConfig:
+     overrides:
+       lab:
+         max_global_series_per_user: 500000
+         # The cardinality API (/prometheus/api/v1/cardinality/...), module m11
+         # step 9. Read again every 10 seconds, so no pod restarts.
+         cardinality_analysis_enabled: true
+       prom:
+         max_global_series_per_user: 300000
+       team-a:
+         ingestion_rate: 10
+         ingestion_burst_size: 20
+       team-b:
+         ingestion_rate: 1000
+         ingestion_burst_size: 2000
+   ```
+
+4. Apply the change to the Mimir release only: <Cmd>{`make lab TAGS=mimir`}</Cmd> The play ends with `changed` greater than 0. No Mimir pod restarts.
+5. Wait until a distributor has loaded the overrides: <Cmd>{`D=$(kubectl -n mimir get pods -l app.kubernetes.io/component=distributor -o jsonpath='{.items[0].metadata.name}')`}</Cmd> <Cmd>{`until kubectl get --raw "/api/v1/namespaces/mimir/pods/$D:8080/proxy/runtime_config?mode=diff" | grep -q team-a; do sleep 10; done; date -u +%T`}</Cmd>
+6. Read the two entries Mimir now holds: <Cmd>{`kubectl get --raw "/api/v1/namespaces/mimir/pods/$D:8080/proxy/runtime_config?mode=diff" | grep -A3 'team-'`}</Cmd>
+7. Send the same request as both tenants again, with the answer body: <Cmd>{`for t in team-a team-b; do echo "$t: $(curl -s -w ' %{http_code}' -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $t" -H 'Content-Type: application/json' --data @/tmp/burst.json http://10.10.0.5/otlp/v1/metrics)"; done`}</Cmd> team-a gets a 429 with the reason; team-b gets 200.
+8. Take the change back and apply again: <Cmd>{`git checkout -- helm/mimir/values.yaml && make lab TAGS=mimir`}</Cmd> Then run the same command once more, with nothing changed: <Cmd>{`make lab TAGS=mimir`}</Cmd> It ends with `changed=0`: the release is as the repository installs it.
+9. Paste the status team-a got in action 7 in the check below.
+</Do>
+
+<Done>
+team-a was refused at the distributors with 429 while team-b's identical request passed, and the release is back to the repository's values.
+</Done>
+
+<Trap practice>
+Send the request of action 7 only after action 5 has returned. Until a distributor has loaded the new file, both tenants still get 200. If action 8's last run reports a change, the file is not back to what Git holds: run `git status` in `lgtm/lab`.
+</Trap>
+
+<Remember>
+Give every team an override that sits well above its normal day. The distributors then refuse a flood with 429 at the door, and the other tenants never notice.
+</Remember>
+
+<Question id="q-m17-s07" answer="b">
+Tenant `batch` has `ingestion_rate: 20000` and Mimir runs four healthy distributors. Writes are spread evenly. What rate does each distributor allow `batch`?
+
+- 20,000 samples per second, because each distributor checks the full limit
+
+  The limit is per tenant for the whole cluster. Each distributor gets a share of it.
+
+- 5,000 samples per second, the limit divided by the healthy distributors
+
+  Mimir gives each distributor the tenant's limit divided by the number of healthy distributors.
+
+- 80,000 samples per second, the limit times the distributors
+
+  That would let the tenant send four times its limit in total.
+
+- No limit until the ingesters report the tenant's rate back
+
+  The distributors enforce the rate themselves, before the write reaches Kafka.
+</Question>
