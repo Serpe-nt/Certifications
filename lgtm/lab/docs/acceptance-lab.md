@@ -786,3 +786,65 @@ flagd's cost (Prometheus, `rate(container_cpu_usage_seconds_total[10m])` and
 `container_memory_working_set_bytes` of the container `flagd`): 0.0037 CPU cores and 41 MiB at
 22:55 UTC, before the change; 0.011 cores and 39 MiB at 23:15 UTC, after it. The limits are 200m
 and 75Mi.
+
+## An order's trace holds only its own spans (2026-11-15, card L10)
+
+Until shop version `3.1.0-lab.2`, payment's flagd event streams chained into one trace that grew for
+the life of the pod, and a lookup of that trace killed Tempo's querier on 2026-11-14. The cause and
+the fix are in `lgtm/docs/adr/l10-payment-flag-stream.md`: payment now starts its flagd provider
+once, with tracing suppressed. Applied with the owner's go-ahead. Every Tempo reading below is a
+search, tenant `lab`, or a lookup by ID of a normal order; the old trace was never opened.
+
+### Before
+
+At 18:15:45 UTC payment ran `ghcr.io/serpe-nt/lgtm-demo:3.1.0-lab.1-payment`, and Tempo's querier
+used 41Mi with 2 restarts, both from 2026-11-14. Payment's stream spans each had the stream before
+as parent, all in trace `1b9843164d5423b88ba041cee6303b88`: for example `5c9ff49e799e1ab6` at
+17:33:13, `0ade832d9b7c5086` at 17:43:18 as its child, and the last one, `72165432e4aa483b`, from
+18:03:28 to 18:13:28.
+
+### Upgrade
+
+`make lab TAGS=shop` from `main` (`98d684e`), 18:16:05 to 18:17:24 UTC, `changed=1`; release
+`shop` revision 3, chart `shop-0.3.0`, app version `3.1.0-lab.2`. Every pod of the shop restarted,
+as with card L9; checkout restarted once and product-catalog three times until Kafka and PostgreSQL
+took connections. Payment's container started at 18:16:49, flagd's at 18:16:53. Every flag was off
+afterwards (`GET /feature/api/read`: 16 times `"defaultVariant":"off"`). `make lab-check` 18:19:38:
+`LAB CHECK PASSED`. Cards C15 and C16 were told before the upgrade and when the shop was back.
+
+The stream that payment had open at the restart ended with the pod and was not exported, so the old
+trace's last span is `72165432e4aa483b`, ended at 18:13:28. With a retention of 48 hours, and a
+compacted block kept one more hour, it leaves Tempo between about 18:15 and 20:15 UTC on 2026-11-17.
+
+### The first order after the upgrade
+
+Payment's first charge was at 18:17:10, trace `9c9b39a0c4e79d872401766966185224`. Under the old
+code, this is the trace every later stream would have joined. Looked up by its ID:
+
+| Time (UTC) | Lookup | Trace | Querier memory before, 15 s after |
+|---|---|---|---|
+| 18:20:16 | HTTP 200 in 0.029 s | 96 spans from 18:17:10.724 to 18:17:10.937; no `EventStream` span; payment's spans: `oteldemo.PaymentService/Charge`, `charge`, `ResolveFloat`, `ResolveBoolean`, `tcp.connect` | 65Mi, 67Mi |
+| 18:48:00, 30 minutes after the upgrade | HTTP 200 in 0.129 s | the same: 96 spans, same first and last time, no `EventStream` span | 184Mi, 201Mi |
+
+A fresh order at 18:48:16, trace `beec1c9c0b263ce2d74fab76bb794c7` (looked up by ID): HTTP 200 in
+0.024 s, 77 spans within 32 ms from 18:44:39.647, no `EventStream` span; querier 201Mi before and
+after. The querier's restart count stayed at 2 throughout. Between 18:20 and 18:48 its memory rose
+from 67Mi to 184Mi while other cards ran their own queries; the limit is 768Mi.
+
+### What a quiet shop shows
+
+TraceQL searches from 18:17:30 to 18:48, every flag off:
+
+| Search | Result |
+|---|---|
+| `{ resource.service.name = "payment" && name = "flagd.evaluation.v2.Service/EventStream" }` | nothing |
+| `{ resource.service.name = "payment" && status = error }` | nothing |
+| `{ status = error && name != "flagd.evaluation.v2.Service/EventStream" }` | nothing |
+| `{ name = "flagd.evaluation.v2.Service/EventStream" } >> { name != "flagd.evaluation.v2.Service/EventStream" }` | nothing |
+| `{ name = "flagd.evaluation.v2.Service/EventStream" } \| select(resource.service.name, span:parentID, span:status)` | 13 traces: for each of ad, fraud-detection and recommendation one trace at about 18:17, 18:27 and 18:37, each of two 600-second spans, the service's client span with parent `0000000000000000` and status error and flagd's server span below it; for payment's streams one trace of one flagd span of 600 seconds at 18:17:15, 18:27:20 and 18:37:25, parent `0000000000000000`; and one flagd span of 13.4 seconds at 18:17:22, status unset, whose client span is not in Tempo. flagd's own stream spans ended with status error 8 times and unset 5 times |
+
+That is what `demo.md`, "Error spans with every flag off", says.
+
+### Afterwards
+
+`make lab-check` 18:49:09 to 18:49:16: `LAB CHECK PASSED`.
