@@ -105,12 +105,12 @@ Asked: "We still run Promtail and Grafana Agent. What would you do?"
 
 Both are end of life: Grafana Agent since 1 November 2025, Promtail since 2 March 2026. Their successor is Grafana Alloy, which Grafana describes as a distribution of the OpenTelemetry Collector with Prometheus pipelines built in and native support for Loki. Alloy has a command that converts existing configurations, so the move starts with a converted file you review. Whether Alloy or the upstream Collector fits better depends on the team: Alloy for a Grafana-centred stack with Prometheus scraping and log pipelines, the Collector when you want the upstream project and its components only.
 
-Follow-up: "Can they run side by side?" Yes. In your lab the Collector gateway takes the shop's OTLP, and Alloy collects pod logs, events and cluster metrics.
+Follow-up: "Can they run side by side?" Yes. In your lab the Collector gateway takes the shop's OTLP, Alloy collects pod logs and Kubernetes events, and the Prometheus stack scrapes the cluster's metrics.
 
 Taught in: [m10 step 1](../../m10/s01/), [m10 step 8](../../m10/s08/), [m10 step 12](../../m10/s12/).
 
 <InLab>
-The lab's gateway is a Collector Deployment in `otel` with the shop's three pipelines, and Alloy runs from the k8s-monitoring chart. Read the gateway's configuration before an interview: it is a real example you can describe from memory.
+The lab's gateway is a Collector Deployment in `otel` with a pipeline for each signal of the shop, and Alloy runs from the k8s-monitoring chart for pod logs and events. Read the gateway's configuration before an interview: it is a real example you can describe from memory.
 </InLab>
 
 <Trap>

@@ -23,6 +23,9 @@ sources:
   - title: Metrics for Kubernetes system components
     url: https://kubernetes.io/docs/concepts/cluster-administration/system-metrics/
     checked: 2026-11-15
+  - title: metrics-server README
+    url: https://github.com/kubernetes-sigs/metrics-server
+    checked: 2026-11-15
   - title: Recording rules (Prometheus)
     url: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
     checked: 2026-11-15
@@ -107,7 +110,7 @@ Follow-up: "Where do you set how often a firing group is sent again?" On the rou
 Taught in: [m15 step 2](../../m15/s02/), [m15 step 3](../../m15/s03/), [m15 step 4](../../m15/s04/), [m11 step 11](../../m11/s11/).
 
 <InLab>
-All five run in your lab: Prometheus in `prom` discovers its targets through ServiceMonitors, the three exporters run there, recording rules from module m15 ran in Mimir's ruler, and Prometheus remote-writes to Mimir as tenant `prom`.
+All five run in your lab: Prometheus in `prom` discovers its targets through ServiceMonitors, kube-state-metrics and node exporter run there, Prometheus scrapes cAdvisor from each kubelet, recording rules from module m15 ran in Mimir's ruler, and Prometheus remote-writes to Mimir as tenant `prom`.
 </InLab>
 
 <Trap>
@@ -115,7 +118,7 @@ Do not say kube-state-metrics measures CPU or memory. It reports the objects' st
 </Trap>
 
 <Remember>
-Discover through the API, rewrite labels before the scrape, three exporters for three questions, record what is queried often, write remote for history, and let Alertmanager group and mute.
+Discover through the API, rewrite labels before the scrape, three sources for three questions, record what is queried often, write remote for history, and let Alertmanager group and mute.
 </Remember>
 
 <Question id="q-m18-s05" answer="a">

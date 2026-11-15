@@ -67,7 +67,7 @@ First thing to try: send profiles of the workshop service to a small Pyroscope a
 
 ## eBPF instrumentation: OBI and Beyla
 
-OpenTelemetry eBPF Instrumentation (OBI) watches applications from the Linux kernel and produces trace spans, RED metrics and the relationships between services, without changes to their code or configuration. It reads HTTP, gRPC, Kafka, several databases and more, for programs in many languages. Grafana Labs gave its Beyla project to OpenTelemetry in 2025, where it became OBI; Beyla is now Grafana's distribution of OBI with extras for its own stack. OBI runs on Linux with kernel 5.8 or later (a few RHEL kernels from 4.18) and needs root or specific capabilities. A team needs it for services it cannot change or rebuild, or to see the whole cluster's traffic before anyone has instrumented anything.
+OpenTelemetry eBPF Instrumentation (OBI) watches applications from the Linux kernel and produces trace spans, RED metrics and the relationships between services, without changes to their code or configuration. It reads HTTP, gRPC, Kafka, several databases and more, for programs in many languages. Grafana Labs gave its Beyla project to OpenTelemetry in 2025, where it became OBI; Beyla is now Grafana's distribution of OBI with extras for its own stack. OBI runs on Linux on amd64 or arm64, with kernel 5.8 or later or a RHEL-family 4.18 kernel with the eBPF backports, needs BTF, and needs root or specific capabilities. A team needs it for services it cannot change or rebuild, or to see the whole cluster's traffic before anyone has instrumented anything.
 
 First thing to try: run OBI on your lab's nodes from a practice namespace, and compare its spans of the shop with the ones the shop's own SDKs send.
 

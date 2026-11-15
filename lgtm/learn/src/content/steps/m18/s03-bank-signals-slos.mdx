@@ -81,7 +81,7 @@ Asked: "What is the difference between an SLI, an SLO and an SLA?"
 
 An SLI is a measurement of the service as users see it, usually a ratio: good requests divided by all requests. An SLO is the target for that SLI over a time window, for example 99.9% of orders succeed over 30 days. An SLA is a contract with users that says what happens when the SLO is missed, such as a refund. The SRE book's test is simple: if missing it has no explicit consequence, it is an SLO. Give your own example: in this course, the SLI was checkout's failed orders from span metrics, with an SLO of 99.9%.
 
-Follow-up: "Why not 100%?" The SRE book calls a 100% target unrealistic and undesirable: it slows down every change and needs expensive, overly careful designs. A budget of allowed failures is the better tool.
+Follow-up: "Why not 100%?" The SRE book calls a 100% target unrealistic and undesirable: it can slow down new features and releases, and it needs expensive, overly conservative designs. A budget of allowed failures is the better tool.
 
 Taught in: [m02 step 8](../../m02/s08/), [m15 step 8](../../m15/s08/).
 
