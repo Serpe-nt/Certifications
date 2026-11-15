@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadCorpus } from '../../src/lib/content-load.ts';
-import { checkContent, type Issue } from '../../src/lib/content-rules.ts';
+import { checkContent, loneBackslashes, type Issue } from '../../src/lib/content-rules.ts';
 import { scanBody, splitQuestion } from '../../src/lib/mdx-scan.ts';
 import { splitRenderedQuestion } from '../../src/lib/question-html.ts';
 
@@ -119,8 +119,24 @@ describe('rules', () => {
     expect(rulesFor({ [f]: edit(f, '<Cmd>{`echo Ready`}</Cmd>', '<Cmd>{`kind: Pod\nmetadata:\n  name: x`}</Cmd>') })).toEqual([`${f} code-indent`]);
     const q = 'steps/m90/s01-concept.mdx';
     expect(rulesFor({ [q]: edit(q, /<Query lang="promql">\{`(.*)`\}<\/Query>/, '<Query lang="promql">up</Query>') })).toEqual([`${q} code-template`]);
-    // Several lines that all start in the first column, or a newline written as \n, are safe.
-    expect(rulesFor({ [f]: edit(f, '<Cmd>{`echo Ready`}</Cmd>', '<Cmd>{`echo Ready\necho done`}</Cmd> <Cmd>{`printf "a:\\n  b: 1\\n"`}</Cmd>') })).toEqual([]);
+    // Several lines that all start in the first column, or a newline written as \\n, are safe.
+    expect(rulesFor({ [f]: edit(f, '<Cmd>{`echo Ready`}</Cmd>', '<Cmd>{`echo Ready\necho done`}</Cmd> <Cmd>{`printf "a:\\\\n  b: 1\\\\n"`}</Cmd>') })).toEqual([]);
+  });
+
+  it('a backslash in a command or query is written twice', () => {
+    const f = 'steps/m90/s02-exact.mdx';
+    const cmd = (src: string) => ({ [f]: edit(f, '<Cmd>{`echo Ready`}</Cmd>', `<Cmd>{\`${src}\`}</Cmd>`) });
+    // m16 step 2 before pull request 104: the page showed a line break inside the quotes.
+    const jsonpath = String.raw`kubectl -n grafana get configmap dashboard-shop-red-checkout -o jsonpath='{.metadata.annotations.grafana_folder}{"\n"}'`;
+    const issues = errors(checkContent(loadCorpus(sampleWith(cmd(jsonpath)))).issues);
+    expect(issues.map((i) => i.rule)).toEqual(['code-escape']);
+    expect(issues[0].message).toBe(String.raw`line 12: in this <Cmd>, \n reaches the page as a line break; write \\n`);
+    // m01 step 17 before pull request 104: the page showed 'a|b', which grep matched literally.
+    expect(rulesFor(cmd(String.raw`grep -n 'deploymentMode\|auth_enabled\|retention_period' helm/loki/values.yaml`))).toEqual([`${f} code-escape`, `${f} code-escape`]);
+    expect(rulesFor(cmd(String.raw`kubectl get cm x -o jsonpath='{.data.config\\.yaml}{"\\n"}'`))).toEqual([]);
+    // The line is the line of the backslash.
+    const second = errors(checkContent(loadCorpus(sampleWith(cmd(String.raw`echo a` + '\n' + String.raw`grep 'a\.b' f`)))).issues);
+    expect(second[0].message).toMatch(/^line 13: in this <Cmd>, \\\. reaches the page as \. without the backslash/);
   });
 
   it('token slots are unique', () => {
@@ -171,6 +187,46 @@ describe('rules', () => {
     expect(rulesFor({ 'steps/m90/s07-recap.mdx': null, 'steps/m90/s08-recap.mdx': renamed }, { base: { ref: 'origin/main', steps: new Map([['steps/m90/s07-recap.mdx', 'm90-s07']]) } })).toEqual([
       'steps/m90/s07-recap.mdx id-removed',
     ]);
+  });
+});
+
+describe('lone backslashes in a template string', () => {
+  const found = (raw: string) => loneBackslashes(raw).map((e) => e.message);
+  // A backslash and u003c, written out so that no editor turns it into the angle bracket it stands for.
+  const BS = String.fromCharCode(92);
+  const lt = (s: string) => s.replaceAll('<', `${BS}u003c`);
+
+  it('refuses every escape that changes the page', () => {
+    for (const [raw, shown] of [
+      [String.raw`printf "a\n"`, 'a line break'],
+      [String.raw`cut -d'\t' -f1`, 'a tab'],
+      [String.raw`tr -d '\r'`, 'a carriage return'],
+      [String.raw`echo \'x'`, "' without the backslash"],
+      [String.raw`grep "\"id"`, '" without the backslash'],
+      [String.raw`grep -E '\d+'`, 'd without the backslash'],
+      [String.raw`grep '\1'`, '1 without the backslash'],
+      [String.raw`printf '\0'`, 'a control character'],
+      [String.raw`grep 'config\.yaml'`, '. without the backslash'],
+      [String.raw`grep 'a\|b'`, '| without the backslash'],
+      [String.raw`echo \$HOME`, '$ without the backslash'],
+      [String.raw`printf '\x41'`, 'the character its code names'],
+      [`printf '${BS}u2713'`, 'the character its code names'],
+    ]) {
+      expect(found(raw), raw).toEqual([expect.stringContaining(`reaches the page as ${shown}; write \\\\`)]);
+    }
+    expect(found('helm upgrade x \\\n  --wait')).toEqual([expect.stringMatching(/^a backslash at the end of a line joins it to the next line/)]);
+    expect(found('echo x \\')).toHaveLength(1);
+  });
+
+  it('accepts the escapes the page shows as meant', () => {
+    expect(found(String.raw`jsonpath='{.data.config\\.yaml}{"\\n"}' | grep 'a\\|b'`)).toEqual([]);
+    expect(found(String.raw`/d/shop-red-\${service}?\${__url_time_range}`)).toEqual([]);
+    expect(found(String.raw`echo \\`)).toEqual([]);
+    // m12 step 5 and m14 step 9: u003c for an angle bracket, an escaped backtick around a pattern.
+    expect(found(lt(String.raw`{namespace="loki", container="nginx"} | pattern \`<ip> - - [<_>]  <status> "<method> <path> <_>" <size> <_> "<agent>" <_>\``))).toEqual([]);
+    expect(found(lt(String.raw`{namespace="loki", container="nginx"} | regexp \`"(?P<method>[A-Z]+) (?P<path>[^ ?]+)\``))).toEqual([]);
+    expect(found(lt(String.raw`sum by (orderId) (count_over_time({service_name="fraud-detection"} |= "Consumed record" | regexp \`orderId: (?P<orderId>[0-9a-f-]+)\` [10m]))`))).toEqual([]);
+    expect(found(`${BS}u003C`)).toEqual([]);
   });
 });
 
