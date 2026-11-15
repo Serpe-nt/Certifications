@@ -60,7 +60,7 @@ Ten other flags are left out. `recommendationCacheFailure` makes recommendation 
 
 ## The guard, and the rules of the shared lab
 
-A flag is never on for longer than 15 minutes. When `start` switches the fault on, it also starts a pod named `gameday-guard` in the namespace `learn-m18`. The pod waits 15 minutes and then switches every flag of the draw off. It runs in the cluster, so it works even if you close the terminal, WSL stops or you walk away; `reveal` deletes it. If the guard was first, `reveal` says so: the round ran out of time. The pod's definition holds the script and nothing about which fault is on.
+A flag is never on for longer than 15 minutes. Before `start` switches the fault on, it starts a pod named `gameday-guard` in the namespace `learn-m18`. The pod waits 15 minutes from its own start and then switches every flag of the draw off, so the fault, switched on a few seconds later, never runs the full 15 minutes. It runs in the cluster, so it works even if you close the terminal, WSL stops or you walk away; `reveal` deletes it. If the guard was first, `reveal` says so: the round ran out of time. The pod's definition holds the script and nothing about which fault is on.
 
 The lab is shared, so the usual rules hold: one flag at a time in the whole lab, and ten quiet minutes between rounds so that the next round starts from a quiet shop. The script enforces both. A quiet shop still shows error spans, on purpose: every 10 minutes the flag streams of ad, fraud-detection and recommendation end with DEADLINE_EXCEEDED. Leave them out of every search for errors with `&& name != "flagd.evaluation.v2.Service/EventStream"`.
 
@@ -221,15 +221,18 @@ Do not stop at the first service that shows errors. A fault in one service often
        on = flags_on(call("/read"))
        if on:
            sys.exit("Not started: these flags are on already: " + ", ".join(on))
-       name = random.choice(sorted(FAULTS))
-       before, _ = change({name: FAULTS[name]})
-       now = time.time()
-       save({"flag": name, "variant": FAULTS[name], "was": variant(before["flags"][name]), "started": now})
+       # The guard starts first, so its 15 minutes end before the fault's do.
        problem = start_guard()
        if problem:
-           change({name: variant(before["flags"][name])})
-           save({"ended": now})
-           sys.exit("The guard did not start, so the fault is off again: " + problem)
+           sys.exit("The guard did not start, so no fault was switched on: " + problem)
+       name = random.choice(sorted(FAULTS))
+       try:
+           before, _ = change({name: FAULTS[name]})
+       except SystemExit:
+           kubectl("-n", "learn-m18", "delete", "pod", "gameday-guard", "--ignore-not-found", "--wait=false")
+           raise
+       now = time.time()
+       save({"flag": name, "variant": FAULTS[name], "was": variant(before["flags"][name]), "started": now})
        print("Round started at %s. A fault is on." % utc(now))
        print("The guard switches it off at %s at the latest. Reveal when you have your line." % utc(now + LIMIT))
 
@@ -240,7 +243,7 @@ Do not stop at the first service that shows errors. A fault in one service often
        name = state["flag"]
        if variant(call("/read")["flags"][name]) == state["was"]:
            now = call("/read")
-           note = "The guard had already switched it off, 15 minutes after the start. The round ran out of time."
+           note = "The guard had already switched it off, within 15 minutes of the start. The round ran out of time."
        else:
            _, now = change({name: state["was"]})
            note = "Switched off at %s, after %.1f minutes." % (utc(time.time()), (time.time() - state["started"]) / 60)
