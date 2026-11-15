@@ -81,9 +81,9 @@ A diff of the values file is not the diff of the cluster. One line in a values f
        limits: { cpu: "1", memory: 512Mi }
    ```
 
-3. Render again and compare Mimir's two renders: <Cmd>{`make lab-lint LAB_RENDER_DIR=$PWD/.bin/m17-after`}</Cmd> <Cmd>{`diff .bin/m17-before/full/mimir.yaml .bin/m17-after/full/mimir.yaml`}</Cmd> One line changes: `memory: 192Mi` becomes `memory: 256Mi`. To see which object it belongs to, look at the lines above it: <Cmd>{`grep -n -B40 'memory: 256Mi' .bin/m17-after/full/mimir.yaml | grep -E 'kind:|name: mimir-'`}</Cmd>
+3. Render again and compare Mimir's two renders: <Cmd>{`make lab-lint LAB_RENDER_DIR=$PWD/.bin/m17-after`}</Cmd> <Cmd>{`diff .bin/m17-before/full/mimir.yaml .bin/m17-after/full/mimir.yaml`}</Cmd> One line changes: `memory: 192Mi` becomes `memory: 256Mi`, and `diff` names its line number, such as `1480c1480`. Print the object that holds that line; put the number for `LINE`: <Cmd>{`awk -v n=LINE 'NR<=n && /^kind:|^  name:/' .bin/m17-after/full/mimir.yaml | tail -2`}</Cmd> It is the Deployment `mimir-querier`.
 4. In a second WSL terminal, watch the querier pods: <Cmd>{`kubectl -n mimir get pods -l app.kubernetes.io/component=querier -w`}</Cmd>
-5. In the first terminal, note the time and apply the Mimir release only: <Cmd>{`date -u +%T; make lab TAGS=mimir`}</Cmd> In the second terminal, a new querier pod appears and becomes ready before an old one terminates, then the same again.
+5. In the first terminal, note the time and apply the Mimir release only: <Cmd>{`date -u +%T; make lab TAGS=mimir`}</Cmd> In the second terminal, a new querier pod appears, becomes ready about a minute later, and only then does an old one terminate; then the same again.
 6. Wait for the rollout to finish: <Cmd>{`kubectl -n mimir rollout status deployment/mimir-querier`}</Cmd> Then stop the watch with Ctrl+C.
 7. Read the memory request the running queriers have now: <Cmd>{`kubectl -n mimir get pods -l app.kubernetes.io/component=querier -o jsonpath='{range .items[*]}{.metadata.name} {.spec.containers[0].resources.requests.memory}{"\\n"}{end}'`}</Cmd>
 8. Check the lab: <Cmd>{`make lab-check`}</Cmd> It ends with `LAB CHECK PASSED`.
