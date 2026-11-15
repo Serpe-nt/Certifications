@@ -40,11 +40,11 @@
 - id: q-m16-003
   tags: [ascode-grafana-provisioning]
   exam: { cert: none }
-  q: "This dashboard provider is loaded. A colleague changes a dashboard file in <code>/var/lib/grafana/dashboards</code>. What happens?<br><code>providers:<br>- name: team<br>  type: file<br>  updateIntervalSeconds: 30<br>  allowUiUpdates: false<br>  options:<br>    path: /var/lib/grafana/dashboards</code>"
+  q: "This dashboard provider is loaded. A colleague changes a dashboard file in <code>/var/lib/grafana/dashboards</code>. What happens? The provider: <code>{name: team, type: file, updateIntervalSeconds: 30, allowUiUpdates: false, options: {path: /var/lib/grafana/dashboards}}</code>"
   options:
     - text: "Nothing happens until the Grafana pod is restarted"
       why: "Grafana keeps checking the path after start-up; a restart is not needed for dashboards."
-    - text: "Grafana loads it at its next scan, within 30 seconds"
+    - text: "Grafana loads it at its next scan, within about 30 seconds"
       why: "With an interval above 10 seconds Grafana polls the path at that interval and updates the dashboard."
     - text: "Grafana asks an admin to approve the change on the screen"
       why: "Provisioning has no approval step in Grafana. Review belongs in Git, before the file changes."
@@ -104,7 +104,7 @@
 - id: q-m16-007
   tags: [ascode-git-sync]
   exam: { cert: none }
-  q: "This Repository resource is accepted by a self-hosted Grafana 13. A colleague merges a new dashboard file under <code>grafana/</code> on main. When does it appear?<br><code>spec:<br>  type: github<br>  github: {url: https://github.com/acme/dash, branch: main, path: grafana/}<br>  sync: {enabled: true, target: folder, intervalSeconds: 60}</code>"
+  q: "This Repository resource is accepted by a self-hosted Grafana 13. A colleague merges a new dashboard file under <code>grafana/</code> on main. When does it appear? The spec: <code>{type: github, github: {url: https://github.com/acme/dash, branch: main, path: grafana/}, sync: {enabled: true, target: folder, intervalSeconds: 60}}</code>"
   options:
     - text: "Only after someone clicks Pull on the repository's page in Grafana"
       why: "Git Sync polls by itself on the interval; no click is needed."
@@ -126,7 +126,7 @@
       why: "Direct commits are the <code>write</code> workflow. With only <code>branch</code>, Grafana does not commit to the synced branch."
     - text: "Refuses to save, because the folder is read only"
       why: "A connection is read only when <code>workflows</code> is empty."
-    - text: "Pushes a new branch for a pull request to be reviewed"
+    - text: "Pushes the change to a new branch for a pull request to be reviewed"
       why: "The <code>branch</code> workflow saves changes on a new branch so they go through a pull request."
     - text: "Saves to its database and syncs Git at the next interval"
       why: "Git Sync writes saves to Git; the database follows the repository, not the other way."
@@ -144,7 +144,7 @@
       why: "Git Sync does not convert anything; it syncs dashboard and folder files."
     - text: "Alert rules sync only with the <code>folderless</code> target"
       why: "The target decides where synced resources land. It does not add resource types."
-    - text: "Git Sync manages only dashboards and folders today"
+    - text: "Git Sync manages only dashboards and folders at this time"
       why: "Alerts, data sources and library panels are not supported yet; they need provisioning files or Terraform."
   answer: [3]
   source: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/add-resources/dashboards-migrate/
@@ -186,7 +186,7 @@
 - id: q-m16-012
   tags: [ascode-terraform]
   exam: { cert: none }
-  q: "This file is applied to a Grafana that has no folder with UID <code>team-a</code>. What does the plan show?<br><code>resource \"grafana_folder\" \"a\" { uid = \"team-a\", title = \"Team A\" }<br>resource \"grafana_dashboard\" \"d\" {<br>  folder = grafana_folder.a.uid<br>  config_json = jsonencode({ uid = \"a-latency\", title = \"Latency\" })<br>}</code>"
+  q: "This file is applied to a Grafana that has no folder with UID <code>team-a</code>. What does the plan show? The file has <code>grafana_folder.a</code> with <code>uid = \"team-a\"</code>, and <code>grafana_dashboard.d</code> with <code>folder = grafana_folder.a.uid</code> and <code>config_json = jsonencode({uid = \"a-latency\", title = \"Latency\"})</code>."
   options:
     - text: "Plan: 1 to add, because the dashboard needs an existing folder"
       why: "The folder is part of the same configuration, so Terraform creates it first."
@@ -266,7 +266,7 @@
 - id: q-m16-017
   tags: [ascode-dashboards]
   exam: { cert: none }
-  q: "This Python program is run. How many panels does the printed dashboard have?<br><code>d = Dashboard(\"Svc\").uid(\"svc\")<br>for s in [\"cart\", \"payment\", \"checkout\", \"ad\"]:<br>    d = d.with_panel(Timeseries().title(s))<br>print(JSONEncoder().encode(d.build()))</code>"
+  q: "This Python program is run. How many panels does the printed dashboard have? It starts with <code>d = Dashboard(\"Svc\")</code>, loops <code>for s in [\"cart\", \"payment\", \"checkout\", \"ad\"]: d = d.with_panel(Timeseries().title(s))</code>, then prints <code>JSONEncoder().encode(d.build())</code>."
   options:
     - text: "One, because <code>with_panel</code> replaces the last panel"
       why: "<code>with_panel</code> adds a panel to the builder each time it is called."
@@ -302,7 +302,7 @@
   options:
     - text: "Only the <code>spec</code> part of the file, without metadata"
       why: "The provider's page says that was the rule for Grafana 12. Grafana 13 needs the whole document."
-    - text: "The whole document, apiVersion and kind included"
+    - text: "The whole document, with apiVersion and kind included"
       why: "For Grafana 13 the provider's page asks for the full Kubernetes-style JSON in this legacy resource."
     - text: "The file converted to the classic shape by hand first"
       why: "No conversion is needed; the provider accepts the new shape, and a newer resource exists for it too."
@@ -314,7 +314,7 @@
 - id: q-m16-020
   tags: [ascode-rules]
   exam: { cert: none }
-  q: "A pull request adds this recording rule. <code>mimirtool rules check</code> runs in CI. What does it report?<br><code>- record: checkout_requests_rate5m<br>  expr: sum(rate(traces_spanmetrics_calls_total{service_name=\"checkout\"}[5m]))</code>"
+  q: "A pull request adds this recording rule. <code>mimirtool rules check</code> runs in CI. What does it report? The rule: <code>{record: checkout_requests_rate5m, expr: sum(rate(traces_spanmetrics_calls_total{service_name=\"checkout\"}[5m]))}</code>"
   options:
     - text: "Nothing, because the rule is valid PromQL and parses"
       why: "check also tests the name against the naming practice, and this name fails it."
@@ -332,7 +332,7 @@
   exam: { cert: none }
   q: "A rule file is checked with <code>promtool check rules</code> and passes. What has it proved?"
   options:
-    - text: "That the rules parse and their PromQL is valid"
+    - text: "That the rules parse and all their PromQL is valid"
       why: "check rules reads the file and every expression offline; it does not run them against data."
     - text: "That the alerts will fire when they should"
       why: "That needs <code>promtool test rules</code> with test series, or real data."
@@ -350,7 +350,7 @@
   options:
     - text: "One firing alert, because <code>up</code> is 0"
       why: "<code>up</code> has been 0 only since minute 2, so the 5 minutes of <code>for</code> have not passed."
-    - text: "Empty: the alert is still pending"
+    - text: "Empty: the alert is still only pending"
       why: "From minute 2 to 4 is two minutes. A pending alert is not in <code>exp_alerts</code>."
     - text: "One alert for each sample that was 0"
       why: "One series gives at most one alert, however many samples it has."
@@ -378,7 +378,7 @@
 - id: q-m16-024
   tags: [ascode-pipelines]
   exam: { cert: none }
-  q: "This Collector configuration is checked with <code>otelcol validate</code>. What is the result?<br><code>exporters:<br>  otlp_http/mimir: {endpoint: http://mimir/otlp}<br>service:<br>  pipelines:<br>    metrics: {receivers: [otlp], exporters: [otlp_http/mimir]}</code>"
+  q: "This Collector configuration is checked with <code>otelcol validate</code>. What is the result? The whole file: <code>{exporters: {otlp_http/mimir: {endpoint: http://mimir/otlp}}, service: {pipelines: {metrics: {receivers: [otlp], exporters: [otlp_http/mimir]}}}}</code>"
   options:
     - text: "Valid, because a pipeline may name any receiver type it likes"
       why: "A pipeline may only use components that are defined in their own section."
@@ -416,7 +416,7 @@
       why: "Helm does not reuse the old values when new ones are given without <code>--reuse-values</code>."
     - text: "Only <code>replicaCount=3</code>; nothing else is set"
       why: "The chart's defaults still apply to everything else."
-    - text: "The chart's defaults plus <code>replicaCount=3</code>"
+    - text: "The chart's defaults plus <code>replicaCount=3</code>, nothing else"
       why: "With a new <code>--set</code> and no <code>-f</code>, the upgrade starts from the chart's defaults, so the file's values are lost."
     - text: "The old revision's values, because <code>--set</code> is ignored"
       why: "<code>--set</code> is applied; that is the change the person wanted."
@@ -450,7 +450,7 @@
       why: "There is no such flag. The plugin must be installed."
     - text: "Running Helm 3, because plugins were removed in Helm 4"
       why: "Helm 4 supports plugins and verifies their provenance."
-    - text: "Installing the plugin and its binary from a signed release"
+    - text: "Installing the plugin and its binary from a signed release archive"
       why: "The plugin's page asks Helm 4 users to install from a release archive with its signature checked."
   answer: [3]
   source: https://github.com/databus23/helm-diff
@@ -506,7 +506,7 @@
 - id: q-m16-032
   tags: [ascode-secrets]
   exam: { cert: none }
-  q: "A Helm values file for Grafana contains the lines below. Is the admin password in Git?<br><code>admin:<br>  existingSecret: grafana-admin<br>  userKey: admin-user<br>  passwordKey: admin-password</code>"
+  q: "A Helm values file for Grafana contains the lines shown. Is the admin password in Git? The lines: <code>admin: {existingSecret: grafana-admin, userKey: admin-user, passwordKey: admin-password}</code>"
   options:
     - text: "Yes, <code>admin-password</code> is the password itself"
       why: "It is the name of a key in the Secret, not its value."
@@ -544,7 +544,7 @@
       why: "Terraform reads files and Grafana, not commits. A merge adds no resource."
     - text: "The branch plan was not saved, so it expired"
       why: "An unsaved plan is just output; a new plan simply reads the current state."
-    - text: "Someone changed a managed resource on the screen"
+    - text: "Someone changed a managed resource on the Grafana screen"
       why: "The extra change is drift. The apply from main would set the resource back to the files."
     - text: "The new dashboard was created twice by the merge"
       why: "One resource gives one dashboard, created once."
