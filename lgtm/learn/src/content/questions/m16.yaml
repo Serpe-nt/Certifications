@@ -1,0 +1,568 @@
+# Module m16 Observability as code: quiz pool. Card C15, 2026-11-15.
+# Sources: grafana.com/docs/grafana/v13.3 (provisioning, as code, Git Sync, Terraform alerting),
+# the Terraform Registry documentation of grafana/grafana 4.55.0, prometheus.io, the Mimir 3.2
+# and Loki 3.7 documentation, opentelemetry.io, helm.sh and kubernetes.io, fetched on 2026-11-15,
+# and the lab runs logged in lgtm/docs/verification/m16.md.
+# No mock pool has a question on these tags.
+
+- id: q-m16-001
+  tags: [ascode-why]
+  exam: { cert: none }
+  q: "A team keeps its alert rules in Git but builds dashboards by hand. After a database restore, which of the three benefits of as code do the dashboards still lack?"
+  options:
+    - text: "Review, repeat and roll back: all three need the dashboards in files"
+      why: "A restore brings back the dashboards as they were, but there is no reviewed change, no way to build them elsewhere from files, and no history to go back to."
+    - text: "Only review, because a restore already gives repeat and roll back"
+      why: "A restore can only go back to the time of the backup. It cannot create the same dashboards in a second Grafana or return to any chosen version."
+    - text: "None, because a database backup is the same as code"
+      why: "A backup has no author, no reason and no diff of each change. It is a copy, not a reviewed source of truth."
+    - text: "Only roll back, because review is not possible for dashboards"
+      why: "Dashboards are JSON and can be reviewed in a pull request like any file."
+  answer: [0]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/
+
+- id: q-m16-002
+  tags: [ascode-why]
+  exam: { cert: none }
+  q: "A contact point is managed by Terraform. During an incident someone changes its URL on the Grafana screen with <code>disable_provenance</code> set. What happens at the next <code>terraform apply</code> from main?"
+  options:
+    - text: "The URL from the screen is kept, because Grafana stores the newer value"
+      why: "Terraform compares Grafana with the files, not with the age of the values. The file wins."
+    - text: "The apply sets the URL back to the value in the files"
+      why: "The hand change is drift. The plan shows it as a change, and the apply makes Grafana match main again."
+    - text: "The apply fails until the screen change is reverted by hand"
+      why: "Terraform does not fail on drift; it plans a change that removes it."
+    - text: "Terraform copies the new URL into the <code>.tf</code> file"
+      why: "Terraform never writes to your configuration files."
+  answer: [1]
+  source: https://grafana.com/docs/grafana/v13.3/alerting/set-up/provision-alerting-resources/terraform-provisioning/
+
+- id: q-m16-003
+  tags: [ascode-grafana-provisioning]
+  exam: { cert: none }
+  q: "This dashboard provider is loaded. A colleague changes a dashboard file in <code>/var/lib/grafana/dashboards</code>. What happens?<br><code>providers:<br>- name: team<br>  type: file<br>  updateIntervalSeconds: 30<br>  allowUiUpdates: false<br>  options:<br>    path: /var/lib/grafana/dashboards</code>"
+  options:
+    - text: "Nothing until Grafana is restarted"
+      why: "Grafana keeps checking the path after start-up; a restart is not needed for dashboards."
+    - text: "Grafana loads the change at its next scan, within about 30 seconds"
+      why: "With an interval above 10 seconds Grafana polls the path at that interval and updates the dashboard."
+    - text: "Grafana asks an admin to approve the change on the screen"
+      why: "Provisioning has no approval step in Grafana. Review belongs in Git, before the file changes."
+    - text: "The change is ignored because <code>allowUiUpdates</code> is false"
+      why: "That setting only decides whether the screen may save the dashboard. Files are still read."
+  answer: [1]
+  source: https://grafana.com/docs/grafana/v13.3/administration/provisioning/
+
+- id: q-m16-004
+  tags: [ascode-grafana-provisioning]
+  exam: { cert: none }
+  q: "A data source file has <code>prune: true</code> at its root. A pull request removes one data source from the file and is deployed. What happens to that data source?"
+  options:
+    - text: "It stays in Grafana but becomes editable on the screen"
+      why: "That would leave an orphan behind. With prune, Grafana removes what the file no longer lists."
+    - text: "It stays until someone deletes it on the screen"
+      why: "That is the behaviour without <code>prune</code>. With it, Grafana deletes the data source itself."
+    - text: "Grafana deletes it"
+      why: "With <code>prune: true</code> Grafana deletes provisioned data sources that are removed from the file."
+    - text: "Grafana refuses to start until the data source is added back"
+      why: "A missing entry is not an error. Grafana simply has one data source fewer."
+  answer: [2]
+  source: https://grafana.com/docs/grafana/v13.3/administration/provisioning/
+
+- id: q-m16-005
+  tags: [ascode-grafana-provisioning]
+  exam: { cert: none }
+  q: "In a Helm values file for Grafana, a data source link is written <code>url: \"$${__value.raw}\"</code>. Why the doubled dollar sign?"
+  options:
+    - text: "Helm would otherwise read it as a template action"
+      why: "Helm's template actions use double braces, not a dollar sign. The dollar matters to Grafana."
+    - text: "YAML needs every dollar sign doubled in quoted strings"
+      why: "A dollar sign has no special meaning in YAML."
+    - text: "The doubled sign makes the link open in a new browser tab"
+      why: "It changes nothing about how the link opens. It only escapes the variable."
+    - text: "Grafana expands $NAME and ${NAME} from the environment in provisioning files"
+      why: "Without the doubled sign Grafana would try to replace the variable from its environment while reading the file."
+  answer: [3]
+  source: https://grafana.com/docs/grafana/v13.3/administration/provisioning/
+
+- id: q-m16-006
+  tags: [ascode-grafana-provisioning, ascode-secrets]
+  exam: { cert: none }
+  q: "A data source needs a password. Which provisioning file keeps the password out of Git?"
+  options:
+    - text: "<code>secureJsonData: {password: $DB_PASSWORD}</code>, with DB_PASSWORD set from a Secret"
+      why: "Grafana reads the environment variable while it provisions, so the file only names where the value comes from."
+    - text: "<code>jsonData: {password: hunter2}</code>, because jsonData is encrypted"
+      why: "jsonData is stored in plain text, and the value would be in Git either way."
+    - text: "<code>secureJsonData: {password: hunter2}</code>, because secureJsonData is encrypted"
+      why: "Grafana encrypts it in its database, but the file in Git still holds the plain password."
+    - text: "<code>editable: false</code>, which hides the password on the screen"
+      why: "That setting stops edits on the screen. It has nothing to do with where the password is stored."
+  answer: [0]
+  source: https://grafana.com/docs/grafana/v13.3/administration/provisioning/
+
+- id: q-m16-007
+  tags: [ascode-git-sync]
+  exam: { cert: none }
+  q: "This Repository resource is accepted by a self-hosted Grafana 13. A colleague merges a new dashboard file under <code>grafana/</code> on main. When does it appear?<br><code>spec:<br>  type: github<br>  github: {url: https://github.com/acme/dash, branch: main, path: grafana/}<br>  sync: {enabled: true, target: folder, intervalSeconds: 60}</code>"
+  options:
+    - text: "Only after someone clicks Pull on the repository's page in Grafana"
+      why: "Git Sync polls by itself on the interval; no click is needed."
+    - text: "Within about a minute, in the folder named after the connection"
+      why: "Grafana polls the branch every 60 seconds and puts the dashboards of the path into the connection's folder."
+    - text: "At once, because Git Sync always uses webhooks"
+      why: "Webhooks are optional. Without them Grafana polls on the interval."
+    - text: "Never, because a file in Git must first be imported by hand"
+      why: "Creating dashboards from the files under the path is exactly what the sync does."
+  answer: [1]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/
+
+- id: q-m16-008
+  tags: [ascode-git-sync]
+  exam: { cert: none }
+  q: "A Repository resource has <code>workflows: [branch]</code>. A user edits a synced dashboard and saves it. What does Grafana do?"
+  options:
+    - text: "Commits straight to the synced branch"
+      why: "Direct commits are the <code>write</code> workflow. With only <code>branch</code>, Grafana does not commit to the synced branch."
+    - text: "Refuses to save, because the folder is read only"
+      why: "A connection is read only when <code>workflows</code> is empty."
+    - text: "Pushes a new branch for a pull request to be reviewed"
+      why: "The <code>branch</code> workflow saves changes on a new branch so they go through a pull request."
+    - text: "Saves to its database and syncs Git at the next interval"
+      why: "Git Sync writes saves to Git; the database follows the repository, not the other way."
+  answer: [2]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/git-sync-setup/set-up-code/
+
+- id: q-m16-009
+  tags: [ascode-git-sync]
+  exam: { cert: none }
+  q: "A team plans to move its alert rules and library panels into Git Sync. What should they know first?"
+  options:
+    - text: "Git Sync needs one repository per alert rule"
+      why: "There is no such rule. The issue is that alert rules are not synced at all."
+    - text: "Git Sync converts alert rules into dashboard panels"
+      why: "Git Sync does not convert anything; it syncs dashboard and folder files."
+    - text: "Alert rules sync only with the <code>folderless</code> target"
+      why: "The target decides where synced resources land. It does not add resource types."
+    - text: "Git Sync manages only dashboards and folders today"
+      why: "Alerts, data sources and library panels are not supported yet; they need provisioning files or Terraform."
+  answer: [3]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/add-resources/dashboards-migrate/
+
+- id: q-m16-010
+  tags: [ascode-git-sync]
+  exam: { cert: none }
+  q: "A self-hosted Grafana 13 gets a Repository with <code>url: http://git.tools.svc:3000/dash.git</code> and a token. Which two settings in <code>[provisioning]</code> does it need before it can sync? (Choose two.)"
+  options:
+    - text: "<code>allowed_git_urls</code> naming the Git host"
+      why: "The host resolves to a private address, which Grafana refuses unless it is listed."
+    - text: "<code>allow_insecure = true</code>"
+      why: "Grafana refuses to send a token over plain <code>http://</code> unless this is set."
+    - text: "<code>max_repositories = 0</code>"
+      why: "The default allows 10 connections, so one more needs no change."
+    - text: "<code>allowed_targets = instance</code>"
+      why: "That lets one repository own the whole instance. A folder target is the default and is enough."
+    - text: "<code>min_sync_interval = 1s</code>"
+      why: "The interval controls how often Grafana polls, not whether it may connect."
+  answer: [0, 1]
+  source: https://grafana.com/docs/grafana/v13.3/setup-grafana/configure-grafana/
+
+- id: q-m16-011
+  tags: [ascode-git-sync]
+  exam: { cert: none }
+  q: "Why does Grafana refuse Git URLs that resolve to private addresses by default?"
+  options:
+    - text: "Private Git servers do not speak the Git protocol over HTTP"
+      why: "Most private Git servers speak it fine. The refusal is about what Grafana may reach."
+    - text: "To stop Grafana being used to reach hosts on its internal network"
+      why: "This is protection against server-side request forgery. An admin opens it host by host."
+    - text: "Grafana Labs supports only cloud Git providers"
+      why: "Self-hosted servers are supported once listed in <code>allowed_git_urls</code>."
+    - text: "Private addresses cannot carry webhooks"
+      why: "Webhooks are optional, and the refusal applies to polling too."
+  answer: [1]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/git-sync-setup/set-up-before/
+
+- id: q-m16-012
+  tags: [ascode-terraform]
+  exam: { cert: none }
+  q: "This file is applied to a Grafana that has no folder with UID <code>team-a</code>. What does the plan show?<br><code>resource \"grafana_folder\" \"a\" { uid = \"team-a\", title = \"Team A\" }<br>resource \"grafana_dashboard\" \"d\" {<br>  folder = grafana_folder.a.uid<br>  config_json = jsonencode({ uid = \"a-latency\", title = \"Latency\" })<br>}</code>"
+  options:
+    - text: "Plan: 1 to add, because the dashboard needs an existing folder"
+      why: "The folder is part of the same configuration, so Terraform creates it first."
+    - text: "Plan: 2 to add, with the folder created before the dashboard"
+      why: "The reference to the folder's UID tells Terraform the order: folder first, then the dashboard in it."
+    - text: "An error, because a folder's UID cannot be set by hand"
+      why: "<code>uid</code> is an optional argument of <code>grafana_folder</code>."
+    - text: "Plan: 2 to change, because Grafana already has a root folder"
+      why: "Nothing exists yet for these resources, so both are created."
+  answer: [1]
+  source: https://registry.terraform.io/providers/grafana/grafana/4.55.0/docs/resources/folder
+
+- id: q-m16-013
+  tags: [ascode-terraform]
+  exam: { cert: none }
+  q: "A pull request changes only the <code>title</code> inside a dashboard's <code>config_json</code>. The plan prints <code>~ resource \"grafana_dashboard\" \"orders\"</code>. What will apply do?"
+  options:
+    - text: "Update the dashboard in place; its UID and URL stay"
+      why: "<code>~</code> is an in-place update. The dashboard gets a new version with the new title."
+    - text: "Delete the dashboard and create a new one"
+      why: "That is a replacement, shown as <code>-/+</code>."
+    - text: "Create a second dashboard with the new title"
+      why: "Terraform keeps one object per resource."
+    - text: "Nothing until someone saves it on the screen"
+      why: "Apply calls Grafana's API itself; no screen action is needed."
+  answer: [0]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/terraform/
+
+- id: q-m16-014
+  tags: [ascode-terraform]
+  exam: { cert: none }
+  q: "A pull request changes a dashboard's <code>uid</code> from <code>orders</code> to <code>checkout-orders</code> in <code>config_json</code>. The plan shows <code>-/+</code>. What should the reviewer expect after apply?"
+  options:
+    - text: "The old URL redirects to the new one"
+      why: "A new UID is a new dashboard. Grafana keeps no redirect from a deleted one."
+    - text: "Only the title in the browser tab changes"
+      why: "The UID is part of the URL, not the title."
+    - text: "A new dashboard under the new UID; old links and bookmarks break"
+      why: "<code>-/+</code> destroys the old dashboard and creates a new one, so links to the old UID no longer work."
+    - text: "Both dashboards stay, one per UID"
+      why: "Terraform removes the object it replaced."
+  answer: [2]
+  source: https://registry.terraform.io/providers/grafana/grafana/4.55.0/docs/resources/dashboard
+
+- id: q-m16-015
+  tags: [ascode-terraform]
+  exam: { cert: none }
+  q: "A contact point was created with the Grafana Terraform provider and default settings. A colleague opens it in Grafana to fix a typo. What happens?"
+  options:
+    - text: "The screen saves the fix, and Terraform copies it into the file"
+      why: "Terraform never writes to the configuration files."
+    - text: "The screen saves the fix, and the next plan is empty"
+      why: "If the screen could save it, the next plan would show drift."
+    - text: "Grafana deletes the contact point because it was edited"
+      why: "Grafana does not delete resources because someone opened them."
+    - text: "Grafana does not allow the edit, because the contact point is provisioned"
+      why: "Alerting resources made through the API are provisioned and read only on the screen unless <code>disable_provenance</code> is set."
+  answer: [3]
+  source: https://grafana.com/docs/grafana/v13.3/alerting/set-up/provision-alerting-resources/terraform-provisioning/
+
+- id: q-m16-016
+  tags: [ascode-terraform, ascode-secrets]
+  exam: { cert: none }
+  q: "Where should the Terraform state of a Grafana configuration live?"
+  options:
+    - text: "In the same Git repository, so the team sees every change"
+      why: "State can hold secrets in plain text, such as passwords Terraform read back. It must not be in Git."
+    - text: "In a protected backend that only the pipeline can read"
+      why: "The state ties files to real objects and can contain secrets, so it needs a store with access control."
+    - text: "Nowhere; Terraform rebuilds it from Grafana on every run"
+      why: "Without state Terraform cannot tell which objects it manages and would try to create them again."
+    - text: "In Grafana itself, as a dashboard annotation"
+      why: "Grafana has no such feature, and annotations are readable by every viewer."
+  answer: [1]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/terraform/
+
+- id: q-m16-017
+  tags: [ascode-dashboards]
+  exam: { cert: none }
+  q: "This Python program is run. How many panels does the printed dashboard have?<br><code>d = Dashboard(\"Svc\").uid(\"svc\")<br>for s in [\"cart\", \"payment\", \"checkout\", \"ad\"]:<br>    d = d.with_panel(Timeseries().title(s))<br>print(JSONEncoder().encode(d.build()))</code>"
+  options:
+    - text: "One, because <code>with_panel</code> replaces the last panel"
+      why: "<code>with_panel</code> adds a panel to the builder each time it is called."
+    - text: "None, because the program only prints, Grafana is not called"
+      why: "Printing JSON is the point. The panels are in the JSON whether or not Grafana sees it."
+    - text: "Four, one per item of the list"
+      why: "The loop adds one time series panel for each service in the list."
+    - text: "Eight, because each panel needs a query"
+      why: "The panels have no queries here, and a query is not a panel."
+  answer: [2]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/foundation-sdk/
+
+- id: q-m16-018
+  tags: [ascode-dashboards]
+  exam: { cert: none }
+  q: "A team on Kubernetes deploys everything with Argo CD and wants each dashboard to be a Kubernetes object. Which option fits, and what must they accept?"
+  options:
+    - text: "The Grafana Operator; it is a community project without Grafana Labs support"
+      why: "The Operator creates dashboards from custom resources, and Grafana's page says it is not commercially supported."
+    - text: "Git Sync; it needs every dashboard as a Kubernetes custom resource"
+      why: "Git Sync reads dashboard JSON from a repository. It does not use custom resources in the cluster."
+    - text: "Grizzly; it is the newest tool for dashboards as objects"
+      why: "Grizzly has been removed and is no longer supported."
+    - text: "Grafonnet; it compiles Jsonnet to Kubernetes objects"
+      why: "Grafonnet generates dashboard JSON, not Kubernetes objects, and it is not officially supported."
+  answer: [0]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/grafana-operator/
+
+- id: q-m16-019
+  tags: [ascode-dashboards]
+  exam: { cert: none }
+  q: "A dashboard file starts with <code>\"apiVersion\": \"dashboard.grafana.app/v2\", \"kind\": \"Dashboard\"</code>. It must be managed with the classic <code>grafana_dashboard</code> resource on Grafana 13. What goes into <code>config_json</code>?"
+  options:
+    - text: "Only the <code>spec</code> part of the file"
+      why: "The provider's page says that was the rule for Grafana 12. Grafana 13 needs the whole document."
+    - text: "The full document with apiVersion, kind, metadata and spec"
+      why: "For Grafana 13 the provider's page asks for the full Kubernetes-style JSON in this legacy resource."
+    - text: "The file converted to the classic shape by hand first"
+      why: "No conversion is needed; the provider accepts the new shape, and a newer resource exists for it too."
+    - text: "Nothing; v2 dashboards cannot be managed by Terraform"
+      why: "The provider has resources for the newer dashboard API versions as well."
+  answer: [1]
+  source: https://registry.terraform.io/providers/grafana/grafana/4.55.0/docs/resources/dashboard
+
+- id: q-m16-020
+  tags: [ascode-rules]
+  exam: { cert: none }
+  q: "A pull request adds this recording rule. <code>mimirtool rules check</code> runs in CI. What does it report?<br><code>- record: checkout_requests_rate5m<br>  expr: sum(rate(traces_spanmetrics_calls_total{service_name=\"checkout\"}[5m]))</code>"
+  options:
+    - text: "Nothing, the rule is valid PromQL"
+      why: "check also tests the name against the naming practice, and this name fails it."
+    - text: "That <code>rate()</code> cannot be used in a recording rule"
+      why: "Recording rules often use <code>rate()</code>. The query is fine."
+    - text: "That the group has no <code>interval</code>"
+      why: "The interval is optional; the global default applies."
+    - text: "A bad recording rule name: it does not follow level:metric:operation"
+      why: "mimirtool's check requires at least one colon in a recorded name, as Prometheus's naming practice suggests."
+  answer: [3]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+
+- id: q-m16-021
+  tags: [ascode-rules]
+  exam: { cert: none }
+  q: "A rule file is checked with <code>promtool check rules</code> and passes. What has it proved?"
+  options:
+    - text: "That the rules parse, with valid PromQL and a valid structure"
+      why: "check rules reads the file and every expression offline; it does not run them against data."
+    - text: "That the alerts will fire when they should"
+      why: "That needs <code>promtool test rules</code> with test series, or real data."
+    - text: "That the ruler has loaded the rules"
+      why: "promtool works offline and never talks to a ruler."
+    - text: "That every metric in the expressions exists"
+      why: "promtool has no data. A misspelled metric name is still valid PromQL."
+  answer: [0]
+  source: https://prometheus.io/docs/prometheus/latest/command-line/promtool/
+
+- id: q-m16-022
+  tags: [ascode-rules, ascode-ci]
+  exam: { cert: none }
+  q: "A unit test for <code>promtool test rules</code> feeds <code>up{job=\"api\"}</code> the values <code>1 1 0 0 0 0</code> at a 1m interval. The alert is <code>up == 0</code> with <code>for: 5m</code>. What should <code>exp_alerts</code> be at <code>eval_time: 4m</code>?"
+  options:
+    - text: "One firing alert, because <code>up</code> is 0"
+      why: "<code>up</code> has been 0 only since minute 2, so the 5 minutes of <code>for</code> have not passed."
+    - text: "Empty, because the alert is still pending"
+      why: "From minute 2 to 4 is two minutes. A pending alert is not in <code>exp_alerts</code>."
+    - text: "One alert per sample that was 0"
+      why: "One series gives at most one alert, however many samples it has."
+    - text: "An error, because tests cannot use <code>for</code>"
+      why: "Unit tests evaluate <code>for</code> exactly; that is one of their main uses."
+  answer: [1]
+  source: https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/
+
+- id: q-m16-023
+  tags: [ascode-rules]
+  exam: { cert: none }
+  q: "A pipeline runs <code>mimirtool rules load rules.yaml</code> for tenant <code>team-a</code>. The file has a group <code>slo</code> that already exists in the ruler with other rules. What happens?"
+  options:
+    - text: "The two versions are merged, rule by rule"
+      why: "mimirtool does not merge groups. A group is replaced as a whole."
+    - text: "The load fails because the group exists"
+      why: "Loading an existing group is normal; it is how a change reaches the ruler."
+    - text: "The group in the ruler is replaced by the one in the file"
+      why: "load overwrites rule groups of the same name, so the file decides what the group holds."
+    - text: "A second group <code>slo</code> is added beside the first"
+      why: "Group names are unique in a namespace."
+  answer: [2]
+  source: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+
+- id: q-m16-024
+  tags: [ascode-pipelines]
+  exam: { cert: none }
+  q: "This Collector configuration is checked with <code>otelcol validate</code>. What is the result?<br><code>exporters:<br>  otlp_http/mimir: {endpoint: http://mimir/otlp}<br>service:<br>  pipelines:<br>    metrics: {receivers: [otlp], exporters: [otlp_http/mimir]}</code>"
+  options:
+    - text: "Valid, because a pipeline may name any receiver"
+      why: "A pipeline may only use components that are defined in their own section."
+    - text: "Valid, but the Collector would drop all metrics at run time"
+      why: "validate stops before that point: the file is refused."
+    - text: "An error about the batch processor, which every pipeline needs"
+      why: "Processors are optional in a pipeline."
+    - text: "An error: the pipeline uses receiver otlp, which is not configured"
+      why: "There is no <code>receivers:</code> section, so the reference to otlp cannot be resolved."
+  answer: [3]
+  source: https://opentelemetry.io/docs/collector/configuration/
+
+- id: q-m16-025
+  tags: [ascode-pipelines, ascode-ci]
+  exam: { cert: none }
+  q: "Why validate a Collector or Alloy file in CI when the pod would refuse it at start-up anyway?"
+  options:
+    - text: "Because a refused file in a rollout leaves pods crashing until someone reverts it"
+      why: "Validation in CI refuses the file before the merge, so no rollout with a broken file ever starts."
+    - text: "Because validate also tests that the backends are reachable"
+      why: "validate checks the file offline; it does not connect to exporters."
+    - text: "Because the pod accepts invalid files and only logs a warning"
+      why: "Collector and Alloy refuse invalid files at start-up."
+    - text: "Because CI can fix the file automatically"
+      why: "validate only reports; a person fixes the file."
+  answer: [0]
+  source: https://opentelemetry.io/docs/collector/configuration/
+
+- id: q-m16-026
+  tags: [ascode-helm-values]
+  exam: { cert: none }
+  q: "A release was installed with <code>-f values.yaml</code>. Someone runs <code>helm upgrade rel chart --set replicaCount=3</code> with no <code>-f</code>. What values does the new revision use?"
+  options:
+    - text: "The values from the file plus <code>replicaCount=3</code>"
+      why: "Helm does not reuse the old values when new ones are given without <code>--reuse-values</code>."
+    - text: "Only <code>replicaCount=3</code>; nothing else is set"
+      why: "The chart's defaults still apply to everything else."
+    - text: "The chart's defaults plus <code>replicaCount=3</code>"
+      why: "With a new <code>--set</code> and no <code>-f</code>, the upgrade starts from the chart's defaults, so the file's values are lost."
+    - text: "The old revision's values, because <code>--set</code> is ignored"
+      why: "<code>--set</code> is applied; that is the change the person wanted."
+  answer: [2]
+  source: https://helm.sh/docs/helm/helm_upgrade/
+
+- id: q-m16-027
+  tags: [ascode-helm-values]
+  exam: { cert: none }
+  q: "Before an upgrade a reviewer runs <code>diff -u live.yaml next.yaml</code>, with <code>live.yaml</code> from <code>helm get manifest</code> and <code>next.yaml</code> from <code>helm template</code>. The diff shows <code>-  replicas: 2</code> and <code>+  replicas: 1</code>, although the pull request only changed a message. What does it mean?"
+  options:
+    - text: "The chart has a bug that changes replicas on every upgrade"
+      why: "A chart renders what the values say. The difference comes from the values."
+    - text: "The release was changed outside Git; the upgrade would undo it"
+      why: "Someone scaled it with a value Git does not hold. The diff reveals drift before it is undone."
+    - text: "<code>helm template</code> ignores the replica count"
+      why: "helm template renders the replica count like any other value."
+    - text: "The diff compares two different charts"
+      why: "Both come from the same chart; the values differ."
+  answer: [1]
+  source: https://helm.sh/docs/helm/helm_get_manifest/
+
+- id: q-m16-028
+  tags: [ascode-helm-values]
+  exam: { cert: none }
+  q: "A team wants <code>helm diff upgrade</code> on its Helm 4 machines. What does that involve?"
+  options:
+    - text: "Nothing; helm diff is a built-in command of Helm 4"
+      why: "helm-diff is a plugin from its own repository, not part of Helm."
+    - text: "Enabling an experimental flag in Helm's configuration"
+      why: "There is no such flag. The plugin must be installed."
+    - text: "Running Helm 3, because plugins were removed in Helm 4"
+      why: "Helm 4 supports plugins and verifies their provenance."
+    - text: "Installing the plugin, which brings its own binary, from a verified release"
+      why: "The plugin's page asks Helm 4 users to install from a release archive with its signature checked."
+  answer: [3]
+  source: https://github.com/databus23/helm-diff
+
+- id: q-m16-029
+  tags: [ascode-ci]
+  exam: { cert: none }
+  q: "A pull request sets a Kafka retention that will fill the disk in a week under real traffic. The file is valid YAML and renders. Which check catches it?"
+  options:
+    - text: "The schema check of the rendered manifests"
+      why: "The value is valid for the schema; the fault is in the size, not the shape."
+    - text: "<code>helm lint</code>"
+      why: "lint checks that the chart renders and follows conventions. It knows nothing about traffic."
+    - text: "None of the file checks; review and a runtime alert on volume use are needed"
+      why: "A valid but unwise setting passes every file check. A person or a check on the running system must catch it."
+    - text: "<code>yamllint --strict</code>"
+      why: "yamllint checks YAML syntax and style, not what a value will do."
+  answer: [2]
+  source: https://helm.sh/docs/helm/helm_lint/
+
+- id: q-m16-030
+  tags: [ascode-ci, ascode-terraform]
+  exam: { cert: none }
+  q: "A CI job posts <code>terraform plan</code> output on every pull request for the Grafana repository. What does the reviewer gain over reading the diff of the <code>.tf</code> files?"
+  options:
+    - text: "The exact changes Grafana will receive, including drift that the files alone do not show"
+      why: "The plan compares the files with Grafana itself, so it also shows hand changes that the apply would undo."
+    - text: "Nothing; the plan only repeats the file diff"
+      why: "The plan reads Grafana's real state, which a file diff cannot show."
+    - text: "An automatic apply as soon as the plan is posted"
+      why: "Posting a plan applies nothing. The apply comes after the merge."
+    - text: "A check that every dashboard query returns data"
+      why: "A plan does not run queries."
+  answer: [0]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/terraform/dashboards-github-action/
+
+- id: q-m16-031
+  tags: [ascode-secrets]
+  exam: { cert: none }
+  q: "Which way of reading a Kubernetes Secret lets you check its keys without revealing its values?"
+  options:
+    - text: "<code>kubectl get secret NAME -o yaml</code>"
+      why: "That prints every value, only base64-encoded, which anyone can decode."
+    - text: "<code>kubectl describe secret NAME</code>"
+      why: "describe lists each key with its size in bytes and no value."
+    - text: "<code>kubectl get secret NAME -o jsonpath='{.data}'</code>"
+      why: "That prints the base64-encoded values too."
+    - text: "<code>kubectl edit secret NAME</code>"
+      why: "edit opens the whole object, values included, in an editor."
+  answer: [1]
+  source: https://kubernetes.io/docs/concepts/configuration/secret/
+
+- id: q-m16-032
+  tags: [ascode-secrets]
+  exam: { cert: none }
+  q: "A Helm values file for Grafana contains the lines below. Is the admin password in Git?<br><code>admin:<br>  existingSecret: grafana-admin<br>  userKey: admin-user<br>  passwordKey: admin-password</code>"
+  options:
+    - text: "Yes, <code>admin-password</code> is the password"
+      why: "It is the name of a key in the Secret, not its value."
+    - text: "Yes, Helm copies the Secret's value into the release's values"
+      why: "The chart only refers to the Secret. The value stays in the Secret."
+    - text: "No, but the password is printed in Grafana's log at start-up"
+      why: "Grafana does not log the admin password."
+    - text: "No; the file names a Secret and its keys, and the value lives in the Secret"
+      why: "This is a reference: the release knows where the password is, not what it is."
+  answer: [3]
+  source: https://kubernetes.io/docs/concepts/configuration/secret/
+
+- id: q-m16-033
+  tags: [ascode-secrets]
+  exam: { cert: none }
+  q: "A pipeline only creates and updates dashboards and folders through a Grafana service account. Which role and token setup follows the least privilege?"
+  options:
+    - text: "Admin role, a token without expiry"
+      why: "Admin is more than the job needs, and a token without expiry stays dangerous if it leaks."
+    - text: "Editor role, a token with a short expiry, kept in a Secret"
+      why: "Editor can manage dashboards and folders; a short-lived token in a Secret limits a leak."
+    - text: "Viewer role, because dashboards are read by everyone"
+      why: "A Viewer cannot create or change dashboards."
+    - text: "A personal token of the team lead, kept in the repository"
+      why: "A person's token leaves with the person, and nothing belongs in the repository."
+  answer: [1]
+  source: https://grafana.com/docs/grafana/v13.3/administration/service-accounts/
+
+- id: q-m16-034
+  tags: [ascode-promote]
+  exam: { cert: none }
+  q: "A branch adds one dashboard. The plan made from the branch shows <code>Plan: 1 to add, 0 to change, 0 to destroy.</code> The branch is merged. The plan from main the next morning shows <code>1 to add, 1 to change</code>. What happened overnight?"
+  options:
+    - text: "Terraform counts the merge commit as a change"
+      why: "Terraform reads files and Grafana, not commits. A merge adds no resource."
+    - text: "The branch plan was not saved, so it expired"
+      why: "An unsaved plan is just output; a new plan simply reads the current state."
+    - text: "A managed resource was changed in Grafana outside Git"
+      why: "The extra change is drift. The apply from main would set the resource back to the files."
+    - text: "The new dashboard was created twice"
+      why: "One resource gives one dashboard, created once."
+  answer: [2]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/terraform/
+
+- id: q-m16-035
+  tags: [ascode-promote, ascode-git-sync]
+  exam: { cert: none }
+  q: "A development Grafana syncs branch <code>develop</code> and a production Grafana syncs <code>main</code> of the same repository with Git Sync. How does a dashboard reach production?"
+  options:
+    - text: "By exporting it from development and importing it in production"
+      why: "That is the manual way Git Sync replaces; it leaves no review."
+    - text: "By a merge from <code>develop</code> into <code>main</code>, after review"
+      why: "Production follows <code>main</code>, so the merge is the promotion; Grafana pulls it on its next sync."
+    - text: "By saving it in production with the <code>write</code> workflow"
+      why: "That skips development and the review of the change."
+    - text: "Automatically, because both instances share one database"
+      why: "Each instance has its own database; Git is what they share."
+  answer: [1]
+  source: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/scenarios/dev-prod/
