@@ -22,7 +22,9 @@ A third fault of that kind was found on 2026-11-15 by the planner's QA of m16, a
 
 ## Lab defects
 
-None open.
+| What | Since | Notes |
+|---|---|---|
+| The shop is about ten times slower since a worker was stopped and started | 2026-11-15, 19:10 UTC, card C16's drill 3 | product-catalog's server p95 went from 6.5 ms to about 220 ms and checkout's `PlaceOrder` p95 from about 27 ms to about 230 ms, with every flag off. The new product-catalog pods sit at their 20Mi memory limit: about 8.5 MiB of file pages, the program's own code, are charged to the container (0.1 MiB before), and it reads them back from disk 400 to 700 times a second. The Go process itself did not grow. A restart of the deployment did not help. `make lab-check` passes in this state, and `NodeMemoryMajorPagesFaults` fires for the node that holds the pod. Modules m13 to m15 read these latencies, so their numbers are off until it is fixed. Card L11 (`cards/w10-l11-shop-after-node-restart.md`). |
 
 Closed on 2026-11-15 by card L10 (pull requests 101 and 105): one trace of the shop grew for days and a lookup of it could kill Tempo's querier. Payment now starts its flag provider once, with tracing suppressed (shop version `3.1.0-lab.2`, chart 0.3.0), so an order's trace holds only its own spans; the first order after the upgrade had the same 96 spans thirty minutes later. The old trace, `1b9843164d5423b88ba041cee6303b88`, stopped growing at 18:13 UTC and leaves Tempo at about 20:15 UTC on 2026-11-17; nobody opens it by its ID before that. The cause, the options and the proof are in `lgtm/docs/adr/l10-payment-flag-stream.md` and in `lgtm/lab/docs/acceptance-lab.md`.
 
@@ -37,6 +39,7 @@ To watch:
 - The object store. RustFS 1.0.5 has run two days without a restart. Its resident memory rose with use, 144 MiB before wave 8, 180 after it, 247 after wave 9, and was back at 206 MiB the next afternoon after a quiet night (limit 1536Mi). It gives memory back, so it is not the old leak.
 - flagd answers every flag evaluation since card L9: its CPU went from 0.004 to 0.011 cores (limit 200m). Look again after a day of load.
 - The control-plane node uses about 70% of its memory.
+- Since card C16's drill 3 the pods are spread unevenly: worker4 holds about 21 pods and the other workers 38 to 41, with worker1 and worker2 at 68% of their memory. Pods that moved while a node was away do not move back.
 - A quiet shop is not free of error spans, on purpose (card L10, `lgtm/lab/docs/demo.md`): the flag providers of ad, fraud-detection and recommendation each end a 600-second stream to flagd every ten minutes with status error, as a trace of two spans. A search for a service's errors leaves them out with `&& name != "flagd.evaluation.v2.Service/EventStream"`. The capstone module should say so where it searches errors.
 - Grafana keeps practice dashboards that were deleted through the API or by Terraform in **Recently deleted** for 12 months (`m16-orders`, `m16-generated`, and those of earlier modules). The page offers only Restore.
 - The Loki ingesters. The burst of module m12 step 12 (5,000 streams in the tenant `learn-m12`) took each ingester from about 135 MiB to as much as 559 MiB, and three and a half hours later, with no practice stream left in memory, each still held 360 to 440 MiB (request 384Mi, limit 1Gi). Card L8's upgrade then restarted them, and they are back under 200 MiB, so how long the memory would have stayed is not known. The lesson says more than half an hour. Measure it the next time someone runs the burst and leaves the ingesters alone.
