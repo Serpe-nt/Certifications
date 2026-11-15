@@ -1,0 +1,263 @@
+/* m05-s02-explore: Grafana's Explore page, one pane and then two. */
+/* The Explore page: one window from the top, running off the bottom edge */
+.ex .ex-page {
+  left: 16px;
+  right: 16px;
+  top: 16px;
+  bottom: -48px;
+  overflow: hidden;
+}
+.ex .ex-bar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+}
+.ex .ex-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 500;
+}
+.ex .ss-stage[data-layout="compact"] .ex-time {
+  display: none;
+}
+
+/* The panes; Split gives the second one half the width (on a phone, the whole width) */
+.ex .ex-panes {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 56px;
+  bottom: 0;
+  display: flex;
+  gap: 12px;
+}
+/* Each pane is a box of its own that runs to the bottom; its Raw box fills what is left */
+.ex .ex-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--gf-border);
+  border-radius: 2px;
+  transition: flex-grow 560ms cubic-bezier(0.65, 0, 0.35, 1), opacity 300ms linear;
+}
+.ex .ex-pane-2 {
+  flex-grow: 0.0001;
+  opacity: 0;
+}
+.ex [data-split] .ex-pane-2 {
+  flex-grow: 1;
+  opacity: 1;
+  transition-delay: 0s, 380ms;
+}
+.ex .ex-pane-in {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 8px;
+}
+.ex .ex-pane-2 .ex-pane-in {
+  min-width: 268px;
+}
+.ex [data-split] .ex-panes {
+  gap: 12px;
+}
+.ex .ss-stage[data-layout="compact"] [data-split] .ex-pane:first-child {
+  flex-grow: 0.0001;
+  opacity: 0;
+}
+.ex .ss-stage[data-layout="compact"] .ex-pane-2 .ex-pane-in {
+  min-width: 300px;
+}
+.ex .ss-stage[data-layout="compact"] [data-split] .ex-pane-2 {
+  transition-delay: 0s, 0s;
+}
+.ex .ss-stage[data-layout="compact"] .ex-panes {
+  gap: 0;
+}
+
+.ex .ex-row {
+  display: flex;
+  margin-bottom: 8px;
+}
+.ex .ex-ds {
+  width: 200px;
+}
+
+/* The query box */
+.ex .ex-query {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--gf-border);
+  border-radius: 2px;
+  background: var(--gf-panel);
+}
+.ex .ex-qhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ex .ex-qds {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ex .ex-qhead .gf-radio {
+  margin-left: auto;
+}
+.ex .ex-editor {
+  height: 30px;
+}
+.ex .ex-opts {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.ex .ex-opts-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+.ex .ex-chev {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: var(--gf-icon);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 200ms ease;
+}
+.ex .ex-chev[data-open] {
+  transform: rotate(90deg);
+}
+
+/* Parts that open and close in place */
+/* Closing, the contents fade first and the room closes after; opening, the room opens first */
+.ex .ex-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 180ms;
+}
+.ex .ex-collapse[data-open] {
+  grid-template-rows: 1fr;
+  transition-delay: 0s;
+}
+.ex .ex-collapse-in {
+  min-height: 0;
+  overflow: hidden;
+}
+/* What opens fades in once its room has opened, so no moving edge cuts it */
+.ex .ex-collapse-in > * {
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+.ex .ex-collapse[data-open] .ex-collapse-in > * {
+  opacity: 1;
+  transition-delay: 300ms;
+}
+/* Options shows its summary closed and the Type switch open, in the same place */
+.ex .ex-swap {
+  display: grid;
+  min-width: 0;
+}
+.ex .ex-swap > * {
+  grid-area: 1 / 1;
+  align-self: center;
+  transition: opacity 200ms linear;
+}
+.ex .ex-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+}
+.ex .ex-swap[data-open] .ex-type {
+  opacity: 1;
+}
+.ex .ex-swap[data-open] .ex-sum {
+  opacity: 0;
+}
+
+/* Results: Graph (with Both) and Raw */
+.ex .ex-graph {
+  position: relative;
+}
+.ex .ex-graph,
+.ex .ex-raw {
+  border: 1px solid var(--gf-border);
+  border-radius: 2px;
+  background: var(--gf-panel);
+}
+.ex .ex-collapse[data-open] .ex-graph {
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+.ex .ex-graph svg {
+  width: 100%;
+  height: 44px;
+  margin-top: 6px;
+}
+.ex .ex-axis {
+  position: absolute;
+  left: 10px;
+  top: 32px;
+}
+.ex .ex-raw {
+  flex: 1;
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+.ex .ex-table {
+  display: grid;
+  margin-top: 8px;
+  border-top: 1px solid var(--gf-border);
+}
+.ex .ex-table > span {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--gf-border);
+}
+.ex .ex-val {
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+}
+.ex .ex-raw[data-in] .ex-val {
+  opacity: 1;
+  animation: ex-in 320ms linear;
+}
+@keyframes ex-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The data source menu under the picker */
+.ex .ex-menu {
+  left: 12px;
+  top: 88px;
+  width: 200px;
+  padding: 4px 0;
+}
+
+/* A closed Graph keeps no border line */
+.ex .ex-collapse:not([data-open]) .ex-graph {
+  border-width: 0;
+}
+/* In a half-width pane the Type switch goes under Options */
+.ex .ex-opts {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.ex [data-split] .ex-type > .gf-dim {
+  display: none;
+}
