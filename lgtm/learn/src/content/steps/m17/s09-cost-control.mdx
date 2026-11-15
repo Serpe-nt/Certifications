@@ -1,0 +1,187 @@
+---
+id: m17-s09
+title: "Cardinality and cost: drop, relabel, aggregate, sample"
+kind: lab
+minutes: 30
+order: 9
+outcome: You can choose between dropping, relabelling, aggregating and sampling to cut what a store must keep, apply one in a collector, and measure the series before and after.
+exam:
+  - cert: none
+tags: [scale-cost-control, cardinality]
+check:
+  kind: range
+  prompt: What share of the series did the filter remove, in percent? Divide the series removed by the series before, times 100.
+  min: 20
+  max: 95
+terms:
+  - term: Drop
+    def: Removing whole metrics, or whole series, before they reach the store.
+  - term: Relabel
+    def: Changing or removing labels before storage, so that series with different values fold into one.
+  - term: Aggregate
+    def: Storing a sum or another summary over a label instead of every series that has it.
+  - term: Sample
+    def: Keeping only a share of spans or log lines; for traces, decided at the head or the tail.
+sources:
+  - title: Filter processor, v0.165.0 (OpenTelemetry Collector contrib)
+    url: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.165.0/processor/filterprocessor/README.md
+    checked: 2026-11-15
+  - title: Prometheus configuration, metric_relabel_configs
+    url: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+    checked: 2026-11-15
+  - title: Adaptive Metrics (Grafana Cloud)
+    url: https://grafana.com/docs/grafana-cloud/adaptive-telemetry/adaptive-metrics/
+    checked: 2026-11-15
+  - title: Planning Grafana Mimir capacity (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/run-production-environment/planning-capacity/
+    checked: 2026-11-15
+---
+
+<Problem>
+Step 11 told you what Mimir costs per series. Now a team asks for room for twice as many. Before you buy nodes, you look at what the stores keep and who reads it. Most of it was never put on a dashboard.
+</Problem>
+
+<Idea>
+Four tools cut what a store must keep, and each has a different price. Dropping removes data nobody reads. Relabelling removes a label that splits series without telling anyone anything. Aggregating keeps a summary instead of every series. Sampling keeps a share of traces or log lines. Apply them as close to the source as you can, in the collector, and measure before and after.
+</Idea>
+
+## Four tools, four prices
+
+Each tool loses something different, so choose by what the readers need.
+
+<Compare caption="Cutting what the store keeps">
+  <Col title="Drop">Whole metrics or series. Lose them completely. Best for data no dashboard, rule or query reads.</Col>
+  <Col title="Relabel">Remove or rewrite a label. Series fold together. Best for an ID-like label nobody filters on.</Col>
+  <Col title="Aggregate" hot>Keep a sum over a label. Totals stay, the detail goes. Best for a breakdown nobody uses.</Col>
+  <Col title="Sample">Keep a share of spans or lines. Counts made from the stored data shrink. Best for high volumes of similar traces.</Col>
+</Compare>
+
+Series drive Mimir's cost, as step 11 showed, so for metrics the first three matter most. A histogram is expensive: every bucket is its own series, multiplied by every label value. Sampling is the trace tool from module m13: a tail sampler keeps slow and failed traces and drops a share of the rest.
+
+## Where to cut
+
+The collector is the cheapest place: data cut there never crosses the network, never reaches Kafka and never takes memory in an ingester. In an OpenTelemetry Collector the `filter` processor drops metrics, spans or log records that match a condition. In a Prometheus scrape, `metric_relabel_configs` drops series or labels before they are stored. Grafana Cloud's Adaptive Metrics aggregates on the service side, from how the series are used.
+
+## Measure, do not guess
+
+A cut is a decision about what readers can still see, so measure what it buys. Count the series before, apply the cut, wait until the old series are out of the query's window, count again. Then check that the dashboards and rules that matter still have their data.
+
+<InLab>
+In this step you run a small collector of your own in `learn-m17`. It scrapes its own metrics and sends them to Mimir as the practice tenant `learn-m17`. Then a filter drops every histogram, and you count the series again.
+</InLab>
+
+<Trap>
+Do not drop what an alert reads. Before any cut, search the rules and dashboards for the metric names it removes.
+</Trap>
+
+<Do>
+1. In WSL, create the namespace if step 15 has not: <Cmd>{`kubectl create namespace learn-m17`}</Cmd> Save this file as `m17-collector.yaml`. The collector scrapes its own metrics every 15 seconds and sends them to Mimir as tenant `learn-m17`:
+
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: collector
+     namespace: learn-m17
+   data:
+     config.yaml: |
+       receivers:
+         prometheus:
+           config:
+             scrape_configs:
+               - job_name: self
+                 scrape_interval: 15s
+                 static_configs:
+                   - targets: ["localhost:8888"]
+       processors:
+         batch: {}
+       exporters:
+         otlphttp:
+           endpoint: http://mimir-gateway.mimir.svc/otlp
+           headers:
+             X-Scope-OrgID: learn-m17
+       service:
+         pipelines:
+           metrics:
+             receivers: [prometheus]
+             processors: [batch]
+             exporters: [otlphttp]
+   ---
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: collector
+     namespace: learn-m17
+   spec:
+     replicas: 1
+     selector:
+       matchLabels:
+         app: collector
+     template:
+       metadata:
+         labels:
+           app: collector
+       spec:
+         containers:
+           - name: otelcol
+             image: otel/opentelemetry-collector-contrib:0.165.0
+             args: ["--config=/conf/config.yaml"]
+             resources:
+               requests: { cpu: 20m, memory: 64Mi }
+               limits: { memory: 128Mi }
+             volumeMounts:
+               - name: conf
+                 mountPath: /conf
+         volumes:
+           - name: conf
+             configMap:
+               name: collector
+   ```
+
+   Apply it: <Cmd>{`kubectl apply -f m17-collector.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m17 rollout status deployment/collector`}</Cmd>
+2. Wait two minutes, then count the series the tenant received in the last minute: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m17' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(count_over_time({__name__=~".+"}[1m]))'; echo`}</Cmd> Note the number, and the number of histogram bucket series: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m17' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(count_over_time({__name__=~".+_bucket"}[1m]))'; echo`}</Cmd>
+3. Add a filter that drops every histogram. In `m17-collector.yaml`, add this processor under `processors`, at the same indentation as `batch`:
+
+   ```yaml
+       filter/histograms:
+         metric_conditions:
+           - metric.type == METRIC_DATA_TYPE_HISTOGRAM
+   ```
+
+   and change the pipeline's processors to `[filter/histograms, batch]`. Apply the file and restart the collector, which reads its configuration only at start: <Cmd>{`kubectl apply -f m17-collector.yaml && kubectl -n learn-m17 rollout restart deployment/collector && kubectl -n learn-m17 rollout status deployment/collector`}</Cmd>
+4. Wait two minutes, so that the old series leave the one-minute window, and count again with both queries of action 2.
+5. Delete the collector: <Cmd>{`kubectl -n learn-m17 delete deployment/collector configmap/collector`}</Cmd> If you do not go on to step 15 now, delete the namespace: <Cmd>{`kubectl delete namespace learn-m17`}</Cmd>
+6. Work out the share of series the filter removed and enter it in the check below.
+</Do>
+
+<Done>
+The bucket series went to zero and the total fell by the same amount. The counters and gauges of the collector arrived as before.
+</Done>
+
+<Trap practice>
+Count with `count_over_time` over one minute, not with a plain selector. Mimir's instant query looks back five minutes, so series that stopped two minutes ago are still counted by a plain selector.
+</Trap>
+
+<Remember>
+Cut at the collector, choose the tool by what readers lose, and measure the series before and after. A histogram is many series; drop or reduce it only where nobody reads its buckets.
+</Remember>
+
+<Question id="q-m17-s09" answer="d">
+A dashboard shows the request rate per service from a histogram's `_count`. Nobody reads the `_bucket` series, which carry a `pod` label with 300 values. What cuts the most while the dashboard keeps working?
+
+- Drop the whole histogram at the collector
+
+  The dashboard reads `_count` from the same histogram, so it would go blank.
+
+- Sample half of the requests before they are measured
+
+  Sampling metrics does not reduce series; every series still exists, with smaller numbers.
+
+- Remove the `pod` label from the `_count` series only
+
+  It saves 299 series per service, but the buckets, the bulk of the cost, stay.
+
+- Keep the histogram but store no `_bucket` series
+
+  The buckets are most of the series; without them `_count` and `_sum` keep the request rate.
+</Question>
