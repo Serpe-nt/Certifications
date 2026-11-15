@@ -40,12 +40,15 @@ function parseYaml(text: string): unknown {
   return YAML.parse(text, { prettyErrors: true });
 }
 
-/** Splits an MDX file into its YAML frontmatter and its body. */
+/**
+ * Splits an MDX file into its YAML frontmatter and its body. The body keeps one empty line
+ * for each line of the frontmatter, so a line number in the body is the line in the file.
+ */
 export function splitFrontmatter(text: string): { front: unknown; body: string } {
   const normalised = text.replace(/\r\n/g, '\n');
   const m = /^---\n([\s\S]*?)\n---\n?/.exec(normalised);
   if (!m) throw new Error('the file does not start with a --- frontmatter block');
-  return { front: parseYaml(m[1]), body: normalised.slice(m[0].length) };
+  return { front: parseYaml(m[1]), body: m[0].replace(/[^\n]/g, '') + normalised.slice(m[0].length) };
 }
 
 export function loadCorpus(root: string): RawCorpus {

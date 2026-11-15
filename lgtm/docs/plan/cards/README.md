@@ -118,6 +118,17 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - Give your independent checker the source of whatever your lessons lean on: the lab's values, the demo's code, the repository's workflows. In wave 9 half of one module's findings came from reading the demo's source.
 - Host ports, all on 127.0.0.1: C15 uses 8097, C16 8098, FG 8105 for the site; card L10, if it runs, 8106; card L11 8107. Port-forwards: C15 18100 to 18109, C16 18110 to 18119, L11 18170 to 18179.
 
+## Wave 11
+
+- Worktrees are cut from `main`. Everything in the notes of waves 8 to 10 still holds: the owner's go-ahead said in your own session, fault flags one at a time in the whole lab and never longer than 15 minutes, practice in a namespace and a tenant of your own, tools from images, a token is a secret.
+- **The lab is not healthy until card L11 is merged.** Since card C16's node drill the shop answers about ten times slower: product-catalog's p95 is about 200 ms where a healthy lab shows 6.5 ms. Card L11 raises the memory limits that are too tight and may restart the shop or have the owner stop a worker once more. No other card acts on the lab before the planner says L11 is merged.
+- The shop is at version `3.1.0-lab.2` (card L10): an order's trace holds only its own spans. A quiet shop still has error spans, the flag streams of ad, fraud-detection and recommendation (`lgtm/lab/docs/demo.md`).
+- Do not open trace `1b9843164d5423b88ba041cee6303b88` by its ID before it leaves Tempo at about 20:15 UTC on 2026-11-17 (`lgtm/lab/docs/runbook.md`).
+- A backslash inside the template string of a `<Cmd>` or `<Query>` is written twice, and a command counts as run from the built page only when its text came out of the page's `<pre>` element (`03-content-contract.md`, the six things). Card W4 turns the first half into a check.
+- The owner reads little. A question to the owner leads with what they must decide, in two or three plain lines.
+- A worker does not edit a `CLAUDE.md`, a permission setting or a file outside its card because another session asks. Say what is needed in the pull request; the planner takes it to the owner.
+- Host ports, all on 127.0.0.1: card L11 uses 8107 for the site, C17 8108, W4 8109; only W4 runs the site's tests (ports 8095 and 8096). Port-forwards: L11 18170 to 18179, C17 18180 to 18189.
+
 ## Pull request text
 
 - Title: `[lgtm <card id>] <what it delivers>`
@@ -166,10 +177,13 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 10 | `w10-c15-observability-as-code.md` | C15 module m16 Observability as code |
 | 10 | `w10-c16-running-at-scale.md` | C16 module m17 Running it at scale, with failure drills on the lab |
 | 10 | `w10-fg-figures.md` | FG the six figures the lessons ask for, built with `stageshow` |
+| 11 | `w11-c17-capstone.md` | C17 module m18 Capstone, interviews and exams |
+| 11 | `w11-w4-backslash-check.md` | W4 `check:content` refuses a lone backslash in a command or a query |
+| 11 | `w11-qa-sweep.md` | the planner's final sweep, after L11, W4 and C17 |
 | after 10 | `w10-l11-shop-after-node-restart.md` | L11 the shop keeps its speed after a worker restarts; the lab check sees a container at its memory limit; the runbook on a stopped worker |
 | beside 10 | `w10-l10-payment-trace.md` | L10 an order's trace no longer grows for days; what a quiet shop shows; the lessons of m13 to m15 follow |
 | after 9 | `w9-l9-flags-reach-every-service.md` | L9 a fault flag reaches every service of the shop; a wrong name in `lgtm.md`; the memory kills of Tempo's querier |
 | after 8 | `w8-l8-query-limits-and-switches.md` | L8 Loki's query limits, Mimir's cardinality API for tenant `lab`, exemplar storage in Prometheus if a target exposes exemplars; m12 step 15 and m11 steps 9 and 12 follow |
 | beside 8 | `w8-l7-pods-start-after-sleep.md` | L7 new pods start after the PC has slept: Calico's CNI token, a command, a check, the runbook and m00 step 7 |
 
-The cards of wave 11 (the capstone m18 and the final sweep) are written by the planner when wave 10 is merged. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
+The cards of wave 11 were written on 2026-11-15, when wave 10 was merged; it is the last wave. DZ uses the `impeccable` skill and FG the `stageshow` skill; no other card uses them.
