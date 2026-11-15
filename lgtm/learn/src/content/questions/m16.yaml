@@ -108,7 +108,7 @@
   options:
     - text: "Only after someone clicks Pull on the repository's page in Grafana"
       why: "Git Sync polls by itself on the interval; no click is needed."
-    - text: "Within about a minute, in the folder named after the connection"
+    - text: "Within about a minute, in the folder named after its title"
       why: "Grafana polls the branch every 60 seconds and puts the dashboards of the path into the connection's folder."
     - text: "At once, because Git Sync always uses webhooks"
       why: "Webhooks are optional. Without them Grafana polls on the interval."

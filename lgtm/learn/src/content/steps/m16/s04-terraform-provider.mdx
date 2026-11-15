@@ -50,7 +50,7 @@ The provider needs Grafana's address and a credential. It reads them from its bl
 
 ## Plan, apply, and the state
 
-`terraform plan` is the review. It reads Grafana through the API and prints each resource with a sign: `+` for create, `~` for change in place, `-` for destroy, `-/+` for replace. The last line counts them. Saved with `-out`, the plan can be applied exactly as it was read, even if the files change in between.
+`terraform plan` is the review. It reads Grafana through the API and prints each resource with a sign: `+` for create, `~` for change in place, `-` for destroy, `-/+` for replace. A line that starts with `Plan:` counts them. Saved with `-out`, the plan can be applied exactly as it was read, even if the files change in between.
 
 To know which dashboard in Grafana belongs to which resource, Terraform keeps a state file. The state holds the real IDs and the last values it saw, which can include secrets such as a webhook password. It belongs in a protected backend, never in Git. Here it stays in the working folder of the pod, which is enough for one learner.
 

@@ -31,7 +31,7 @@ A colleague adds an exporter for Loki to the Collector's values and names it in 
 </Problem>
 
 <Idea>
-A Collector or Alloy configuration is code, and both tools ship an offline check for it. `otelcol validate` and `alloy validate` parse the file, build the pipelines and refuse a component that is missing, unknown or wired wrong, without sending any data. Run them in CI on every change, with the same image version the cluster runs.
+A Collector or Alloy configuration is code, and both tools ship an offline check for it. `otelcol validate` and `alloy validate` parse the file and refuse a component that is missing, unknown or set up wrong, without sending any data. Run them in CI on every change, with the same image version the cluster runs.
 </Idea>
 
 ## What validate catches
@@ -45,7 +45,7 @@ The Collector refuses a file in which a pipeline names a receiver, processor or 
 
 ## The same version as the cluster
 
-A component exists in one Collector release and not in the next, and names change: the lab's shop uses `otlp_http` where older guides write `otlphttp`. So the check runs with the image the cluster runs, pinned by the same tag. In this lab that is `otel/opentelemetry-collector-contrib:0.165.0` for the gateway and `grafana/alloy:v1.21.3` for Alloy, both read from the release folders in `lab/helm/`.
+A component exists in one Collector release and not in the next, and names change: the lab's gateway values use `otlp_http` where older guides write `otlphttp`. So the check runs with the image the cluster runs, pinned by the same tag. In this lab that is `otel/opentelemetry-collector-contrib:0.165.0` for the gateway, as `lab/helm/otel-gateway/VERSION` pins it, and `grafana/alloy:v1.21.3` for Alloy, the version the lab's Alloy pods run.
 
 ## Where the files live
 

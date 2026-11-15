@@ -34,6 +34,9 @@ sources:
   - title: Set up Git Sync as code
     url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/git-sync-setup/set-up-code/
     checked: 2026-11-15
+  - title: Work with provisioned dashboards in Git Sync
+    url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/provisioned-dashboards/
+    checked: 2026-11-15
   - title: Git Sync usage and performance limitations
     url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/usage-limits/
     checked: 2026-11-15
@@ -61,7 +64,7 @@ Git Sync links a Grafana folder to a path in a Git repository, in both direction
 
 ## How the two copies stay one
 
-Each connection is a Repository resource in Grafana's newer API, `provisioning.grafana.app`. It names the Git URL, the branch, a path inside the repository, a title and a sync target. With the default target `folder`, Grafana makes a folder titled like the connection and puts every dashboard JSON file under the path into it, with subfolders for subdirectories. With `folderless`, the files land at the top of the Dashboards list.
+Each link is a Repository resource in Grafana's newer API, `provisioning.grafana.app`. (A separate Connection resource exists only for GitHub App and OAuth sign-in.) It names the Git URL, the branch, a path inside the repository, a title and a sync target. With the default target `folder`, Grafana makes a folder named after the Repository's `title` and puts every dashboard JSON file under the path into it, with subfolders for subdirectories. With `folderless`, the files land at the top of the Dashboards list.
 
 From Git to Grafana, Grafana polls the branch, every 60 seconds by default on a self-hosted Grafana, or reacts at once to a webhook from the Git provider. From Grafana to Git, the save dialog of a synced dashboard asks for a branch, a file name and a comment. The workflow `write` lets it commit straight to the branch; `branch` makes it push a new branch and open a pull request instead. With no workflow the connection is read only.
 
@@ -88,10 +91,10 @@ Grafana, however, refuses Git URLs that resolve to a loopback, private, link-loc
   <Col title="Your own GitHub repository" hot>type github, a fine-grained token or a GitHub App, a public address; accepted.</Col>
 </Compare>
 
-With your own repository you would set `type` to `github`, give the `url` of the repository and a fine-grained token with read and write access to its contents and pull requests, and the same folder would appear within a minute.
+With your own repository you would set `type` to `github`, give the `url` of the repository and a token with the repository permissions that Grafana's setup page lists (contents and pull requests read and write, among others), and the same folder would appear within a minute.
 
 <Trap>
-Allowing a whole private range such as `10.0.0.0/8` in `allowed_git_urls` gives back the protection for every host in it, and the listed hosts receive the Git token on every sync. List the one Git host, not the network.
+Allowing a whole private range such as `10.0.0.0/8` in `allowed_git_urls` removes the protection for every host in it, and the listed hosts receive the Git token on every sync. List the one Git host, not the network.
 </Trap>
 
 <Do>
