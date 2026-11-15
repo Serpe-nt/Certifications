@@ -1,0 +1,6 @@
+id: m16
+title: Observability as code
+goal: Keep every dashboard, rule and pipeline in Git, check it before it ships, and promote a change from a branch to the lab.
+order: 16
+quiz: true
+exams: []

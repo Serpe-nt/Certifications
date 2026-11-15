@@ -1,0 +1,109 @@
+---
+id: m16-s02
+title: Grafana's provisioning files
+kind: lab
+minutes: 15
+order: 2
+outcome: You can follow a data source and a dashboard of the lab from a file in Git to the Grafana screen, and say why the screen refuses to save them.
+terms:
+  - term: Provisioning
+    def: Grafana reading data sources, dashboards and alerting resources from configuration files instead of from its database.
+  - term: Dashboard provider
+    def: A provisioning entry that tells Grafana a folder of dashboard files to load and how to treat them.
+  - term: Sidecar
+    def: A second container in the Grafana pod that copies dashboards from labelled ConfigMaps into a folder Grafana reads.
+exam:
+  - cert: none
+tags: [ascode-grafana-provisioning]
+check:
+  kind: exact
+  prompt: How many ConfigMaps labelled grafana_dashboard=1 are in the namespace grafana (action 2)?
+  answers: ["12"]
+sources:
+  - title: Provision Grafana (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/provisioning/
+    checked: 2026-11-15
+  - title: Use configuration files to provision alerting resources (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/alerting/set-up/provision-alerting-resources/file-provisioning/
+    checked: 2026-11-15
+---
+
+<Problem>
+In module m05 you opened the Loki data source and read that it was added by config and cannot be modified in the UI. A dashboard of the folder Shop refused to save. Someone decided that, in a file you have not read yet. Where is that file, and how does a change to it reach the screen?
+</Problem>
+
+<Idea>
+Provisioning is Grafana's oldest as-code feature: at start-up, and again while it runs, Grafana reads YAML files that describe data sources, dashboard folders and alerting resources. Whatever a file defines, the file owns, so the screen shows it as read only. In this lab the files are written by a Helm chart from values in Git.
+</Idea>
+
+## Files Grafana reads at start-up
+
+Grafana looks in a provisioning folder with one subfolder per kind: `datasources`, `dashboards`, `alerting` and a few more. Each YAML file there starts with `apiVersion: 1`. A data source file lists data sources with their name, type, URL, a fixed `uid` and their JSON settings. Settings with passwords go under `secureJsonData`, which Grafana stores encrypted. The file can also take values from environment variables, written `$NAME` or `${NAME}`, so a password does not have to be written in the file itself.
+
+A dashboard file does not hold dashboards. It names a provider: a folder on disk where dashboard JSON files are, and rules for them. `updateIntervalSeconds` says how often Grafana looks for changed files. `allowUiUpdates` says whether a provisioned dashboard can be saved from the screen. `foldersFromFilesStructure` turns subfolders on disk into folders in Grafana.
+
+Alerting resources work the same way: contact points, notification policies, alert rules and templates in YAML files. The alerting page states the rule plainly: you cannot edit a provisioned resource in Grafana. You change the file and restart or reload.
+
+## How the lab fills those files
+
+Grafana's Helm chart writes the files from values. The block `datasources` in `lab/helm/grafana/values.yaml` becomes `datasources.yaml` in a ConfigMap that the chart mounts into the pod. In that block a `$` that belongs to Grafana is written `$$`, because Grafana expands environment variables in provisioning files.
+
+Dashboards take a longer path. The chart `lab-glue` turns each JSON file into a ConfigMap with the label `grafana_dashboard: "1"` and an annotation that names the folder. A sidecar container in the Grafana pod watches for such ConfigMaps in every namespace and copies their JSON into `/tmp/dashboards`. A dashboard provider points Grafana at that folder.
+
+<Flow caption="From a JSON file in Git to the folder Shop">
+  <Stage title="Git" kicker="lab-glue">A dashboard JSON file in the chart.</Stage>
+  <Stage title="ConfigMap" kicker="Helm">Labelled grafana_dashboard, folder in an annotation.</Stage>
+  <Stage title="Sidecar" kicker="k8s-sidecar">Copies the JSON into /tmp/dashboards.</Stage>
+  <Stage title="Grafana" kicker="provider">Loads the file and keeps it read only.</Stage>
+</Flow>
+
+## Why the screen refuses
+
+If the screen could save a provisioned dashboard, the next scan of the file would overwrite the change, or Grafana and Git would disagree for good. So with `allowUiUpdates: false` the screen offers to copy the JSON instead of saving it. A provisioned data source shows Test and no Save & test. This is the rule from step 1 made real: the file is the source of truth, and the running copy is hard to change in any other way.
+
+The price is speed. A colleague who wants to try a panel must copy the dashboard, change the copy, and then bring the JSON back into Git by hand. Git Sync in step 3 was built to close that gap.
+
+<InLab>
+The lab's provider is named `sidecarProvider`, scans `/tmp/dashboards` every 30 seconds, and has `allowUiUpdates: false` and `foldersFromFilesStructure: true`. The chart of `kube-prometheus-stack` adds its own dashboards the same way, from ConfigMaps in the namespace `prom`.
+</InLab>
+
+<Trap>
+A provisioned dashboard that someone saved with `allowUiUpdates: true` is changed only in the database. The file still holds the old version and wins at the next change of the file.
+</Trap>
+
+<Do>
+1. In WSL (bash), select the lab: <Cmd>{`export KUBECONFIG=~/.kube/lgtm-lab.config`}</Cmd>
+2. List the dashboards the sidecar picks up from the namespace `grafana`: <Cmd>{`kubectl get configmap -n grafana -l grafana_dashboard=1`}</Cmd> Count them. Each one came from a JSON file of `lab-glue`.
+3. Read where one of them goes: <Cmd>{`kubectl -n grafana get configmap dashboard-shop-red-checkout -o jsonpath='{.metadata.annotations.grafana_folder}{"\\n"}'`}</Cmd> The answer is `Shop`, the folder you see in Grafana.
+4. Read the dashboard provider that the chart wrote: <Cmd>{`kubectl -n grafana get configmap grafana-config-dashboards -o jsonpath='{.data.provider\\.yaml}{"\\n"}'`}</Cmd> Find `allowUiUpdates`, `updateIntervalSeconds` and `path`.
+5. Read the names and UIDs of the provisioned data sources: <Cmd>{`kubectl -n grafana get configmap grafana -o jsonpath='{.data.datasources\\.yaml}' | grep -E '^  (name|uid):'`}</Cmd> Six names with their UIDs. They match the list under <LabLink to="grafana" path="/connections/datasources">Connections > Data sources</LabLink>.
+6. Open <LabLink to="grafana" path="/dashboards">Dashboards</LabLink>, the folder **Shop** and **Shop / checkout (RED)**. Click **Edit**, then **Save**. The drawer says the dashboard cannot be saved from the Grafana UI. Click **Cancel**, then **Exit edit**.
+</Do>
+
+<Done>
+You followed a dashboard from its ConfigMap to its folder, read the provider that keeps it read only, and saw the screen refuse to save it.
+</Done>
+
+<Remember>
+Provisioning files own what they define. In this lab Helm writes them from values in Git, and a sidecar brings dashboards from labelled ConfigMaps.
+</Remember>
+
+<Question id="q-m16-s02" answer="a">
+A dashboard provider has `allowUiUpdates: false`. A user edits a provisioned dashboard and clicks Save. What happens?
+
+- Grafana does not save it and offers the JSON to copy instead
+
+  With `allowUiUpdates: false` a provisioned dashboard cannot be saved from the screen. The change has to go into the file.
+
+- Grafana saves it, and the file is updated to match
+
+  Grafana never writes back to a provisioning file. Only Git Sync writes to a repository.
+
+- Grafana saves it until the next restart
+
+  That is closer to `allowUiUpdates: true`, and even then the file wins when it changes.
+
+- Grafana deletes the file and keeps the database copy
+
+  Grafana does not delete provisioning files. The file stays the source of truth.
+</Question>

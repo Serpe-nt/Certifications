@@ -1,0 +1,123 @@
+---
+id: m16-s08
+title: Helm values as the source of truth, and a diff before every upgrade
+kind: lab
+minutes: 25
+order: 8
+outcome: You can keep a release's chart version and values in Git, show the exact manifest change of an upgrade before you run it, and prove the release matches the files.
+terms:
+  - term: Values file
+    def: A YAML file of settings that Helm merges over a chart's defaults when it renders the chart.
+  - term: Manifest diff
+    def: The line-by-line difference between the objects a release runs now and the objects an upgrade would apply.
+  - term: helm-diff
+    def: A Helm plugin, from its own repository, that prints the change an upgrade would make to a running release.
+exam:
+  - cert: none
+tags: [ascode-helm-values]
+check:
+  kind: regex
+  prompt: Paste the line of the diff in action 5 that adds the new replica count.
+  pattern: ".*\\+\\s*replicas: 2.*"
+sources:
+  - title: helm template
+    url: https://helm.sh/docs/helm/helm_template/
+    checked: 2026-11-15
+  - title: helm get manifest
+    url: https://helm.sh/docs/helm/helm_get_manifest/
+    checked: 2026-11-15
+  - title: helm upgrade
+    url: https://helm.sh/docs/helm/helm_upgrade/
+    checked: 2026-11-15
+  - title: helm-diff plugin
+    url: https://github.com/databus23/helm-diff
+    checked: 2026-11-15
+---
+
+<Problem>
+An engineer raises a limit of Loki with `helm upgrade --set` from a laptop, at night, during an incident. It works. A month later the next upgrade starts from the values in Git, the limit falls back, and the same incident happens again. Nobody knows the `--set` ever ran.
+</Problem>
+
+<Idea>
+A release is fully described by three things: the chart, its pinned version and its values. Keep all three in Git and upgrade only from there, never with a `--set` typed by hand. Before every upgrade, render the chart with the new values and compare it with what Helm applied last time, so the reviewer reads the change to the objects Helm owns.
+</Idea>
+
+## The lab already works this way
+
+Each lab release has a folder in `lab/helm/`: `VERSION` names the chart and its version, `values.yaml` the values for the real cluster. The playbook installs or upgrades a release only from those files, and the runbook's way to change one value is to edit the file, run the lint, then run `make lab` for that one release. The check after it is that a second `make lab` reports no change. If the files and the cluster still differ, something was changed outside Git.
+
+## A value change is not yet a reviewed change
+
+A diff of `values.yaml` shows that `replicaCount` went from 1 to 2. It does not show what the chart does with it. One value can change a Deployment, a PodDisruptionBudget and an annotation that restarts every pod. What a reviewer needs is the diff of the rendered objects.
+
+Helm gives both halves without a plugin. `helm template` renders the chart with the new values on your machine and prints the manifests. `helm get manifest` prints the manifests the release applied last time. A plain `diff` of the two is the change the upgrade will make to the objects Helm owns. Hooks and test pods are not in the stored manifest, so leave them out of the rendering with `--skip-tests` and `--no-hooks`.
+
+<Flow caption="An upgrade from Git">
+  <Stage title="Values in Git" kicker="pull request">The value change is reviewed.</Stage>
+  <Stage title="Render" kicker="helm template">Manifests with the new values.</Stage>
+  <Stage title="Diff" kicker="diff">Against helm get manifest of the release.</Stage>
+  <Stage title="Upgrade" kicker="helm upgrade -f">Only from the files in Git.</Stage>
+</Flow>
+
+## The helm-diff plugin
+
+Many teams use the plugin helm-diff for the same job: `helm diff upgrade` takes the same arguments as `helm upgrade` and prints a coloured diff against the running release. It lives in its own repository and is installed with `helm plugin install`, which downloads a binary. With Helm 4, the plugin's page asks you to install from a release archive and verify its signature. This lab's tools are pinned and checked; it does not add the plugin, and the two commands above give the same diff.
+
+<InLab>
+`lab/helm/loki/values.yaml` and `lab/helm/loki/VERSION` are the whole truth of the Loki release; the runbook section "Upgrade or change one release" is the procedure. You practise on a small release of your own, never on a lab release.
+</InLab>
+
+<Trap>
+`helm upgrade` with only one `--set` and no `-f` starts again from the chart's defaults plus that value, so every other value from the last upgrade is lost. Always pass the values file.
+</Trap>
+
+<Do>
+1. In WSL, in `lgtm/lab`, put the lab's pinned Helm first on your path, as in module m01: <Cmd>{`export PATH=$PWD/.bin:$PATH && helm version --short`}</Cmd> It starts with `v4.3.1`.
+2. Save the values of a practice release as `~/m16/helm/podinfo/values.yaml`:
+
+   ```yaml
+   replicaCount: 1
+   ui:
+     message: "m16: deployed from Git"
+   resources:
+     requests: { cpu: 10m, memory: 32Mi }
+     limits: { cpu: 100m, memory: 64Mi }
+   ```
+3. Commit the file, then install the release from it, with the chart version pinned on the command line: <Cmd>{`cd ~/m16 && git add helm && git commit -q -m "podinfo practice release" && git push -q origin main`}</Cmd> <Cmd>{`helm install m16-podinfo oci://ghcr.io/stefanprodan/charts/podinfo --version 6.17.0 -n learn-m16 -f ~/m16/helm/podinfo/values.yaml --wait`}</Cmd>
+4. Change the values in Git: two replicas and a new message. <Cmd>{`sed -i 's/^replicaCount: 1/replicaCount: 2/; s/deployed from Git/upgraded from Git/' ~/m16/helm/podinfo/values.yaml && git -C ~/m16 diff`}</Cmd> The Git diff shows two changed values, nothing about Kubernetes objects.
+5. Render the chart with the new values and compare it with what Helm applied at the last install or upgrade: <Cmd>{`helm get manifest m16-podinfo -n learn-m16 > /tmp/m16-live.yaml`}</Cmd> <Cmd>{`helm template m16-podinfo oci://ghcr.io/stefanprodan/charts/podinfo --version 6.17.0 -n learn-m16 -f ~/m16/helm/podinfo/values.yaml --skip-tests --no-hooks > /tmp/m16-next.yaml`}</Cmd> <Cmd>{`diff -u /tmp/m16-live.yaml /tmp/m16-next.yaml`}</Cmd> The diff touches only the Deployment: the replica count and the value of the message variable. Two empty lines at the end come from how Helm stores the manifest and mean nothing. Copy the line with the new replica count for the check.
+6. Commit the change and upgrade from the file, then prove the release holds the values from Git: <Cmd>{`git -C ~/m16 commit -q -am "podinfo: two replicas" && git -C ~/m16 push -q origin main`}</Cmd> <Cmd>{`helm upgrade m16-podinfo oci://ghcr.io/stefanprodan/charts/podinfo --version 6.17.0 -n learn-m16 -f ~/m16/helm/podinfo/values.yaml --wait && helm get values m16-podinfo -n learn-m16`}</Cmd> The user-supplied values are those of the file.
+7. Remove the practice release and the two temporary files: <Cmd>{`helm uninstall m16-podinfo -n learn-m16 && rm /tmp/m16-live.yaml /tmp/m16-next.yaml`}</Cmd>
+</Do>
+
+<Done>
+You installed a release from values in Git, saw the real object change of an upgrade before running it, and upgraded only from the file.
+</Done>
+
+<Trap practice>
+If the diff is empty, the values file was not changed before action 5, or the release was already upgraded. If it shows many lines in labels, check that `helm template` has the same release name and namespace as the release.
+</Trap>
+
+<Remember>
+Chart, version and values live in Git; upgrades use `-f` with that file; the reviewer reads the rendered diff as well as the values diff.
+</Remember>
+
+<Question id="q-m16-s08" answer="b">
+Before an upgrade, a reviewer wants to see exactly which Kubernetes objects will change. Which pair of commands gives that without a plugin?
+
+- `git diff` of the values file, then `helm lint`
+
+  The values diff and a lint say nothing about the rendered objects the cluster will receive.
+
+- `diff` of `helm get manifest` and `helm template` output
+
+  The stored manifest is what Helm applied last time; the rendering is what the upgrade will apply. Their difference is the change. A `kubectl scale` made outside Helm never shows in it.
+
+- `helm history` of the release, then `helm rollback --dry-run`
+
+  History lists past revisions. It does not render the next one.
+
+- `helm get values` of the release, then `helm show values` of the chart
+
+  Those are two sets of values, not the manifests that values produce.
+</Question>
