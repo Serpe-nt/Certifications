@@ -5,7 +5,7 @@
 // A scene is a React component that takes SceneProps:
 // - playing: false while the figure is off screen or the tab is hidden; stop every animation then.
 // - still: true under prefers-reduced-motion; show one meaningful frame, with no motion at all.
-// Scenes are built later with the Stageshow skill (card FG). They use the site's tokens, not their own colours.
+// Scenes are built with the Stageshow skill (card FG) and draw Grafana's dark look (grafana.css), not the site's tokens.
 import type { ComponentType } from 'react';
 
 export interface SceneProps {

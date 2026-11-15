@@ -1,0 +1,223 @@
+/* m05-s06-variable-editor: the variable editor, then the dashboard it drives. */
+.ve .ve-page {
+  left: 16px;
+  right: 16px;
+  top: 16px;
+  bottom: -48px;
+  overflow: hidden;
+}
+.ve .ve-screen {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  bottom: 0;
+  transition: opacity 320ms linear, transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ve .ve-editor[data-gone] {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+.ve .ve-dash {
+  opacity: 0;
+  transform: translateX(16px);
+}
+.ve .ve-dash[data-in] {
+  opacity: 1;
+  transform: none;
+  transition-delay: 160ms;
+}
+.ve .ve-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 32px;
+}
+.ve .ve-title {
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* The form: a label column and a control column */
+.ve .ve-form,
+.ve .ve-more-in {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 340px);
+  align-items: center;
+  gap: 8px 12px;
+}
+.ve .ss-stage[data-layout="compact"] :is(.ve-form, .ve-more-in) {
+  grid-template-columns: 82px minmax(0, 1fr);
+}
+.ve .ve-form {
+  margin-top: 14px;
+}
+.ve .ve-more {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-bottom: -8px;
+  transition: grid-template-rows 360ms cubic-bezier(0.2, 0.8, 0.2, 1), margin-bottom 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ve .ve-more[data-open] {
+  grid-template-rows: 1fr;
+  margin-bottom: 0;
+}
+.ve .ve-more-in {
+  min-height: 0;
+  overflow: hidden;
+}
+.ve .ve-more[data-open] .ve-more-in {
+  overflow: visible;
+}
+.ve .ve-more-in > * {
+  opacity: 0;
+  transition: opacity 180ms linear;
+}
+.ve .ve-more[data-open] .ve-more-in > * {
+  opacity: 1;
+  transition-delay: 260ms;
+}
+.ve .ve-select {
+  position: relative;
+  min-width: 0;
+}
+.ve .ve-select > .gf-field {
+  width: 100%;
+}
+.ve .ve-val {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ve .ve-menu {
+  left: 0;
+  top: calc(100% + 4px);
+  min-width: 100%;
+  padding: 4px 0;
+}
+.ve .ve-run {
+  margin-top: 12px;
+  padding-left: 108px;
+}
+.ve .ss-stage[data-layout="compact"] .ve-run {
+  padding-left: 94px;
+}
+
+/* The preview of values */
+.ve .ve-preview {
+  margin-top: 16px;
+}
+.ve .ve-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  margin-top: 8px;
+}
+.ve .ve-chip,
+.ve .ve-chip-more {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 220ms linear, transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ve .ve-chip {
+  padding: 3px 8px;
+  border: 1px solid var(--gf-border-strong);
+  border-radius: 2px;
+  background: var(--gf-raised);
+}
+.ve .ve-preview[data-in] :is(.ve-chip, .ve-chip-more) {
+  opacity: 1;
+  transform: none;
+}
+
+/* The dashboard */
+.ve .ve-vars {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+.ve .ve-var-label {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--gf-border-strong);
+  border-right: 0;
+  border-radius: 2px 0 0 2px;
+  background: var(--gf-raised);
+  font-weight: 500;
+}
+.ve .ve-vars .ve-select {
+  width: 160px;
+}
+.ve .ve-vars .gf-field {
+  border-radius: 0 2px 2px 0;
+}
+.ve .ve-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.ve .ss-stage[data-layout="compact"] .ve-panels {
+  grid-template-columns: 1fr;
+}
+.ve .ve-panel {
+  padding: 8px 10px;
+  border: 1px solid var(--gf-border);
+  border-radius: 2px;
+  background: var(--gf-canvas);
+}
+.ve .ve-ptitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ve .ve-panel svg {
+  width: 100%;
+  height: 84px;
+  margin-top: 8px;
+}
+.ve .ss-stage[data-layout="compact"] .ve-panel svg {
+  height: 64px;
+}
+.ve .ve-svc {
+  animation: ve-fade 360ms linear;
+}
+.ve .ve-line {
+  animation: ve-draw 800ms cubic-bezier(0.4, 0, 0.3, 1);
+}
+@keyframes ve-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ve-draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+
+.ve .ve-chips {
+  margin-top: 4px;
+}
+.ve .ve-more,
+.ve .ve-more[data-open] {
+  margin-bottom: 0;
+}
+.ve .ve-ptitle {
+  line-height: 16px;
+}
+/* The dashboard's panels run on past the window's bottom edge */
+.ve .ve-dash {
+  display: flex;
+  flex-direction: column;
+}
+.ve .ve-panels {
+  flex: 1;
+  margin-bottom: -24px;
+}

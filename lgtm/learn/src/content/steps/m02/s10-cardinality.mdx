@@ -61,7 +61,7 @@ A new label does not add a few series to a metric. It multiplies them. A counter
   <Stat label="+ pod, 50 values" value="1,000" amount={1000} max={1000} hot />
 </Figures>
 
-<Figure id="m02-s10-series-multiply" alt="A grid of small boxes, one per time series. Adding a label with three values turns one row of boxes into three rows, and adding a user ID label makes the grid explode beyond the frame." brief="A fake metric panel counts series. It starts with one counter and one series box. A 'method' label is added and the boxes split into four. A 'status_code' label is added and the four become twenty. Then a 'user_id' label is added and the boxes multiply until they fill the frame, while a memory gauge beside them turns red. The learner should notice that each label multiplies the series count, and that an unbounded label has no ceiling." />
+<Figure id="m02-s10-series-multiply" alt="A grid of small boxes, one per time series. Adding a label with four values turns one box into four, a label with five values turns them into twenty, and adding a user ID label makes the boxes explode beyond the frame." brief="A fake metric panel counts series. It starts with one counter and one series box. A 'method' label is added and the boxes split into four. A 'status_code' label is added and the four become twenty. Then a 'user_id' label is added and the boxes multiply until they fill the frame, while a memory gauge beside them turns red. The learner should notice that each label multiplies the series count, and that an unbounded label has no ceiling." />
 
 ## Keep label values bounded
 

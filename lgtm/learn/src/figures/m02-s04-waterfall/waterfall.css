@@ -1,0 +1,337 @@
+/* m02-s04-waterfall: Grafana's trace view (grafana.css has the shared look). */
+.wf .ss-stage {
+  background: var(--gf-canvas);
+  --name: 260px;
+  --gut: 16px;
+  --row: 28px;
+  --pad: 12px;
+  --indent: 14px;
+}
+.wf .ss-stage[data-layout="compact"] {
+  --name: 124px;
+  --indent: 8px;
+}
+.wf .ss-stage[data-layout="compact"] :is(.wf-wide, .wf-id-rest) {
+  display: none;
+}
+.wf .ss-stage[data-layout="compact"] .wf-id::after {
+  content: "\2026";
+}
+
+/* The panel runs off the bottom edge over filler */
+.wf .wf-panel {
+  left: var(--gut);
+  right: var(--gut);
+  top: var(--gut);
+  height: 420px;
+  overflow: hidden;
+}
+
+.wf .wf-head {
+  padding: 12px var(--pad) 10px;
+}
+.wf .wf-title {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.wf .ss-stage[data-layout="compact"] .wf-title {
+  font-size: 14px;
+}
+.wf .wf-total {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--gf-text-2);
+}
+.wf .wf-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.wf .wf-id {
+  font-family: var(--gf-mono);
+  font-size: 12px;
+  color: var(--gf-text-2);
+  white-space: nowrap;
+}
+
+/* The minimap: every span as a thin bar on a dark strip, drawn as its row arrives */
+.wf .wf-mini {
+  position: relative;
+  height: 40px;
+  margin: 0 var(--pad) 8px;
+  background: var(--gf-canvas);
+  border: 1px solid var(--gf-border);
+}
+.wf .wf-mini-tick {
+  position: absolute;
+  top: 2px;
+  left: var(--at);
+  height: 36px;
+  padding-left: 3px;
+  border-left: 1px solid var(--gf-border-strong);
+  font-size: 9px;
+  line-height: 1;
+  color: var(--gf-text-3);
+}
+.wf .wf-mini-tick.wf-end {
+  transform: translateX(-100%);
+  padding: 0 3px 0 0;
+  border-left: 0;
+}
+.wf .wf-mini-bar {
+  position: absolute;
+  top: calc(13px + var(--i) * 4px);
+  left: var(--at);
+  width: max(var(--w), 2px);
+  height: 3px;
+  background: var(--c);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--wipe) cubic-bezier(0.4, 0, 0.3, 1), background-color 260ms linear;
+}
+.wf .wf-mini-bar[data-in] {
+  transform: scaleX(1);
+}
+.wf .wf-mini-bar[data-err] {
+  background: var(--gf-red);
+}
+
+/* Column heads and rows share one grid */
+.wf .wf-cols,
+.wf .wf-row {
+  display: grid;
+  grid-template-columns: var(--name) minmax(0, 1fr);
+}
+.wf .wf-cols {
+  height: 30px;
+  align-items: center;
+  border-top: 1px solid var(--gf-border);
+  border-bottom: 1px solid var(--gf-border);
+  font-size: 12px;
+  font-weight: 500;
+}
+.wf .wf-col {
+  padding-left: var(--pad);
+  white-space: nowrap;
+}
+.wf .wf-track {
+  position: relative;
+  height: 100%;
+  margin-right: 16px;
+}
+.wf .wf-tick {
+  position: absolute;
+  top: 50%;
+  left: var(--at);
+  transform: translateY(-50%);
+  padding-left: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wf .wf-rows {
+  position: relative;
+}
+.wf .wf-grid {
+  position: absolute;
+  inset: 0 16px 0 var(--name);
+}
+.wf .wf-grid > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--at);
+  border-left: 1px solid var(--gf-border);
+}
+
+.wf .wf-row {
+  position: relative;
+  height: var(--row);
+  align-items: center;
+  transition: background-color 200ms linear;
+}
+.wf .wf-row[data-sel],
+.wf .wf-row[data-hover] {
+  background: var(--gf-blue-soft);
+}
+
+/* The name cell: indent, a toggle or the error icon, the service, the operation; a line in the service's colour */
+.wf .wf-name {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  min-width: 0;
+  padding-left: calc(var(--pad) - 4px + var(--depth) * var(--indent));
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  border-right: 1px solid var(--gf-border);
+  opacity: 0;
+  transition: opacity 260ms linear;
+}
+.wf .wf-name::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--pad) + var(--depth) * var(--indent));
+  right: 0;
+  bottom: 0;
+  border-bottom: 1px solid var(--c);
+}
+.wf .wf-row[data-in] .wf-name {
+  opacity: 1;
+}
+.wf .wf-toggle {
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.wf .wf-toggle svg {
+  position: absolute;
+  inset: 0;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--gf-icon);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.wf .wf-toggle .wf-err {
+  stroke: var(--gf-panel);
+  stroke-width: 2;
+  transform: scale(0);
+  transition: transform 260ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.wf .wf-toggle .wf-err circle {
+  fill: var(--gf-red);
+  stroke: none;
+}
+.wf .wf-row[data-err] .wf-err {
+  transform: scale(1);
+}
+.wf .wf-svc {
+  font-weight: 500;
+  color: var(--gf-text);
+}
+.wf .wf-op {
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--gf-text-2);
+}
+.wf .wf-filler {
+  flex: none;
+  width: 84px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--gf-raised);
+}
+
+/* Bars grow from their start, inside their parent's time */
+.wf .wf-bar {
+  position: absolute;
+  top: 50%;
+  left: var(--at);
+  width: max(var(--w), 3px);
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 1px;
+  background: var(--c);
+  transform: scaleX(0);
+  transform-origin: left;
+  will-change: transform;
+  transition: transform var(--wipe) cubic-bezier(0.4, 0, 0.3, 1), background-color 260ms linear;
+}
+.wf .wf-row[data-in] .wf-bar {
+  transform: scaleX(1);
+}
+.wf .wf-row[data-err] .wf-bar {
+  background: var(--gf-red);
+}
+.wf .wf-dur {
+  position: absolute;
+  top: 50%;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--gf-text);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 200ms linear;
+}
+.wf .wf-row[data-in] .wf-dur {
+  opacity: 1;
+  transition-delay: var(--wipe);
+}
+.wf .wf-bar[data-side="after"] .wf-dur {
+  left: calc(100% + 6px);
+}
+.wf .wf-bar[data-side="before"] .wf-dur {
+  right: calc(100% + 6px);
+}
+.wf .wf-bar[data-side="inside"] .wf-dur {
+  left: 6px;
+  font-weight: 500;
+  color: var(--gf-canvas);
+}
+.wf .wf-row[data-err] .wf-bar[data-side="inside"] .wf-dur {
+  color: #fff;
+}
+
+/* The span's details open under its row when it is clicked */
+.wf .wf-detail {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.wf .wf-detail[data-open] {
+  grid-template-rows: 1fr;
+}
+.wf .wf-detail-in {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 var(--pad) 0 calc(var(--pad) + 2 * var(--indent) + 20px);
+  background: var(--gf-raised);
+  border-left: 2px solid var(--gf-blue);
+  font-size: 12px;
+  transition: padding 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.wf .wf-detail[data-open] .wf-detail-in {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.wf .ss-stage[data-layout="compact"] .wf-detail-in {
+  padding-left: calc(var(--pad) + 12px);
+}
+/* The words fade in once the details have opened, so no edge cuts them as it moves */
+.wf .wf-detail-in > * {
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+.wf .wf-detail[data-open] .wf-detail-in > * {
+  opacity: 1;
+  transition-delay: 300ms;
+}
+.wf .wf-detail-op {
+  font-weight: 500;
+}
+.wf .wf-kv {
+  white-space: nowrap;
+}
+.wf .wf-kv > span {
+  color: var(--gf-text-2);
+}
+.wf .wf-kv-err {
+  color: var(--gf-red-text);
+}

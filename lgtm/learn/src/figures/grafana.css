@@ -1,0 +1,216 @@
+/*
+  The look every figure shares: Grafana's dark theme, as its own screens draw it, without any logo or
+  product icon. The owner chose this look on 2026-11-15 ("more Grafana like"), in place of the site's
+  ink and paper. Colours are kept here, in one place, for all six scenes.
+*/
+.gf .ss-stage {
+  --gf-canvas: #111217;
+  --gf-panel: #181b1f;
+  --gf-raised: #22252b;
+  --gf-border: rgb(204 204 220 / 0.12);
+  --gf-border-strong: rgb(204 204 220 / 0.2);
+  --gf-text: #ccccdc;
+  --gf-text-2: rgb(204 204 220 / 0.65);
+  --gf-text-3: rgb(204 204 220 / 0.45);
+  --gf-icon: #9a9aab; /* opaque, so strokes that meet never paint darker */
+  --gf-blue: #3d71d9;
+  --gf-blue-text: #6e9fff;
+  --gf-blue-soft: rgb(61 113 217 / 0.15);
+  --gf-green: #1a7f4b;
+  --gf-red: #e02f44;
+  --gf-red-text: #ff5286;
+  --gf-yellow: #f2cc0c;
+  --gf-font: Inter, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --gf-mono: "Roboto Mono", "JetBrains Mono Variable", ui-monospace, Consolas, monospace;
+
+  overflow: hidden;
+  background: var(--gf-canvas);
+  font-family: var(--gf-font);
+  color: var(--gf-text);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+/* Buttons: secondary, primary and a plain link */
+.gf .gf-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--gf-border-strong);
+  border-radius: 2px;
+  background: var(--gf-raised);
+  color: var(--gf-text);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 150ms linear, border-color 150ms linear;
+}
+.gf .gf-btn[data-hover],
+.gf .gf-btn[data-on] {
+  background: #2c3036;
+  border-color: rgb(204 204 220 / 0.32);
+}
+.gf .gf-btn-primary {
+  border-color: var(--gf-blue);
+  background: var(--gf-blue);
+  color: #fff;
+}
+.gf .gf-btn-primary[data-hover] {
+  background: #4b7fe6;
+  border-color: #4b7fe6;
+}
+.gf .gf-link {
+  color: var(--gf-blue-text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.gf .gf-link[data-hover] {
+  text-decoration: underline;
+}
+
+/* Inputs and selects: dark field, 1px border, 2px radius */
+.gf .gf-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  min-width: 0;
+  padding: 0 8px;
+  border: 1px solid var(--gf-border-strong);
+  border-radius: 2px;
+  background: var(--gf-canvas);
+  color: var(--gf-text);
+  white-space: nowrap;
+  overflow: hidden;
+  transition: border-color 150ms linear;
+}
+.gf .gf-field[data-hover],
+.gf .gf-field[data-open] {
+  border-color: var(--gf-blue-text);
+}
+.gf .gf-field .gf-caret {
+  flex: none;
+  margin-left: auto;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: var(--gf-icon);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.gf .gf-code {
+  font-family: var(--gf-mono);
+  font-size: 11px;
+}
+.gf .gf-dim {
+  color: var(--gf-text-2);
+}
+.gf .gf-label {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* A radio group such as Builder | Code or Both | Range | Instant */
+.gf .gf-radio {
+  flex: none;
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--gf-border-strong);
+  border-radius: 2px;
+}
+.gf .gf-radio > span {
+  padding: 3px 8px;
+  border-radius: 2px;
+  color: var(--gf-text-2);
+  white-space: nowrap;
+  transition: background-color 150ms linear, color 150ms linear;
+}
+.gf .gf-radio > span[data-on] {
+  background: var(--gf-raised);
+  color: var(--gf-text);
+  font-weight: 500;
+}
+.gf .gf-radio > span[data-hover]:not([data-on]) {
+  color: var(--gf-text);
+}
+
+/* A popup over the page: a tooltip, a menu */
+.gf .gf-pop {
+  position: absolute;
+  z-index: 5;
+  border: 1px solid var(--gf-border-strong);
+  border-radius: 4px;
+  background: var(--gf-raised);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.5);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 160ms linear, transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+.gf .gf-pop[data-open] {
+  opacity: 1;
+  transform: none;
+}
+.gf .gf-menu > div {
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+.gf .gf-menu > div[data-hover],
+.gf .gf-menu > div[data-on] {
+  background: rgb(204 204 220 / 0.08);
+}
+
+/* The match highlight Grafana draws over a searched word */
+.gf .gf-mark {
+  border-radius: 2px;
+  padding: 0 2px;
+  transition: background-color 300ms linear, color 300ms linear;
+}
+.gf [data-hl] .gf-mark,
+.gf .gf-mark[data-hl] {
+  background: rgb(242 204 12 / 0.28);
+  color: #fff;
+}
+
+/* A chart's lines and grid */
+.gf .gf-chart {
+  display: block;
+  overflow: visible;
+}
+.gf .gf-chart .grid {
+  stroke: var(--gf-border);
+  stroke-width: 1;
+}
+.gf .gf-chart .line {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* A panel on the dark canvas: Grafana's 1px weak border and small radius */
+.gf .gf-panel {
+  position: absolute;
+  background: var(--gf-panel);
+  border: 1px solid var(--gf-border);
+  border-radius: 6px;
+}
+
+/* A small coloured tag such as POST */
+.gf .gf-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--gf-blue-text);
+  background: var(--gf-blue-soft);
+  border: 1px solid rgb(110 159 255 / 0.4);
+}

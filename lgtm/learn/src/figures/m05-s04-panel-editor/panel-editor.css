@@ -1,0 +1,360 @@
+/* m05-s04-panel-editor: Grafana's panel editor, preview over queries, options on the right. */
+.pe .pe-page {
+  left: 16px;
+  right: 16px;
+  top: 16px;
+  bottom: -48px;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  overflow: hidden;
+}
+.pe .pe-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+}
+.pe .pe-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 500;
+}
+.pe .pe-body {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  margin-top: 12px;
+}
+/* The editor column is one box; its Queries part fills it to the bottom edge */
+.pe .pe-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--gf-border);
+  border-radius: 2px;
+}
+
+/* The preview: graph or table */
+.pe .pe-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pe .pe-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.pe .pe-knob {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--gf-raised);
+  border: 1px solid var(--gf-border-strong);
+  transition: background-color 200ms linear, border-color 200ms linear;
+}
+.pe .pe-knob::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gf-icon);
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 200ms linear;
+}
+.pe .pe-switch[data-on] .pe-knob {
+  background: var(--gf-blue);
+  border-color: var(--gf-blue);
+}
+.pe .pe-switch[data-on] .pe-knob::after {
+  transform: translateX(12px);
+  background: #fff;
+}
+.pe .pe-preview {
+  padding: 8px 10px;
+  border: 1px solid var(--gf-border);
+  border-radius: 2px;
+  background: var(--gf-canvas);
+}
+.pe .pe-view {
+  position: relative;
+  height: 100px;
+  margin-top: 6px;
+}
+.pe .pe-graph,
+.pe .pe-table {
+  position: absolute;
+  inset: 0;
+  transition: opacity 260ms linear;
+}
+.pe .pe-table {
+  opacity: 0;
+}
+.pe .pe-view[data-table] .pe-table {
+  opacity: 1;
+}
+.pe .pe-view[data-table] .pe-graph {
+  opacity: 0;
+}
+.pe .pe-graph svg {
+  position: absolute;
+  left: 32px;
+  right: 0;
+  top: 4px;
+  width: calc(100% - 32px);
+  height: 70px;
+}
+.pe .pe-line {
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 900ms cubic-bezier(0.4, 0, 0.3, 1);
+}
+.pe .pe-graph[data-in] .pe-line {
+  clip-path: inset(0 0 0 0);
+}
+.pe .pe-y {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  font-size: 11px;
+}
+.pe .pe-y0 {
+  top: 66px;
+}
+.pe .pe-legend {
+  position: absolute;
+  left: 32px;
+  bottom: 0;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 32px);
+  opacity: 0;
+  transition: opacity 240ms linear 600ms;
+}
+.pe .pe-legend::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 3px;
+  margin: 0 6px 2px 0;
+  border-radius: 1px;
+  background: #73bf69;
+  vertical-align: middle;
+}
+.pe .pe-graph[data-in] .pe-legend {
+  opacity: 1;
+}
+.pe .pe-empty {
+  position: absolute;
+  left: 50%;
+  top: 34px;
+  transform: translateX(-50%);
+  transition: opacity 200ms linear;
+}
+.pe .pe-empty[data-gone] {
+  opacity: 0;
+}
+.pe .pe-tr {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--gf-border);
+  font-size: 11px;
+}
+.pe .pe-tr > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pe .pe-th {
+  font-weight: 500;
+}
+
+/* The Queries tab */
+.pe .pe-queries {
+  flex: 1;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 0 10px 10px;
+  border: 1px solid var(--gf-border);
+  border-radius: 2px;
+}
+.pe .pe-tabs {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--gf-border);
+  white-space: nowrap;
+}
+.pe .pe-tabs > span:not(.pe-ds) {
+  padding: 8px 0 6px;
+  color: var(--gf-text-2);
+  border-bottom: 2px solid transparent;
+}
+.pe .pe-tabs > span[data-on] {
+  color: var(--gf-text);
+  border-bottom-color: #ff8833;
+}
+.pe .pe-ds {
+  margin-left: auto;
+  width: 104px;
+  height: 24px;
+}
+.pe .ss-stage[data-layout="compact"] .pe-tabs > span:nth-child(2) {
+  display: none;
+}
+.pe .pe-qhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pe .pe-qhead .gf-radio {
+  margin-left: auto;
+}
+.pe .pe-editor {
+  height: auto;
+  min-height: 54px;
+  align-items: flex-start;
+  padding: 6px 8px;
+  line-height: 16px;
+  white-space: normal;
+  word-break: break-all;
+}
+
+
+/* The options sidebar; on a phone it slides in over the editor when the picker opens */
+.pe .pe-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: none;
+  width: 176px;
+  padding-left: 12px;
+  border-left: 1px solid var(--gf-border);
+}
+.pe .ss-stage[data-layout="compact"] .pe-side {
+  position: absolute;
+  top: 0;
+  right: -12px;
+  bottom: 0;
+  width: 220px;
+  padding: 0 12px;
+  background: var(--gf-panel);
+  box-shadow: -8px 0 16px rgb(0 0 0 / 0.4);
+  opacity: 0;
+  transform: translateX(calc(100% + 16px));
+  transition: transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms linear;
+}
+.pe .ss-stage[data-layout="compact"] .pe-side[data-open] {
+  opacity: 1;
+  transform: none;
+}
+.pe .pe-viz,
+.pe .pe-search {
+  width: 100%;
+}
+.pe .pe-swap {
+  display: grid;
+}
+.pe .pe-swap > * {
+  grid-area: 1 / 1;
+}
+.pe .pe-section {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gf-border);
+  font-weight: 500;
+}
+.pe .pe-sections {
+  transition: opacity 200ms linear;
+}
+.pe .pe-sections[data-gone] {
+  opacity: 0;
+}
+.pe .pe-sugs {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+.pe .pe-sub {
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 200ms linear 100ms;
+}
+.pe .pe-sugs[data-in] .pe-sub {
+  opacity: 1;
+}
+.pe .pe-sug {
+  display: grid;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--gf-border);
+  border-radius: 2px;
+  background: var(--gf-panel);
+  opacity: 0;
+  transform: translateY(6px);
+  will-change: transform;
+  transition: opacity 240ms linear, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 150ms linear, background-color 150ms linear;
+}
+.pe .pe-sugs[data-in] .pe-sug {
+  opacity: 1;
+  transform: none;
+}
+.pe .pe-sug[data-on] {
+  border-color: var(--gf-blue-text);
+  background: var(--gf-raised);
+}
+.pe .pe-sug-name {
+  font-weight: 500;
+}
+.pe .pe-thumb {
+  display: flex;
+  align-items: center;
+  height: 26px;
+}
+.pe .pe-thumb svg {
+  width: 100%;
+  height: 24px;
+}
+.pe .pe-thumb-stat {
+  font-size: 20px;
+  font-weight: 500;
+  color: #73bf69;
+}
+.pe .pe-thumb-table {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+.pe .pe-thumb-table > i {
+  height: 6px;
+  border-radius: 1px;
+  background: var(--gf-raised);
+  border-bottom: 1px solid var(--gf-border-strong);
+}
+
+/* The editor box runs on past the window's bottom edge */
+.pe .pe-page {
+  padding-bottom: 0;
+}
+.pe .pe-main {
+  margin-bottom: -24px;
+}
+.pe .pe-qhead {
+  padding-top: 2px;
+}

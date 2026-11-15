@@ -1,0 +1,206 @@
+/* m02-s10-series-multiply: a series panel, a stat and a gauge in Grafana's look. */
+.sm .sm-title {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sm .sm-main {
+  left: 16px;
+  top: 16px;
+  width: 384px;
+  height: 360px;
+  padding: 10px 16px;
+  z-index: 1;
+}
+.sm .sm-stat {
+  left: 412px;
+  top: 16px;
+  width: 172px;
+  height: 116px;
+  padding: 10px 12px;
+  z-index: 4;
+}
+.sm .sm-gauge {
+  left: 412px;
+  top: 144px;
+  width: 172px;
+  height: 230px;
+  padding: 10px 12px;
+  z-index: 4;
+}
+.sm .ss-stage[data-layout="compact"] .sm-main {
+  width: 326px;
+  height: 440px;
+  padding: 10px 12px;
+}
+/* On a phone the count and a memory bar sit in the panel's own header */
+.sm .sm-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+.sm .sm-bar {
+  display: grid;
+  gap: 4px;
+  width: 120px;
+}
+.sm .sm-bar-track {
+  height: 8px;
+  border-radius: 2px;
+  background: var(--gf-raised);
+  overflow: hidden;
+}
+.sm .sm-bar-track > span {
+  display: block;
+  height: 100%;
+  transition: width 900ms cubic-bezier(0.4, 0, 0.3, 1), background-color 400ms linear;
+}
+
+/* Labels, added one by one */
+.sm .sm-labels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-height: 24px;
+  margin: 10px 0 34px;
+  white-space: nowrap;
+}
+.sm .sm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid rgb(110 159 255 / 0.4);
+  border-radius: 2px;
+  background: var(--gf-blue-soft);
+  color: var(--gf-blue-text);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-4px);
+  will-change: transform;
+  transition: opacity 220ms linear, transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.sm .sm-chip[data-in] {
+  opacity: 1;
+  transform: none;
+}
+.sm .sm-chip[data-bad][data-in] {
+  border-color: rgb(242 73 92 / 0.6);
+  background: rgb(242 73 92 / 0.14);
+  color: #ff7383;
+}
+
+/* The series boxes */
+.sm .sm-area {
+  position: relative;
+}
+.sm .sm-box {
+  position: absolute;
+  border-radius: 2px;
+  background: #5794f2;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+  transition: opacity 500ms linear 300ms, left 600ms cubic-bezier(0.65, 0, 0.35, 1) var(--d), top 600ms cubic-bezier(0.65, 0, 0.35, 1) var(--d), width 600ms cubic-bezier(0.65, 0, 0.35, 1) var(--d), height 600ms cubic-bezier(0.65, 0, 0.35, 1) var(--d);
+}
+/* The twenty boxes melt into the flood of user_id series */
+.sm .sm-area[data-flooded] .sm-box {
+  opacity: 0;
+}
+.sm .sm-head {
+  position: absolute;
+  text-align: center;
+  color: var(--gf-text-2);
+  opacity: 0;
+  transition: opacity 240ms linear, top 600ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+.sm .sm-head[data-in] {
+  opacity: 1;
+}
+
+/* user_id: series without a ceiling fill the frame */
+.sm .sm-flood {
+  position: absolute;
+  left: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+.sm .sm-flood > span {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: #5794f2;
+  opacity: 0;
+  transform: scale(0.2);
+  transition: opacity 200ms linear, transform 260ms cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.sm .sm-flood[data-in] > span {
+  opacity: 0.9;
+  transform: none;
+  transition-delay: var(--d);
+}
+
+/* The stat: one big number in its threshold colour */
+.sm .sm-count {
+  margin-top: 14px;
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1;
+  color: #73bf69;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: color 300ms linear;
+}
+.sm .sm-count[data-bad] {
+  font-size: 26px;
+  color: #f2495c;
+  animation: sm-in 300ms linear;
+}
+.sm .ss-stage[data-layout="compact"] .sm-count {
+  margin-top: 0;
+  font-size: 28px;
+}
+.sm .ss-stage[data-layout="compact"] .sm-count[data-bad] {
+  font-size: 22px;
+}
+@keyframes sm-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The gauge */
+.sm .sm-gauge svg {
+  display: block;
+  width: 132px;
+  margin: 14px auto 0;
+}
+.sm .sm-arc-bg,
+.sm .sm-arc {
+  fill: none;
+  stroke-width: 12;
+}
+.sm .sm-arc-bg {
+  stroke: var(--gf-raised);
+}
+.sm .sm-arc {
+  transition: stroke-dasharray 900ms cubic-bezier(0.4, 0, 0.3, 1), stroke 400ms linear;
+}
+.sm .sm-gauge-note {
+  margin-top: 6px;
+  text-align: center;
+  color: var(--gf-text-2);
+}
+
+/* On a phone the three labels take two rows, user_id on its own */
+.sm .ss-stage[data-layout="compact"] .sm-labels {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  margin-bottom: 26px;
+}
