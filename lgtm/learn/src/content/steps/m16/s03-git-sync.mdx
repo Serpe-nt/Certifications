@@ -1,0 +1,234 @@
+---
+id: m16-s03
+title: Git Sync for dashboards
+kind: lab
+minutes: 35
+order: 3
+outcome: You can explain how Git Sync keeps a Grafana folder and a Git repository in step, set up a repository connection as code, and read why a self-hosted Grafana refuses a Git server on a private address.
+terms:
+  - term: Git Sync
+    def: Grafana's two-way link between a folder of dashboards and a path in a Git repository.
+  - term: Repository resource
+    def: The Grafana object that names the Git URL, branch, path, sync target and allowed workflows of one Git Sync connection.
+  - term: Service account token
+    def: An API key that belongs to a Grafana service account, used by programs instead of a person's sign-in.
+  - term: SSRF
+    def: Server-side request forgery, tricking a server into calling addresses inside its own network on an attacker's behalf.
+exam:
+  - cert: none
+tags: [ascode-git-sync]
+check:
+  kind: regex
+  prompt: Paste the message of the refusal from action 8.
+  pattern: ".*(private|internal|not allowed|insecure).*"
+sources:
+  - title: Introduction to Git Sync (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/
+    checked: 2026-11-15
+  - title: Git Sync key concepts
+    url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/key-concepts/
+    checked: 2026-11-15
+  - title: Git Sync setup prerequisites
+    url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/git-sync-setup/set-up-before/
+    checked: 2026-11-15
+  - title: Set up Git Sync as code
+    url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/git-sync-setup/set-up-code/
+    checked: 2026-11-15
+  - title: Git Sync usage and performance limitations
+    url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/usage-limits/
+    checked: 2026-11-15
+  - title: Migrate existing dashboards to Git Sync
+    url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/add-resources/dashboards-migrate/
+    checked: 2026-11-15
+  - title: Configure Grafana, section provisioning (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/setup-grafana/configure-grafana/
+    checked: 2026-11-15
+  - title: Service accounts (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/administration/service-accounts/
+    checked: 2026-11-15
+  - title: Soft Serve, a self-hostable Git server
+    url: https://github.com/charmbracelet/soft-serve
+    checked: 2026-11-15
+---
+
+<Problem>
+Step 2 left a gap. A provisioned dashboard cannot be saved from the screen, so a colleague who wants to move one panel copies the JSON, edits it in a text editor, commits it and waits for a deploy. Most people give up and build a private copy by hand, and the drift from step 1 starts again.
+</Problem>
+
+<Idea>
+Git Sync links a Grafana folder to a path in a Git repository, in both directions. Grafana pulls the repository on an interval and creates the dashboards it finds; a save on the screen becomes a commit or a pull request. Generally available since Grafana 13.0, it is the method Grafana's documentation recommends for provisioning dashboards.
+</Idea>
+
+## How the two copies stay one
+
+Each connection is a Repository resource in Grafana's newer API, `provisioning.grafana.app`. It names the Git URL, the branch, a path inside the repository, a title and a sync target. With the default target `folder`, Grafana makes a folder titled like the connection and puts every dashboard JSON file under the path into it, with subfolders for subdirectories. With `folderless`, the files land at the top of the Dashboards list.
+
+From Git to Grafana, Grafana polls the branch, every 60 seconds by default on a self-hosted Grafana, or reacts at once to a webhook from the Git provider. From Grafana to Git, the save dialog of a synced dashboard asks for a branch, a file name and a comment. The workflow `write` lets it commit straight to the branch; `branch` makes it push a new branch and open a pull request instead. With no workflow the connection is read only.
+
+<Flow caption="One dashboard, edited on either side">
+  <Stage title="Screen" kicker="Save">A save becomes a commit or a pull request.</Stage>
+  <Stage title="Repository" kicker="branch and path">Review and merge as for code.</Stage>
+  <Stage title="Grafana" kicker="poll or webhook">Pulls the merge and updates the folder.</Stage>
+</Flow>
+
+## What it covers, and what it needs
+
+Git Sync manages dashboards and folders. Alert rules, data sources and library panels are not supported yet; they stay with provisioning files or Terraform. Moving an existing dashboard into a synced folder means exporting it to the repository and deleting the original, so that the synced copy can take over its UID. Git Sync makes its own folders, so a folder that file provisioning or Terraform owns stays separate even if the names match.
+
+A self-hosted Grafana 13 has the needed feature switch on by default. It can sync with GitHub through an app or a token, and with any other Git server through the type `git`, which speaks Git over HTTP with a token. Up to 10 connections are allowed by default, and Grafana advises staying under about 1,000 resources per connection.
+
+## A Git server inside the lab, and Grafana's answer
+
+No lesson pushes to GitHub, so this module runs its own Git server as a pod: Soft Serve, a small open-source server that speaks Git over HTTP. Your clone in WSL reaches it through a port-forward; pods reach it at `git.learn-m16.svc`.
+
+Grafana, however, refuses Git URLs that resolve to a loopback, private, link-local or unspecified address, unless the host is listed in the setting `allowed_git_urls`. This protects a Grafana server from being used to reach machines behind it, the attack called SSRF. A second setting, `allow_insecure`, is needed before Grafana sends a token over plain `http://`. The lab's Grafana sets neither, and its release is not changed for one lesson. So you will send the connection and read the refusal, which is what a self-hosted Grafana says until an administrator lists the internal host.
+
+<Compare caption="The same connection, two places">
+  <Col title="This lab">Git server on a cluster address; refused until allowed_git_urls and allow_insecure are set.</Col>
+  <Col title="Your own GitHub repository" hot>type github, a fine-grained token or a GitHub App, a public address; accepted.</Col>
+</Compare>
+
+With your own repository you would set `type` to `github`, give the `url` of the repository and a fine-grained token with read and write access to its contents and pull requests, and the same folder would appear within a minute.
+
+<Trap>
+Allowing a whole private range such as `10.0.0.0/8` in `allowed_git_urls` gives back the protection for every host in it, and the listed hosts receive the Git token on every sync. List the one Git host, not the network.
+</Trap>
+
+<Do>
+1. Create the practice namespace of this module: <Cmd>{`kubectl create namespace learn-m16`}</Cmd>
+2. In <LabLink to="grafana" path="/org/serviceaccounts">Administration > Users and access > Service accounts</LabLink>, click **Add service account**, name it `learn-m16`, choose the role **Admin** and click **Create**. Click **Add service account token**, name it `m16`, set an expiry of one day, and click **Generate token**. Leave the window open; the token is shown only once.
+3. Store the token in a Secret without showing or saving it anywhere else. Run this, paste the token when the cursor waits (nothing is echoed) and press Enter: <Cmd>{`read -rs TOKEN && printf %s "$TOKEN" | kubectl -n learn-m16 create secret generic grafana-m16 --from-file=token=/dev/stdin; unset TOKEN`}</Cmd> It prints `secret/grafana-m16 created`. Now close the token window.
+4. Save this as `m16-workbench.yaml`. It runs the Git server with anonymous read and write access, which is acceptable only inside a practice namespace, and a pod `work` with two tool containers that read the token from the Secret.
+
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: git
+     namespace: learn-m16
+   spec:
+     replicas: 1
+     selector:
+       matchLabels: { app: git }
+     template:
+       metadata:
+         labels: { app: git }
+       spec:
+         containers:
+           - name: soft-serve
+             image: charmcli/soft-serve:v0.12.4
+             env:
+               - { name: SOFT_SERVE_ANON_ACCESS, value: read-write }
+               - { name: SOFT_SERVE_HTTP_PUBLIC_URL, value: "http://git.learn-m16.svc:23232" }
+             ports:
+               - { name: http, containerPort: 23232 }
+             volumeMounts:
+               - { name: data, mountPath: /soft-serve }
+             resources:
+               requests: { cpu: 10m, memory: 32Mi }
+               limits: { cpu: 200m, memory: 128Mi }
+         volumes:
+           - { name: data, emptyDir: {} }
+   ---
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: git
+     namespace: learn-m16
+   spec:
+     selector: { app: git }
+     ports:
+       - { name: http, port: 23232, targetPort: http }
+   ---
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: work
+     namespace: learn-m16
+   spec:
+     containers:
+       - name: terraform
+         image: hashicorp/terraform:1.17.2
+         command: [sleep, "604800"]
+         workingDir: /work
+         env:
+           - { name: GRAFANA_URL, value: "http://grafana.grafana.svc" }
+           - name: GRAFANA_AUTH
+             valueFrom: { secretKeyRef: { name: grafana-m16, key: token } }
+         volumeMounts:
+           - { name: work, mountPath: /work }
+         resources:
+           requests: { cpu: 50m, memory: 128Mi }
+           limits: { cpu: "1", memory: 512Mi }
+       - name: curl
+         image: curlimages/curl:8.23.0
+         command: [sleep, "604800"]
+         env:
+           - { name: GRAFANA_URL, value: "http://grafana.grafana.svc" }
+           - name: GRAFANA_AUTH
+             valueFrom: { secretKeyRef: { name: grafana-m16, key: token } }
+         resources:
+           requests: { cpu: 10m, memory: 16Mi }
+           limits: { cpu: 100m, memory: 64Mi }
+     volumes:
+       - { name: work, emptyDir: {} }
+   ```
+5. Apply it and wait for both pods: <Cmd>{`kubectl apply -f m16-workbench.yaml && kubectl -n learn-m16 wait --for=condition=Ready pod --all --timeout=180s`}</Cmd>
+6. Forward a local port to the Git server, push a first commit to a new repository `m16`, and clone it into the pod: <Cmd>{`kubectl -n learn-m16 port-forward svc/git 18100:23232 >/dev/null 2>&1 &`}</Cmd> <Cmd>{`mkdir -p ~/m16 && cd ~/m16 && git init -q -b main && { echo 'terraform/.terraform/'; echo '*.tfstate*'; echo '*.plan'; } > .gitignore && git add .gitignore && git commit -q -m "Start the m16 repository" && git remote add origin http://127.0.0.1:18100/m16.git && git push -q origin main`}</Cmd> <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- git clone -q http://git.learn-m16.svc:23232/m16.git /work/m16`}</Cmd>
+7. Save this as `m16-repository.json`: a Git Sync connection for the path `grafana/` of your repository, synced into a folder titled `Learn m16`. The token is a placeholder; Soft Serve here needs none.
+
+   ```json
+   {
+     "apiVersion": "provisioning.grafana.app/v0alpha1",
+     "kind": "Repository",
+     "metadata": { "name": "learn-m16" },
+     "spec": {
+       "title": "Learn m16",
+       "type": "git",
+       "git": {
+         "url": "http://git.learn-m16.svc:23232/m16.git",
+         "branch": "main",
+         "path": "grafana/",
+         "tokenUser": "m16"
+       },
+       "sync": { "enabled": true, "target": "folder", "intervalSeconds": 60 },
+       "workflows": ["write"]
+     },
+     "secure": { "token": { "create": "placeholder" } }
+   }
+   ```
+8. Send it to Grafana's API with the token from the Secret, from the pod's `curl` container: <Cmd>{`kubectl -n learn-m16 exec -i work -c curl -- sh -c 'curl -s -X POST -H "Authorization: Bearer $GRAFANA_AUTH" -H "Content-Type: application/json" --data-binary @- "$GRAFANA_URL/apis/provisioning.grafana.app/v0alpha1/namespaces/default/repositories"' < m16-repository.json; echo`}</Cmd> Grafana answers with a `Status` object whose `message` explains the refusal. Copy that message for the check.
+9. Confirm that nothing was created: <Cmd>{`kubectl -n learn-m16 exec work -c curl -- sh -c 'curl -s -H "Authorization: Bearer $GRAFANA_AUTH" "$GRAFANA_URL/apis/provisioning.grafana.app/v0alpha1/namespaces/default/repositories"'; echo`}</Cmd> The list `items` is empty. Keep the namespace, the Secret and the workbench; the next steps use them.
+</Do>
+
+<Done>
+You stored a service account token without showing it, started a Git server and a work pod, pushed a first commit, and read why the lab's Grafana will not sync from a Git server on a private address.
+</Done>
+
+<Trap practice>
+If `git push` hangs or is refused, the port-forward has stopped, often after a pod restart. Start action 6's port-forward again. A new shell also needs `export KUBECONFIG=~/.kube/lgtm-lab.config`.
+</Trap>
+
+<Remember>
+Git Sync is a two-way link between one Grafana folder and one path in Git, for dashboards and folders only. A self-hosted Grafana refuses a Git server on a private address until `allowed_git_urls` names it.
+</Remember>
+
+<Question id="q-m16-s03" answer="a">
+A team connects its self-hosted Grafana 13 to its own Git server at `git.corp.internal`, which resolves to 10.20.0.15. The connection is refused before any sync. What fixes it with the least exposure?
+
+- Add `git.corp.internal` to `allowed_git_urls` in the `[provisioning]` section
+
+  Grafana rejects private addresses by default to prevent SSRF. Listing the one host allows it and nothing else.
+
+- Add `10.0.0.0/8` to `allowed_git_urls`
+
+  That works, but it reopens the whole private range to requests from Grafana, which the default exists to prevent.
+
+- Switch the connection's workflow from `write` to `branch`
+
+  The workflow decides how saves reach Git. It has nothing to do with which addresses Grafana may call.
+
+- Turn on the `provisioning` feature toggle
+
+  In Grafana 13 that toggle is already on by default for self-hosted instances.
+</Question>
