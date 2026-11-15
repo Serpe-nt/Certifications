@@ -2,11 +2,11 @@
 
 A tag names one topic. Steps teach tags, questions carry them, and the site uses them to send a learner from a missed question back to the steps that teach it and to build weak-spot practice. `npm run check:content` fails a module pool question whose tag no step teaches.
 
-Owned by the planner. Version 6 (2026-11-14): tags for m16 and m17 (wave 10). Version 5 (2026-11-14): tags for m13 to m15 (wave 9). Version 4 (2026-11-14): tags for m10 to m12 (wave 8). Version 3 (2026-11-13): four tags added for m07 to m09 (wave 7). Version 2 (2026-11-12): tags for m04 to m06 added for wave 6. Version 1 (2026-11-11) was built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
+Owned by the planner. Version 7 (2026-11-15): tags for m18 (wave 11). Version 6 (2026-11-14): tags for m16 and m17 (wave 10). Version 5 (2026-11-14): tags for m13 to m15 (wave 9). Version 4 (2026-11-14): tags for m10 to m12 (wave 8). Version 3 (2026-11-13): four tags added for m07 to m09 (wave 7). Version 2 (2026-11-12): tags for m04 to m06 added for wave 6. Version 1 (2026-11-11) was built from the pilot module and the two mock exam pools. A content worker uses the tags this list gives its module. When a module needs a tag that is not here, the worker uses it, names it in the pull request, and the planner adds it.
 
 ## Rules
 
-- Lower-case words joined by hyphens. The first word names the family: `helm-`, `prom-`, `promql-`, `exporter-`, `dashboard-`, `alert-`, `otel-`, `collector-`, and so on for later modules (`alloy-`, `mimir-`, `loki-`, `logql-`, `tempo-`, `traceql-`, `correlation-`, `incident-`, `slo-`, `ascode-`, `scale-`).
+- Lower-case words joined by hyphens. The first word names the family: `helm-`, `prom-`, `promql-`, `exporter-`, `dashboard-`, `alert-`, `otel-`, `collector-`, and so on for later modules (`alloy-`, `mimir-`, `loki-`, `logql-`, `tempo-`, `traceql-`, `correlation-`, `incident-`, `slo-`, `ascode-`, `scale-`, `capstone-`, `exam-`).
 - One tag is a topic a single step, or two or three neighbouring steps, can teach. Not one per question, and not one for a whole module.
 - A step carries 1 to 3 tags, a question 1 or 2; the first tag of a question is its main topic.
 - A tag has one home module. A later module may teach it again in more depth (the "Also" column); a question in that later module's pool may then carry it.
@@ -312,6 +312,15 @@ No quiz, so no question carries these; steps still need a tag.
 | `scale-security` | 15 |  | 0 |
 | `scale-managed` | 16 |  | 0 |
 
-## Modules without tags yet
+## m18 Capstone, interviews and exams
 
-m18. The planner adds its tags when its card is written; no mock question depends on them.
+The module has no quiz, so no pool question carries these tags; they name the steps for the site.
+
+| Tag | Steps | Also | Mock |
+|---|---|---|---|
+| `capstone-game-day` | 1 | uses the method that `incident-` tags of m14 teach | 0 |
+| `capstone-portfolio` | 2 |  | 0 |
+| `capstone-interview` | 3, and every step the interview bank is split into |  | 0 |
+| `exam-otca` | 4, 5 |  | 0 |
+| `exam-pca` | 6, 7 |  | 0 |
+| `capstone-next` | 8 |  | 0 |
