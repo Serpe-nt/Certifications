@@ -28,7 +28,7 @@ A rule `code-escape` in `src/lib/content-rules.ts`. It reads the same template s
 | `\${` | `${` | Without the backslash `${` would start a substitution. Grafana variables need it (m05 step 10, m14 step 6). |
 | `\u003c` | `<` | The course writes the angle brackets of LogQL patterns and named groups this way (m12 step 5, m14 step 9), because a word in angle brackets inside a step is read as a tag. |
 
-The error names the file, the line, what the page shows instead and the doubled form, for example `line 48: in this <Cmd>, \n reaches the page as a line break; write \\n`. Like every rule of `check:content`, the line is counted from the end of the frontmatter.
+The error names the file, the line, what the page shows instead and the doubled form, for example `line 77: in this <Cmd>, \n reaches the page as a line break; write \\n`. The line is counted from the top of the file, as in every rule of `check:content`.
 
 ## The edge
 

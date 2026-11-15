@@ -130,13 +130,13 @@ describe('rules', () => {
     const jsonpath = String.raw`kubectl -n grafana get configmap dashboard-shop-red-checkout -o jsonpath='{.metadata.annotations.grafana_folder}{"\n"}'`;
     const issues = errors(checkContent(loadCorpus(sampleWith(cmd(jsonpath)))).issues);
     expect(issues.map((i) => i.rule)).toEqual(['code-escape']);
-    expect(issues[0].message).toBe(String.raw`line 12: in this <Cmd>, \n reaches the page as a line break; write \\n`);
+    expect(issues[0].message).toBe(String.raw`line 26: in this <Cmd>, \n reaches the page as a line break; write \\n`);
     // m01 step 17 before pull request 104: the page showed 'a|b', which grep matched literally.
     expect(rulesFor(cmd(String.raw`grep -n 'deploymentMode\|auth_enabled\|retention_period' helm/loki/values.yaml`))).toEqual([`${f} code-escape`, `${f} code-escape`]);
     expect(rulesFor(cmd(String.raw`kubectl get cm x -o jsonpath='{.data.config\\.yaml}{"\\n"}'`))).toEqual([]);
     // The line is the line of the backslash.
     const second = errors(checkContent(loadCorpus(sampleWith(cmd(String.raw`echo a` + '\n' + String.raw`grep 'a\.b' f`)))).issues);
-    expect(second[0].message).toMatch(/^line 13: in this <Cmd>, \\\. reaches the page as \. without the backslash/);
+    expect(second[0].message).toMatch(/^line 27: in this <Cmd>, \\\. reaches the page as \. without the backslash/);
   });
 
   it('token slots are unique', () => {
