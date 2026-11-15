@@ -75,7 +75,7 @@ Do not drop what an alert reads. Before any cut, search the rules and dashboards
 </Trap>
 
 <Do>
-1. In WSL, create the namespace if step 15 has not: <Cmd>{`kubectl create namespace learn-m17`}</Cmd> Save this file as `m17-collector.yaml`. The collector scrapes its own metrics every 15 seconds and sends them to Mimir as tenant `learn-m17`:
+1. In WSL, create the practice namespace: <Cmd>{`kubectl create namespace learn-m17`}</Cmd> Save this file as `m17-collector.yaml`. The collector scrapes its own metrics every 15 seconds and sends them to Mimir as tenant `learn-m17`:
 
    ```yaml
    apiVersion: v1
@@ -139,27 +139,55 @@ Do not drop what an alert reads. Before any cut, search the rules and dashboards
    ```
 
    Apply it: <Cmd>{`kubectl apply -f m17-collector.yaml`}</Cmd> <Cmd>{`kubectl -n learn-m17 rollout status deployment/collector`}</Cmd>
-2. Wait two minutes, then count the series the tenant received in the last minute: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m17' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(count_over_time({__name__=~".+"}[1m]))'; echo`}</Cmd> Note the number, and the number of histogram bucket series: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m17' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(count_over_time({__name__=~".+_bucket"}[1m]))'; echo`}</Cmd>
-3. Add a filter that drops every histogram. In `m17-collector.yaml`, add this processor under `processors`, at the same indentation as `batch`:
+2. Wait two minutes, then count the series the tenant received in the last minute: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m17' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(last_over_time({__name__=~".+"}[1m]))'; echo`}</Cmd> Note the number, and the number of histogram bucket series: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: learn-m17' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(last_over_time({__name__=~".+_bucket"}[1m]))'; echo`}</Cmd>
+3. Add a filter that drops every histogram. Save this new version of the collector's configuration as `m17-filter.yaml`; it adds the processor `filter/histograms` and puts it first in the pipeline:
 
    ```yaml
-       filter/histograms:
-         metric_conditions:
-           - metric.type == METRIC_DATA_TYPE_HISTOGRAM
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: collector
+     namespace: learn-m17
+   data:
+     config.yaml: |
+       receivers:
+         prometheus:
+           config:
+             scrape_configs:
+               - job_name: self
+                 scrape_interval: 15s
+                 static_configs:
+                   - targets: ["localhost:8888"]
+       processors:
+         filter/histograms:
+           metric_conditions:
+             - metric.type == METRIC_DATA_TYPE_HISTOGRAM
+         batch: {}
+       exporters:
+         otlphttp:
+           endpoint: http://mimir-gateway.mimir.svc/otlp
+           headers:
+             X-Scope-OrgID: learn-m17
+       service:
+         pipelines:
+           metrics:
+             receivers: [prometheus]
+             processors: [filter/histograms, batch]
+             exporters: [otlphttp]
    ```
 
-   and change the pipeline's processors to `[filter/histograms, batch]`. Apply the file and restart the collector, which reads its configuration only at start: <Cmd>{`kubectl apply -f m17-collector.yaml && kubectl -n learn-m17 rollout restart deployment/collector && kubectl -n learn-m17 rollout status deployment/collector`}</Cmd>
+   Apply it and restart the collector, which reads its configuration only at start: <Cmd>{`kubectl apply -f m17-filter.yaml && kubectl -n learn-m17 rollout restart deployment/collector && kubectl -n learn-m17 rollout status deployment/collector`}</Cmd>
 4. Wait two minutes, so that the old series leave the one-minute window, and count again with both queries of action 2.
-5. Delete the collector: <Cmd>{`kubectl -n learn-m17 delete deployment/collector configmap/collector`}</Cmd> If you do not go on to step 15 now, delete the namespace: <Cmd>{`kubectl delete namespace learn-m17`}</Cmd>
+5. Delete the namespace with the collector in it: <Cmd>{`kubectl delete namespace learn-m17`}</Cmd>
 6. Work out the share of series the filter removed and enter it in the check below.
 </Do>
 
 <Done>
-The bucket series went to zero and the total fell by the same amount. The counters and gauges of the collector arrived as before.
+The bucket series went to zero, and the total fell by about as many. The collector's counters and gauges kept arriving.
 </Done>
 
 <Trap practice>
-Count with `count_over_time` over one minute, not with a plain selector. Mimir's instant query looks back five minutes, so series that stopped two minutes ago are still counted by a plain selector.
+Count with `last_over_time` over one minute, not with a plain selector: Mimir's instant query looks back five minutes, so series that stopped two minutes ago still count. `count_over_time` will not do either; it drops the metric name, and series that differ only by name collide.
 </Trap>
 
 <Remember>

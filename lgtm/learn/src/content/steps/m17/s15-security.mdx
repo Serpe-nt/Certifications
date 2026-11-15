@@ -86,6 +86,9 @@ A NetworkPolicy without a network plugin that enforces it is accepted by the API
          command: ["python", "-m", "http.server", "8080"]
          ports:
            - containerPort: 8080
+         readinessProbe:
+           tcpSocket:
+             port: 8080
          resources:
            requests: { cpu: 10m, memory: 32Mi }
            limits: { memory: 64Mi }
@@ -159,7 +162,7 @@ A NetworkPolicy without a network plugin that enforces it is accepted by the API
    ```
 
    Apply it: <Cmd>{`kubectl apply -f web-policy.yaml`}</Cmd>
-4. Test both again, and print curl's exit code: <Cmd>{`for p in client other; do kubectl -n learn-m17 exec $p -- curl -s -m 3 -o /dev/null -w "$p: %{http_code}" http://web:8080/; echo " exit $?"; done`}</Cmd> `client` still gets `200` with exit 0. `other` waits three seconds and gives up.
+4. Test both again, and print curl's exit code: <Cmd>{`for p in client other; do kubectl -n learn-m17 exec $p -- curl -s -m 3 -o /dev/null -w "$p: %{http_code}" http://web:8080/; echo " exit $?"; done`}</Cmd> `client` still gets `200` with exit 0. `other` waits three seconds and gives up: it prints `000`, kubectl reports `command terminated with exit code 28`, and the line ends with that exit code.
 5. Read the broker policy Strimzi installed, and find the rule for port 9092: <Cmd>{`kubectl -n kafka get networkpolicy telemetry-network-policy-kafka -o yaml | grep -B3 'port: 9092'`}</Cmd> The rule has `ports` and no `from`: any pod may connect.
 6. Delete the namespace with everything in it: <Cmd>{`kubectl delete namespace learn-m17`}</Cmd>
 7. Paste the exit code `other` got in action 4 in the check below.
