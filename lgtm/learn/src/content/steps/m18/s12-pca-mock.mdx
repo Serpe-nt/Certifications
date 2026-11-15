@@ -1,0 +1,80 @@
+---
+id: m18-s12
+title: "The PCA mock exam: sit it, read it, act on it"
+kind: concept
+minutes: 105
+order: 12
+outcome: You can sit the site's PCA mock exam under exam conditions, read its result per domain, and plan what to study when a domain is below the mark.
+exam:
+  - cert: pca
+    domain: P3
+    competency: Selecting Data
+tags: [exam-pca]
+sources:
+  - title: Prometheus Certified Associate (PCA), Linux Foundation
+    url: https://training.linuxfoundation.org/certification/prometheus-certified-associate/
+    checked: 2026-11-15
+  - title: "Candidate handbook: the multiple choice exam screen (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/lf-handbook2/exam-user-interface/examui-multiple-choice-exams
+    checked: 2026-11-15
+---
+
+<Problem>
+In the PCA exam, a PromQL question gives you a query and four results, and there is no Prometheus to try it on. You must read the query in your head: which selector, which range, which aggregation, which labels survive. Ninety minutes of that is a different skill from writing queries in Explore.
+</Problem>
+
+<Idea>
+The site's PCA mock exam works like the OTCA one: 60 questions split by the five domain weights, 90 minutes, 75% to pass, no feedback until you submit. Sit it once under exam conditions and read the result per domain. For PromQL questions, practise reading a query without running it.
+</Idea>
+
+<Figures caption="Questions per domain in the PCA mock exam" unit="questions">
+  <Stat label="P1 Observability concepts" value="11" amount={11} max={17} />
+  <Stat label="P2 Prometheus fundamentals" value="12" amount={12} max={17} />
+  <Stat label="P3 PromQL" value="17" amount={17} max={17} hot />
+  <Stat label="P4 Instrumentation and exporters" value="9" amount={9} max={17} />
+  <Stat label="P5 Alerting and dashboarding" value="11" amount={11} max={17} />
+</Figures>
+
+## The mock and how to sit it
+
+Open the [PCA mock exam](../../../exam/pca/). It draws its 60 questions from the PCA mock pool and from the module questions mapped to a PCA domain, those you have never answered first, then those you got wrong last time. Everything step 10 says about the OTCA mock holds here: one sitting with nothing else open, flags for the questions you are unsure of, an automatic submit when the 90 minutes are over. The site runs one mock exam at a time; finish or drop a running OTCA mock before you start this one.
+
+## Reading PromQL without a prompt
+
+Seventeen of the 60 questions are PromQL. Read each query from the inside out. First the selector: which metric and which label matchers. Then the range or the offset, and whether the function needs a counter or a gauge. Then the aggregation: which labels are kept by `by`, which are dropped by `without`, and what a binary operator matches on. Many wrong options differ from the right one in exactly one of these. If a question names a function you have not used, flag it, finish the others, and come back.
+
+## Read the result, then act
+
+The result page is the same as for OTCA: the score with Passed or Not passed against 45 of 60, the minutes you took, a bar and "right of asked" per domain from P1 to P5, and every question with its explanations. Start with the weakest domain, weighted by its share, and go back to its modules, which step 11 lists. Then let the review queue bring back the questions you missed, use weak-spot practice for the tags you miss most, and sit the mock again in a few days. For PromQL, run the queries from the explanations on your lab's Prometheus: a result you have seen is easier to recognise.
+
+<InLab>
+Your lab's Prometheus has the metrics most PromQL questions use, such as `up`, counters whose names end in `_total`, and histogram buckets ending in `_bucket`. Rebuilding a question's query against them is the fastest way to fix a misunderstanding.
+</InLab>
+
+<Trap>
+Do not sit both mocks on the same day to save time. Each needs a fresh 90 minutes, and the second score would tell you more about fatigue than about the exam's content.
+</Trap>
+
+<Remember>
+Same rules as the OTCA mock: one sitting, no help, result per domain first. Read PromQL from the selector outwards, and run what surprised you on the lab afterwards.
+</Remember>
+
+<Question id="q-m18-s12" answer="c">
+A mock question shows `sum by (job) (rate(http_requests_total[5m]))`. Which labels are on the result?
+
+- Every label of http_requests_total, because rate() keeps the labels
+
+  rate() keeps them, but sum by (job) then drops every label except job.
+
+- No labels at all, because sum() always returns one series
+
+  Without by, it would. With by (job), there is one series per job.
+
+- Only job, with one series per value of job
+
+  sum by (job) aggregates over every other label and keeps only job.
+
+- job and __name__, because the metric name survives the sum
+
+  Aggregation drops the metric name. Only the labels named in by remain.
+</Question>

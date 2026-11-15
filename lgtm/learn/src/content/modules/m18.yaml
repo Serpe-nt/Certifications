@@ -1,0 +1,6 @@
+id: m18
+title: Capstone, interviews and exams
+goal: Prove it. Find faults you were not told about, show what you built, answer interview questions aloud, and sit both mock exams.
+order: 18
+quiz: false
+exams: [otca, pca]

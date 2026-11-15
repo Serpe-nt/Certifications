@@ -1,0 +1,134 @@
+---
+id: m18-s03
+title: "Interview bank 1: signals, SLOs and alerts"
+kind: concept
+minutes: 20
+order: 3
+outcome: You can answer, aloud and in under two minutes each, five questions on signals, the golden signals, SLOs, error budgets and what deserves a page, and handle the follow-up.
+exam:
+  - cert: pca
+    domain: P1
+    competency: Basics of SLOs, SLAs, and SLIs
+tags: [capstone-interview]
+terms:
+  - term: Model answer
+    def: What a good answer covers, in plain words; not a text to learn by heart.
+  - term: Follow-up
+    def: The next question an interviewer asks to see whether you understood the first answer.
+sources:
+  - title: Observability primer (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/observability-primer/
+    checked: 2026-11-15
+  - title: Monitoring distributed systems (Google SRE book)
+    url: https://sre.google/sre-book/monitoring-distributed-systems/
+    checked: 2026-11-15
+  - title: Grafana dashboard best practices (USE, RED, golden signals)
+    url: https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/best-practices/
+    checked: 2026-11-15
+  - title: Service level objectives (Google SRE book)
+    url: https://sre.google/sre-book/service-level-objectives/
+    checked: 2026-11-15
+  - title: Alerting on SLOs (Google SRE workbook)
+    url: https://sre.google/workbook/alerting-on-slos/
+    checked: 2026-11-15
+  - title: Example error budget policy (Google SRE workbook)
+    url: https://sre.google/workbook/error-budget-policy/
+    checked: 2026-11-15
+  - title: Alerting practices (Prometheus)
+    url: https://prometheus.io/docs/practices/alerting/
+    checked: 2026-11-15
+---
+
+<Problem>
+The interviewer leans back: "So, what is an SLO?" You know the answer. You have built one. But you start with burn rates, jump to Mimir, and stop in the middle of a sentence about recording rules. The answer was in there. They could not find it.
+</Problem>
+
+The next six steps are a bank of thirty questions that come back in interviews for observability and platform roles, five per step. This one covers the ideas every other answer builds on.
+
+<Idea>
+A good spoken answer starts with a one-sentence definition, gives one example from your own lab, and names one trade-off or limit. That fits in under two minutes and invites the follow-up you are ready for. Each topic below gives the question, what a good answer covers, the follow-up, and the steps of this course that teach it.
+</Idea>
+
+<Flow caption="The shape of a spoken answer">
+  <Stage title="Define" kicker="One sentence">What it is, in plain words.</Stage>
+  <Stage title="Show" kicker="Your lab">One example you saw yourself.</Stage>
+  <Stage title="Limit" kicker="Trade-off">Where it stops working, or what it costs.</Stage>
+</Flow>
+
+## Monitoring, observability and the three signals
+
+Asked: "What is the difference between monitoring and observability? And when do you use metrics, logs or traces?"
+
+Monitoring watches numbers you chose in advance and tells you that something is broken. Observability means the system sends enough data that you can ask new questions afterwards and find out why, also for failures nobody predicted. Metrics are numbers measured over time; they are small and fast to query, so they drive dashboards and alerts, and they cannot show a single request. Logs are records of single events with their detail. A trace follows one request through every service as a tree of spans. In your lab the three share the trace ID, so you can jump from a slow minute on a graph to one trace and to its log lines.
+
+Follow-up: "Which one would you alert on?" Metrics, because they are cheap to evaluate every few seconds; traces and logs are where you look for the cause.
+
+Taught in: [m02 step 1](../../m02/s01/), [m02 step 2](../../m02/s02/), [m02 step 4](../../m02/s04/), [m02 step 6](../../m02/s06/).
+
+## Golden signals, RED and USE
+
+Asked: "What would you put on the first dashboard for a new service?"
+
+Start from the four golden signals of Google's SRE book: latency, traffic, errors and saturation. If you can measure only four things about a service that users call, measure these. The RED method is the same idea for request-driven services, without saturation: rate, errors and duration. The USE method is for resources such as CPU, memory and disks: utilization, saturation and errors. In practice you build RED per service and USE per node, and you read latency as a distribution (p50, p95, p99), not as an average.
+
+Follow-up: "Why not the average latency?" An average hides the slow tail that some users feel; a percentile shows it.
+
+Taught in: [m02 step 7](../../m02/s07/), [m04 step 13](../../m04/s13/), [m05 step 8](../../m05/s08/), [m06 step 9](../../m06/s09/).
+
+## SLI, SLO and SLA
+
+Asked: "What is the difference between an SLI, an SLO and an SLA?"
+
+An SLI is a measurement of the service as users see it, usually a ratio: good requests divided by all requests. An SLO is the target for that SLI over a time window, for example 99.9% of orders succeed over 30 days. An SLA is a contract with users that says what happens when the SLO is missed, such as a refund. The SRE book's test is simple: if missing it has no explicit consequence, it is an SLO. Give your own example: in this course, the SLI was checkout's failed orders from span metrics, with an SLO of 99.9%.
+
+Follow-up: "Why not 100%?" The SRE book calls a 100% target unrealistic and undesirable: it slows down every change and needs expensive, overly careful designs. A budget of allowed failures is the better tool.
+
+Taught in: [m02 step 8](../../m02/s08/), [m15 step 8](../../m15/s08/).
+
+## Error budgets and burn rate
+
+Asked: "What is an error budget, and how do you alert on it?"
+
+The error budget is what the SLO allows to fail: at 99.9% over 30 days, one request in a thousand. A team spends it on risk: releases, experiments, maintenance. An error budget policy says what happens when it runs out, for example a freeze on releases other than fixes. Burn rate is how fast you use the budget compared with an even pace; a burn rate of 1 uses all of it exactly at the end of the window. The SRE workbook pages on a burn rate of 14.4 over one hour (2% of a 30-day budget) and of 6 over six hours (5%), each checked against a short window as well, so that the alert also stops soon after the errors stop.
+
+Follow-up: "Why two windows?" The long window makes the alert significant; the short one makes it reset within minutes once the problem is gone.
+
+Taught in: [m15 step 9](../../m15/s09/), [m15 step 10](../../m15/s10/), [m15 step 11](../../m15/s11/).
+
+## What deserves a page
+
+Asked: "How do you keep on-call from drowning in alerts?"
+
+Page on symptoms that users feel, such as errors and latency at the edge of the service, and not on every possible cause, such as one busy CPU. Prometheus's own guidance says the same: keep alerting simple, alert on symptoms, and have good dashboards to find the cause. Every page must be urgent and need a human to act. Anything else goes into a ticket or a dashboard. Then measure the noise: alerts that fire and resolve on their own, or that nobody acts on, get removed or turned into something quieter.
+
+Follow-up: "So you never alert on a cause?" Only where the cause predicts a symptom before users feel it, such as a disk that fills in four hours.
+
+Taught in: [m15 step 1](../../m15/s01/), [m15 step 12](../../m15/s12/), [m15 step 13](../../m15/s13/).
+
+<Trap>
+Do not learn these answers word for word. An interviewer hears a recited text at once, and the first follow-up breaks it. Learn what each answer must cover, then say it in your own words with your own lab as the example.
+</Trap>
+
+<Remember>
+Define in one sentence, show one example from your lab, name one limit. Then stop and let them ask the follow-up.
+</Remember>
+
+<Question id="q-m18-s03" answer="c">
+An interviewer asks how an SLA differs from an SLO. Which answer is the most accurate?
+
+- The SLA is the measurement, the SLO is the target for it
+
+  That describes an SLI and an SLO. The SLI is the measurement.
+
+- The SLA covers a longer time window than the SLO
+
+  The time window does not make the difference. Both can use the same window.
+
+- The SLA is a contract that says what happens when the target is missed
+
+  The consequence, such as a refund, is what makes a target an SLA.
+
+- The SLA is the internal target, the SLO is the one shown to users
+
+  It is closer to the other way round. The SLA is what users are promised.
+</Question>
