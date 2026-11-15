@@ -941,7 +941,19 @@ containers again on worker4 with an empty page cache. Every pod of the shop was 
   rests on the pod measured before the fix (12.6 MiB of its program charged at 19:22, `ckrm8` 10.7
   MiB at 19:54) and on its program's size, 21.15 MiB, which 40Mi holds beside `GOMEMLIMIT`.
 
-COLD_WATCH
+Every two minutes from 22:55:51 to 23:15:59 (p95 over 5 minutes), with every fault flag off:
+
+| | Range |
+|---|---|
+| product-catalog p95 | 7.8 to 9.9 ms |
+| checkout `PlaceOrder` p95 | 74.2 and 76.8 ms at 22:55:51 and 22:57:52, windows that still held the restart; 15.6 to 27.2 ms from 22:59:53 |
+| product-catalog usage | 11.8 to 13.4 MiB of 40 MiB |
+| checkout usage | 10.6 to 12.1 MiB of 40 MiB |
+| Major page faults, both | 0.70 a second at most at 22:55:51, 0.06 or less from 22:57:52 |
+| Alerts firing | `Watchdog` only |
+
+`make lab-check` 23:18:11 to 23:18:18: `LAB CHECK PASSED`; check 10 shows checkout at 33% of its
+limit and product-catalog at 32%.
 
 ### Afterwards
 
