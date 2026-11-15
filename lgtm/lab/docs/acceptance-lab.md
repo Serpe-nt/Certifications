@@ -847,4 +847,6 @@ That is what `demo.md`, "Error spans with every flag off", says.
 
 ### Afterwards
 
-`make lab-check` 18:49:09 to 18:49:16: `LAB CHECK PASSED`.
+`make lab-check` 18:49:09 to 18:49:16: `LAB CHECK PASSED`. `make lab` from `main`, every release,
+18:52:18 to 18:53:29: `ok=29 changed=0 unreachable=0 failed=0`. `make lab-check` 18:53:36:
+`LAB CHECK PASSED`.
