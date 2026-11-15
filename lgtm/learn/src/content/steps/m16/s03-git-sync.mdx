@@ -216,7 +216,7 @@ Git Sync is a two-way link between one Grafana folder and one path in Git, for d
 <Question id="q-m16-s03" answer="a">
 A team connects its self-hosted Grafana 13 to its own Git server at `git.corp.internal`, which resolves to 10.20.0.15. The connection is refused before any sync. What fixes it with the least exposure?
 
-- Add `git.corp.internal` to `allowed_git_urls` in the `[provisioning]` section
+- List `git.corp.internal` in `allowed_git_urls`
 
   Grafana rejects private addresses by default to prevent SSRF. Listing the one host allows it and nothing else.
 

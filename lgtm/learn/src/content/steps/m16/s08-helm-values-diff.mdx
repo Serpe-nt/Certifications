@@ -109,7 +109,7 @@ Before an upgrade, a reviewer wants to see exactly which Kubernetes objects will
 
   The values diff and a lint say nothing about the rendered objects the cluster will receive.
 
-- `helm get manifest` of the release, and `helm template` with the new values, then `diff`
+- `diff` of `helm get manifest` and `helm template` output
 
   The stored manifest is what runs; the rendering is what the upgrade will apply. Their difference is the change.
 
