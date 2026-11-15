@@ -46,9 +46,11 @@ A game day puts a fault into the system on purpose, and you find it as if it wer
 
 ## How a round runs
 
-You play three rounds. In each, `gameday.py start` reads the flag screen's API and refuses to start while any flag is on, or while the shop is still in its quiet time after the last round. Then it picks one fault from its list, switches it on, writes the choice and the time into `~/gameday.json`, and prints only the time. From there you work as on call: find the symptom, narrow it with a metric, open one trace, read its logs, and test your guess. When one piece of evidence explains the symptom, write your line. Then `gameday.py reveal` switches the fault off, reads the API again to prove that every flag is off, and prints what it was and how long it ran.
+You play three rounds. In each, `gameday.py start` reads the flag screen's API and refuses to start while any flag is on, or while the shop is still in its quiet time after the last round. Then it picks one fault from its list, switches it on, writes the choice and the time into `~/gameday.json`, and prints only the time. From there you work as on call: find the symptom, narrow it with a metric, open one trace, read its logs, and test your guess. When one piece of evidence explains the symptom, write your line. Then `gameday.py reveal` puts the flag back to the value it saved, reads the API again to prove that every flag is off, and prints what it was and how long it ran.
 
-Do not open `~/gameday.json` or the flag screen during a round; both tell you the answer. The SRE book says the same about real incidents: start from what users see, and test each guess against the system rather than against what you expect.
+Every change goes the same way, because a write to the API replaces the whole flag document: read it, change one flag, check that nobody changed the document in the meantime, write, and read again to prove that exactly that flag changed. If someone else switched a flag in between, the script stops and writes nothing.
+
+Do not open `~/gameday.json` or the flag screen during a round; both tell you the answer. The flag screen also has a Scheduler tab that switches random flags on and off by itself; it shows which ones it picked, so it is no use for a game day. The SRE book says the same about real incidents: start from what users see, and test each guess against the system rather than against what you expect.
 
 ## The faults in the draw
 
@@ -58,7 +60,7 @@ Ten other flags are left out. `recommendationCacheFailure` makes recommendation 
 
 ## The guard, and the rules of the shared lab
 
-A flag is never on for longer than 15 minutes. When `start` switches the fault on, it also starts a pod named `gameday-guard` in the namespace `learn-m18`. The pod waits 15 minutes and then switches every flag of the draw off. It runs in the cluster, so it works even if you close the terminal, WSL stops or you walk away; `reveal` deletes it. The pod's definition holds the script and nothing about which fault is on.
+A flag is never on for longer than 15 minutes. When `start` switches the fault on, it also starts a pod named `gameday-guard` in the namespace `learn-m18`. The pod waits 15 minutes and then switches every flag of the draw off. It runs in the cluster, so it works even if you close the terminal, WSL stops or you walk away; `reveal` deletes it. If the guard was first, `reveal` says so: the round ran out of time. The pod's definition holds the script and nothing about which fault is on.
 
 The lab is shared, so the usual rules hold: one flag at a time in the whole lab, and ten quiet minutes between rounds so that the next round starts from a quiet shop. The script enforces both. A quiet shop still shows error spans, on purpose: every 10 minutes the flag streams of ad, fraud-detection and recommendation end with DEADLINE_EXCEEDED. Leave them out of every search for errors with `&& name != "flagd.evaluation.v2.Service/EventStream"`.
 
@@ -82,10 +84,10 @@ Do not stop at the first service that shows errors. A fault in one service often
    #!/usr/bin/env python3
    # Game day for the lab: one fault you do not know, found with the method, then revealed.
    #   python3 gameday.py start    refuse if any flag is on; switch one fault on; start the guard
-   #   python3 gameday.py reveal   switch it off, prove every flag is off, say what it was
+   #   python3 gameday.py reveal   put the flag back, prove every flag is off, say what it was
    # The guard is a pod in learn-m18 that switches every game-day flag off after 15 minutes,
    # also when this terminal or WSL is closed. It holds no hint of which fault is on.
-   import datetime, json, os, random, subprocess, sys, time, urllib.request
+   import copy, datetime, json, os, random, subprocess, sys, time, urllib.request
 
    API = os.environ.get("FLAG_API", "http://10.10.0.5/feature/api")
    HOST = os.environ.get("FLAG_HOST", "flags.lab.k8s.local")
@@ -123,9 +125,28 @@ Do not stop at the first service that shows errors. A fault in one service often
        else:
            flag["defaultVariant"] = value
 
-   def flags_on():
-       doc = call("/read")
-       return doc, sorted(n for n, f in doc["flags"].items() if variant(f) != "off")
+   def flags_on(doc):
+       return sorted(n for n, f in doc["flags"].items() if variant(f) != "off")
+
+   def changed(a, b):
+       names = set(a["flags"]) | set(b["flags"])
+       return {n for n in names if a["flags"].get(n) != b["flags"].get(n)}
+
+   def change(wanted):
+       # wanted: {flag: variant}. Read, change only these flags, write, read again and prove it.
+       # A write replaces the whole document, so stop if anyone changed it since our read.
+       before = call("/read")
+       after = copy.deepcopy(before)
+       for name, value in wanted.items():
+           switch(after, name, value)
+       expected = changed(before, after)
+       if call("/read") != before:
+           raise SystemExit("Stopped: the flags changed while this script was working. Nothing written.")
+       call("/write", after)
+       now = call("/read")
+       if changed(before, now) != expected or any(variant(now["flags"][n]) != v for n, v in wanted.items()):
+           raise SystemExit("Stopped: after the write the flags differ from what was written. Read the flag screen.")
+       return before, now
 
    def utc(t):
        return datetime.datetime.fromtimestamp(t, datetime.timezone.utc).strftime("%H:%M:%S UTC")
@@ -142,13 +163,21 @@ Do not stop at the first service that shows errors. A fault in one service often
            json.dump(state, f)
 
    def guard():
-       # Runs in the pod: wait, then switch every game-day flag off.
+       # Runs in the pod: wait, then switch every game-day flag that is on back to off.
        time.sleep(LIMIT)
-       doc, on = flags_on()
-       for name in FAULTS:
-           switch(doc, name, "off")
-       call("/write", doc)
-       print(utc(time.time()), "guard: game-day flags off; were on:", ", ".join(on) or "none", flush=True)
+       for attempt in range(5):
+           on = [n for n in flags_on(call("/read")) if n in FAULTS]
+           if not on:
+               print(utc(time.time()), "guard: no game-day flag was on", flush=True)
+               return
+           try:
+               _, now = change({n: "off" for n in on})
+               print(utc(time.time()), "guard: switched off; flags on now:", ", ".join(flags_on(now)) or "none", flush=True)
+               return
+           except SystemExit as e:
+               print(utc(time.time()), "guard:", e, "Trying again.", flush=True)
+               time.sleep(3)
+       raise SystemExit("guard: could not switch the flags off")
 
    def kubectl(*args, stdin=None):
        return subprocess.run(["kubectl", *args], input=stdin, text=True, capture_output=True)
@@ -189,19 +218,16 @@ Do not stop at the first service that shows errors. A fault in one service often
        wait = state.get("ended", 0) + QUIET - time.time()
        if wait > 0:
            sys.exit("Keep the shop quiet for %d more minutes before the next round." % (wait // 60 + 1))
-       doc, on = flags_on()
+       on = flags_on(call("/read"))
        if on:
            sys.exit("Not started: these flags are on already: " + ", ".join(on))
        name = random.choice(sorted(FAULTS))
-       switch(doc, name, FAULTS[name])
-       call("/write", doc)
+       before, _ = change({name: FAULTS[name]})
        now = time.time()
-       save({"flag": name, "variant": FAULTS[name], "started": now})
+       save({"flag": name, "variant": FAULTS[name], "was": variant(before["flags"][name]), "started": now})
        problem = start_guard()
        if problem:
-           doc, _ = flags_on()
-           switch(doc, name, "off")
-           call("/write", doc)
+           change({name: variant(before["flags"][name])})
            save({"ended": now})
            sys.exit("The guard did not start, so the fault is off again: " + problem)
        print("Round started at %s. A fault is on." % utc(now))
@@ -211,20 +237,18 @@ Do not stop at the first service that shows errors. A fault in one service often
        state = load()
        if not state.get("flag"):
            sys.exit("No round is open.")
-       doc, _ = flags_on()
-       name, was_on = state["flag"], variant(doc["flags"][state["flag"]]) != "off"
-       switch(doc, name, "off")
-       call("/write", doc)
-       now = time.time()
-       _, on = flags_on()
-       kubectl("-n", "learn-m18", "delete", "pod", "gameday-guard", "--ignore-not-found", "--wait=false")
-       save({"ended": now})
-       print("The fault was %s = %s, on from %s." % (name, state["variant"], utc(state["started"])))
-       if was_on:
-           print("Switched off at %s, after %.1f minutes." % (utc(now), (now - state["started"]) / 60))
+       name = state["flag"]
+       if variant(call("/read")["flags"][name]) == state["was"]:
+           now = call("/read")
+           note = "The guard had already switched it off, 15 minutes after the start. The round ran out of time."
        else:
-           print("The guard had already switched it off.")
-       print("Flags on now:", ", ".join(on) or "none")
+           _, now = change({name: state["was"]})
+           note = "Switched off at %s, after %.1f minutes." % (utc(time.time()), (time.time() - state["started"]) / 60)
+       kubectl("-n", "learn-m18", "delete", "pod", "gameday-guard", "--ignore-not-found", "--wait=false")
+       save({"ended": time.time()})
+       print("The fault was %s = %s, on from %s." % (name, state["variant"], utc(state["started"])))
+       print(note)
+       print("Flags on now:", ", ".join(flags_on(now)) or "none")
 
    if __name__ == "__main__":
        command = {"start": start, "reveal": reveal, "guard": guard}.get(sys.argv[1] if sys.argv[1:] else "")
@@ -245,7 +269,7 @@ Three rounds ran, each fault was revealed after your line, and each reveal print
 </Done>
 
 <Trap practice>
-If `reveal` prints that the guard had already switched the fault off, your round took longer than 15 minutes. Count it as unsolved, and take the next round with the method in a stricter order. If `start` says a round is open after a break, run `reveal` first: the script remembers the open round in `~/gameday.json`.
+If `reveal` prints that the guard had already switched the fault off, your round took longer than 15 minutes. Count it as unsolved, and take the next round with the method in a stricter order. If `start` says a round is open after a break, run `reveal` first: the script remembers the open round in `~/gameday.json`. If either command stops because the flags changed while it worked, someone else is using the flag screen: wait a few minutes and run it again.
 </Trap>
 
 <Remember>
