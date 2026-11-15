@@ -155,9 +155,12 @@ components:
     readinessProbe:
       grpc: { port: 5050 }
       timeoutSeconds: 3
+    # The limit holds GOMEMLIMIT plus the whole 22 MiB program file, which the
+    # kernel charges to the container when the node's page cache does not
+    # already hold it, for example after the node restarted (ADR l11-shop-memory-limits).
     resources:
-      requests: { cpu: 20m, memory: 16Mi }
-      limits: { cpu: 500m, memory: 20Mi }
+      requests: { cpu: 20m, memory: 32Mi }
+      limits: { cpu: 500m, memory: 40Mi }
 
   fraud-detection:
     otlp: http
@@ -276,9 +279,12 @@ components:
     readinessProbe:
       grpc: { port: 3550 }
       timeoutSeconds: 3
+    # The limit holds GOMEMLIMIT plus the whole 21 MiB program file, which the
+    # kernel charges to the container when the node's page cache does not
+    # already hold it, for example after the node restarted (ADR l11-shop-memory-limits).
     resources:
-      requests: { cpu: 20m, memory: 16Mi }
-      limits: { cpu: 500m, memory: 20Mi }
+      requests: { cpu: 20m, memory: 32Mi }
+      limits: { cpu: 500m, memory: 40Mi }
 
   recommendation:
     port: 9001

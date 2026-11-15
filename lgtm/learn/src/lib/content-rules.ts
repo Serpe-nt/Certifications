@@ -44,6 +44,34 @@ function zodMessages(err: { issues: { path: PropertyKey[]; message: string }[] }
   return err.issues.map((i) => (i.path.length ? `${i.path.map(String).join('.')}: ${i.message}` : i.message));
 }
 
+const ESCAPE_SHOWN: Record<string, string> = { n: 'a line break', t: 'a tab', r: 'a carriage return', b: 'a control character', f: 'a control character', v: 'a control character', '0': 'a control character', x: 'the character its code names', u: 'the character its code names' };
+
+/**
+ * Backslashes in a template string's source that change what the page shows: the template
+ * reads `\n` as a line break and drops the backslash before most other characters.
+ * Allowed, because the page shows what the author meant: `\\`, an escaped backtick, `\$`
+ * before a brace, and a backslash followed by u003c, which is how a step writes an angle
+ * bracket (lgtm/docs/adr/w4-code-escape.md).
+ */
+export function loneBackslashes(raw: string): { line: number; message: string }[] {
+  const found: { line: number; message: string }[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] !== '\\') continue;
+    const c = raw[i + 1] ?? '';
+    if (c === '\\' || c === '`' || (c === '$' && raw[i + 2] === '{')) { i++; continue; }
+    if (/^u003c/i.test(raw.slice(i + 1, i + 6))) { i += 5; continue; }
+    const line = raw.slice(0, i).split('\n').length - 1;
+    if (c === '' || c === '\n' || c === '\r') {
+      found.push({ line, message: 'a backslash at the end of a line joins it to the next line on the page; write \\\\ for a backslash' });
+    } else {
+      const shown = ESCAPE_SHOWN[c] ?? `${c} without the backslash`;
+      found.push({ line, message: `\\${c} reaches the page as ${shown}; write \\\\${c}` });
+    }
+    i++;
+  }
+  return found;
+}
+
 export interface CheckedCorpus {
   modules: { file: string; data: ModuleData }[];
   steps: { file: string; data: StepData; body: string }[];
@@ -190,8 +218,13 @@ export function checkContent(corpus: RawCorpus, opts: RuleOptions = {}): { issue
       const raw = templateRaw(t.inner);
       if (raw === null) {
         err(s.file, 'code-template', `line ${t.line}: write <${t.name}>{\`...\`}</${t.name}>; plain text between the tags gets typographic quotes and dashes, so the copied text fails`);
-      } else if (/\n[ \t]/.test(raw)) {
-        err(s.file, 'code-indent', `line ${t.line}: a line of this <${t.name}> starts with a space, and Markdown removes it on the page; write a file as a fenced code block under the list item, and keep <${t.name}> for lines that start in the first column`);
+      } else {
+        if (/\n[ \t]/.test(raw)) {
+          err(s.file, 'code-indent', `line ${t.line}: a line of this <${t.name}> starts with a space, and Markdown removes it on the page; write a file as a fenced code block under the list item, and keep <${t.name}> for lines that start in the first column`);
+        }
+        for (const e of loneBackslashes(raw)) {
+          err(s.file, 'code-escape', `line ${t.line + e.line}: in this <${t.name}>, ${e.message}`);
+        }
       }
     }
     for (const f of tags.filter((x) => x.name === 'Figure')) {

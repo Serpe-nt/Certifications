@@ -59,7 +59,7 @@ src/content/questions/m04.yaml        the module's quiz pool
 Steps use the components without importing them. The article form (`../docs/adr/dz-article-format.md`): `Problem`, `Idea`, `InLab`, `Trap` (`<Trap practice>` on lab work), `Remember`, `Do`, `Done`, `Question`, and the information parts `Flow`/`Stage`, `Compare`/`Col`, `Figures`/`Stat`, `Layers`/`Layer`, `Timeline`/`Event`. The old form (`Why`, `Points`, `Point`) still builds until the module is rewritten. In both: `LabLink`, `Cmd`, `Query`, `Figure`. Two details the contract leaves open:
 
 - The card question: the question text, then a list of four items; each item is the option, a blank line, and its explanation indented under it. `answer="b"` names the second item in the file.
-- Braces start JavaScript in MDX, so write queries and commands as a string: ``<Query lang="promql">{`rate(x{job="shop"}[5m])`}</Query>``.
+- Braces start JavaScript in MDX, so write queries and commands as a string: ``<Query lang="promql">{`rate(x{job="shop"}[5m])`}</Query>``. `check:content` refuses three things that would change what the learner copies: plain text between the tags (`code-template`, it gets typographic quotes and dashes), a line that starts with a space (`code-indent`, Markdown removes it; write a file as a fenced block), and a single backslash (`code-escape`, `\n` becomes a line break and `\|` loses its backslash; write `\\n` and `\\|`).
 
 `tests/fixtures/content/` holds a sample module that uses every step kind, component and check kind; copy from it. Run `npm run check:content` before you commit: it names the file and the rule for every problem. A step's id is never renamed or reused, because it keys saved progress; the check compares ids with `origin/main`.
 
