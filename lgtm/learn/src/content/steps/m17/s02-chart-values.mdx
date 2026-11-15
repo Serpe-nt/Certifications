@@ -1,0 +1,111 @@
+---
+id: m17-s02
+title: "Reading the big charts' values"
+kind: lab
+minutes: 20
+order: 2
+outcome: You can find in a few minutes what a release of Mimir, Loki or Tempo sets on top of its chart, where the store's own configuration sits in it, and which defaults it switches off.
+exam:
+  - cert: none
+tags: [scale-chart-values]
+check:
+  kind: exact
+  prompt: Which key in the Mimir release's values sets how many partitions Mimir creates for its Kafka topic?
+  answers: ["auto_create_topic_default_partitions"]
+terms:
+  - term: Chart default
+    def: The value a chart's own values.yaml gives a key when the release does not set it.
+  - term: User-supplied values
+    def: Only the keys a release sets itself; what helm get values prints without --all.
+  - term: structuredConfig
+    def: The block of the Mimir chart whose content is merged into Mimir's own configuration file.
+  - term: Image tag override
+    def: A value that runs another version of the application than the chart's appVersion.
+sources:
+  - title: helm get values (Helm)
+    url: https://helm.sh/docs/helm/helm_get_values/
+    checked: 2026-11-15
+  - title: helm show values (Helm)
+    url: https://helm.sh/docs/helm/helm_show_values/
+    checked: 2026-11-15
+  - title: Grafana mimir-distributed Helm chart
+    url: https://grafana.com/docs/helm-charts/mimir-distributed/latest/
+    checked: 2026-11-15
+---
+
+<Problem>
+A colleague hands you the Mimir chart: more than 4,000 lines of default values. Somewhere in there is the reason the ingesters have no zones and why the cluster talks to Kafka. Reading the whole file is not an option during an incident. You need to know where to look.
+</Problem>
+
+<Idea>
+A release is the chart's defaults plus the few values the operator set. Read the operator's values first: they are short and they are where the decisions are. Each big chart has the same few kinds of blocks: one per component for replicas, resources and volumes, one that becomes the store's own configuration file, and switches for the extras the chart can install.
+</Idea>
+
+## Start from what the release sets
+
+`helm get values RELEASE -n NAMESPACE` prints only what the release set. With `--all` it adds every default of the chart. `helm show values CHART` prints the chart's defaults alone. Read them in that order: the short list first, the defaults only for the key you need.
+
+<Figures caption="Lines of values, Mimir in the lab" unit="lines">
+  <Stat label="Set by the lab" value="190" amount={190} max={4052} hot />
+  <Stat label="Chart defaults" value="4,052" amount={4052} max={4052} note="mimir-distributed 6.2.2" />
+</Figures>
+
+## The same few blocks in each chart
+
+The lab's files under `lgtm/lab/helm/` read the same way for the three stores.
+
+One block per component sets replicas, requests and limits, volumes and zone awareness: `ingester`, `querier`, `store_gateway` in Mimir; `ingester`, `querier`, `indexGateway` in Loki; `liveStore`, `blockBuilder`, `querier` in Tempo. Kubernetes reads these.
+
+One block becomes the store's own configuration file. In Mimir it is `mimir.structuredConfig`, merged into `mimir.yaml`; there sit the S3 buckets, `ingest_storage` with the Kafka address and topic, and the default limits. Loki's chart has `loki` with `limits_config`, `storage` and `schemaConfig`. Tempo's chart spreads it over top-level keys such as `storage`, `ingest` and `overrides`. The store reads these.
+
+Per-tenant values sit in a block the store reloads at run time: `runtimeConfig` in Mimir, `overrides` in Tempo. Last come switches for what the chart could install itself and the lab gets elsewhere: `kafka`, `minio` and `rollout_operator` are off in Mimir, because the platform provides Kafka and the S3 store.
+
+## The defaults you switch off matter most
+
+A chart's defaults were chosen for its typical user, not for you. The Mimir chart switches zone-aware replication on for ingesters and installs the rollout-operator by default; the lab turns both off because its nodes carry no zone labels. Such a line in the release's values is short, and it changes the behaviour of the whole store. When you inherit a release, list every default it switches off and find out why.
+
+The version column also needs care. `helm list` shows the chart's `appVersion`, and the Mimir chart 6.2.2 says 3.2.3. The lab overrides the image tag, so the pods run 3.2.4.
+
+<InLab>
+Each release of the lab has a folder `lgtm/lab/helm/RELEASE/` with `values.yaml` for the real cluster, `values-kind.yaml` for the small test cluster and `VERSION` with the chart, its version and the application version.
+</InLab>
+
+<Trap>
+Do not trust `helm list` for the version that runs. Read the image of a pod.
+</Trap>
+
+<Do>
+1. In WSL, list the three store releases with their charts: <Cmd>{`helm list -A | grep -E 'NAME|mimir|loki|tempo'`}</Cmd> Mimir shows chart `mimir-distributed-6.2.2` and APP VERSION 3.2.3.
+2. Read the image the Mimir pods really run: <Cmd>{`kubectl -n mimir get deployment mimir-querier -o jsonpath='{.spec.template.spec.containers[0].image}'; echo`}</Cmd> The tag is 3.2.4.
+3. Count the lines the lab sets, then the chart's defaults: <Cmd>{`helm get values mimir -n mimir | wc -l`}</Cmd> <Cmd>{`helm show values mimir-distributed --repo https://grafana.github.io/helm-charts --version 6.2.2 | wc -l`}</Cmd>
+4. Find the default the lab switches off for ingesters: <Cmd>{`helm show values mimir-distributed --repo https://grafana.github.io/helm-charts --version 6.2.2 | awk '/^ingester:/,0' | grep -m1 -A2 '^  zoneAwareReplication:'`}</Cmd> <Cmd>{`helm get values mimir -n mimir | awk '/^ingester:/,0' | grep -m1 -A1 'zoneAwareReplication:'`}</Cmd> The chart says `enabled: true`, the lab `enabled: false`.
+5. Find where Mimir's Kafka settings sit: <Cmd>{`helm get values mimir -n mimir | grep -A6 'ingest_storage:'`}</Cmd> They are inside `mimir.structuredConfig`, next to the address and the topic. Paste the key that sets the topic's partition count in the check below.
+</Do>
+
+<Done>
+You read the lab's 190 lines instead of the chart's 4,052, found a default it switches off, and found the store's own configuration inside the release.
+</Done>
+
+<Remember>
+Read a release from its own values first, then look up single defaults. The decisions are in the short list.
+</Remember>
+
+<Question id="q-m17-s02" answer="b">
+You inherit a Mimir release. `helm get values` shows `ingester.zoneAwareReplication.enabled: false` and `rollout_operator.enabled: false`. What do these two lines tell you?
+
+- The cluster runs the chart's defaults for both
+
+  `helm get values` without `--all` prints only what the release set. These two lines are the operator's choice.
+
+- Someone switched off two defaults: zones for ingesters and the operator that rolls them by zone
+
+  The chart enables both by default, and the two lines turn them off together, as the lab does for its nodes without zones.
+
+- Ingesters keep no copy of their data on disk
+
+  Zone awareness is about where replicas are placed, not about local disks or volumes.
+
+- Rollouts of the ingesters are blocked until the operator is installed
+
+  Without zones, a StatefulSet rolls its pods one by one with Kubernetes' own controller.
+</Question>

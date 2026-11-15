@@ -1,0 +1,96 @@
+---
+id: m17-s03
+title: "Object storage: buckets, prefixes and lifecycle rules"
+kind: concept
+minutes: 15
+order: 3
+outcome: You can lay out buckets and tenant prefixes for the three stores, say which objects a lifecycle rule may expire, and explain how a weak object store shows up in the lab.
+exam:
+  - cert: none
+tags: [scale-object-storage]
+terms:
+  - term: Bucket
+    def: A named container of objects in an S3-compatible store; each store of the lab has its own.
+  - term: Prefix
+    def: The start of an object's key, such as lab/, used like a folder; each tenant gets its own.
+  - term: Lifecycle rule
+    def: A rule in the object store that deletes or moves objects by age and prefix, without asking the application.
+  - term: Bucket index
+    def: A per-tenant file in Mimir's bucket that lists its blocks and the blocks marked for deletion.
+sources:
+  - title: Configure Grafana Mimir object storage backend (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/configure-object-storage-backend/
+    checked: 2026-11-15
+  - title: Grafana Mimir bucket index (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/bucket-index/
+    checked: 2026-11-15
+  - title: Loki log retention, object store lifecycle policies (3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/operations/storage/retention/
+    checked: 2026-11-15
+  - title: Managing the lifecycle of objects (Amazon S3)
+    url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html
+    checked: 2026-11-15
+---
+
+<Problem>
+The storage bill grows every month, and someone proposes a quick fix: a lifecycle rule on the log bucket that deletes every object older than 30 days. A week later, Loki queries fail for every time range, also yesterday's. The rule did exactly what it said. It just did not know which objects Loki still needed.
+</Problem>
+
+<Idea>
+All three stores keep their long-term data in object storage, one bucket or more per store, and one prefix per tenant inside it. The store itself decides what to delete: its compactor knows which objects are still referenced. A lifecycle rule in the object store knows only age and prefix, so it may only touch data objects, and only after the store's own retention would have deleted them anyway.
+</Idea>
+
+## One bucket per purpose, one prefix per tenant
+
+Mimir writes metrics blocks, recording rules and Alertmanager state, and its documentation says the blocks must not share a bucket and prefix with the ruler or the Alertmanager store; Mimir refuses to start if they do. Loki writes chunks, its index and its rules. Tempo writes trace blocks. None of the three creates its bucket, so the platform creates them first.
+
+Inside a bucket, each store keeps a tenant's objects under the tenant ID. That makes a tenant easy to find, measure and delete, and it is what a lifecycle rule would match on.
+
+<InLab>
+The lab's RustFS holds six buckets: `mimir-blocks`, `mimir-ruler`, `mimir-alertmanager`, `loki-chunks`, `loki-ruler` and `tempo-traces`. On 2026-11-15 Mimir's store-gateway listed five tenants in `mimir-blocks`: `lab`, `prom` and the practice tenants `learn-m10`, `learn-m11` and `learn-m13` of earlier modules. Their blocks go when they pass the 7 days of retention.
+</InLab>
+
+## Not every object is data
+
+Each store keeps objects that describe the data next to the data. Mimir keeps a bucket index per tenant, the list of blocks that queriers and store-gateways read instead of scanning the bucket, and a small deletion mark inside a block that is about to go. Loki keeps its index files, a cluster seed file, its delete requests and its rules in the bucket too.
+
+Loki's retention page lists which objects a lifecycle rule may expire: only the chunks under a tenant's prefix. It warns never to write a rule with an empty prefix, because a rule for the whole bucket would one day delete the index, and queries would fail. A rule on chunks must also wait longer than the retention period plus the compactor's delete delay, so that the compactor always deletes first.
+
+<Compare caption="Two ways to delete old data">
+  <Col title="The store's compactor" hot>Knows the index. Deletes a chunk or block only after nothing refers to it any more.</Col>
+  <Col title="A bucket lifecycle rule">Knows age and prefix only. Safe as a late safety net on data prefixes, harmful anywhere else.</Col>
+</Compare>
+
+## When the object store is the weak part
+
+Every store needs the object store to finish its work, so a weak object store hurts all three at once. The lab learned this twice. On 2026-11-12 RustFS was killed for memory at its 1 GiB limit, after two heavy Loki queries over 90 minutes of logs had taken it from about 670 to about 900 MiB, and it never gave the memory back. With a limit of 1.5 GiB, version 1.0.4 was still killed three times in 36 hours, always at the limit. The lab moved to RustFS 1.0.5, which fixed some of the memory it kept, and Loki got query limits so that one query cannot read more than 500 MB. On 2026-11-15 the RustFS pod had run two days without a restart.
+
+The lesson for a real setup: a managed object store, or a self-hosted one with several nodes, is not optional. One process on one volume is a single point of failure for every signal.
+
+<Trap>
+Do not size an object store by its data alone. In the lab the data was small; what killed RustFS was memory used by bursts of reads, and the reads came from a user's query.
+</Trap>
+
+<Remember>
+Let each store's compactor delete its own objects. If you add a lifecycle rule as a safety net, scope it to a tenant's data prefix and make it longer than the store's retention plus its delete delay.
+</Remember>
+
+<Question id="q-m17-s03" answer="b">
+Loki keeps logs 30 days, with the default compactor delete delay of 2 hours. The cloud team wants a lifecycle rule on the Loki bucket as a safety net. Which rule is safe?
+
+- Expire every object in the bucket after 31 days
+
+  A rule for the whole bucket also hits the index and the cluster seed file, which Loki must keep.
+
+- Expire objects under the prefix of each tenant after 35 days
+
+  Only chunks live under the tenant prefix, and 35 days is longer than 30 days plus the delete delay.
+
+- Expire objects under the index path after 30 days
+
+  The index is managed by Loki itself. Deleting index files removes references to live chunks and breaks queries.
+
+- Expire objects under the prefix of each tenant after 29 days
+
+  29 days is shorter than the retention, so the rule would delete chunks that Loki still serves.
+</Question>

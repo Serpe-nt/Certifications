@@ -1,0 +1,108 @@
+---
+id: m17-s06
+title: "Multi-tenancy from the sender to the store"
+kind: lab
+minutes: 20
+order: 6
+outcome: You can trace which component sets the tenant on each path into and out of the stores, and explain what has to stand in front of them before teams share a cluster.
+exam:
+  - cert: none
+tags: [scale-multi-tenancy]
+check:
+  kind: regex
+  prompt: Paste the answer Mimir gave in action 5 to a query for two tenants at once.
+  pattern: ".*too many tenant IDs.*"
+terms:
+  - term: Tenant
+    def: An isolated set of data and limits inside one store, named by the X-Scope-OrgID header.
+  - term: Authenticating proxy
+    def: A proxy in front of the stores that checks who calls and sets the tenant header itself.
+  - term: Tenant federation
+    def: A query over several tenants at once, written as tenant IDs joined by a pipe; off by default.
+sources:
+  - title: Grafana Mimir authentication and authorization (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/secure/authentication-and-authorization/
+    checked: 2026-11-15
+  - title: Loki multi-tenancy (3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/operations/multi-tenancy/
+    checked: 2026-11-15
+  - title: Loki authentication (3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/operations/authentication/
+    checked: 2026-11-15
+  - title: Tempo multitenancy
+    url: https://grafana.com/docs/tempo/latest/operations/manage-advanced-systems/multitenancy/
+    checked: 2026-11-15
+---
+
+<Problem>
+Two teams share your stores. Team B's engineer reads the collector's configuration, copies the line `X-Scope-OrgID: team-a` into their own collector, and from then on reads team A's logs and fills team A's quota. No password was needed, because nothing asked for one.
+</Problem>
+
+<Idea>
+Mimir, Loki and Tempo trust the tenant header they receive. Isolation between tenants is real inside the stores, but who may use which tenant is decided before them: by whoever sets the header. In a shared setup, an authenticating proxy checks the caller and sets the header itself, so a sender cannot choose another team's tenant.
+</Idea>
+
+## Every path sets its own header
+
+In modules m11 to m13 you sent data as practice tenants just by changing a header. In the lab, each path into the stores sets the tenant in its own configuration. The collector gateway sends the shop's metrics, logs and traces as `lab`. Prometheus remote-writes as `prom`. Alloy sends pod logs and events as `lab`. On the way out, each Grafana data source carries one tenant: `mimir` and `loki` and `tempo` read `lab`, `mimir-prom` reads `prom`.
+
+<Flow caption="Where the tenant is set in the lab">
+  <Stage title="Sender" kicker="Collector, Prometheus, Alloy">Each writes a fixed X-Scope-OrgID from its own configuration.</Stage>
+  <Stage title="Gateway" kicker="nginx in front of each store">Passes the header on and checks nothing.</Stage>
+  <Stage title="Store" kicker="Mimir, Loki, Tempo">Keeps and limits each tenant apart.</Stage>
+  <Stage title="Grafana" kicker="One data source per tenant">Reads with a header set in the data source.</Stage>
+</Flow>
+
+## The stores do not authenticate
+
+Mimir's documentation says it plainly: to protect Mimir from accidental or malicious calls, put a reverse proxy in front that authenticates requests and injects the right tenant ID. Loki's documentation says it has no authentication layer of its own and needs an authenticating reverse proxy. Tempo reads the tenant from the same header. Without such a proxy, anyone who can reach the gateway can read and write any tenant. When no header is sent, Mimir's gateway in the lab uses the tenant `anonymous`, so a query without a header returns an empty result rather than an error.
+
+A setup for several teams therefore puts an authenticating proxy in front of the stores: each team gets credentials, and the proxy maps them to the team's tenant. Grafana Cloud, step 16, does this with its access policies.
+
+## One tenant per query, unless you allow more
+
+A query reads one tenant. Mimir and Loki can read several at once when tenant federation is switched on: the header then lists them with a pipe, `lab|prom`. Mimir's switch is `tenant_federation.enabled`, Loki's `multi_tenant_queries_enabled`; both are off by default. A shared platform can use federation for a central team that must see everything, through a Grafana data source of its own.
+
+<InLab>
+The lab sets no authentication anywhere, on purpose: a learner switches tenants by changing a header. Tenant federation is off in Mimir, so a query for `lab|prom` is refused.
+</InLab>
+
+<Trap>
+A tenant is not a security boundary by itself. It separates data and limits; it does not check who sends the header.
+</Trap>
+
+<Do>
+1. In WSL, find the tenant the collector gateway writes with: <Cmd>{`kubectl -n otel get configmap otel-gateway -o jsonpath='{.data.relay}' | grep -B3 'X-Scope-OrgID'`}</Cmd> All three exporters, Tempo, Loki and Mimir, send `lab`.
+2. Find the tenant of Prometheus's remote write: <Cmd>{`kubectl -n prom get prometheus -o jsonpath='{.items[0].spec.remoteWrite[0].headers}'; echo`}</Cmd> It is `prom`.
+3. Query Mimir as each tenant and count the `up` series: <Cmd>{`for t in lab prom; do echo "$t: $(curl -s -G -H 'Host: mimir.lab.k8s.local' -H "X-Scope-OrgID: $t" http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(up)')"; done`}</Cmd> Two different numbers: each tenant holds its own targets.
+4. Query without any header: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(up)'; echo`}</Cmd> The result is empty: the request ran as the tenant `anonymous`, which holds nothing.
+5. Ask for two tenants at once: <Cmd>{`curl -s -G -H 'Host: mimir.lab.k8s.local' -H 'X-Scope-OrgID: lab|prom' http://10.10.0.5/prometheus/api/v1/query --data-urlencode 'query=count(up)'; echo`}</Cmd> Paste the answer in the check below.
+</Do>
+
+<Done>
+You found the tenant of each sender, read two tenants apart, and saw that an empty header and two tenants are both handled by Mimir, not refused at the door.
+</Done>
+
+<Remember>
+The tenant comes from whoever sets the header. Before teams share the stores, put an authenticating proxy in front that sets it for them.
+</Remember>
+
+<Question id="q-m17-s06" answer="c">
+Three teams will share one Mimir. Each must write and read only its own tenant. What do you add?
+
+- A separate `X-Scope-OrgID` value in each team's collector configuration
+
+  Each team then has its own tenant, but nothing stops a team from writing another team's value into its configuration.
+
+- Tenant federation, so each team queries only its own tenant
+
+  Federation lets one query read several tenants. It widens access; it does not restrict it.
+
+- A proxy that authenticates each team and sets the tenant header itself
+
+  The stores trust the header, so the header must come from something that has checked the caller.
+
+- A per-tenant limit on series and ingestion rate for each team
+
+  Limits protect the store from one team's volume. They do not stop a team from using another tenant.
+</Question>

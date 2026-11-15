@@ -1,0 +1,6 @@
+id: m17
+title: Running it at scale
+goal: Operate the stack for a team. Size it, protect it from its users, upgrade it and survive the loss of a part.
+order: 17
+quiz: true
+exams: []

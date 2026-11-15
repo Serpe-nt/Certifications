@@ -1,0 +1,91 @@
+---
+id: m17-s01
+title: "Deployment modes side by side, and when to move"
+kind: concept
+minutes: 15
+order: 1
+outcome: You can choose a deployment mode for Mimir, Loki and Tempo from a team's volume and needs, and say what signal tells you to move to the next one.
+exam:
+  - cert: none
+tags: [scale-deployment-modes]
+terms:
+  - term: Deployment mode
+    def: How the components of one binary are grouped into processes, chosen with the -target flag.
+  - term: Monolithic mode
+    def: Every component runs in one process, started with -target=all.
+  - term: Microservices mode
+    def: Each component runs as its own process and scales on its own.
+  - term: Failure domain
+    def: The part of a system that one fault takes down with it.
+sources:
+  - title: Grafana Mimir deployment modes (3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/references/architecture/deployment-modes/
+    checked: 2026-11-15
+  - title: Loki deployment modes (3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/get-started/deployment-modes/
+    checked: 2026-11-15
+  - title: Tempo deployment modes
+    url: https://grafana.com/docs/tempo/latest/set-up-for-tracing/setup-tempo/plan/deployment-modes/
+    checked: 2026-11-15
+---
+
+<Problem>
+A team of eight asks you to run Mimir, Loki and Tempo for them. One colleague says one process per store is enough. Another wants thirty pods per store "like the big companies". Both answers are possible. You need a reason to pick one, and a sign that tells you when to change.
+</Problem>
+
+<Idea>
+Mimir, Loki and Tempo are each one binary. The flag `-target` decides which components a process runs. Monolithic mode runs them all in one process and is simple to operate. Microservices mode runs each component on its own, so you can scale it alone and a fault stays inside one component. Start small and move when one part needs to grow without the others, or when one failure must not stop everything.
+</Idea>
+
+## One binary, two ways to run it
+
+You met the flag in modules m11 to m13. With `-target=all`, one process runs the distributor, the ingester, the querier and the rest. With `-target=ingester`, a process runs only the ingester. Microservices mode is a set of processes, each started with one target, which together form the whole store.
+
+The three stores agree on the two modes. Loki had a third mode, simple scalable, with a read, a write and a backend target. Loki's documentation says it is being deprecated and will be removed in Loki 4.0, so a new setup should not start with it.
+
+## What each store says about size
+
+The vendors give rough limits for the simple mode. Loki calls monolithic mode useful for up to about 20 GB of logs a day. Tempo names 25 to 35 MB/s, or 55,000 to 80,000 spans per second, as the upper end for monolithic mode. Mimir gives no number. It says monolithic mode can be scaled out with more `-target=all` processes, but is not recommended at large scale, because every component must grow together.
+
+<Compare caption="When each mode fits">
+  <Col title="Monolithic">One process per store. Few things to watch. Every component shares the same CPU and memory, so a heavy query can slow down writes.</Col>
+  <Col title="Microservices" hot>Each component scales on its own and fails on its own. More processes, more configuration, and for Mimir and Tempo a Kafka to run as well.</Col>
+</Compare>
+
+## The signs that tell you to move
+
+Volume alone is a weak signal. Better signs are about how the parts disagree. Queries need more memory while writes are steady. A single heavy query makes writes fail. You need to upgrade one part without restarting the whole store. You need recent data to stay readable while one process restarts. Each of these asks for components that scale and fail apart, and that is what microservices mode gives.
+
+Moving has a price. In Tempo, microservices mode needs a Kafka-compatible queue between the distributor and the rest; monolithic mode does not. Mimir 3 in microservices mode prefers the same: ingest storage through Kafka. So the move adds a system you must run. In Tempo, monolithic mode cannot be made highly available with more processes, because its backend scheduler is a single instance; Tempo's page says to use microservices mode for that.
+
+<InLab>
+The lab runs all three stores in microservices mode, Mimir and Tempo with ingest storage on the Kafka cluster `telemetry`. That is far more than its volume needs; it is there so that you can see every component as its own pod.
+</InLab>
+
+<Trap>
+Mimir's microservices mode does not fully separate reads from writes. The querier asks the ingesters' ring before it reads recent data, so unhealthy ingesters can make queries fail. True isolation needs zone-aware replication, step 5.
+</Trap>
+
+<Remember>
+Pick the mode by how the parts behave under load, not by the size of other companies. Monolithic is fewer moving parts; microservices is independent scaling and smaller failure domains, at the price of more to run.
+</Remember>
+
+<Question id="q-m17-s01" answer="c">
+A team runs Tempo in monolithic mode at 5 MB/s. Twice this week, a large TraceQL search made the process run out of memory and new spans were refused while it restarted. What does microservices mode change?
+
+- Nothing, since 5 MB/s is far below monolithic mode's limit
+
+  The volume is low, but the problem is that reads and writes share one process. Volume is not the only reason to move.
+
+- It removes the need for Kafka, so writes get faster
+
+  It is the other way round. Tempo's microservices mode needs a Kafka-compatible queue between the distributor and the rest.
+
+- A querier that runs out of memory no longer stops the distributors from taking spans
+
+  In microservices mode the querier is its own process, so its crash stays inside the read path.
+
+- It lets one process run the backend scheduler twice for high availability
+
+  The backend scheduler is a single instance in both modes. Tempo's page says only one should run at a time.
+</Question>
