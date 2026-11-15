@@ -164,6 +164,11 @@ What the table says:
   the rest is page cache of the log segments), the shop's Kafka 576Mi with an 832Mi limit (was
   500Mi and 620Mi; 534 MiB, 86% of its old limit), the load generator 704Mi (was 600Mi; 689 MiB).
   That adds about 1.0 GiB of requests, to about 18.9 GiB (83%).
+- **product-catalog and checkout** went from 16Mi requests and 20Mi limits to 32Mi and 40Mi on
+  2026-11-15 (card L11, shop chart 0.3.1): a container that the kernel charges for its own program
+  file, 21 to 22 MiB, did not fit in 20Mi (`lgtm/docs/adr/l11-shop-memory-limits.md`). That adds
+  32 MiB of requests and 40 MiB of limits. The rendered shop now asks for 2.64 GiB of requests and
+  4.74 GiB of limits.
 
 Per pod, the biggest users: Prometheus 739 MiB, the load generator 689 MiB, the three Kafka nodes
 768 to 827 MiB, the shop's Kafka 534 MiB, Grafana 462 MiB, RustFS 449 MiB, the Strimzi operators

@@ -85,10 +85,12 @@ To stop or start one worker, in an elevated PowerShell: `Stop-VM -Name worker4`,
 What happens, in order:
 
 - The node turns `Unknown` within about 40 seconds (19:05:44). Its pods stay bound to it for 5
-  minutes: Kubernetes gives every pod a toleration of 300 seconds for `node.kubernetes.io/unreachable`
+  minutes: Kubernetes gives every pod that sets no toleration of its own a toleration of 300 seconds
+  for `node.kubernetes.io/unreachable`; DaemonSet pods are never evicted for it
   (https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/). Then they are
   marked `Terminating` (19:11:05). A Deployment's pod starts again on another worker. A StatefulSet's
-  pod does not: its name is free only when the node answers again or someone force-deletes the pod
+  pod does not: its name is free only when the node answers again, when the Node object is deleted,
+  or when someone force-deletes the pod
   (https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/). Do not
   force-delete them; wait for the node.
 - **Recent Mimir reads fail for the whole outage** if the worker holds a Mimir ingester. Each

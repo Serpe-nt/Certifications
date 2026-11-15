@@ -8,7 +8,8 @@ Status: decided by worker L11 on 2026-11-15. The change is in the shop chart's v
 
 Card C16 stopped worker4 from 19:05 to about 19:17 UTC on 2026-11-15. Since then the shop was
 about ten times slower with every fault flag off: product-catalog's p95 went from about 6.5 ms to
-about 220 ms, and checkout's `PlaceOrder` p95 from about 27 ms to about 230 ms. A restart of the
+about 210 ms, and checkout's `PlaceOrder` p95 from about 27 ms to about 240 ms
+(`lgtm/docs/verification/m17.md`, read at 19:46). A restart of the
 deployment at 19:53 did not help, and `make lab-check` passed at 19:22 all the same.
 
 ## What the lab showed
@@ -29,10 +30,13 @@ pages, of which 6.53 MiB were mapped into the process, with about 690 major page
 The Go runtime did not grow: `go_memory_used_bytes` stayed at 14.5 MiB, with the same request rate
 as before.
 
-checkout has the same build, the same `GOMEMLIMIT: 16MiB` and the same 20Mi limit, and was never
-charged for its program: its file pages stayed between 0 and 3.6 MiB in every pod of the last
-days. Its pod `668c76fd86-xbxjl` was pulled onto worker2 at 19:10:57, two seconds before
-product-catalog, and holds 0.36 MiB of file pages.
+checkout has the same build, the same `GOMEMLIMIT: 16MiB` and the same 20Mi limit. Until the fix it
+was never charged for its program: its file pages stayed between 0 and 3.6 MiB in every pod
+Prometheus held. Its pod `668c76fd86-xbxjl` was pulled onto worker2 at 19:10:57, two seconds before
+product-catalog, and held 0.36 MiB of file pages. After the fix it was charged twice on worker4
+(`acceptance-lab.md`): 20.96 MiB of file pages and 29.8 MiB of usage at 22:03, and 21.19 MiB and
+28.96 MiB in the first container after worker4 restarted at about 22:50. With the old limit both
+would have been far past 20Mi.
 
 The programs are large next to their limits. The image layers on GHCR hold
 `/usr/src/app/product-catalog` with 22,180,000 bytes (21.15 MiB) and `/usr/src/app/checkout` with
@@ -50,7 +54,9 @@ code is such an area. If the node's page cache already holds those pages when th
 because the image pull wrote them or an earlier container read them, the new container is not
 charged for them. If it does not, the container's own reads load them, and they count against its
 limit. `memory.stat` shows them as `file` (and `file_mapped` for the part the process maps), and
-cAdvisor reports them as `container_memory_cache`.
+cAdvisor reports them as `container_memory_cache`, and the counter `pgmajfault` of the same file
+as `container_memory_failures_total{failure_type="pgmajfault"}` (cAdvisor's
+`lib/container/libcontainer/handler.go` and `lib/metrics/prometheus.go`).
 
 A container at `memory.max` must reclaim its own memory before it can grow. Go's heap is anonymous
 memory and there is no swap, so the only memory the kernel can take back is the file pages: the
@@ -67,9 +73,10 @@ just been pulled and checkout was not charged, yet product-catalog was. The lab 
 this, so a limit must hold the case where the container pays for its whole program.
 
 Kubernetes hands `resources.limits.memory` to the kernel as the container's limit, and the kernel
-enforces it (the "Resource Management for Pods and Containers" page). The kubelet's working set excludes
-`inactive_file` (the "Node-pressure Eviction" page), so the working set of `ckrm8` stayed near
-15.5 MiB, below its limit, while it thrashed. Only usage, which includes all file pages, shows the
+enforces it (the "Resource Management for Pods and Containers" page). The working set that the
+kubelet and cAdvisor report is the usage less `inactive_file` (cAdvisor's
+`lib/container/libcontainer/handler.go`; Kubernetes' "Resource metrics pipeline" page calls it an
+estimate), so the working set of `ckrm8` stayed near 15.5 MiB, below its limit, while it thrashed. Only usage, which includes all file pages, shows the
 container at its limit.
 
 ## Which services can end the same way
@@ -81,7 +88,7 @@ shop (MiB):
 | Container | Limit | Most RSS | Room | Most file pages seen | At risk |
 |---|---:|---:|---:|---:|---|
 | product-catalog | 20 | 12.1 | 7.9 | 12.6 (program 21.15) | yes, seen |
-| checkout | 20 | 12.2 | 7.8 | 3.6 (program 22.18) | yes, the same build and limit |
+| checkout | 20 | 12.2 | 7.8 | 3.6 before the fix, 21.19 after it (program 22.18) | yes, the same build and limit |
 | valkey | 32 | 3.1 | 28.9 | 11.0 | no |
 | flagd | 75 | 41.9 | 33.1 | 39.4 | no: it has run charged for its file pages, at 1.5 major faults a second or fewer |
 | frontend-proxy | 90 | 22.9 | 67.1 | 44.1 | no |
@@ -121,10 +128,12 @@ read once (configuration, jars), and both ran with them charged without faulting
 | product-catalog | 16Mi to 32Mi | 20Mi to 40Mi | 16MiB, unchanged |
 | checkout | 16Mi to 32Mi | 20Mi to 40Mi | 16MiB, unchanged |
 
-40Mi holds `GOMEMLIMIT` (16 MiB, which Go can pass a little, since it is a soft limit) plus the
-whole program file (21.15 and 22.18 MiB), so no state of the page cache can push either service to
-its limit. `GOMEMLIMIT` stays: it keeps the heap where it was, and the code is outside it. The
-request of 32Mi is what a charged container uses: about 11 MiB of RSS and 13 to 22 MiB of code.
+40Mi holds `GOMEMLIMIT` (16 MiB) plus the whole program file (21.15 and 22.18 MiB). That leaves
+about 1.8 MiB for the kernel memory that also counts against the limit, and Go may pass its soft
+limit a little, so a state that reaches 40Mi is unlikely, not impossible. The most either service
+used after the fix was 31.3 MiB (checkout, charged for 21 MiB of its program). `GOMEMLIMIT` stays:
+it keeps the heap where it was, and the code is outside it. The request of 32Mi is about what a
+charged container uses: checkout used 29 to 31 MiB with 21 MiB of its program charged.
 
 What it costs: the workers' memory requests grow by 32 MiB in all (16 MiB a service), and the
 limits by 40 MiB. The workers' requests were about 19.2 GiB of 30.6 GiB (`lgtm/lab/docs/budget.md`).
@@ -158,6 +167,12 @@ stayed below 90% of its limit.
   https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/, and Node-pressure
   Eviction (the working set excludes `inactive_file`),
   https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/, fetched on
+  2026-11-15.
+- Kubernetes, Resource metrics pipeline (the working set is an estimate),
+  https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/, fetched on 2026-11-15.
+- cAdvisor, `lib/container/libcontainer/handler.go` (working set = usage less `inactive_file`;
+  `pgmajfault` from `memory.stat`) and `lib/metrics/prometheus.go`
+  (`container_memory_failures_total`), https://github.com/google/cadvisor, branch `master`, read on
   2026-11-15.
 - Go, A Guide to the Go Garbage Collector, "Memory limit" and "Suggested uses",
   https://go.dev/doc/gc-guide, fetched on 2026-11-15.
