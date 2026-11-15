@@ -224,8 +224,10 @@ What to do:
    For payment, an image older than `3.1.0-lab.2` brings the chain back; `make lab TAGS=shop` from
    `main` installs the current one. A restart alone ends one chain and starts the next.
 4. The trace stays in Tempo until retention removes its blocks, about 48 to 50 hours after its last
-   span. The trace of 2026-11-14 23:03 UTC stopped growing when payment was upgraded (the date is in
-   `acceptance-lab.md`) and is gone two days after that.
+   span. The trace of 2026-11-14 23:03 UTC, `1b9843164d5423b88ba041cee6303b88`, stopped growing when
+   payment was upgraded on 2026-11-15 at 18:16 UTC: its last span ended at 18:13:28 UTC, so it is
+   gone between about 18:15 and 20:15 UTC on 2026-11-17 (`acceptance-lab.md`, "An order's trace
+   holds only its own spans").
 
 ## Kafka's disks are full
 
