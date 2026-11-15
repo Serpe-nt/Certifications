@@ -16,7 +16,7 @@ Twice a command reached a lesson page changed, and no check saw it. A `<Cmd>` or
 
 ## What is known
 
-The planner's scan of every step on 2026-11-15, after the two repairs, found three template strings with a single backslash, all wanted: module m12 step 5 (two queries) and module m14 step 9 (one query) write `<` for an angle bracket and escape a backtick. Check this yourself with your rule.
+The planner's scan of every step on 2026-11-15, after the two repairs, found three template strings with a single backslash, all wanted: module m12 step 5 (two queries) and module m14 step 9 (one query) write `\u003c` for an angle bracket and escape a backtick. Check this yourself with your rule.
 
 ## What to build
 
