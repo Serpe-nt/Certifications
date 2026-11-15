@@ -24,9 +24,9 @@ A third fault of that kind was found on 2026-11-15 by the planner's QA of m16, a
 
 ## Lab defects
 
-| What | Since | Notes |
-|---|---|---|
-| The shop is about ten times slower since a worker was stopped and started | 2026-11-15, 19:10 UTC, card C16's drill 3 | product-catalog's server p95 went from 6.5 ms to about 220 ms and checkout's `PlaceOrder` p95 from about 27 ms to about 230 ms, with every flag off. The new product-catalog pods sit at their 20Mi memory limit: about 8.5 MiB of file pages, the program's own code, are charged to the container (0.1 MiB before), and it reads them back from disk 400 to 700 times a second. The Go process itself did not grow. A restart of the deployment did not help. `make lab-check` passes in this state, and `NodeMemoryMajorPagesFaults` fires for the node that holds the pod. Modules m13 to m15 read these latencies, so their numbers are off until it is fixed. Card L11 (`cards/w10-l11-shop-after-node-restart.md`). |
+None open.
+
+Closed on 2026-11-15 by card L11 (pull request 113): the shop was about ten times slower after a worker had been stopped and started (card C16's drill 3). The kernel charges a page of the page cache to the container that reads it first, so a pod that starts on a node whose cache does not hold its program pays for its own code; the programs of product-catalog and checkout are 21 and 22 MiB, and their limit was 20Mi. Both now have 32Mi requested and a limit of 40Mi (shop chart 0.3.1). The planner's read agrees with the card's record: product-catalog's p95 went from about 200 ms back to 8 to 10 ms and checkout's from about 230 ms to 16 to 27 ms, with no major page faults, for thirty minutes after the upgrade and again after the owner restarted worker4. Check 10 of `make lab-check` now fails on a container of the shop that uses at least 95% of its limit and reads back at least 1% of it a second. The runbook has a section on a stopped worker. Not explained: product-catalog is 1 to 3 ms slower than before the drill, in its database calls.
 
 Closed on 2026-11-15 by card L10 (pull requests 101 and 105): one trace of the shop grew for days and a lookup of it could kill Tempo's querier. Payment now starts its flag provider once, with tracing suppressed (shop version `3.1.0-lab.2`, chart 0.3.0), so an order's trace holds only its own spans; the first order after the upgrade had the same 96 spans thirty minutes later. The old trace, `1b9843164d5423b88ba041cee6303b88`, stopped growing at 18:13 UTC and leaves Tempo at about 20:15 UTC on 2026-11-17; nobody opens it by its ID before that. The cause, the options and the proof are in `lgtm/docs/adr/l10-payment-flag-stream.md` and in `lgtm/lab/docs/acceptance-lab.md`.
 
@@ -41,7 +41,8 @@ To watch:
 - The object store. RustFS 1.0.5 ran two days without a restart, between 144 and 247 MiB of resident memory, and gave memory back after a quiet night, so it is not the old leak. Card C16's drill 2 stopped it for three minutes on 2026-11-15 at 18:54 UTC; the new pod held 306 MiB seventy minutes later (limit 1536Mi). Look again after a day.
 - flagd answers every flag evaluation since card L9: its CPU went from 0.004 to 0.011 cores (limit 200m). Look again after a day of load.
 - The control-plane node uses about 70% of its memory.
-- Since card C16's drill 3 the pods are spread unevenly: worker4 holds about 21 pods and the other workers 38 to 41, with worker1 and worker2 at 68% of their memory. Pods that moved while a node was away do not move back.
+- Pods that moved while a node was away do not move back (the runbook says how to spread them again). Since card L11's upgrade every pod of the shop but its database runs on worker4, so a stop of that one worker takes the whole shop away.
+- Four containers of the shop use 90 to 96% of their memory limit when their page cache is counted (payment, fraud-detection, flagd, frontend-proxy), with no major page faults. That is cache they can give up; check 10 of the lab check watches for the case where they cannot.
 - A quiet shop is not free of error spans, on purpose (card L10, `lgtm/lab/docs/demo.md`): the flag providers of ad, fraud-detection and recommendation each end a 600-second stream to flagd every ten minutes with status error, as a trace of two spans. A search for a service's errors leaves them out with `&& name != "flagd.evaluation.v2.Service/EventStream"`. The capstone module should say so where it searches errors.
 - Grafana keeps practice dashboards that were deleted through the API or by Terraform in **Recently deleted** for 12 months (`m16-orders`, `m16-generated`, and those of earlier modules). The page offers only Restore.
 - The Loki ingesters. The burst of module m12 step 12 (5,000 streams in the tenant `learn-m12`) took each ingester from about 135 MiB to as much as 559 MiB, and three and a half hours later, with no practice stream left in memory, each still held 360 to 440 MiB (request 384Mi, limit 1Gi). Card L8's upgrade then restarted them, and they are back under 200 MiB, so how long the memory would have stayed is not known. The lesson says more than half an hour. Measure it the next time someone runs the burst and leaves the ingesters alone.
@@ -50,13 +51,13 @@ To watch:
 
 ## The lab after wave 10
 
-Read on 2026-11-15 at 20:09 UTC.
+Read on 2026-11-15 at 20:09 UTC, and the shop again at 23:22 UTC after card L11.
 
 - Five nodes Ready, every pod running, every fault flag off, no `learn-` namespace, no rule group left in the rulers of Mimir or Loki.
-- The shop is about ten times slower than a healthy lab (the lab defect above): product-catalog's server p95 is 202 ms and checkout's 234 ms. `NodeMemoryMajorPagesFaults` fires for the node that holds product-catalog, on and off; no other alert fires besides Watchdog.
-- The releases are as `main` installs them. The shop is at version `3.1.0-lab.2` (chart 0.3.0, revision 3, card L10). Mimir is at revision 6 from 18:44 UTC, after card C16 took its two value changes back; `make lab` from `main` reported `changed=0` at 18:53 UTC, and no release changed after that.
+- The shop is healthy again since 22:03 UTC (card L11): at 23:22 product-catalog's server p95 was 7.8 ms and checkout's 22 ms, with no major page faults and no alert besides Watchdog. At 20:09, before the fix, they were 202 ms and 234 ms.
+- The releases are as `main` installs them. The shop is at version `3.1.0-lab.2` (chart 0.3.1, revision 4, cards L10 and L11). Mimir is at revision 6 from 18:44 UTC, after card C16 took its two value changes back; `make lab` from `main` reported `changed=0` at 18:53 UTC, and no release changed after that.
 - Three drills ran once each (card C16): a Kafka broker pod deleted, the object store at zero replicas for three minutes, and worker4 stopped for twelve minutes by the owner. `make lab-check` passed after each. Left by the third: a failed Job of Longhorn's `kafka-trim` and its alert, removed at 19:53 UTC with the owner's go-ahead; the slow shop; and the uneven spread of pods.
-- Memory in use: 64 to 67% on worker1 and worker2, 55% on worker3, 59% on worker4, 70% on the control-plane node. Pods: 39, 40, 37 and 23 on the four workers.
+- Memory in use at 20:09: 64 to 67% on worker1 and worker2, 55% on worker3, 59% on worker4, 70% on the control-plane node. After card L11's upgrade and the second restart of worker4 the workers hold 36, 36, 34 and 33 pods, and every pod of the shop but its database runs on worker4.
 - The fullest volume is at 33% (a Kafka broker's).
 - The practice tenants `learn-m16`, `learn-m17`, `team-a` and `team-b` hold a few series in Mimir until retention removes them (7 days). The practice dashboards of m16 sit in Grafana's Recently deleted.
 - The old growing trace of payment, `1b9843164d5423b88ba041cee6303b88`, leaves Tempo at about 20:15 UTC on 2026-11-17. Nobody opens it by its ID before that.
