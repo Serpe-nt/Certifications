@@ -831,6 +831,12 @@ A fresh order at 18:48:16, trace `beec1c9c0b263ce2d74fab76bb794c7` (looked up by
 after. The querier's restart count stayed at 2 throughout. Between 18:20 and 18:48 its memory rose
 from 67Mi to 184Mi while other cards ran their own queries; the limit is 768Mi.
 
+Card C16 ran its value changes and failure drills from 18:33 to 19:02 UTC, inside this window: Mimir's
+overrides, a roll of Mimir's queriers, one Kafka broker, and the object store at zero from 18:54:29
+to 18:57:29. Each was taken back with `make lab-check` passing. None touched the shop or Tempo's
+querier, and the searches below found every stream trace expected in the window. `make lab` below
+ran after C16 had restored its Mimir change and before the object store drill.
+
 ### What a quiet shop shows
 
 TraceQL searches from 18:17:30 to 18:48, every flag off:
