@@ -1,0 +1,160 @@
+---
+id: m16-s04
+title: The Terraform provider for Grafana
+kind: lab
+minutes: 30
+order: 4
+outcome: You can describe a Grafana folder, dashboard and contact point in Terraform, read the plan, and apply, change and destroy them from files in a repository.
+terms:
+  - term: Provider
+    def: A Terraform plugin that knows one system's API, here Grafana's, and turns resources into API calls.
+  - term: Plan
+    def: Terraform's list of what it will create, change or destroy so that the system matches the files.
+  - term: State
+    def: Terraform's record of which real objects belong to which resources in the files, with their last known values.
+exam:
+  - cert: none
+tags: [ascode-terraform]
+check:
+  kind: regex
+  prompt: Paste the line with the summary of the plan from action 6.
+  pattern: ".*0 to add, 1 to change, 0 to destroy.*"
+sources:
+  - title: Grafana Terraform provider (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/as-code/terraform/
+    checked: 2026-11-15
+  - title: Provision alerting resources with Terraform (Grafana 13.3)
+    url: https://grafana.com/docs/grafana/v13.3/alerting/set-up/provision-alerting-resources/terraform-provisioning/
+    checked: 2026-11-15
+  - title: grafana/grafana provider 4.55.0 (Terraform Registry)
+    url: https://registry.terraform.io/providers/grafana/grafana/4.55.0
+    checked: 2026-11-15
+  - title: hashicorp/terraform image tags (Docker Hub)
+    url: https://hub.docker.com/r/hashicorp/terraform/tags
+    checked: 2026-11-15
+---
+
+<Problem>
+Your team runs its cloud accounts with Terraform: every bucket and every network goes through a plan that someone reads. Grafana is the one place where a folder, a dashboard or a contact point appears without a plan. When a contact point is wrong, nobody can say when it changed.
+</Problem>
+
+<Idea>
+The Grafana provider lets Terraform manage Grafana resources the way it manages a cloud account. You describe folders, dashboards, contact points and alert rules in `.tf` files; `terraform plan` compares them with Grafana and lists every difference; `terraform apply` makes Grafana match. Grafana's documentation calls it the as-code tool that supports the most resources.
+</Idea>
+
+## Resources, a provider and its token
+
+A `.tf` file declares resources. `grafana_folder` is a folder, `grafana_dashboard` takes a dashboard's JSON model in `config_json`, and `grafana_contact_point` describes where notifications go. A resource can refer to another one, as `grafana_folder.m16.uid`, so Terraform knows to create the folder before the dashboard in it.
+
+The provider needs Grafana's address and a credential. It reads them from its block in the file, or from the environment variables `GRAFANA_URL` and `GRAFANA_AUTH`. The credential is a service account token: a key that belongs to a service account, not to a person, so it survives when people leave and can have exactly the role the pipeline needs. In this module the token lives in a Kubernetes Secret, and the pod that runs Terraform gets it as an environment variable. It never appears in a file. Step 10 comes back to this.
+
+## Plan, apply, and the state
+
+`terraform plan` is the review. It reads Grafana through the API and prints each resource with a sign: `+` for create, `~` for change in place, `-` for destroy, `-/+` for replace. A line that starts with `Plan:` counts them. Saved with `-out`, the plan can be applied exactly as it was read, even if the files change in between.
+
+To know which dashboard in Grafana belongs to which resource, Terraform keeps a state file. The state holds the real IDs and the last values it saw, which can include secrets such as a webhook password. It belongs in a protected backend, never in Git. Here it stays in the working folder of the pod, which is enough for one learner.
+
+<Flow caption="One change, the Terraform way">
+  <Stage title="Edit" kicker=".tf in Git">Change the files in the repository.</Stage>
+  <Stage title="Plan" kicker="terraform plan">Compare files, state and Grafana; print the difference.</Stage>
+  <Stage title="Review" kicker="a person">Read every + ~ and - line.</Stage>
+  <Stage title="Apply" kicker="terraform apply">Make Grafana match the files.</Stage>
+</Flow>
+
+## What Grafana does with Terraform's objects
+
+Alerting resources created through the provisioning API, which the provider uses, are marked as provisioned. By default you cannot edit them in Grafana's screen, so the files stay the source of truth. Each alerting resource has an argument `disable_provenance` that allows editing on the screen; using it gives up that guarantee. A folder and a dashboard made by Terraform can still be changed on the screen, and the next plan shows the change as drift and undoes it.
+
+<InLab>
+The provider is version 4.55.0 and Terraform runs from the image `hashicorp/terraform:1.17.2` in the pod `work` of `learn-m16`, which you made in step 3. Grafana's address inside the cluster is `http://grafana.grafana.svc`.
+</InLab>
+
+<Trap>
+A plan that wants to replace (`-/+`) a dashboard or folder destroys it first. Read the reason Terraform prints with the replace; a changed `uid` is a common one.
+</Trap>
+
+<Do>
+1. Have the port-forward to the Git server from step 3 running, then, in WSL, make the folder for Terraform in your clone: <Cmd>{`mkdir -p ~/m16/terraform`}</Cmd>
+2. Save this as `~/m16/terraform/main.tf`. It declares the folder `Learn m16`, one dashboard with one panel on checkout's orders, and a contact point that nothing routes to.
+
+   ```hcl
+   terraform {
+     required_providers {
+       grafana = {
+         source  = "grafana/grafana"
+         version = "4.55.0"
+       }
+     }
+   }
+
+   # Address and token come from GRAFANA_URL and GRAFANA_AUTH.
+   provider "grafana" {}
+
+   resource "grafana_folder" "m16" {
+     uid   = "learn-m16"
+     title = "Learn m16"
+   }
+
+   resource "grafana_dashboard" "orders" {
+     folder = grafana_folder.m16.uid
+     config_json = jsonencode({
+       uid   = "m16-orders"
+       title = "m16 checkout orders"
+       panels = [{
+         type       = "timeseries"
+         title      = "Orders per second"
+         gridPos    = { x = 0, y = 0, w = 12, h = 8 }
+         datasource = { type = "prometheus", uid = "mimir" }
+         targets = [{
+           refId = "A"
+           expr  = "sum(rate(traces_spanmetrics_calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\"}[5m]))"
+         }]
+       }]
+     })
+   }
+
+   resource "grafana_contact_point" "m16" {
+     name = "m16 webhook"
+     webhook {
+       url = "http://webhook.learn-m16.svc:8080/m16"
+     }
+   }
+   ```
+3. Commit and push it: <Cmd>{`cd ~/m16 && git add terraform/main.tf && git commit -q -m "Grafana folder, dashboard and contact point for m16" && git push -q origin main`}</Cmd>
+4. In the pod, pull the commit and initialise Terraform. It downloads the pinned provider: <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16 && git pull -q && cd terraform && terraform init -input=false -no-color | grep initialized'`}</Cmd> It prints `Terraform has been successfully initialized!`
+5. Plan and save the plan, then apply exactly that plan: <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && terraform plan -no-color -out=m16.plan'`}</Cmd> Read the three `+` resources and the line `Plan: 3 to add, 0 to change, 0 to destroy.` <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && terraform apply -no-color m16.plan'`}</Cmd> Open <LabLink to="grafana" path="/dashboards">Dashboards</LabLink>: the folder **Learn m16** holds **m16 checkout orders**. The contact point **m16 webhook** is under <LabLink to="grafana" path="/alerting/notifications">Alerting > Contact points</LabLink>, marked as provisioned.
+6. Change the panel's title in `main.tf` from `Orders per second` to `PlaceOrder calls per second`, commit, push and plan again: <Cmd>{`cd ~/m16 && sed -i 's/Orders per second/PlaceOrder calls per second/' terraform/main.tf && git commit -q -am "Clearer panel title" && git push -q origin main`}</Cmd> <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && git pull -q && terraform plan -no-color -out=m16.plan'`}</Cmd> The dashboard is changed in place (`~`). Inside its JSON the plan shows only the line that differs, `title = "Orders per second" -> "PlaceOrder calls per second"`, and hides the unchanged rest. Copy the summary line for the check.
+7. Apply the change, then destroy everything this step made, and read the summary: <Cmd>{`kubectl -n learn-m16 exec work -c terraform -- sh -c 'cd /work/m16/terraform && terraform apply -no-color m16.plan && terraform destroy -no-color -auto-approve | tail -1'`}</Cmd> It ends with `Destroy complete! Resources: 3 destroyed.` The folder and the contact point are gone from Grafana. Keep `main.tf` in the repository; step 11 uses it again.
+</Do>
+
+<Done>
+Terraform created a folder, a dashboard and a contact point from a file in your repository, changed one of them in place after a plan you read, and removed all three.
+</Done>
+
+<Trap practice>
+A 401 or 403 from Grafana in the plan means the token in the Secret is wrong or expired. Make a new token and a new Secret as in step 3, then delete the pod `work` and apply its manifest again so it reads the new Secret.
+</Trap>
+
+<Remember>
+The provider turns `.tf` files into Grafana API calls; the plan is the review; the state ties files to objects and stays out of Git.
+</Remember>
+
+<Question id="q-m16-s04" answer="c">
+A plan for a Grafana dashboard prints `-/+ resource "grafana_dashboard" "orders"` with "forces replacement" next to `uid`. What will apply do?
+
+- Change the dashboard's title in place and keep its history
+
+  An in-place change is shown with `~`. `-/+` is a replacement.
+
+- Nothing, because a plan only reports drift
+
+  A plan reports what apply will do. Apply then does it.
+
+- Delete the dashboard and create a new one with the new UID
+
+  `-/+` means destroy, then create. Links and bookmarks to the old UID stop working.
+
+- Create a second dashboard and keep the first
+
+  Terraform keeps one object per resource. It would not leave the old one behind.
+</Question>

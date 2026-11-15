@@ -78,10 +78,10 @@ Read the main values, run `make lab`, check with `helm list -A`; afterwards chan
 
 <Do>
 1. In WSL (bash), in `lgtm/lab`, read the values named above:
-   <Cmd>{`grep -n 'deploymentMode\|auth_enabled\|retention_period' helm/loki/values.yaml
+   <Cmd>{`grep -n -E 'deploymentMode|auth_enabled|retention_period' helm/loki/values.yaml
 grep -n -A1 'ingest_storage:' helm/mimir/values.yaml
-grep -n 'retention:\|X-Scope-OrgID' helm/kube-prometheus-stack/values.yaml
-grep -n '^mode\|^replicaCount' helm/otel-gateway/values.yaml`}</Cmd>
+grep -n -E 'retention:|X-Scope-OrgID' helm/kube-prometheus-stack/values.yaml
+grep -n -E '^mode|^replicaCount' helm/otel-gateway/values.yaml`}</Cmd>
 2. Install the stack. It ends with the addresses and the lab seed; keep the seed for step 19:
    <Cmd>{`make lab`}</Cmd>
 3. List every release and compare the charts with the `VERSION` files:

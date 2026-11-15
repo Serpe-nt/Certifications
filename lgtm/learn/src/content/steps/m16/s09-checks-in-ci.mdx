@@ -1,0 +1,100 @@
+---
+id: m16-s09
+title: Checks in CI
+kind: concept
+minutes: 12
+order: 9
+outcome: You can say which automatic check catches which kind of broken file in an observability repository, and what no check can catch.
+terms:
+  - term: CI
+    def: Continuous integration, a service that runs checks on every proposed change before it is merged.
+  - term: Workflow
+    def: A file in .github/workflows that tells GitHub Actions which checks to run and when.
+  - term: Render
+    def: Turning a chart and its values into the plain Kubernetes manifests Helm would apply, without a cluster.
+exam:
+  - cert: none
+tags: [ascode-ci]
+sources:
+  - title: promtool command line (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/command-line/promtool/
+    checked: 2026-11-15
+  - title: Mimirtool
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/tools/mimirtool/
+    checked: 2026-11-15
+  - title: helm template
+    url: https://helm.sh/docs/helm/helm_template/
+    checked: 2026-11-15
+  - title: Collector configuration (OpenTelemetry)
+    url: https://opentelemetry.io/docs/collector/configuration/
+    checked: 2026-11-15
+---
+
+<Problem>
+On 2026-11-14 a review found 54 code blocks in six merged lesson modules that a learner could not copy as written. Manifests had lost their indentation on the page, and commands had curly quotes and typographic dashes. Every file was right in Git, every review had passed, and the site had built without an error.
+</Problem>
+
+No person reads a built page character by character. A program can, if somebody writes it.
+
+<Idea>
+CI runs the same checks on every pull request, before anyone merges. Each check knows one kind of fault: a file that does not parse, a rule with a wrong query, a chart that does not render, a page that differs from its source. A team adds a check each time a fault reaches production that a program could have seen.
+</Idea>
+
+## This repository's own workflows
+
+The repository has six workflow files for the course under `.github/workflows/`: `lgtm-beacon`, `lgtm-demo`, `lgtm-lab-cluster`, `lgtm-lab-helm`, `lgtm-lab-platform` and `lgtm-learn`. Each one runs only when a pull request touches its paths. Three of them are closest to this module.
+
+<Layers caption="Three of the checks that run on a pull request here">
+  <Layer title="lgtm lab cluster">yamllint, ansible-lint and syntax checks of the playbooks; PowerShell analysis and tests of the VM script; a printed plan.</Layer>
+  <Layer title="lgtm lab helm">yamllint and helm lint; every release rendered for the full and the kind profile; a schema check of the result; requests and limits on every container.</Layer>
+  <Layer title="lgtm-learn" hot>Unit tests, a type check, the end-to-end tests, then the build, which checks every lesson file and then every built page.</Layer>
+</Layers>
+
+The Helm check is the one closest to this module. It renders each release with the lab's own pinned chart and values files, exactly as the playbook would, and checks every manifest against the Kubernetes 1.35 schemas and the custom resource definitions. A value with a wrong indent, a typo in a field name or a container without limits fails there, on a GitHub runner, and never reaches the cluster.
+
+## The fault no check caught
+
+The 54 broken blocks went through all of that. The lesson files were valid, so the content check passed. The pages built, so the build passed. The fault was in between: Markdown changed the text on its way from the file to the page. Until a check compared the two, nobody saw it.
+
+So the site gained `check:pages`. After every build it takes each command, query and file block on each built page and compares it with the source, character for character. Since then, a manifest that loses its indentation fails the pull request. The fault came first and the check second, which is the normal order.
+
+## Checks for the files of this module
+
+Every kind of file in an observability repository has a tool that checks it without a running system. `promtool check rules` reads a Prometheus rule file and its PromQL, and `promtool test rules` runs unit tests against made-up series. For rules bound for Mimir, `mimirtool rules check` holds recorded names to the naming practice, and `lint` puts the file into a standard form. A Collector checks its own configuration with `validate`, and Alloy has `alloy validate`. `helm template` renders a chart, and a diff against what runs shows a reviewer what an upgrade will do. `terraform validate` checks the files, and a `terraform plan` on the pull request shows what will change in Grafana. Steps 6 to 8 run the rule, pipeline and Helm checks; steps 4 and 11 run `terraform plan`.
+
+<Compare caption="What a check can and cannot see">
+  <Col title="Caught by a check" hot>A file that does not parse, a field that does not exist, a query with a syntax error, a missing limit.</Col>
+  <Col title="Not caught">A valid setting that is wrong for the load, such as a retention that fills a disk.</Col>
+</Compare>
+
+<InLab>
+In November 2026 Kafka's volumes filled because retention was set by time only. Every file was valid, so no check failed. The lesson the lab took was a check of the running system: `make lab-check` now fails on a volume above 85%, and an alert fires at the same mark.
+</InLab>
+
+<Trap>
+A green pipeline means the files passed the checks you wrote, nothing more. A setting can be valid and still wrong; that is what review and runtime alerts are for.
+</Trap>
+
+<Remember>
+Put one automatic check in front of each kind of file, and add a new check when a fault gets through that a program could have seen.
+</Remember>
+
+<Question id="q-m16-s09" answer="b">
+A pull request changes a Prometheus rule file. The rule's PromQL has a missing closing bracket. Which check fails first?
+
+- The schema check of the rendered Helm manifests
+
+  A schema check reads the structure of a Kubernetes object. A query inside a string field is just text to it.
+
+- `promtool check rules` on the rule file
+
+  promtool parses every expression in the rule file, so a broken PromQL query fails the check before the merge.
+
+- A `terraform plan` of the Grafana resources
+
+  Terraform plans Grafana resources. It does not parse Prometheus rules.
+
+- The runtime alert on full volumes
+
+  That alert watches disk use on the running lab. It knows nothing about rule files.
+</Question>

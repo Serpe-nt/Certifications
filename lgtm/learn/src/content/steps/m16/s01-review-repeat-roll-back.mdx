@@ -1,0 +1,99 @@
+---
+id: m16-s01
+title: "Why as code: review, repeat, roll back"
+kind: concept
+minutes: 10
+order: 1
+outcome: You can say what a team gains when dashboards, rules and pipelines live in Git, and which things in a stack are still made by hand.
+terms:
+  - term: As code
+    def: Keeping a resource as a text file in version control and creating it from that file, not by hand.
+  - term: Source of truth
+    def: The one place whose copy wins when two copies of a resource disagree.
+  - term: Drift
+    def: The difference between what the files say and what really runs, after someone changed the running copy by hand.
+exam:
+  - cert: none
+tags: [ascode-why]
+sources:
+  - title: Deploy, configure and provision Grafana with as code workflows
+    url: https://grafana.com/docs/grafana/v13.3/as-code/
+    checked: 2026-11-15
+  - title: Introduction to Git Sync, common use cases
+    url: https://grafana.com/docs/grafana/v13.3/as-code/git-sync/
+    checked: 2026-11-15
+---
+
+<Problem>
+On 2026-11-13 this lab was destroyed and built again from the `main` branch, with new virtual machines. Thirty-three minutes after the first command, the lab check passed. Every data source and every dashboard of the folders Shop and Lab was back. A dashboard that someone had built by clicking was not.
+</Problem>
+
+The difference between the two kinds of dashboard was not their content. It was where they lived.
+
+<Idea>
+A resource kept as a file in Git can be reviewed before it changes, created again the same way anywhere, and taken back to any earlier version. A resource made by hand exists only in one database, with no record of why it looks the way it does. Observability as code means that dashboards, alert rules, pipelines and the stack's own settings all take the first path.
+</Idea>
+
+## What was in Git came back
+
+The lab is built by three commands that read files from this repository. The data sources are written in Grafana's values file. The dashboards of the folders Shop and Lab are JSON files in a small chart of the lab. The alert for full volumes is a rule in the same chart. When the cluster was built again, these files produced the same objects as before, because nothing in them depended on the old cluster.
+
+The hand-made dashboard was a row in Grafana's database. That database sat on a volume of the old cluster, and the volume was destroyed with its machines. Nobody could build the dashboard again without remembering every panel and every query.
+
+<Timeline caption="The rebuild of 2026-11-13, in UTC">
+  <Event at="12:42" title="Start">The owner and a worker begin with new machines.</Event>
+  <Event at="12:48" title="Cluster">Kubernetes runs on five nodes.</Event>
+  <Event at="13:04" title="Platform">Storage, gateway and Kafka are installed.</Event>
+  <Event at="13:15" title="Lab check passed">Every release is up, and every file-based dashboard is back.</Event>
+</Timeline>
+
+## Three things a file gives you
+
+**Review.** A change to a file can go through a pull request. A second person reads the diff before anything changes, and an automatic check can refuse a broken file. A click in Grafana is live at once, with nobody reading it.
+
+**Repeat.** The same files create the same objects in a test cluster, in production, or in a lab built again from nothing. Teams use this to keep several Grafana instances the same.
+
+**Roll back.** Git keeps every version with its author, its date and its reason. Going back is a revert and a new run, not a memory exercise.
+
+<Compare caption="One dashboard, made two ways">
+  <Col title="Made by hand">Lives in one database. No review, no history of why, lost with the database.</Col>
+  <Col title="Kept as code" hot>Lives in Git. Reviewed in a pull request, created again anywhere, reverted to any version.</Col>
+</Compare>
+
+## The source of truth must be one place
+
+As code works only if the files win. If someone also changes the running object by hand, the files and the lab no longer agree. This gap is called drift, and the next run of the files either undoes the hand change or fails on it. So a team decides, for each kind of resource, where the source of truth is, and makes the running copy hard to change in any other way. Step 2 shows that Grafana does this for its provisioned objects: it refuses to save them from the screen.
+
+The rest of this module puts the pieces of the stack into Git one by one: Grafana's provisioning files, Git Sync, Terraform, dashboards built by code, rule files, pipeline files and Helm values. Then it adds the checks that run before a change ships, keeps the secrets out, and promotes one change from a branch to the lab.
+
+<InLab>
+`lgtm/lab/helm/grafana/values.yaml` holds the lab's data sources, and `lgtm/lab/charts/lab-glue/dashboards/` holds the JSON of its dashboards. Both came back in the rebuild.
+</InLab>
+
+<Trap>
+A backup is not the same as code. A database backup brings back the dashboard, but not who changed it, why, or what it looked like last Tuesday, and nobody reviews it before it is restored.
+</Trap>
+
+<Remember>
+What lives in Git can be reviewed, repeated and rolled back. What is made by hand lives in one database and is lost with it.
+</Remember>
+
+<Question id="q-m16-s01" answer="b">
+A team rebuilds its cluster from Git. Afterwards the alert rules are back, but one dashboard is missing. What is the most likely reason?
+
+- The rebuild ran the files in the wrong order
+
+  Order matters for some resources, but a missing dashboard after a clean rebuild usually means it had no file at all.
+
+- It was made by hand and lived only in Grafana's database
+
+  A dashboard that was never written to a file cannot come back from Git. It lived in the old database only.
+
+- Grafana does not support dashboards as files
+
+  Grafana loads dashboards from files through provisioning, Git Sync and its APIs.
+
+- Dashboards cannot be stored in the same repository as rules
+
+  One repository can hold any kind of file. The kind of file is not the problem.
+</Question>
