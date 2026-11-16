@@ -1,313 +1,178 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-13T19:00:00Z",
+  "generatedAt": "2026-11-16T22:30:00Z",
   "title": "Design System: SAA-C03 plan",
   "extensions": {
     "colorMeta": {
-      "signal": {
-        "role": "primary",
-        "displayName": "Cadmium Signal",
-        "canonical": "#F7D123",
-        "tonalRamp": [
-          "#2E2606",
-          "#4F420B",
-          "#776311",
-          "#A08517",
-          "#CCAA1D",
-          "#F7D123",
-          "#F9DF6A",
-          "#FCF0B8"
-        ]
-      },
-      "alert": {
-        "role": "secondary",
-        "displayName": "Hazard Vermilion",
-        "canonical": "#FF5533",
-        "tonalRamp": [
-          "#2E0C05",
-          "#55170A",
-          "#80220F",
-          "#AE2F15",
-          "#DA3D1E",
-          "#FF5533",
-          "#FF8B73",
-          "#FFC9BD"
-        ]
-      },
-      "paper": {
-        "role": "neutral",
-        "displayName": "Excimer Black",
-        "canonical": "#111111",
-        "tonalRamp": [
-          "#0A0A0A",
-          "#111111",
-          "#1C1C1B",
-          "#2A2925",
-          "#36342C",
-          "#8E8A7F",
-          "#BCB9AF",
-          "#EDEBE4"
-        ]
-      },
-      "ink": {
-        "role": "neutral",
-        "displayName": "Bone Ink",
-        "canonical": "#EDEBE4"
-      },
-      "rule": {
-        "role": "neutral",
-        "displayName": "Umber Rule",
-        "canonical": "#36342C"
-      },
-      "inv-paper": {
-        "role": "neutral",
-        "displayName": "Inverse Sheet",
-        "canonical": "#E3E0D6"
-      }
+      "signal": { "role": "primary", "displayName": "Ember Signal", "canonical": "#FF4A1C", "tonalRamp": ["#3A1006", "#5E1A0A", "#8A260F", "#B83314", "#E34019", "#FF4A1C", "#FF8B6B", "#FFC9B8"] },
+      "signal-text": { "role": "primary", "displayName": "Ember Text", "canonical": "#FF6A42", "tonalRamp": ["#3A1006", "#5E1A0A", "#8A260F", "#B83314", "#E34019", "#FF6A42", "#FF9B7E", "#FFD2C4"] },
+      "on-signal": { "role": "primary", "displayName": "On Signal", "canonical": "#050D10", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "ground": { "role": "neutral", "displayName": "Carbon Ground", "canonical": "#050D10", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "ground-lit": { "role": "neutral", "displayName": "Lit Ground", "canonical": "#164550", "tonalRamp": ["#05161A", "#0A242A", "#10343C", "#164550", "#2A6370", "#4C8592", "#82AEB8", "#C4DCE1"] },
+      "sheet": { "role": "neutral", "displayName": "Sheet", "canonical": "#0B1518", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "mist": { "role": "neutral", "displayName": "Mist", "canonical": "#131F23", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#1F2D32", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "off": { "role": "neutral", "displayName": "Off", "canonical": "#34454B", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "steel": { "role": "neutral", "displayName": "Steel", "canonical": "#6B8A93", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#EAF1F2", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "ink-2": { "role": "neutral", "displayName": "Ink 2", "canonical": "#9BB5BC", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "on-ink": { "role": "neutral", "displayName": "On Ink", "canonical": "#050D10", "tonalRamp": ["#050D10", "#0B1518", "#131F23", "#1F2D32", "#34454B", "#6B8A93", "#9BB5BC", "#EAF1F2"] },
+      "glass": { "role": "neutral", "displayName": "Glass", "canonical": "rgba(5,13,16,0.46)" },
+      "glass-edge": { "role": "neutral", "displayName": "Glass Edge", "canonical": "rgba(234,241,242,0.2)" }
     },
     "typographyMeta": {
-      "display": {
-        "displayName": "Display",
-        "purpose": "The view's one signal title; sentence case, on a paper plate."
-      },
-      "headline": {
-        "displayName": "Headline",
-        "purpose": "Step card headline and hero title."
-      },
-      "title": {
-        "displayName": "Title",
-        "purpose": "The step line on a card."
-      },
-      "lead": {
-        "displayName": "Lead",
-        "purpose": "The why explanation and the next step."
-      },
-      "body": {
-        "displayName": "Body",
-        "purpose": "Reading text, tabular numerals."
-      },
-      "label": {
-        "displayName": "Label",
-        "purpose": "Uppercase mono labels, section heads, tags, facts."
-      },
-      "button": {
-        "displayName": "Button",
-        "purpose": "Uppercase mono button labels."
-      }
+      "display-light": { "displayName": "Display light", "purpose": "The day's title in the hero's bite. One per view; never with display." },
+      "title": { "displayName": "Title", "purpose": "Task title in the day view and the question in the quiz; 32px over 440 characters, 22px on a phone." },
+      "heading": { "displayName": "Heading", "purpose": "Section and panel headings." },
+      "subheading": { "displayName": "Subheading", "purpose": "Names inside a row, cell or notice." },
+      "body": { "displayName": "Body", "purpose": "Running text, about 68-74 characters." },
+      "body-s": { "displayName": "Body small", "purpose": "Notes, help, where-to-do-it lines." },
+      "label": { "displayName": "Label", "purpose": "Uppercase by CSS: buttons, tags, tabs, bracketed group names. Never over a title." },
+      "plate-l": { "displayName": "Plate", "purpose": "PL.NN plate numbers, Tektur at width 75." },
+      "plate-figure": { "displayName": "Plate figure", "purpose": "Day numbers in the map, big stats, alert notice headings." },
+      "data": { "displayName": "Data", "purpose": "Values, ids, timestamps. Only for data." },
+      "micro": { "displayName": "Micro", "purpose": "Uppercase plate furniture: the strip, facts-table labels, bay readouts." },
+      "word": { "displayName": "Word", "purpose": "Datum's vertical katakana word in a bay. Loaded; not yet set by any shipped view." }
     },
-    "shadows": [
-      {
-        "name": "plate",
-        "value": "0 0 0 var(--space-1) var(--paper)",
-        "purpose": "Not a shadow: a hard paper spread that plates text over the ground (4-12px). The only box-shadow use."
-      }
+    "cuts": [
+      { "name": "cut-s", "value": "7px", "purpose": "Tags, end cells, icon cells." },
+      { "name": "cut-m", "value": "12px", "purpose": "What you press: buttons, choices, nav tabs." },
+      { "name": "cut-l", "value": "16px", "purpose": "Blocks: glass panels, alert and done notices, the signal field." },
+      { "name": "cut-xl", "value": "32px", "purpose": "The bay and where a container bites into it." }
     ],
-    "shapes": [
-      {
-        "name": "chamfer",
-        "value": "10px",
-        "purpose": "Primary button bottom-right cut."
-      },
-      {
-        "name": "chamfer-l",
-        "value": "16px",
-        "purpose": "Card top-right cut, banners."
-      },
-      {
-        "name": "chamfer-xl",
-        "value": "32px",
-        "purpose": "Datum frame corner cuts."
-      },
-      {
-        "name": "notch",
-        "value": "24px",
-        "purpose": "Datum frame tab notch."
-      },
-      {
-        "name": "stroke-hair",
-        "value": "1px",
-        "purpose": "All structure lines."
-      },
-      {
-        "name": "stroke-bold",
-        "value": "2px",
-        "purpose": "Focus ring, scan line, timer bar."
-      },
-      {
-        "name": "stroke-bar",
-        "value": "6px",
-        "purpose": "Stat tile top bars."
-      }
+    "strokes": [
+      { "name": "stroke-hair", "value": "1px", "purpose": "Hairlines, plate furniture, figure lines." },
+      { "name": "stroke-line", "value": "1.5px", "purpose": "Control and tag outlines." },
+      { "name": "stroke-datum", "value": "2px", "purpose": "The datum line and the focus ring." }
+    ],
+    "sizes": [
+      { "name": "control", "value": "52px", "purpose": "Buttons, fields, choices." },
+      { "name": "control-s", "value": "40px", "purpose": "Small buttons, tabs, end cells." }
+    ],
+    "shadows": [
+      { "name": "rim", "value": "inset 0 1px 0 rgba(255,255,255,.08), inset 0 0 0 1px rgba(255,255,255,.04)", "purpose": "The edge of every sheet, popover and tooltip." },
+      { "name": "lamp-glow", "value": "0 0 8px 1px color-mix(in srgb, var(--signal) 55%, transparent)", "purpose": "Lamps, the current cell, live combo cells." },
+      { "name": "line-glow", "value": "0 0 10px 0 color-mix(in srgb, var(--signal) 62%, transparent), 0 0 28px 2px color-mix(in srgb, var(--signal) 13%, transparent)", "purpose": "The datum line." }
     ],
     "motion": [
-      {
-        "name": "dm-ease",
-        "value": "cubic-bezier(.16, 1, .3, 1)",
-        "purpose": "Everything that travels."
-      },
-      {
-        "name": "dm-tick",
-        "value": "80ms linear",
-        "purpose": "Colour and border switches."
-      },
-      {
-        "name": "dm-step",
-        "value": "160ms",
-        "purpose": "Button wipe, tile hover."
-      },
-      {
-        "name": "dm-arrive",
-        "value": "480ms",
-        "purpose": "Banners, badges, bars filling."
-      },
-      {
-        "name": "dm-beat",
-        "value": "1200ms steps(1)",
-        "purpose": "The one live element's blink; stopped by calm."
-      },
-      {
-        "name": "arrival",
-        "value": "backdrop fade 900ms; corner crosshair lock 760ms; parts on 420ms, 60ms apart, once per card; scan line 820ms",
-        "purpose": "One arrival per view."
-      }
+      { "name": "dm-ease", "value": "cubic-bezier(.2, .8, .2, 1)", "purpose": "Default easing for state changes." },
+      { "name": "dm-ease-enter", "value": "cubic-bezier(.22, 1, .36, 1)", "purpose": "Arrival easing." },
+      { "name": "dm-fast", "value": "150ms", "purpose": "Hover and state transitions." },
+      { "name": "dm-arrive", "value": "620ms", "purpose": "The datum line draws and content settles on it in order (data-i)." },
+      { "name": "dm-cycle", "value": "3.2s", "purpose": "The one pulsing lamp." }
     ],
     "breakpoints": [
-      {
-        "name": "phone",
-        "value": "640px"
-      },
-      {
-        "name": "card-padding",
-        "value": "761px"
-      },
-      {
-        "name": "stack",
-        "value": "860px"
-      },
-      {
-        "name": "today-pair",
-        "value": "900px"
-      },
-      {
-        "name": "tiles-4",
-        "value": "1100px"
-      },
-      {
-        "name": "article-sidebar",
-        "value": "1300px"
-      }
+      { "name": "phone", "value": "640px" },
+      { "name": "stack", "value": "860px" },
+      { "name": "aside-under", "value": "1023px" },
+      { "name": "mosaic-6", "value": "1180px" }
     ]
   },
   "components": [
     {
-      "name": "Primary Button",
+      "name": "Signal Button",
       "kind": "button",
-      "refersTo": "button-primary",
-      "description": "The one filled signal action per view, bottom-right corner cut.",
-      "html": "<button class=\"ds-btn-primary\">Start day 1 <span>→</span></button>",
-      "css": ".ds-btn-primary{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 24px;font:600 13px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--on-signal,#111);border:1px solid transparent;border-radius:0;cursor:pointer;background:border-box no-repeat linear-gradient(315deg,transparent 7.07px,var(--signal,#F7D123) 7.57px)}.ds-btn-primary:hover{text-decoration:underline;text-underline-offset:4px}.ds-btn-primary:active{transform:translate(1px,1px)}.ds-btn-primary:focus-visible{outline:2px solid var(--ink,#EDEBE4);outline-offset:2px}"
+      "refersTo": "button-signal",
+      "description": "The one action a view exists for: Start / Continue Day N, Mark complete, the quiz's go button. One per view.",
+      "html": "<button class=\"ds-btn ds-btn-signal\">Start Day 3<span class=\"ds-end\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M2 8h11M8.5 3.5L13 8l-4.5 4.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/></svg></span></button>",
+      "css": ".ds-btn { position: relative; display: inline-flex; align-items: center; gap: var(--space-3, 12px); height: 52px; padding: 0 4.5px 0 24px; border: 1.5px solid var(--signal, #FF4A1C); border-radius: 0; font: 700 11px/14px Onest, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); transition: background 150ms cubic-bezier(.2,.8,.2,1), transform 150ms cubic-bezier(.2,.8,.2,1); } .ds-btn-signal { background: var(--signal, #FF4A1C); color: var(--on-signal, #050D10); } .ds-btn-signal .ds-end { display: grid; place-items: center; width: 40px; height: 40px; background: var(--on-signal, #050D10); color: var(--signal, #FF4A1C); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%); } .ds-btn-signal:hover { background: color-mix(in srgb, var(--signal, #FF4A1C) 88%, var(--on-signal, #050D10)); } .ds-btn:focus-visible { outline: 2px solid var(--on-signal, #050D10); outline-offset: -5px; } .ds-btn:active { transform: translateY(1px) scale(.985); }"
     },
     {
-      "name": "Outline Button",
+      "name": "Line Button",
       "kind": "button",
-      "refersTo": "button-outline",
-      "description": "Default button: ink outline, ink wipes in from the left on hover.",
-      "html": "<button class=\"ds-btn\">Open ↗</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;min-height:36px;padding:0 16px;font:500 12px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink,#EDEBE4);background:linear-gradient(var(--ink,#EDEBE4),var(--ink,#EDEBE4)) left/0 100% no-repeat var(--paper-raised,#1C1C1B);border:1px solid var(--ink,#EDEBE4);border-radius:0;cursor:pointer;transition:background-size 160ms cubic-bezier(.16,1,.3,1),color 80ms linear}.ds-btn:hover{background-size:100% 100%;color:var(--paper,#111)}.ds-btn:active{transform:translate(1px,1px)}.ds-btn:focus-visible{outline:2px solid var(--ink,#EDEBE4);outline-offset:2px}"
-    },
-    {
-      "name": "Ghost Button",
-      "kind": "button",
-      "refersTo": "button-ghost",
-      "description": "Bracketed text button for header toggles and nav.",
-      "html": "<button class=\"ds-btn-ghost\" aria-pressed=\"true\">Effects on</button>",
-      "css": ".ds-btn-ghost{display:inline-flex;gap:4px;min-height:36px;padding:0 4px;font:500 12px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink,#EDEBE4);background:transparent;border:1px solid transparent;cursor:pointer}.ds-btn-ghost::before{content:'[';color:var(--ink-3,#8E8A7F)}.ds-btn-ghost::after{content:']';color:var(--ink-3,#8E8A7F)}.ds-btn-ghost:hover{text-decoration:underline;text-underline-offset:4px}.ds-btn-ghost[aria-pressed=false]{color:var(--ink-3,#8E8A7F)}.ds-btn-ghost:focus-visible{outline:2px solid var(--ink,#EDEBE4);outline-offset:2px}"
+      "refersTo": "button-line",
+      "description": "Every other action: Back, Overview, Search, Settings, timer actions.",
+      "html": "<button class=\"ds-btn-line\">Back</button>",
+      "css": ".ds-btn-line { display: inline-flex; align-items: center; height: 52px; padding: 0 24px; background: transparent; color: var(--ink, #EAF1F2); border: 1.5px solid var(--ink, #EAF1F2); border-radius: 0; font: 700 11px/14px Onest, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); transition: background 150ms cubic-bezier(.2,.8,.2,1); } .ds-btn-line:hover { background: color-mix(in srgb, var(--ink, #EAF1F2) 9%, transparent); } .ds-btn-line:focus-visible { outline: 2px solid var(--signal, #FF4A1C); outline-offset: -5px; } .ds-btn-line:active { transform: translateY(1px) scale(.985); }"
     },
     {
       "name": "Tag",
       "kind": "chip",
       "refersTo": "tag",
-      "description": "Mono status tag with a square marker; today in signal.",
-      "html": "<span class=\"ds-tag\">Setup: create the account</span> <span class=\"ds-tag ds-tag-today\">Today</span>",
-      "css": ".ds-tag{display:inline-flex;align-items:center;gap:6px;min-height:20px;padding:0 8px;font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink,#EDEBE4);background:var(--paper-raised,#1C1C1B);border:1px solid var(--ink,#EDEBE4)}.ds-tag::before{content:'';width:6px;height:6px;background:currentColor}.ds-tag-today{background:var(--signal,#F7D123);border-color:var(--signal,#F7D123);color:var(--on-signal,#111)}"
+      "description": "Status words and the place marks inside running text.",
+      "html": "<span class=\"ds-tag\">Console</span> <span class=\"ds-tag ds-tag-quiet\">Locked</span>",
+      "css": ".ds-tag { display: inline-flex; align-items: center; height: 30px; padding: 0 14px 0 10px; border: 1.5px solid var(--ink, #EAF1F2); color: var(--ink, #EAF1F2); font: 700 11px/14px Onest, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%); } .ds-tag-quiet { border-color: var(--off, #34454B); color: var(--ink-2, #9BB5BC); }"
     },
     {
-      "name": "Step Card",
-      "kind": "card",
-      "refersTo": "card",
-      "description": "Article panel with a 16px top-right cut and a why-box framed in ink-3.",
-      "html": "<article class=\"ds-card\"><h2 class=\"ds-card-h\">Create your AWS account</h2><section class=\"ds-box\"><h3 class=\"ds-box-h\"><i></i>Why this step</h3><p>Whoever holds the first login controls the account.</p></section></article>",
-      "css": ".ds-card{position:relative;padding:32px 48px 48px;background:var(--paper-raised,#1C1C1B);border:1px solid var(--rule,#36342C);clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%);color:var(--ink,#EDEBE4)}.ds-card-h{margin:0 0 16px;font:600 40px/1.02 var(--font-display);letter-spacing:-.03em}.ds-box{padding:16px;background:var(--paper,#111);border:1px solid var(--ink-3,#8E8A7F)}.ds-box-h{display:flex;gap:8px;align-items:center;margin:0 0 12px;font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}.ds-box-h i{width:10px;height:10px;background:var(--signal,#F7D123)}.ds-box p{margin:0;font-size:19px;line-height:1.6}"
-    },
-    {
-      "name": "Field",
+      "name": "Input",
       "kind": "input",
       "refersTo": "input",
-      "description": "Sunk mono field, square, ink border.",
-      "html": "<input class=\"ds-input\" placeholder=\"Search\">",
-      "css": ".ds-input{height:40px;padding:0 12px;font:400 14px var(--font-mono);color:var(--ink,#EDEBE4);background:var(--paper-sunk,#0A0A0A);border:1px solid var(--ink,#EDEBE4);border-radius:0;caret-color:var(--ink,#EDEBE4)}.ds-input:focus-visible{outline:2px solid var(--ink,#EDEBE4);outline-offset:2px}"
+      "description": "Datum field: square, ink-2 outline, filled corner triangle.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search steps and notes\">",
+      "css": ".ds-input { width: 280px; height: 52px; padding: 0 16px; border: 1.5px solid var(--ink-2, #9BB5BC); border-radius: 0; --corner: var(--ink-2, #9BB5BC); background: linear-gradient(to top left, var(--corner) 50%, transparent calc(50% + .5px)) 100% 100% / 9px 9px no-repeat, var(--sheet, #0B1518); color: var(--ink, #EAF1F2); font: 400 16px Onest, system-ui, sans-serif; } .ds-input::placeholder { color: var(--ink-2, #9BB5BC); } .ds-input:hover, .ds-input:focus { border-color: var(--ink, #EAF1F2); --corner: var(--ink, #EAF1F2); outline: none; } .ds-input:focus-visible { outline: 2px solid var(--ink, #EAF1F2); outline-offset: 2px; }"
     },
     {
-      "name": "Rail",
+      "name": "Nav Block",
       "kind": "nav",
-      "refersTo": "rail",
-      "description": "Sticky 48px strip: signal code block, mono crumbs, timer bar along the bottom.",
-      "html": "<nav class=\"ds-rail\"><a class=\"ds-rail-code\" href=\"#\">SAA-C03</a><a class=\"ds-rail-a\" href=\"#\">Overview</a><a class=\"ds-rail-a is-on\" href=\"#\">Day 01</a><i class=\"ds-rail-bar\"></i></nav>",
-      "css": ".ds-rail{position:relative;display:flex;align-items:stretch;height:48px;background:var(--paper,#111);border-bottom:1px solid var(--rule,#36342C);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}.ds-rail-code{display:flex;align-items:center;padding:0 24px 0 16px;background:var(--signal,#F7D123);color:var(--on-signal,#111);font-weight:600;text-decoration:none}.ds-rail-a{display:flex;align-items:center;padding:0 16px;color:var(--ink-3,#8E8A7F);text-decoration:none}.ds-rail-a:hover,.ds-rail-a.is-on{color:var(--ink,#EDEBE4)}.ds-rail-bar{position:absolute;left:0;bottom:-1px;height:2px;width:40%;background:var(--signal,#F7D123)}"
+      "refersTo": "nav-tabs",
+      "description": "Datum's nav block: the mark, the code, the views as tabs on a mist rail.",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-mark\"><svg viewBox=\"0 0 18 18\" width=\"18\" height=\"18\" aria-hidden=\"true\"><path d=\"M9 3l6 6-6 6-6-6zM9 0v5M9 13v5M0 9h5M13 9h5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/></svg></span><span class=\"ds-code\">SAA-C03</span><span class=\"ds-tabs\"><a href=\"#\" aria-current=\"page\">Overview</a><a href=\"#\">Day 03</a></span></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 6px 12px; background: var(--sheet, #0B1518); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 0 0 1px rgba(255,255,255,.04); } .ds-mark { display: grid; place-items: center; width: 40px; height: 40px; background: var(--ink, #EAF1F2); color: var(--on-ink, #050D10); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%); } .ds-code { font: 400 11px/14px 'Martian Mono', ui-monospace, monospace; letter-spacing: .08em; color: var(--ink-2, #9BB5BC); } .ds-tabs { display: flex; gap: 2px; padding: 4px; background: var(--mist, #131F23); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); } .ds-tabs a { display: flex; align-items: center; height: 40px; padding: 0 24px; color: var(--ink-2, #9BB5BC); font: 700 11px/14px Onest, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; transition: background 150ms; } .ds-tabs a:hover { background: color-mix(in srgb, var(--ink, #EAF1F2) 9%, transparent); color: var(--ink, #EAF1F2); } .ds-tabs a[aria-current] { background: var(--ink, #EAF1F2); color: var(--on-ink, #050D10); } .ds-tabs a:focus-visible { outline: 2px solid var(--signal, #FF4A1C); outline-offset: -5px; }"
+    },
+    {
+      "name": "Plate Header",
+      "kind": "custom",
+      "refersTo": "sheet",
+      "description": "PL.NN in Tektur, a barcode, micro furniture, and the glowing datum line under it. Opens the hero, the day view and each quiz screen.",
+      "html": "<div class=\"ds-plate\"><span class=\"ds-plate-no\">PL.03</span><span class=\"ds-plate-id\"><svg width=\"64\" height=\"20\" aria-hidden=\"true\"><g fill=\"currentColor\"><rect x=\"0\" width=\"2\" height=\"20\"/><rect x=\"4\" width=\"1\" height=\"20\"/><rect x=\"7\" width=\"3\" height=\"20\"/><rect x=\"12\" width=\"1\" height=\"20\"/><rect x=\"15\" width=\"2\" height=\"20\"/><rect x=\"20\" width=\"1\" height=\"20\"/><rect x=\"23\" width=\"3\" height=\"20\"/><rect x=\"28\" width=\"1\" height=\"20\"/><rect x=\"31\" width=\"2\" height=\"20\"/></g></svg><span>D3 / SAA-C03<br>Step 02 of 07</span></span></div><div class=\"ds-datum\"></div>",
+      "css": ".ds-plate { display: flex; align-items: flex-end; gap: 16px; padding: 24px 24px 12px; background: var(--sheet, #0B1518); color: var(--ink, #EAF1F2); } .ds-plate-no { font: 800 68px/.8 Tektur, 'Arial Narrow', sans-serif; font-stretch: 75%; text-transform: uppercase; } .ds-plate-id { display: flex; gap: 12px; align-items: flex-end; font: 400 11px/14px 'Martian Mono', ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2, #9BB5BC); } .ds-datum { height: 2px; background: var(--signal, #FF4A1C); box-shadow: 0 0 10px 0 color-mix(in srgb, var(--signal, #FF4A1C) 62%, transparent), 0 0 28px 2px color-mix(in srgb, var(--signal, #FF4A1C) 13%, transparent); }"
+    },
+    {
+      "name": "Choice",
+      "kind": "button",
+      "refersTo": "button-line",
+      "description": "Quiz answer: full-width row with a Tektur key letter in its end cell; correct in ink, wrong pick in signal.",
+      "html": "<button class=\"ds-choice\"><span class=\"ds-key\">A</span>Amazon S3 Lifecycle rules</button>",
+      "css": ".ds-choice { display: flex; align-items: center; gap: 16px; width: 360px; min-height: 52px; padding: 4.5px 24px 4.5px 4.5px; border: 1.5px solid var(--ink-2, #9BB5BC); border-radius: 0; background: transparent; color: var(--ink, #EAF1F2); font: 400 16px/1.4 Onest, system-ui, sans-serif; text-align: left; cursor: pointer; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); transition: border-color 150ms; } .ds-key { display: grid; place-items: center; flex: none; width: 40px; height: 40px; background: var(--mist, #131F23); font: 700 24px/.9 Tektur, 'Arial Narrow', sans-serif; font-stretch: 75%; } .ds-choice:hover { border-color: var(--ink, #EAF1F2); } .ds-choice:focus-visible { outline: 2px solid var(--signal, #FF4A1C); outline-offset: -5px; }"
+    },
+    {
+      "name": "Mosaic Stat Cell",
+      "kind": "card",
+      "refersTo": "sheet",
+      "description": "Overview cells sit in a mosaic on 1px hairline gaps, not as floating cards; figures in Tektur, labels in micro.",
+      "html": "<div class=\"ds-mosaic\"><div class=\"ds-cell\"><span class=\"ds-micro\">Steps done</span><b class=\"ds-fig\">42</b></div><div class=\"ds-cell\"><span class=\"ds-micro\">Quiz average</span><b class=\"ds-fig\">86%</b></div></div>",
+      "css": ".ds-mosaic { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line, #1F2D32); width: 420px; } .ds-cell { display: grid; gap: 12px; padding: 16px; background: var(--sheet, #0B1518); color: var(--ink, #EAF1F2); } .ds-micro { font: 400 11px/14px 'Martian Mono', ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2, #9BB5BC); } .ds-fig { font: 800 42px/.84 Tektur, 'Arial Narrow', sans-serif; font-stretch: 75%; letter-spacing: -.02em; }"
     }
   ],
   "narrative": {
-    "northStar": "The Excimer Poster",
-    "overview": "The app is a near-black sheet with Datum's faint grid behind it. Each view has one subject (the overview's today pair, the day view's step card) and one quiet title in ink; yellow appears only as the view's one filled action or current tile and a few small live marks. Behind everything is Datum's own backdrop (Datum.backdrop): one figure per view, low in contrast and still, a small orbit on the overview and the plain grid in the day view, its hairlines in ink-3 at less than Datum's default strength, its one drifting live node yellow, and the day's number as a ghost. The backdrop carries no information.\n\nComponents come from the owner's Datum system (vendored in site/dm/bundle.css): cut panels and frames, hairlines, uppercase mono labels, dot-matrix numerals. The Excimer colours are applied on top, dark only. The page is dense but reads in order: big title, hero frame, next-step panel, then sections under arrow-mark headers. It avoids the generic dark dashboard of equal cards and neon accents.",
+    "northStar": "The Survey Plate",
+    "overview": "Every view is a plate from a survey: a sheet laid on a lit carbon ground, numbered PL.NN, with one datum line drawn through it and one ember signal on it. The subject of the plate is the day's work: the next step on the overview, the step card in the day view, the question in the quiz. Everything else is plate furniture (codes, barcodes, hairlines, facts tables, lamps) set quietly around it.\n\nThe system is the owner's Datum design system, version 6, vendored unchanged in `site/dm/` (`bundle.css`, `datum.js`, `tokens.json`, and `tokens.css` written from the tokens). It runs in Datum's default Night palette, carbon and ember, the pair nearest the owner's black and orange reference. The app adds layout and the data it has to show; it does not restyle Datum. Density is that of a working instrument: one step per screen, nothing folded, only the page scrolls, and celebrations on a rising ladder that redraws Datum's own light, arcs, contours, cells and lamps.\n\nThe build refuses the generic dark dashboard of equal cards: the overview below the hero is a mosaic of cells on hairlines, not a grid of floating cards. Dark only.",
     "keyCharacteristics": [
-      "Dark only. Near-black paper, charcoal plates, one cadmium yellow.",
-      "Structure drawn in 1px hairlines. No shadows, glows or blur.",
-      "Square corners or 45-degree cuts. No rounded boxes.",
-      "Bold, tightly tracked Saira for titles. Uppercase IBM Plex Mono for labels, buttons and facts.",
-      "A busy backdrop: Datum's one quiet figure per view, never a collage. Text never sits on it bare."
+      "Datum 6, unchanged, Night palette: carbon ground, ember signal.",
+      "One datum line per view, one signal fill per view.",
+      "Light, not shadow: a lit ground with grain, a key light on the subject, glowing lamps.",
+      "Square corners with one 45-degree cut on what you press and what floats.",
+      "Onest for words, Tektur for plate figures, Martian Mono for data only.",
+      "A real photo in the hero bay, graded to monochrome by Datum and relit in ember."
     ],
     "rules": [
-      {
-        "name": "The One Yellow Rule",
-        "body": "Signal goes on the live thing, the view's one title and the marks that lock onto the subject. Never use it for decoration. Each view has one filled yellow action.",
-        "section": "colors"
-      },
-      {
-        "name": "The Token-Only Rule",
-        "body": "Every colour comes from dm/tokens.css. Never hard-code a colour.",
-        "section": "colors"
-      },
-      {
-        "name": "The CSS Case Rule",
-        "body": "Labels are uppercased by text-transform. The DOM text stays in sentence case.",
-        "section": "typography"
-      },
-      {
-        "name": "The Plate Rule",
-        "body": "Text never sits bare on the ground. Give it a --paper plate (background plus spread).",
-        "section": "elevation"
-      },
-      {
-        "name": "The No-Shadow Rule",
-        "body": "No shadows, glows, gradients or blur. Linear gradients appear only as hard-stop fills (a button's wipe, a chamfer, hatching).",
-        "section": "elevation"
-      }
+      { "name": "The One Signal Rule", "body": "A view carries at most one solid signal fill: the `dm-btn--signal` (Start / Continue on the overview, Mark complete or Next in the day view, the go button in each quiz screen) or one signal field (`dm-field-signal`), never both. Every other use of ember is light: lines, lamps, glows, outlines, small `signal-text`.", "section": "colors" },
+      { "name": "The Tokens Only Rule", "body": "Every colour in the app's CSS is a Datum token or a `color-mix` of tokens. No hex values appear in `style.css` or `fx.css`; the canvas celebrations read their colours from Datum's tokens.", "section": "colors" },
+      { "name": "The Dark Only Rule", "body": "The page is pinned to `data-theme=\"night\"`. Datum's Day theme ships in the vendored files and is not used.", "section": "colors" },
+      { "name": "The Mono Is Data Rule", "body": "Martian Mono is for values, ids, measurements and plate furniture, never as a look for prose or headings.", "section": "typography" },
+      { "name": "The One Title Voice Rule", "body": "A view takes display or display-light, never both. The hero uses display-light.", "section": "typography" },
+      { "name": "The One Datum Line Rule", "body": "Each view has one datum line: under the hero with the summit on it, under the plate header in the day view and the quiz. Content arrives and settles on it in order (`dm-arrive`, `data-i`).", "section": "layout" },
+      { "name": "The Light Not Shadow Rule", "body": "Nothing casts a shadow. A thing stands out because it is lit, rimmed or glowing in signal.", "section": "elevation" }
     ],
     "dos": [
-      "Do give every view one quiet ink title and at most one signal fill.",
-      "Do put a --paper plate under any text that overlaps the ground.",
-      "Do draw structure in 1px --rule hairlines; controls rest on --ink-3 outlines and turn ink on hover or focus.",
-      "Do cut corners at 45 degrees (10 / 16 / 32px) where a shape needs character.",
-      "Do set labels, buttons, tags and facts in uppercase IBM Plex Mono through CSS.",
-      "Do use only plain glyphs for marks (↗ → ✓ ✕ ■ □ ▶ + / > _ [ ])."
+      "Do use Datum 6 exactly as vendored in `site/dm/`; re-vendor from the artifact when it changes.",
+      "Do keep one solid signal fill per view, and let every other ember be light: the datum line, lamps, glows, outlines.",
+      "Do build new views from Datum's views and components (Hero, App view, nav block, strip, mosaic, plate header, spec table, notices, choices, train, bar), using Datum 6 tokens only.",
+      "Do set every colour as a token; read tokens in canvas code too.",
+      "Do keep square corners with one 45-degree cut sized by role (7 / 12 / 16 / 32px).",
+      "Do give everything that can be finished a rung on the celebration ladder, and keep every existing rung.",
+      "Do make every view work by touch and at phone width: tap paths for hover features, 44px coarse targets, 16px fields."
     ],
     "donts": [
-      "Don't round a box. Every radius is 0 except dots.",
-      "Don't use shadows, glows, gradients or blur.",
-      "Don't spend signal on decoration or second actions. Use --alert only for what needs attention.",
-      "Don't hard-code a colour, and don't add a light theme.",
-      "Don't put information on the ground beyond the day's ghost number.",
-      "Don't use emoji in the UI."
+      "Don't edit any file in `site/dm/` or override Datum's component styling.",
+      "Don't use Datum's Day theme or any light mode; the app is dark only.",
+      "Don't put a second signal button or signal field in a view.",
+      "Don't use emoji in the UI.",
+      "Don't round corners or cast offset drop shadows; depth is light, rim and glow.",
+      "Don't set prose or headings in Martian Mono.",
+      "Don't set display and display-light in the same view.",
+      "Don't add new rules on the Datum 4 alias names; they are a transitional layer, not the system.",
+      "Don't trim, merge or quiet a celebration rung."
     ]
   }
 }

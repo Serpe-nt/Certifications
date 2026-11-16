@@ -1,0 +1,98 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "organic-clip-path",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/index.html"
+        ],
+        "createdAt": "2026-11-16T20:03:40.948Z",
+        "reason": "Claude triage: index.html has no clip-path; the match is the two icon-sized (<30px, one path) SVG person silhouettes in the hero drafts, which the skill allows"
+      },
+      {
+        "rule": "organic-clip-path",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/photos.html"
+        ],
+        "createdAt": "2026-11-16T20:30:00.502Z",
+        "reason": "Claude triage: photos.html has no clip-path; only Datum's 45-degree cut-corner frames (geometry) reach it via bundle.css/hero.css"
+      },
+      {
+        "rule": "organic-clip-path",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/hero.html"
+        ],
+        "createdAt": "2026-11-16T20:37:40.955Z",
+        "reason": "Claude triage: hero.html has no clip-path; only Datum's 45-degree cut-corner frames from bundle.css (geometry)"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/hero.html"
+        ],
+        "createdAt": "2026-11-16T20:37:41.028Z",
+        "reason": "Claude triage: rendered sizes h1 58px / h2 36px / step 18px / body 16px at 1440 (1.6x, 2x steps); 36/26/16 at 375px; detector compares clamp bounds"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/datum6/index.html"
+        ],
+        "createdAt": "2026-11-16T20:47:21.376Z",
+        "reason": "Owner's instruction 2026-11-16: use the updated Datum 6 artifact unchanged; its fonts are Onest, Tektur, Martian Mono, Noto Sans JP. DESIGN.md is the stale Datum 4 record and is rewritten at finish"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/datum6/index.html"
+        ],
+        "createdAt": "2026-11-16T20:47:21.472Z",
+        "reason": "Owner's instruction 2026-11-16: Datum 6 is used unchanged; the glow is Datum's own datum line and lamp light (--dm-line-glow, --dm-lamp-glow)"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/datum6/bundle.css"
+        ],
+        "createdAt": "2026-11-16T20:47:21.568Z",
+        "reason": "Owner's instruction 2026-11-16: use the updated Datum 6 artifact unchanged; its fonts are Onest, Tektur, Martian Mono, Noto Sans JP. DESIGN.md is the stale Datum 4 record and is rewritten at finish"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/datum6/bundle.css"
+        ],
+        "createdAt": "2026-11-16T20:47:21.653Z",
+        "reason": "Owner's instruction 2026-11-16: Datum 6 is used unchanged; the glow is Datum's own datum line and lamp light (--dm-line-glow, --dm-lamp-glow)"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/datum6/index.html"
+        ],
+        "createdAt": "2026-11-16T20:48:34.885Z",
+        "reason": "Owner's instruction 2026-11-16: use Datum 6 unchanged; the radial light is Datum's own lit ground and key light (dm-bay / dm-lit, dm-slot__light), its documented 'ground and light' rule"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/hero-drafts/datum6/bundle.css"
+        ],
+        "createdAt": "2026-11-16T20:48:34.970Z",
+        "reason": "Owner's instruction 2026-11-16: use Datum 6 unchanged; the radial light is Datum's own lit ground and key light (dm-bay / dm-lit, dm-slot__light), its documented 'ground and light' rule"
+      }
+    ]
+  }
+}

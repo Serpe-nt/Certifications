@@ -1,36 +1,43 @@
-/* Datum tokens for the SAA-C03 plan: the Datum token set (tokens.json, version 4) with its colours retuned to the
-   "Excimer" theme, taken from the owner's reference poster: a near-black frame, charcoal plates, hairlines and marks in
-   one cadmium yellow. Dark only (the owner chose no light theme), so there is no Paper block and data-theme does nothing.
-   The backdrop is Datum's own and uses its tokens (ink-3 at low opacity). */
+/* Datum 6 tokens: tokens.json from the Datum artifact as CSS custom properties, values unchanged. */
+:root, [data-theme="night"] {
+  --ground: #050D10;
+  --ground-lit: #164550;
+  --sheet: #0B1518;
+  --mist: #131F23;
+  --line: #1F2D32;
+  --off: #34454B;
+  --steel: #6B8A93;
+  --ink: #EAF1F2;
+  --ink-2: #9BB5BC;
+  --on-ink: #050D10;
+  --signal: #FF4A1C;
+  --signal-text: #FF6A42;
+  --on-signal: #050D10;
+  --glass: rgba(5,13,16,0.46);
+  --glass-edge: rgba(234,241,242,0.2);
+}
+[data-theme="day"] {
+  --ground: #C1D1CF;
+  --ground-lit: #DDE8E6;
+  --sheet: #F3F7F6;
+  --mist: #E2EAE8;
+  --line: #D1DCDA;
+  --off: #AEBFBD;
+  --steel: #6B8A93;
+  --ink: #0C1719;
+  --ink-2: #3C5258;
+  --on-ink: #F3F7F6;
+  --signal: #F0401A;
+  --signal-text: #C02C0A;
+  --on-signal: #050D10;
+  --glass: rgba(255,255,255,0.66);
+  --glass-edge: rgba(255,255,255,0.8);
+}
 :root {
-  --paper: #111111;
-  --paper-raised: #1C1C1B;
-  --paper-sunk: #0A0A0A;
-  --ink: #EDEBE4;
-  --ink-2: #BCB9AF;
-  --ink-3: #8E8A7F;
-  --rule: #36342C;
-  --signal: #F7D123;
-  --signal-edge: #F7D123;
-  --on-signal: #111111;
-  --alert: #FF5533;
-  --alert-text: #FF7A5E;
-  --on-alert: #111111;
-  --on-ink: var(--paper);
-  --action: var(--signal);
-  --on-action: var(--on-signal);
-  --inv-paper: #E3E0D6;
-  --inv-paper-raised: #EEECE5;
-  --inv-paper-sunk: #D3D0C5;
-  --inv-ink: #111111;
-  --inv-ink-2: #3A3830;
-  --inv-ink-3: #5C594F;
-  --inv-rule: #B4B0A3;
-  --inv-signal-edge: #111111;
-  --inv-alert: #D93A12;
-  --inv-alert-text: #A12C05;
-  --inv-action: #111111;
-  --inv-on-action: #EDEBE4;
+  --font-sans: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-plate: "Tektur", "Arial Narrow", sans-serif;
+  --font-mono: "Martian Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-word: "Noto Sans JP", "Hiragino Sans", sans-serif;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -41,16 +48,14 @@
   --space-16: 64px;
   --space-24: 96px;
   --radius-none: 0px;
-  --radius-dot: 50%;
-  --radius-pill: 999px;
+  --cut-s: 7px;
+  --cut-m: 12px;
+  --cut-l: 16px;
+  --cut-xl: 32px;
   --stroke-hair: 1px;
-  --stroke-bold: 2px;
-  --stroke-bar: 6px;
-  --chamfer: 10px;
-  --chamfer-l: 16px;
-  --chamfer-xl: 32px;
-  --notch: 24px;
-  --font-display: Saira, "Exo 2", "Arial Narrow", system-ui, sans-serif;
-  --font-sans: Saira, "Exo 2", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --stroke-line: 1.5px;
+  --stroke-datum: 2px;
+  --control: 52px;
+  --control-s: 40px;
+  --plate-margin: 32px;
 }

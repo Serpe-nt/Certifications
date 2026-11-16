@@ -1,25 +1,23 @@
-// Celebration effects, drawn in Datum's Excimer colours (the owner's poster): a canvas of square pieces and yellow
-// crosshair marks, dot-matrix bursts, viewfinder brackets, scan lines, rising packets and, on the top rungs, yellow
-// filaments that grow out from a junction like the poster's, all in the theme's own inks (signal, ink, paper), plus
-// Web Audio sounds and the banner, toast and badges. No dependencies. Pieces move smoothly (drawn every frame), turn in
-// 45-degree steps and cut out at the end of their life; nothing glows or blurs.
+// Celebration effects, drawn in Datum 6's language (dm/bundle.css, Night: carbon and ember): light on the ground at a
+// key point (a pool of signal that blooms and goes), the datum line drawn edge to edge through it, arcs and ticked
+// bearing rings opening about it, contour lines rising from it like a terrain's, dot screens, and pieces that are
+// Datum's own marks: slanted bar cells, square cells, spot crosses and lamps (the only pieces that glow). Plus Web
+// Audio sounds and the banner, toast and badges. No dependencies. Pieces move smoothly (drawn every frame) and turn
+// in 45-degree steps; colours are the theme's tokens, read when an effect starts.
 // A ladder, from small to large: step → block → quiz unlocked → day → week → all, plus a sound and a burst on every
 // quiz answer and bigger bursts at each streak mark.
 window.FX = (() => {
   let fxOn = true, soundOn = true;
-  let cv = null, ctx = null, W = 0, H = 0, raf = 0, prev = 0, acc = 0, drawn = 0, clock = 0;
-  let parts = [], rockets = [], frames = [], cells = [], scans = [], strands = [];
+  let cv = null, ctx = null, W = 0, H = 0, raf = 0, prev = 0, acc = 0, clock = 0;
+  let parts = [], rockets = [], rings = [], dots = [], lines = [], contours = [], lights = [];
   let actx = null, out = null, bEl = null, vEl = null, bT = 0, tEl = null, tT = 0, bdWrap = null, glowT = 0;
   const bdQ = [];   // badges waiting for a free place
   const MAX_PARTS = 6000;   // the biggest celebrations stay smooth on a slow machine
-  const MAX_CELLS = 9000;
+  const MAX_DOTS = 9000;
   const FRAME = 1000 / 60;  // the simulation runs in fixed 60 Hz steps, whatever the screen's refresh rate
-  const STEP = 0;           // ...and is drawn on every frame the screen gives (Datum: eased, not stepped)
-  const GRID = 1;           // no snapping: pieces travel smoothly
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const R = (a, b) => a + Math.random() * (b - a);
   const pick = a => a[(Math.random() * a.length) | 0];
-  const snap = v => Math.round(v / GRID) * GRID;
   const motion = () => fxOn && !reduce.matches && document.documentElement.dataset.dmMotion !== "off";
   // No emoji in the interface: whatever a caller passes, pictographs go (the system's own glyphs ↗ and ▶ stay).
   const plain = s => String(s == null ? "" : s).replace(/(?![↗▶])\p{Extended_Pictographic}️?/gu, "").replace(/^\s+/, "");
@@ -28,23 +26,25 @@ window.FX = (() => {
   // (the break reminder over a quiz), the later one in the page is the one on top.
   const host = () => { const d = document.querySelectorAll("dialog[open]"); return d.length ? d[d.length - 1] : document.body; };
 
-  // ---------- colour: the theme's own tokens, read when an effect starts (so Carbon and Paper both work) ----------
-  // Pieces carry a token name, not a colour, so a theme switch mid-burst repaints them right.
+  // ---------- colour: Datum's tokens (dm/tokens.css), read when an effect starts ----------
+  // Pieces carry a token name, not a colour, so the palette can change under a burst.
   let C = {};
   function pal() {
     const cs = getComputedStyle(document.documentElement), v = (n, f) => cs.getPropertyValue(n).trim() || f;
-    C = { sig: v("--signal", "#F7D123"), edge: v("--signal-edge", "#F7D123"), ink: v("--ink", "#EDEBE4"), ink3: v("--ink-3", "#8E8A7F"),
-      raised: v("--paper-raised", "#1C1C1B"), paper: v("--paper", "#111111"), rule: v("--rule", "#36342C"), alert: v("--alert", "#FF5533") };   // fallbacks = dm/tokens.css
+    C = { sig: v("--signal", "#FF4A1C"), ink: v("--ink", "#EAF1F2"), ink2: v("--ink-2", "#9BB5BC"), off: v("--off", "#34454B"),
+      line: v("--line", "#1F2D32"), mist: v("--mist", "#131F23"), lit: v("--ground-lit", "#164550") };   // fallbacks = Datum 6 Night
   }
-  // Mixes of pieces by heat. "raised" pieces are paper with an ink outline, so they read on either theme.
+  // Mixes of pieces by heat: ink marks with the signal as their light; hotter runs carry more signal.
   const MIX = {
-    base: ["sig", "sig", "ink", "ink", "raised"],
-    hot: ["sig", "sig", "sig", "ink", "edge"],        // a run of 5 or more
-    epic: ["sig", "ink", "raised", "edge", "sig"],    // a run of 20 or more, the top rungs
-    sig: ["sig", "sig", "edge"],
-    ink: ["ink", "ink", "ink3"],
-    broke: ["alert", "ink", "ink3", "alert"]          // a run broken: the only place alert is used
+    base: ["ink", "ink", "ink2", "sig", "off"],
+    hot: ["sig", "ink", "ink", "sig", "ink2"],        // a run of 5 or more
+    epic: ["sig", "sig", "ink", "ink2", "sig"],       // a run of 20 or more, the top rungs
+    sig: ["sig", "sig", "ink"],
+    ink: ["ink", "ink2", "off"],
+    broke: ["sig", "off", "ink2", "off"]              // a run broken: the cells fall dark, the signal among them
   };
+  // Datum's marks as pieces: a slanted bar cell, a square cell, a spot (a measured point's cross), a lamp (glows)
+  const SHAPES = ["cell", "cell", "sq", "spot", "lamp"];
 
   // ---------- canvas ----------
   function ensure() {
@@ -65,7 +65,6 @@ window.FX = (() => {
     cv.width = W * dpr; cv.height = H * dpr;
     cv.style.width = W + "px"; cv.style.height = H + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = false;
   }
   function center(el) {
     if (el && el.getBoundingClientRect) {
@@ -75,57 +74,51 @@ window.FX = (() => {
     return { x: W / 2, y: H / 2 };
   }
 
-  // Square pieces thrown from a point. shapes: "sq" (a square plate), "bar" (a 3:1 strip), "px" (one dot-matrix pixel).
-  // They turn in 45-degree steps (every few ticks), not smoothly.
+  // Pieces thrown from a point. They turn in 45-degree steps (every few ticks), never spin smoothly.
   function burst(x, y, n, o = {}) {
-    const { speed = 7, angle = -Math.PI / 2, spread = Math.PI * 2, gravity = 0.22, ttl = [50, 90], size = [4, 8], shapes = ["sq", "bar", "plus", "px"], colors = MIX.base } = o;
+    const { speed = 7, angle = -Math.PI / 2, spread = Math.PI * 2, gravity = 0.22, ttl = [50, 90], size = [4, 8], shapes = SHAPES, colors = MIX.base } = o;
     n = Math.min(n, MAX_PARTS - parts.length);
     for (let i = 0; i < n; i++) {
-      const a = angle + R(-spread / 2, spread / 2), v = speed * R(0.45, 1.1);
+      const a = angle + R(-spread / 2, spread / 2), v = speed * R(0.45, 1.1), shape = pick(shapes);
       parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: gravity, drag: 0.986, life: 0,
-        ttl: R(ttl[0], ttl[1]), c: pick(colors), s: R(size[0], size[1]), rot: (Math.random() * 8) | 0, turn: (R(4, 12)) | 0, shape: pick(shapes) });
+        ttl: R(ttl[0], ttl[1]), c: shape === "lamp" ? "sig" : pick(colors), s: R(size[0], size[1]), rot: (Math.random() * 8) | 0, turn: (R(4, 12)) | 0, shape });
     }
     run();
   }
-  // dot-matrix pixels: small square sparks (the old stars)
-  const pixels = (x, y, n, o = {}) => burst(x, y, n, { speed: 8, ttl: [40, 75], size: [3, 6], gravity: 0.16, shapes: ["px", "px", "sq"], colors: MIX.sig, ...o });
-  // A firework's break: dotted rays along the eight 45-degree directions, each a chain of pixels at rising speeds.
+  // sparks: small square cells and lamps
+  const sparks = (x, y, n, o = {}) => burst(x, y, n, { speed: 8, ttl: [40, 75], size: [3, 6], gravity: 0.16, shapes: ["sq", "sq", "lamp"], colors: MIX.sig, ...o });
+  // A bearing break: chains of cells along the eight 45-degree directions, the outer ones signal (a ticked star).
   function rays(x, y, len, c, big) {
     const chain = big ? 7 : 5;
     for (let k = 0; k < 8; k++) {
       const a = k * Math.PI / 4;
       for (let j = 1; j <= chain && parts.length < MAX_PARTS; j++) {
         const v = len * j / chain;
-        parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.03, drag: 0.95, life: 0, ttl: R(46, 70), c: j % 2 ? c : "ink", s: big ? 5 : 4, rot: 0, turn: 0, shape: "px" });
+        parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.03, drag: 0.95, life: 0, ttl: R(46, 70), c: j === chain ? "sig" : j % 2 ? c : "ink", s: big ? 5 : 4, rot: k, turn: 0, shape: j === chain && big ? "lamp" : "sq" });
       }
-    }
-    // the in-between directions get a shorter, fainter chain: a dotted star, not a smooth circle
-    if (big) for (let k = 0; k < 8; k++) {
-      const a = (k + 0.5) * Math.PI / 4;
-      for (let j = 1; j <= 3 && parts.length < MAX_PARTS; j++) parts.push({ x, y, vx: Math.cos(a) * len * j / 5, vy: Math.sin(a) * len * j / 5, g: 0.03, drag: 0.95, life: 0, ttl: R(40, 60), c: "edge", s: 3, rot: 0, turn: 0, shape: "px" });
     }
     run();
   }
-  // Viewfinder brackets that open out from where something was finished (the old expanding ring).
-  function frame(x, y, c = "edge", delay = 0, ttl = 26) {
-    setTimeout(() => { if (!motion()) return; ensure(); frames.push({ x, y, r: 10, c, life: 0, ttl }); run(); }, delay);
+  // An arc opening about the key point: a plain circle, a dashed one, or the ticked bearing ring (Datum's drawing).
+  function arc(x, y, kind = "ring", c = "ink", delay = 0, ttl = 34, grow = 9) {
+    setTimeout(() => { if (!motion()) return; ensure(); rings.push({ x, y, r: 12, kind, c, life: 0, ttl, grow }); run(); }, delay);
   }
-  // A dot-matrix burst: a diamond of square cells (45-degree edges) that light ring by ring from the centre, hold,
-  // and switch off in the same order. r = rings, pitch = px between cells.
-  function grid(x, y, r, colors = MIX.sig, delay = 0, pitch = 10) {
+  // A dot screen: a patch of round dots that light ring by ring from the centre, hold, and go in the same order
+  // (Datum's dm-screen). r = rings, pitch = px between dots.
+  function screen(x, y, r, colors = MIX.sig, delay = 0, pitch = 10) {
     setTimeout(() => {
       if (!motion()) return;
       ensure();
       const t0 = clock;
       for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) {
-        const d = Math.abs(i) + Math.abs(j);
-        if (d > r || cells.length >= MAX_CELLS || (d > 1 && Math.random() < 0.18)) continue;   // a few gaps: a matrix, not a slab
-        cells.push({ x: snap(x + i * pitch), y: snap(y + j * pitch), on: t0 + d * 2, off: t0 + d * 2 + 7, s: Math.max(3, pitch * 0.55), c: d === r ? "edge" : pick(colors) });
+        const d = Math.hypot(i, j);
+        if (d > r || dots.length >= MAX_DOTS || (d > 1.5 && Math.random() < 0.2)) continue;   // a screen, not a slab
+        dots.push({ x: x + i * pitch, y: y + j * pitch, on: t0 + d * 2.2, off: t0 + d * 2.2 + 9, s: Math.max(1.5, pitch * 0.22), c: d > r - 1 ? "sig" : pick(colors) });
       }
       run();
     }, delay);
   }
-  // Pieces falling in columns at a constant speed, each a short dotted packet (the old emoji rain).
+  // Slanted cells falling in columns at a constant speed (a dm-bar's cells, let go).
   function rain(n, colors = MIX.base) {
     n = Math.min(n, MAX_PARTS - parts.length);
     for (let i = 0; i < n; i++) {
@@ -134,14 +127,14 @@ window.FX = (() => {
     }
     run();
   }
-  // big: a packet of the top rungs, with a second ink, brackets and pixels, and a louder bang.
-  // A packet rises straight up at a constant speed (a signal on a wire), then breaks into rays.
+  // A lamp rises along a dashed axis (Datum's dm-axis) at a constant speed, then breaks into a bearing star and a ring.
+  // big: the top rungs, with a second ink, a ticked ring and sparks, and a louder bang.
   function rocket(x, delay, big = false) {
     setTimeout(() => {
       if (!motion()) return;
       ensure();
       const top = R(H * (big ? 0.12 : 0.2), H * (big ? 0.5 : 0.55)), ticks = big ? 52 : 46;
-      rockets.push({ x: snap(x), y: H + 10, vy: -(H + 10 - top) / ticks, top, c: pick(["sig", "sig", "ink"]), c2: pick(["ink", "edge", "sig"]), big });
+      rockets.push({ x, y: H + 10, vy: -(H + 10 - top) / ticks, top, c: pick(["sig", "ink", "ink"]), c2: pick(["ink", "ink2", "sig"]), big });
       if (soundOn) noise(0, 0.35, 0.025, 2500);
       run();
     }, delay);
@@ -149,17 +142,12 @@ window.FX = (() => {
   // two bursts from the bottom corners, at 45 degrees
   function cannons(n, colors = MIX.base) {
     const speed = Math.sqrt(0.5 * H * 0.85);
-    const o = { speed, spread: 0.4, gravity: 0.25, ttl: [100, 150], size: [5, 9], shapes: ["sq", "bar", "plus", "px"], colors };
+    const o = { speed, spread: 0.4, gravity: 0.25, ttl: [100, 150], size: [5, 9], colors };
     burst(0, H, n, { ...o, angle: -Math.PI / 4 });
     burst(W, H, n, { ...o, angle: (-Math.PI * 3) / 4 });
   }
   // run fn after ms, on a canvas in whatever is on top by then
   const later = (ms, fn) => setTimeout(() => { if (!motion()) return; ensure(); fn(); }, ms);
-  // A scan line sweeps down the screen at a constant speed, three dotted rows behind it (the old soft flash).
-  // One pass, never more than two a second.
-  function scan(delay = 0, c = "edge", ttl = 40) {
-    later(delay, () => { scans.push({ c, life: 0, ttl }); run(); });
-  }
   // a column of pieces from the bottom edge for ms milliseconds
   function fountain(x, ms, delay = 0, colors = MIX.base) {
     later(delay, () => {
@@ -167,19 +155,24 @@ window.FX = (() => {
       const id = setInterval(() => {
         if (Date.now() > end || !motion()) return clearInterval(id);
         ensure();
-        burst(x, H + 4, 5, { speed: Math.sqrt(2 * 0.24 * H * R(0.7, 1)), spread: 0.3, gravity: 0.24, ttl: [90, 140], size: [5, 9], shapes: ["sq", "bar", "px"], colors });
+        burst(x, H + 4, 5, { speed: Math.sqrt(2 * 0.24 * H * R(0.7, 1)), spread: 0.3, gravity: 0.24, ttl: [90, 140], size: [5, 9], colors });
       }, 40);
     });
   }
-  // Filaments, the poster's yellow strands: n curves grow out of a junction at (x, y) to points far off, each bending
-  // once, while the junction swells into a body; they hold, then cut out. The top rungs only.
-  function filaments(x, y, n, delay = 0, c = "sig") {
+  // The datum line: 2px of signal drawn edge to edge through y, glowing, held, then gone. One per moment.
+  function datum(y, delay = 0, ttl = 70, c = "sig") {
+    later(delay, () => { lines.push({ y, c, life: 0, ttl }); run(); });
+  }
+  // The key light: a pool of signal on the ground at (x, y) that blooms and fades (Datum's light, never a shadow).
+  function light(x, y, r, delay = 0, ttl = 90) {
+    later(delay, () => { lights.push({ x, y, r, life: 0, ttl }); run(); });
+  }
+  // Contours: n closed lines rise from the key point one after another, each a little uneven like a terrain's, the
+  // first in signal (the datum contour), the rest ink. They open out, hold and go. The top rungs only.
+  function terrain(x, y, n, delay = 0) {
     later(delay, () => {
-      for (let k = 0; k < n; k++) {
-        const a = (k / n) * Math.PI * 2 + R(-0.35, 0.35), len = R(0.35, 0.75) * Math.max(W, H);
-        const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len, bend = R(-0.5, 0.5) * len;
-        strands.push({ x, y, cx: (x + ex) / 2 - Math.sin(a) * bend, cy: (y + ey) / 2 + Math.cos(a) * bend, ex, ey, c, life: 0, ttl: R(80, 110), grow: R(26, 40) });
-      }
+      const seed = R(0, 100);
+      for (let k = 0; k < n; k++) contours.push({ x, y, k, seed, r0: 18 + k * 26, life: -k * 5, ttl: 120, c: k === 0 ? "sig" : "ink" });
       run();
     });
   }
@@ -196,17 +189,19 @@ window.FX = (() => {
 
   function update() {
     clock++;
-    scans = scans.filter(s => ++s.life < s.ttl);
-    strands = strands.filter(s => ++s.life < s.ttl);
-    frames = frames.filter(f => { f.life++; f.r += 9 * (1 - f.life / f.ttl) + 2; return f.life < f.ttl; });
-    cells = cells.filter(c => clock < c.off);
+    lines = lines.filter(l => ++l.life < l.ttl);
+    lights = lights.filter(l => ++l.life < l.ttl);
+    contours = contours.filter(c => ++c.life < c.ttl);
+    rings = rings.filter(f => { f.life++; f.r += f.grow * (1 - f.life / f.ttl) + 1.5; return f.life < f.ttl; });
+    dots = dots.filter(d => clock < d.off);
     rockets = rockets.filter(r => {
       r.y += r.vy;
       if (r.y > r.top) return true;
       if (r.big) {
         rays(r.x, r.y, 8.5, r.c, true); rays(r.x, r.y, 4.5, r.c2, false);
-        frames.push({ x: r.x, y: r.y, r: 10, c: "edge", life: 0, ttl: 30 });
-        pixels(r.x, r.y, 12, { speed: 5, gravity: 0.07, ttl: [50, 90], size: [3, 5], colors: MIX.epic });
+        rings.push({ x: r.x, y: r.y, r: 10, kind: "ticks", c: "ink", life: 0, ttl: 34, grow: 7 });
+        lights.push({ x: r.x, y: r.y, r: 120, life: 0, ttl: 50 });
+        sparks(r.x, r.y, 12, { speed: 5, gravity: 0.07, ttl: [50, 90], size: [3, 5], colors: MIX.epic });
       } else rays(r.x, r.y, 6, r.c, false);
       if (soundOn) noise(0, r.big ? 0.8 : 0.5, r.big ? 0.1 : 0.08, r.big ? 520 : 700);
       return false;
@@ -218,80 +213,90 @@ window.FX = (() => {
       return p.life < p.ttl && p.y < H + 40;
     });
   }
+  // A slanted bar cell (dm-bar's: a parallelogram with a 45-degree lean), centred on 0,0.
+  function cellPath(w, h) { const k = h * 0.6; ctx.beginPath(); ctx.moveTo(-w / 2 + k / 2, -h / 2); ctx.lineTo(w / 2 + k / 2, -h / 2); ctx.lineTo(w / 2 - k / 2, h / 2); ctx.lineTo(-w / 2 - k / 2, h / 2); ctx.closePath(); }
   function fillPiece(p) {
-    const x = snap(p.x), y = snap(p.y), late = p.life > p.ttl * 0.75, s = Math.max(2, Math.round((late ? p.s / 2 : p.s)));   // late in life: one step smaller, then gone
-    if (p.shape === "col") {   // a falling packet: three cells, the lead one largest
+    const late = p.life > p.ttl * 0.75, s = Math.max(2, late ? p.s * 0.6 : p.s);   // late in life: smaller, then gone
+    ctx.globalAlpha = late ? Math.max(0, (p.ttl - p.life) / (p.ttl * 0.25)) : 1;
+    if (p.shape === "col") {   // a falling run of three slanted cells, the lead one ink or signal
       ctx.fillStyle = C[p.c];
-      ctx.fillRect(x, y, s, s);
-      ctx.fillRect(x + 1, y - s - 4, s - 2, s - 2);
-      ctx.fillRect(x + 2, y - 2 * s - 6, Math.max(2, s - 4), Math.max(2, s - 4));
-      return;
+      for (let k = 0; k < 3; k++) { ctx.save(); ctx.translate(p.x, p.y - k * (s * 2.4)); cellPath(s * 0.9, s * 2); ctx.fill(); ctx.restore(); ctx.fillStyle = C.off; }
+      ctx.globalAlpha = 1; return;
     }
-    if (p.shape === "px") { ctx.fillStyle = C[p.c]; ctx.fillRect(x - s / 2, y - s / 2, s, s); return; }
-    if (p.shape === "plus") {   // the poster's crosshair mark: two thin bars, turning in 45-degree steps
-      const a = s * 1.4, t = Math.max(1.5, s / 4);
-      ctx.save(); ctx.translate(x, y); ctx.rotate(p.rot * Math.PI / 4);
-      ctx.fillStyle = C[p.c === "raised" ? "ink" : p.c]; ctx.fillRect(-a / 2, -t / 2, a, t); ctx.fillRect(-t / 2, -a / 2, t, a);
-      ctx.restore(); return;
-    }
-    const w = p.shape === "bar" ? s * 1.6 : s, h = p.shape === "bar" ? Math.max(2, s / 2.2) : s;
-    ctx.save(); ctx.translate(x, y); ctx.rotate(p.rot * Math.PI / 4);
-    ctx.fillStyle = C[p.c]; ctx.fillRect(-w / 2, -h / 2, w, h);
-    if (p.c === "raised") { ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.strokeRect(-w / 2 + 0.5, -h / 2 + 0.5, w - 1, h - 1); }
+    ctx.save(); ctx.translate(p.x, p.y);
+    if (p.shape === "lamp") {   // a lamp: a signal square with its glow (the only pieces that glow)
+      ctx.shadowColor = C.sig; ctx.shadowBlur = 8; ctx.fillStyle = C.sig; ctx.fillRect(-s / 2, -s / 2, s, s);
+    } else if (p.shape === "spot") {   // a spot: a thin cross, a measured point
+      const a = s * 1.5, t = 1.5;
+      ctx.rotate(p.rot * Math.PI / 4); ctx.fillStyle = C[p.c]; ctx.fillRect(-a / 2, -t / 2, a, t); ctx.fillRect(-t / 2, -a / 2, t, a);
+    } else if (p.shape === "cell") {
+      ctx.rotate(p.rot * Math.PI / 4); ctx.fillStyle = C[p.c]; cellPath(s * 0.9, s * 2); ctx.fill();
+    } else { ctx.rotate(p.rot * Math.PI / 4); ctx.fillStyle = C[p.c]; ctx.fillRect(-s / 2, -s / 2, s, s); }
     ctx.restore();
+    ctx.globalAlpha = 1;
   }
+  const ease = t => 1 - (1 - t) ** 3;
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    for (const s of scans) {
-      const y = snap(s.life / s.ttl * (H + 32)), p = 8;
-      ctx.fillStyle = C[s.c]; ctx.fillRect(0, y, W, 2);
-      for (let k = 1; k <= 3; k++) {
-        const yy = y - k * p;
-        if (yy < 0) break;
-        ctx.fillStyle = k === 1 ? C[s.c] : C.rule;
-        for (let x = (k % 2) * p / 2; x < W; x += p) ctx.fillRect(x, yy, 2, 2);
-      }
+    for (const l of lights) {   // the key light: a soft pool of signal on the ground, blooming then fading
+      const t = l.life / l.ttl, a = t < 0.25 ? t / 0.25 : 1 - (t - 0.25) / 0.75, r = l.r * (0.6 + 0.4 * ease(Math.min(1, t * 2)));
+      const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, r);
+      g.addColorStop(0, C.sig); g.addColorStop(1, "transparent");
+      ctx.globalAlpha = 0.22 * a; ctx.fillStyle = g; ctx.fillRect(l.x - r, l.y - r, r * 2, r * 2);
     }
-    ctx.lineCap = "round";
-    for (const s of strands) {   // a filament: the curve drawn up to how far it has grown, the junction a filled body
-      const g = Math.min(1, s.life / s.grow), e = 1 - (1 - g) ** 3, late = s.life > s.ttl * 0.8;
-      ctx.strokeStyle = C[s.c]; ctx.fillStyle = C[s.c]; ctx.lineWidth = late ? 1 : 1.6;
-      ctx.beginPath(); ctx.moveTo(s.x, s.y);
-      for (let k = 1; k <= 28; k++) {
-        const t = e * k / 28, u = 1 - t;
-        ctx.lineTo(u * u * s.x + 2 * u * t * s.cx + t * t * s.ex, u * u * s.y + 2 * u * t * s.cy + t * t * s.ey);
-      }
-      ctx.stroke();
-      ctx.beginPath(); ctx.arc(s.x, s.y, 3 + 7 * e, 0, Math.PI * 2); ctx.fill();
-    }
-    for (const c of cells) if (clock >= c.on) { ctx.fillStyle = C[c.c]; ctx.fillRect(c.x - c.s / 2, c.y - c.s / 2, c.s, c.s); }
-    ctx.lineWidth = 2;
-    for (const f of frames) {
-      const r = snap(f.r), a = Math.max(6, snap(r * 0.32)), x = snap(f.x), y = snap(f.y);
-      ctx.strokeStyle = C[f.c];
+    ctx.globalAlpha = 1;
+    for (const c of contours) {   // a contour: a closed, slightly uneven line opening out from the key point
+      if (c.life < 0) continue;
+      const t = c.life / c.ttl, r = c.r0 + ease(Math.min(1, t * 1.6)) * (90 + c.k * 34), a = t > 0.7 ? (1 - t) / 0.3 : 1;
+      ctx.globalAlpha = (c.c === "sig" ? 0.9 : 0.4) * a; ctx.strokeStyle = C[c.c]; ctx.lineWidth = c.c === "sig" ? 2 : 1;
+      if (c.c === "sig") { ctx.shadowColor = C.sig; ctx.shadowBlur = 10; }
       ctx.beginPath();
-      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-        const cx = x + sx * r, cy = y + sy * r;
-        ctx.moveTo(cx - sx * a, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy - sy * a);
+      for (let i = 0; i <= 64; i++) {
+        const th = i / 64 * Math.PI * 2, w = 1 + 0.12 * Math.sin(th * 3 + c.seed + c.k) + 0.07 * Math.sin(th * 5 - c.seed * 1.7);
+        const px = c.x + Math.cos(th) * r * w * 1.25, py = c.y + Math.sin(th) * r * w * 0.8;   // wider than tall: a ground seen from above
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
       }
-      ctx.stroke();
+      ctx.stroke(); ctx.shadowBlur = 0;
     }
-    for (const r of rockets) {
-      const y = snap(r.y);
-      ctx.fillStyle = C[r.c]; ctx.fillRect(r.x - 2, y, 4, 12);
-      ctx.fillStyle = C.ink3;
-      for (let k = 1; k <= 4; k++) ctx.fillRect(r.x - 1, y + 12 + k * 8, 2, 4);   // a dotted trail, a wire behind the packet
+    ctx.globalAlpha = 1;
+    for (const l of lines) {   // the datum line: drawn edge to edge, held, gone; a boxed key at its end
+      const t = l.life / l.ttl, w = W * ease(Math.min(1, t * 2.4)), a = t > 0.75 ? (1 - t) / 0.25 : 1;
+      ctx.globalAlpha = a; ctx.fillStyle = C[l.c]; ctx.shadowColor = C.sig; ctx.shadowBlur = 12;
+      ctx.fillRect(0, l.y - 1, w, 2); ctx.shadowBlur = 0;
+      if (w > 24) { ctx.fillRect(w - 20, l.y - 10, 20, 20); }
+    }
+    ctx.globalAlpha = 1;
+    for (const d of dots) if (clock >= d.on) { ctx.fillStyle = C[d.c]; ctx.beginPath(); ctx.arc(d.x, d.y, d.s, 0, Math.PI * 2); ctx.fill(); }
+    for (const f of rings) {   // arcs: a plain ring, a dashed one, the ticked bearing ring
+      const a = f.life > f.ttl * 0.6 ? (f.ttl - f.life) / (f.ttl * 0.4) : 1;
+      ctx.globalAlpha = a; ctx.strokeStyle = C[f.c]; ctx.lineWidth = f.c === "sig" ? 2 : 1.25;
+      if (f.kind === "ticks") {
+        for (let k = 0; k < 48; k++) {
+          const th = k / 48 * Math.PI * 2, long = k % 6 === 0, r1 = f.r, r2 = f.r + (long ? 10 : 5);
+          ctx.beginPath(); ctx.moveTo(f.x + Math.cos(th) * r1, f.y + Math.sin(th) * r1); ctx.lineTo(f.x + Math.cos(th) * r2, f.y + Math.sin(th) * r2); ctx.stroke();
+        }
+      } else {
+        ctx.setLineDash(f.kind === "dash" ? [6, 6] : []);
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    ctx.globalAlpha = 1;
+    for (const r of rockets) {   // a lamp rising on a dashed axis
+      ctx.fillStyle = C.off;
+      for (let k = 1; k <= 6; k++) ctx.fillRect(r.x - 0.75, r.y + 8 + k * 9, 1.5, 5);
+      ctx.shadowColor = C.sig; ctx.shadowBlur = 8; ctx.fillStyle = C.sig; ctx.fillRect(r.x - 4, r.y - 4, 8, 8); ctx.shadowBlur = 0;
     }
     for (const p of parts) fillPiece(p);
   }
   function run() {
     if (raf) return;
-    prev = performance.now(); acc = 0; drawn = 0;
+    prev = performance.now(); acc = 0;
     const loop = now => {
       acc = Math.min(acc + now - prev, 250); prev = now;
       while (acc >= FRAME) { update(); acc -= FRAME; }
-      const busy = parts.length || rockets.length || frames.length || cells.length || scans.length || strands.length;
-      if (now - drawn >= STEP || !busy) { drawn = now; draw(); }
+      const busy = parts.length || rockets.length || rings.length || dots.length || lines.length || contours.length || lights.length;
+      draw();
       if (busy) raf = requestAnimationFrame(loop);
       else { raf = 0; ctx.clearRect(0, 0, W, H); }
     };
@@ -404,14 +409,15 @@ window.FX = (() => {
   };
   const sound = (n, arg) => { if (soundOn && SND[n]) SND[n](arg); };
 
-  // ---------- banner (a panel in the middle of the screen) and toast (one system line above the buttons) ----------
-  // The banner is a Datum panel: a mono label line with the time, the title as a bracketed display word,
-  // the facts as a terminal line. The top rungs (day, week, all) stay up longer, carry a dot-matrix code that switches
-  // on dot by dot, wipe in from the top in steps and dim the page around them (the veil, an effect: only with motion).
-  // Each is bigger than the one below: day a raised panel, week the panel in the other theme, all the one signal block.
+  // ---------- banner (a plate in the middle of the screen) and toast (one line above the buttons) ----------
+  // The banner is a Datum plate: its number (the caller's dot-matrix code of the day, the week or the plan) beside
+  // the log line and the time, the datum line under it, then the title and the facts. The top rungs (day, week, all)
+  // stay up longer and dim the page around them (the veil, an effect: only with motion). Each is bigger than the one
+  // below: day a larger sheet with a light title, week a solid ink block, all the view's one signal field.
   // Returns how long the banner stays, so what comes next can wait for it.
   const BANNER_MS = { all: 9000, week: 6500, day: 4600, block: 2300, info: 2600 };
   const TOP = { day: 1, week: 1, all: 1 };
+  const KIND = { info: "Notice", block: "Block done", day: "Day done", week: "Week done", all: "Plan done" };
   const hhmm = () => { const d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
   function banner(title, sub = "", kind = "day", icon = "") {
     if (!bEl) { bEl = document.createElement("div"); bEl.setAttribute("role", "status"); }
@@ -420,12 +426,10 @@ window.FX = (() => {
     const ms = BANNER_MS[kind] || 3200, veil = TOP[kind] && motion();
     if (veil && vEl.parentNode !== host()) host().appendChild(vEl);
     vEl.className = "fx-veil k-" + kind;
-    bEl.className = "fx-banner k-" + kind + (kind === "week" ? " dm-invert" : "");
+    bEl.className = "fx-banner k-" + kind;
     icon = plain(icon);
-    // a top rung always carries its mark: the caller's dot-matrix code, or a plain square
-    if (!icon && TOP[kind]) icon = "■";
-    bEl.innerHTML = `<div class="b-l"><span>${kind === "info" ? "Notice" : "Log"}</span><span class="b-tm">${hhmm()}</span></div>` +
-      `${icon ? `<div class="b-i" aria-hidden="true">${icon}</div>` : ""}<div class="b-t">${plain(title)}</div>${sub ? `<div class="b-s">${plain(sub)}</div>` : ""}`;
+    bEl.innerHTML = `<div class="b-p">${icon ? `<span class="b-no" aria-hidden="true">${icon}</span>` : "<span></span>"}<span class="b-id"><span>${KIND[kind] || "Log"}</span><span class="b-tm">${hhmm()}</span></span></div>` +
+      `<i class="b-d" aria-hidden="true"></i><div class="b-t">${plain(title)}</div>${sub ? `<div class="b-s">${plain(sub)}</div>` : ""}`;
     void bEl.offsetWidth;
     bEl.classList.add("show");
     if (veil) vEl.classList.add("show");
@@ -433,7 +437,7 @@ window.FX = (() => {
     bT = setTimeout(() => { bEl.classList.remove("show"); vEl.classList.remove("show"); }, ms);
     return ms;
   }
-  // kind: "" (plain), "half" or "combo" (live: a signal cap), "warn" (the alert cap)
+  // kind: "" (plain), "half" or "combo" (live: a lamp), "warn" (the hazard band)
   function toast(html, kind = "") {
     if (!tEl) { tEl = document.createElement("div"); tEl.setAttribute("role", "status"); }
     if (tEl.parentNode !== host()) host().appendChild(tEl);
@@ -446,7 +450,7 @@ window.FX = (() => {
   }
   // A badge drops in at the top of the screen: right answers in a row, a record, a level, a badge earned.
   // Two at most are on screen; the rest wait their turn, so each one is seen for its full three seconds.
-  // tier: bronze | silver | gold | epic | level (the fill of its code cell says which). icon: a short mono code
+  // tier: bronze | silver | gold | epic | level (fx.css draws each). icon: the badge's short code in the plate face
   // ("R05", "L07"). Like the banner, it carries information, so it shows with effects off too (without the burst).
   function badge(icon, title, sub = "", tier = "gold") {
     bdQ.push([icon, title, sub, tier]);
@@ -460,17 +464,17 @@ window.FX = (() => {
   }
   function bdShow(icon, title, sub, tier) {
     const el = document.createElement("div");
-    el.className = "fx-badge k-" + tier + (tier === "epic" ? " dm-invert" : "");
-    el.innerHTML = `<span class="bd-i" aria-hidden="true">${plain(icon) || "■"}</span><span class="bd-x"><span class="bd-t">${plain(title)}</span>${sub ? `<span class="bd-s">${plain(sub)}</span>` : ""}</span>`;
+    el.className = "fx-badge k-" + tier;
+    el.innerHTML = `<span class="bd-i" aria-hidden="true">${plain(icon) || "—"}</span><span class="bd-x"><span class="bd-t">${plain(title)}</span>${sub ? `<span class="bd-s">${plain(sub)}</span>` : ""}</span>`;
     bdWrap.appendChild(el);
-    // a dot-matrix burst round the code cell once the badge has landed
+    // arcs and a dot screen round the code cell once the badge has landed
     setTimeout(() => {
       if (!el.isConnected || !motion()) return;
       ensure();
       const p = center(el.querySelector(".bd-i")), big = tier === "epic" || tier === "level";
-      frame(p.x, p.y, "edge", 0, 20);
-      grid(p.x, p.y, big ? 4 : 3, big ? MIX.epic : MIX.sig, 0, 8);
-      pixels(p.x, p.y, big ? 26 : 14, { speed: 6.5, gravity: 0.14, ttl: [30, 60], size: [3, 5], colors: big ? MIX.epic : MIX.sig });
+      arc(p.x, p.y, "ring", "ink", 0, 22, 6); if (big) arc(p.x, p.y, "ticks", "sig", 90, 28, 6);
+      screen(p.x, p.y, big ? 4 : 3, big ? MIX.epic : MIX.sig, 0, 8);
+      sparks(p.x, p.y, big ? 26 : 14, { speed: 6.5, gravity: 0.14, ttl: [30, 60], size: [3, 5], colors: big ? MIX.epic : MIX.sig });
     }, 420);
     setTimeout(() => { el.classList.add("out"); bdNext(); }, 3000);
     setTimeout(() => el.remove(), 3500);
@@ -485,10 +489,10 @@ window.FX = (() => {
       if (!motion()) return;
       ensure();
       const p = center(el);
-      frame(p.x, p.y, "edge");
-      grid(p.x, p.y, big ? 5 : 3);
+      arc(p.x, p.y, "ring", "ink");
+      screen(p.x, p.y, big ? 5 : 3);
       burst(p.x, p.y, big ? 70 : 36, { speed: big ? 10.5 : 7.5, spread: Math.PI * 1.3, ttl: [40, 80], size: [3, 7] });
-      if (big) { frame(p.x, p.y, "ink", 140); pixels(p.x, p.y, 16, { speed: 9 }); rocket(R(W * 0.3, W * 0.7), 180); }
+      if (big) { arc(p.x, p.y, "ticks", "sig", 140); sparks(p.x, p.y, 16, { speed: 9 }); rocket(R(W * 0.3, W * 0.7), 180); }
     },
     // a block of the day done (a lecture, its labs, a build…)
     block(el) {
@@ -496,9 +500,10 @@ window.FX = (() => {
       if (!motion()) return;
       ensure();
       const p = center(el);
-      frame(p.x, p.y, "edge"); frame(p.x, p.y, "ink", 160);
-      grid(p.x, p.y, 6, MIX.base);
-      pixels(p.x, p.y, 28, { speed: 11 });
+      light(p.x, p.y, 220, 0, 70);
+      arc(p.x, p.y, "ring", "ink"); arc(p.x, p.y, "ticks", "sig", 160);
+      screen(p.x, p.y, 6, MIX.base);
+      sparks(p.x, p.y, 28, { speed: 11 });
       cannons(48);
       rocket(R(W * 0.2, W * 0.45), 260); rocket(R(W * 0.55, W * 0.8), 520);
     },
@@ -508,57 +513,61 @@ window.FX = (() => {
       if (!motion()) return;
       ensure();
       const x = W / 2, y = H * 0.42;
-      frame(x, y, "edge"); frame(x, y, "ink", 150); frame(x, y, "edge", 300);
-      grid(x, y, 7, MIX.sig, 80);
-      pixels(x, y, 34, { speed: 10, colors: MIX.epic });
+      light(x, y, 260, 0, 80);
+      datum(y, 0, 60);
+      arc(x, y, "ring", "ink"); arc(x, y, "dash", "ink", 150); arc(x, y, "ticks", "sig", 300);
+      screen(x, y, 7, MIX.sig, 80);
+      sparks(x, y, 34, { speed: 10, colors: MIX.epic });
     },
-    // a small dot-matrix burst: a right answer, a self-check you knew. No sound of its own.
+    // a small dot screen: a right answer, a self-check you knew. No sound of its own.
     sparkle(el) {
       if (!motion()) return;
       ensure();
       const p = center(el);
-      grid(p.x, p.y, 2, MIX.sig, 0, 8);
-      pixels(p.x, p.y, 12, { speed: 5.5, ttl: [24, 46], size: [3, 5], gravity: 0.1 });
+      screen(p.x, p.y, 2, MIX.sig, 0, 8);
+      sparks(p.x, p.y, 12, { speed: 5.5, ttl: [24, 46], size: [3, 5], gravity: 0.1 });
     },
     // A right answer in a quiz (not the mock exam). n = right answers in a row now: the note climbs with it and the
-    // burst grows and heats up. el = the verdict, meter = the combo meter in the quiz header (it gets brackets).
+    // burst grows and heats up. el = the verdict, meter = the combo meter in the quiz header (an arc opens on it).
     right(n, el, meter) {
       sound("right", n);
       if (!motion()) return;
       ensure();
       const p = center(el);
-      grid(p.x, p.y, Math.min(2 + (n >> 1), 5), heat(n), 0, 8);
-      pixels(p.x, p.y, Math.min(12 + n * 2, 34), { speed: 5.5 + Math.min(n, 10) * 0.25, ttl: [24, 50], size: [3, 6], gravity: 0.1, colors: heat(n) });
+      light(p.x, p.y, 90 + Math.min(n, 10) * 12, 0, 40);
+      screen(p.x, p.y, Math.min(2 + (n >> 1), 5), heat(n), 0, 8);
+      sparks(p.x, p.y, Math.min(12 + n * 2, 34), { speed: 5.5 + Math.min(n, 10) * 0.25, ttl: [24, 50], size: [3, 6], gravity: 0.1, colors: heat(n) });
       if (!meter) return;
       const m = center(meter);
-      frame(m.x, m.y, n >= 5 ? "sig" : "edge", 0, 18);
-      if (n >= 3) burst(m.x, m.y, 8 + n, { speed: 4, gravity: 0.06, ttl: [40, 70], size: [3, 4], shapes: ["px"], colors: heat(n) });
+      arc(m.x, m.y, "ring", n >= 5 ? "sig" : "ink", 0, 20, 5);
+      if (n >= 3) burst(m.x, m.y, 8 + n, { speed: 4, gravity: 0.06, ttl: [40, 70], size: [3, 4], shapes: ["sq", "lamp"], colors: heat(n) });
     },
-    // A wrong answer in a quiz. was = the run it ended: from 3 on, the meter cracks and its pieces fall (in alert).
+    // A wrong answer in a quiz. was = the run it ended: from 3 on, the meter breaks and its cells fall.
     wrong(was, meter) {
       sound("wrong");
       if (was >= 3) sound("broke");
       if (!motion() || was < 3 || !meter) return;
       ensure();
       const m = center(meter);
-      burst(m.x, m.y, Math.min(14 + was * 2, 50), { speed: 4.5, gravity: 0.3, ttl: [30, 60], size: [3, 7], shapes: ["sq", "bar", "px"], colors: MIX.broke });
+      burst(m.x, m.y, Math.min(14 + was * 2, 50), { speed: 4.5, gravity: 0.3, ttl: [30, 60], size: [3, 7], shapes: ["cell", "cell", "sq"], colors: MIX.broke });
     },
     // A streak mark (3, 5, 10, 15, 20, 25, 30 in a row): the burst grows with the tier. From 5: corner bursts;
-    // from 10: the quiz's edge steps out, a scan line, falling packets and rising ones; from 20 the epic mix.
+    // from 10: the quiz sheet's edge lights, the datum line draws, cells fall and lamps rise; from 20 the epic mix.
     combo(n, el, meter) {
       sound("right", n);
       setTimeout(() => sound("combo", n), 120);
       if (!motion()) return;
       ensure();
       const t = tier(n), p = center(el), m = meter ? center(meter) : p, cols = heat(n);
-      frame(p.x, p.y, "edge"); frame(m.x, m.y, t >= 5 ? "sig" : "ink", 90);
-      grid(p.x, p.y, Math.min(3 + t, 9), cols, 0, 9);
-      pixels(p.x, p.y, Math.min(16 + n * 2, 64), { speed: 7.5 + t, colors: cols });
+      light(p.x, p.y, 160 + t * 40, 0, 60);
+      arc(p.x, p.y, "ticks", "sig"); arc(m.x, m.y, t >= 5 ? "ticks" : "ring", t >= 5 ? "sig" : "ink", 90);
+      screen(p.x, p.y, Math.min(3 + t, 9), cols, 0, 9);
+      sparks(p.x, p.y, Math.min(16 + n * 2, 64), { speed: 7.5 + t, colors: cols });
       burst(m.x, m.y, 18 + t * 8, { speed: 5 + t, angle: Math.PI / 2, spread: Math.PI * 1.1, ttl: [40, 80], size: [3, 7], colors: cols });
       if (t >= 2) cannons(20 + t * 14, cols);
       if (t >= 3) {
         glow(t >= 5 ? "var(--signal)" : "var(--ink)");
-        scan(0, t >= 5 ? "sig" : "edge", 34);
+        datum(p.y, 0, 50);
         rain(10 + t * 8, cols);
         for (let i = 0; i < t - 1; i++) rocket(R(W * 0.15, W * 0.85), 150 + i * 220, t >= 5);
       }
@@ -568,8 +577,11 @@ window.FX = (() => {
       sound("finale");
       if (!motion()) return;
       ensure();
-      scan(0, "sig", 36);
-      grid(W / 2, H * 0.35, 9, MIX.epic, 120, 12);
+      const x = W / 2, y = H * 0.35;
+      light(x, y, 420, 0, 110);
+      datum(y, 0, 80);
+      terrain(x, y, 4, 120);
+      screen(x, y, 9, MIX.epic, 120, 12);
       rain(70, MIX.epic);
       cannons(120, MIX.epic);
       for (let i = 0; i < 6; i++) rocket(R(W * 0.12, W * 0.88), 200 + i * 240);
@@ -579,26 +591,30 @@ window.FX = (() => {
       sound("fanfare");
       if (!motion()) return;
       ensure();
+      const x = W / 2, y = H * 0.35;
+      light(x, y, 300, 0, 80);
       cannons(70);
-      grid(W / 2, H * 0.35, 6, MIX.sig, 0, 12);
-      pixels(W / 2, H * 0.35, 30, { speed: 11 });
+      arc(x, y, "ticks", "sig");
+      screen(x, y, 6, MIX.sig, 0, 12);
+      sparks(x, y, 30, { speed: 11 });
       rocket(R(W * 0.25, W * 0.75), 250);
     },
     tick(el) { sound("pop"); if (!motion()) return; ensure(); const p = center(el); burst(p.x, p.y, 22, { speed: 6, spread: Math.PI * 1.2, ttl: [35, 65], size: [3, 6] }); },
-    group(el) { sound("chime"); if (!motion()) return; ensure(); const p = center(el); grid(p.x, p.y, 4); burst(p.x, p.y, 70, { speed: 10, spread: Math.PI * 1.4, ttl: [50, 90] }); },
-    // The top rungs, much bigger than a passed or perfect quiz: scan lines, brackets and a dot-matrix burst from the
-    // banner, waves of corner bursts, columns from the bottom, falling packets in waves and big rising packets.
-    // Each rung longer and fuller than the one below.
+    group(el) { sound("chime"); if (!motion()) return; ensure(); const p = center(el); screen(p.x, p.y, 4); burst(p.x, p.y, 70, { speed: 10, spread: Math.PI * 1.4, ttl: [50, 90] }); },
+    // The top rungs, much bigger than a passed or perfect quiz: the key light on the banner, the datum line drawn
+    // through it, contours rising, arcs and bearing rings, a dot screen, waves of corner bursts, columns from the
+    // bottom, falling cells in waves and rising lamps. Each rung longer and fuller than the one below.
     day() {
       sound("day");
       if (!motion()) return;
       ensure();
       const x = W / 2, y = H * 0.38;
-      scan(0, "edge", 40);
-      frame(x, y, "edge"); frame(x, y, "ink", 160); frame(x, y, "edge", 320);
-      filaments(x, y, 5, 80);
-      grid(x, y, 10, MIX.base, 120, 12);
-      pixels(x, y, 50, { speed: 14 });
+      light(x, y, 480, 0, 150);
+      datum(y, 0, 110);
+      arc(x, y, "ring", "ink"); arc(x, y, "dash", "ink", 160); arc(x, y, "ticks", "sig", 320);
+      terrain(x, y, 5, 80);
+      screen(x, y, 10, MIX.base, 120, 12);
+      sparks(x, y, 50, { speed: 14 });
       for (let k = 0; k < 3; k++) later(k * 600, () => cannons(150));
       rain(60); later(1400, () => rain(40));
       fountain(x, 2400, 300);
@@ -609,11 +625,12 @@ window.FX = (() => {
       if (!motion()) return;
       ensure();
       const x = W / 2, y = H * 0.38;
-      scan(0, "edge", 40); scan(1500, "sig", 40);
-      ["edge", "ink", "sig", "edge"].forEach((c, k) => frame(x, y, c, k * 170, 30));
-      filaments(x, y, 7, 80); filaments(W * 0.18, H * 0.8, 4, 1500); filaments(W * 0.82, H * 0.8, 4, 1500);
-      grid(x, y, 13, MIX.hot, 120, 12); grid(x, y, 8, MIX.epic, 1500, 14);
-      pixels(x, y, 80, { speed: 16, colors: MIX.hot });
+      light(x, y, 560, 0, 200); light(x, y, 400, 1500, 140);
+      datum(y, 0, 120); datum(y, 1500, 90);
+      ["ring", "dash", "ticks", "ring"].forEach((k, i) => arc(x, y, k, i === 2 ? "sig" : "ink", i * 170, 40));
+      terrain(x, y, 7, 80); terrain(W * 0.2, H * 0.78, 4, 1500); terrain(W * 0.8, H * 0.78, 4, 1500);
+      screen(x, y, 13, MIX.hot, 120, 12); screen(x, y, 8, MIX.epic, 1500, 14);
+      sparks(x, y, 80, { speed: 16, colors: MIX.hot });
       for (let k = 0; k < 5; k++) later(k * 560, () => cannons(170, MIX.hot));
       for (let k = 0; k < 3; k++) later(k * 1100, () => rain(60, MIX.hot));
       fountain(W * 0.2, 3800, 200, MIX.hot); fountain(W * 0.8, 3800, 200, MIX.hot);
@@ -626,21 +643,21 @@ window.FX = (() => {
       if (!motion()) return;
       ensure();
       const x = W / 2, y = H * 0.38;
-      scan(0, "sig", 44); scan(2300, "edge", 44); scan(4600, "sig", 44);
-      ["edge", "sig", "ink", "edge", "sig", "ink", "edge", "sig", "ink"].forEach((c, k) => frame(x, y, c, k * 150, 32));
-      for (const [at, fx, fy, n] of [[80, x, y, 9], [2300, W * 0.15, H * 0.75, 5], [2300, W * 0.85, H * 0.75, 5], [4600, x, y, 9]]) filaments(fx, fy, n, at);
-      grid(x, y, 16, MIX.epic, 120, 12); grid(x, y, 12, MIX.sig, 2300, 14); grid(x, y, 16, MIX.epic, 4600, 12);
-      pixels(x, y, 110, { speed: 18, colors: MIX.epic });
+      for (const at of [0, 2300, 4600]) { light(x, y, 640, at, 200); datum(y, at, 120); }
+      ["ring", "ticks", "dash", "ring", "ticks", "dash", "ring", "ticks", "dash"].forEach((k, i) => arc(x, y, k, k === "ticks" ? "sig" : "ink", i * 150, 44));
+      for (const [at, tx, ty, n] of [[80, x, y, 9], [2300, W * 0.15, H * 0.75, 5], [2300, W * 0.85, H * 0.75, 5], [4600, x, y, 9]]) terrain(tx, ty, n, at);
+      screen(x, y, 16, MIX.epic, 120, 12); screen(x, y, 12, MIX.sig, 2300, 14); screen(x, y, 16, MIX.epic, 4600, 12);
+      sparks(x, y, 110, { speed: 18, colors: MIX.epic });
       for (let k = 0; k < 8; k++) later(k * 600, () => cannons(180, MIX.epic));
       for (let k = 0; k < 5; k++) later(k * 1200, () => rain(60, MIX.epic));
       fountain(W * 0.15, 6000, 200, MIX.epic); fountain(x, 6000, 600, MIX.epic); fountain(W * 0.85, 6000, 200, MIX.epic);
       for (let i = 0; i < 26; i++) rocket(R(W * 0.06, W * 0.94), 150 + i * 210, true);
       for (const at of [2300, 4600, 7200]) for (let i = 0; i < 8; i++) rocket(W * (0.07 + i * 0.123), at, true);   // volleys on the beats
     },
-    small(el) { sound("clean"); if (!motion()) return; ensure(); const p = center(el); grid(p.x, p.y, 3); burst(p.x, p.y, 40, { speed: 8, spread: Math.PI * 1.3 }); },
+    small(el) { sound("clean"); if (!motion()) return; ensure(); const p = center(el); screen(p.x, p.y, 3); burst(p.x, p.y, 40, { speed: 8, spread: Math.PI * 1.3 }); },
     banner, toast, badge, sound,
     unlock() { if (soundOn) ac(); },
-    // fx-off on <html> stops the decorative CSS loops too (the combo meter's pulse); prefers-reduced-motion stops them all
+    // fx-off on <html> stops the decorative CSS loops too (the combo meter's lamps); prefers-reduced-motion stops them all
     set(o) { if ("fx" in o) { fxOn = !!o.fx; document.documentElement.classList.toggle("fx-off", !fxOn); } if ("sound" in o) soundOn = !!o.sound; }
   };
 })();

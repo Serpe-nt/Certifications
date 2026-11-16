@@ -113,7 +113,12 @@ try {
   assert.ok(await page.locator("#home").isVisible() && await page.locator("#flow").isHidden(), "the overview is the first screen");
   assert.equal(await page.locator("#map .dt").count(), P.days.length, "one tile per day");
   assert.equal(await page.locator("#stats .st").count(), 6);
-  assert.match(await page.textContent("#stats .st-lv"), /Level\s*1/, "a level cell, starting at level 1");
+  assert.match(await page.textContent("#stats .st-lv"), /Level\s*01/, "a level cell, starting at level 1");
+  assert.equal(await page.locator("#home .dm-strip + .ov-sheet > .dm-mosaic").count(), 3, "a strip, then the mosaic sheet: the overview, the days, where things happen");
+  assert.ok(await page.locator("#rl-nav [data-home-link][aria-current]").count(), "the nav block marks the overview");
+  assert.equal(await page.locator("#home .dm-field-signal").count(), 0, "no signal field on the overview: the hero's Start is its one signal fill");
+  assert.equal(await page.locator("#home .dm-btn--signal").count(), 1, "one signal button on the overview");
+  assert.ok(await page.locator("#map .dt.is-now .dm-lamp").count() === 1, "today's tile carries a lit lamp");
   assert.match(await page.textContent("#next"), /Start Day 1/);
   await page.screenshot({ path: path.join(SHOTS, "01-overview.png"), fullPage: false });
 
@@ -124,13 +129,13 @@ try {
   });
   let tb = await topBox();
   assert.ok(tb.next.b <= tb.stats.t && tb.stats.t <= tb.map.t, "the card for today comes first, then the numbers, then the day tiles");
-  assert.ok(tb.go.l >= tb.day.r && Math.abs(tb.go.t - tb.day.t) < 2, `the next step beside the day: ${JSON.stringify([tb.day, tb.go])}`);
+  assert.ok(tb.go.l >= tb.day.l && tb.go.r <= tb.day.r && tb.go.t >= tb.day.t, `the next step in the day's hero (Datum's copy column): ${JSON.stringify([tb.day, tb.go])}`);
   assert.ok(tb.big.b <= tb.h, "the big button is on the first screen");
-  assert.equal(await page.locator("#next .primary").count(), 1, "one orange button on the card");
+  assert.equal(await page.locator("#next .dm-btn--signal").count(), 1, "one signal button on the card");
   assert.equal(await page.locator("#next .segs i").count(), D1.ids.length + (D1.quiz ? 1 : 0), "one segment per card of the day");
   await page.setViewportSize({ width: 1920, height: 1080 });
   tb = await topBox();
-  assert.ok(tb.next.w > 1100 && tb.go.l >= tb.day.r && tb.big.b <= tb.h, `a full-screen window: the overview takes more of it, still side by side: ${JSON.stringify(tb.next)}`);
+  assert.ok(tb.next.w > 1100 && tb.go.r <= tb.day.r && tb.big.b <= tb.h, `a full-screen window: the hero takes more of it, the next step still in its copy column: ${JSON.stringify(tb.next)}`);
   await page.screenshot({ path: path.join(SHOTS, "01b-overview-wide.png") });
   await page.setViewportSize({ width: 1200, height: 900 });
 
@@ -145,7 +150,8 @@ try {
   const q1 = D1.quiz ? 1 : 0;
   assert.equal((await page.textContent("#fl-count")).trim(), `Step 1 of ${n1 + q1}`);
   assert.equal(await page.locator("#fl-strip .dot").count(), n1 + q1, "a dot per step, plus one for the quiz on a quiz day");
-  assert.ok(await page.locator(".tb").isHidden(), "the big title block steps aside");
+  assert.equal((await page.textContent('#rl-nav [aria-current="page"]')).trim(), "Day 01", "the nav block marks the day as the view on screen");
+  assert.ok(await page.locator("#timer .dm-nav").isVisible(), "the nav block stays on top of the day");
 
   log("Mark complete moves on, Next skips, Back and the arrow keys return, Undo reopens");
   await complete(page);
@@ -210,39 +216,54 @@ try {
   await page.fill(`#card [data-inote="${HELP}"]`, "look at this again");
   await page.waitForTimeout(600);
   assert.equal((await state(page)).inotes[HELP], "look at this again");
-  assert.ok(await page.evaluate(() => document.querySelector('#side-l details[data-sec="terms"]').open), "terms start open in their panel");
+  assert.ok(await page.locator("#side-l .b-terms dt").first().isVisible(), "terms show in Look it up");
+  assert.equal(await page.locator("#fl-aside details").count(), 0, "nothing in the aside folds");
   await page.screenshot({ path: path.join(SHOTS, "02-step-card.png"), fullPage: true });
 
-  log("wide screens: the article with the sidebar (On the exam, then Look it up) to its right, centred together; narrower screens: both under it; only the page scrolls");
+  log("Datum's App view: the plate header (the day as PL.NN, Step N of M) over the datum line; the article in a dm-split with its 320px aside (where you are, On the exam, Look it up) from 1024 px, under it below; only the page scrolls");
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.evaluate(() => scrollTo(0, 0));
-  await page.waitForTimeout(300);
-  const box3 = () => Promise.all(["#side-l", "#card", "#side-r", "#fl-strip"].map(sel => page.$eval(sel, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; })));
+  await page.waitForTimeout(1500);   // after the arrival
+  const box3 = () => Promise.all(["#side-l", "#card", "#side-r", "#fl-strip", "#fl-aside", "#fl-plate", "#fl-body > .dm-datum", "#fl-blocks"].map(sel => page.$eval(sel, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; })));
   // no part of the day view keeps its own scroll bar: what doesn't fit lengthens the page
   const ownScroll = () => page.evaluate(() => [...document.querySelectorAll("#flow *")].filter(e => /auto|scroll/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1).map(e => e.id || e.className));
-  let [pl, pc, pr, ps] = await box3();
-  const mid = b => (b.l + b.r) / 2;
-  assert.ok(pc.r <= pr.l && Math.abs(pr.t - pc.t) < 2 && pl.t >= pr.b && Math.abs(pl.l - pr.l) < 2, `the sidebar right of the article, level with its top, Look it up under On the exam: ${JSON.stringify([pc, pr, pl])}`);
-  const vw = await page.evaluate(() => document.body.getBoundingClientRect().width);   // the page's width without the scroll bar's gutter (clientWidth counts it in some browsers)
-  assert.ok(pc.r - pc.l > 900 && Math.abs(pc.l - (vw - pr.r)) < 12 && Math.abs(mid(ps) - mid(pc)) < 2, `a wide article, centred with its sidebar, the dots over the article: ${JSON.stringify([pc, pr, ps])}`);
+  const sideBySide = async () => {
+    const [pl, pc, pr, ps, pa, pp, pd, pb] = await box3();
+    assert.ok(Math.abs(pa.r - pa.l - 320) < 2 && pc.r <= pa.l && pb.b <= pr.t && pr.b <= pl.t && Math.abs(pl.l - pr.l) < 2,
+      `a 320px aside right of the article: where you are, On the exam, then Look it up: ${JSON.stringify([pc, pa, pb, pr, pl])}`);
+    assert.ok(Math.abs(pd.t - pp.b) < 3 && pd.r >= pa.r - 1 && pd.l <= pp.l + 1 && pa.t < pd.t && ps.t > pd.b && ps.r <= pc.r && pc.t > ps.b,
+      `the datum line under the plate across the split, the steps under it over the article: ${JSON.stringify([pp, pd, ps, pc])}`);
+    return pc;
+  };
+  const pc16 = await sideBySide();
+  assert.ok(pc16.r - pc16.l > 800, `a wide article at 1600 px: ${JSON.stringify(pc16)}`);
+  assert.match(await page.textContent("#fl-plate .dm-plate__no"), /^PL\.\d\d$/, "the day is the plate number");
+  assert.match(await page.textContent("#fl-plate"), /Step \d+ of \d+/, "the plate names the step");
+  assert.equal(await page.locator("#flow .dm-btn--signal").count(), 1, "one signal button on the screen");
+  assert.equal(await page.locator("#card .c-hl.dm-title, #card .c-t.dm-heading").count(), 1, "the task's title is Datum's title (or a heading for a step without its own)");
   assert.deepEqual(await ownScroll(), [], "nothing scrolls on its own");
   const [bk, bn] = await page.evaluate(id => { const d = window.PLAN.find(x => x.groups && x.groups.some(g => g.items.some(it => it[0] === id))); return [d.groups.findIndex(g => g.items.some(it => it[0] === id)) + 1, d.groups.length]; }, HELP);
   assert.equal(await page.locator("#fl-strip .fl-g.cur").count(), 1, "the block you are in is underlined in the strip");
-  if (bn > 1) assert.match(await page.textContent("#fl-blk"), new RegExp(`, block ${bk} of ${bn}$`), "and named under it");
+  if (bn > 1) assert.match(await page.textContent("#fl-blk"), new RegExp(`, block ${bk} of ${bn}$`), "and named in the aside");
+  assert.ok(await page.locator("#fl-blocks .dm-step").count() <= 2, "the aside names the block on screen and the next one, never the day's list");
   const navKeys = await page.$$eval("#fl-nav [aria-keyshortcuts]", bs => bs.map(b => b.getAttribute("aria-keyshortcuts")).join(" "));
   assert.ok(/ArrowLeft/.test(navKeys) && /ArrowRight/.test(navKeys) && /Enter/.test(navKeys), `the bar's buttons name their keys: ${navKeys}`);
   await page.screenshot({ path: path.join(SHOTS, "02b-step-card-wide.png") });
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.waitForTimeout(300);
-  [pl, pc, pr, ps] = await box3();
-  assert.ok(pr.t >= pc.b && pl.t >= pr.b && Math.abs(mid(ps) - mid(pc)) < 2, "under the card: On the exam, then Look it up; the dots over the card's middle");
+  await sideBySide();
   assert.deepEqual(await ownScroll(), [], "nothing scrolls on its own");
-  await page.click('#side-l details[data-sec="terms"] > summary');      // fold it
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.waitForTimeout(300);
+  {
+    const [pl, pc, pr, , pa] = await box3();
+    assert.ok(pa.t >= pc.b && pr.t >= pc.b && pl.t >= pr.b, "under 1024 px the aside follows the article: On the exam, then Look it up");
+  }
+  assert.deepEqual(await ownScroll(), [], "nothing scrolls on its own");
+  await page.setViewportSize({ width: 1200, height: 900 });
   await page.click("#fl-nav [data-next]");
-  if (await page.locator('#side-l details[data-sec="terms"]').count())
-    assert.ok(!(await page.evaluate(() => document.querySelector('#side-l details[data-sec="terms"]').open)), "a folded helper list stays folded on the next card");
 
-  log("a rewritten card reads like an article: course, headline, where, lessons; a step you carry out lists its actions and how you know it worked");
+  log("a rewritten card reads like an article: headline, then its spec (course, where), lessons; a step you carry out lists its actions and how you know it worked");
   {
     const rw = await page.evaluate(() => {
       const ids = Object.keys(window.KEYS).filter(id => window.KEYS[id].head);
@@ -254,7 +275,7 @@ try {
     if (rw.lect) {
       await openCard(page, rw.lday, rw.lect);
       assert.equal(await page.textContent("#card .c-hl"), rw.head, "the card's own headline");
-      assert.ok(await page.evaluate(() => { const k = document.querySelector("#card .c-kick"), t = document.querySelector("#card .c-hl"), w = document.querySelector("#card .c-where"), l = document.querySelector("#card .c-les"), y = document.querySelector("#card .c-why"); return !!(k && w && l && y) && k.compareDocumentPosition(t) & 4 && t.compareDocumentPosition(w) & 4 && w.compareDocumentPosition(l) & 4 && l.compareDocumentPosition(y) & 4; }), "course, headline, where, lessons, then why it exists");
+      assert.ok(await page.evaluate(() => { const k = document.querySelector("#card .c-kick"), t = document.querySelector("#card .c-hl"), w = document.querySelector("#card .c-where"), l = document.querySelector("#card .c-les"), y = document.querySelector("#card .c-why"); return !!(k && w && l && y) && t.compareDocumentPosition(k) & 4 && k.compareDocumentPosition(w) & 4 && w.compareDocumentPosition(l) & 4 && l.compareDocumentPosition(y) & 4; }), "headline, course, where, lessons, then why it exists");
       assert.ok(await page.locator("#card .c-why p").count() === 2, "the problem, then the idea, in one box");
     }
     if (rw.act) {
@@ -382,6 +403,8 @@ try {
     if (i === 0) {
       assert.ok(await page.locator("#qz-body .qz-study .qz-refs li").count() >= 1, "feedback shows where to study");
       // every option is explained, and the explanation sits visibly inside its option
+      // Datum's settle animation slides each explanation in; measure where it comes to rest
+      await page.$$eval("#qz-body .qz-fb .qz-why", ws => Promise.all(ws.flatMap(w => w.getAnimations().map(x => x.finished))));
       const inside = await page.$$eval("#qz-body .qz-fb li", lis => lis.map(li => {
         const w = li.querySelector(".qz-why"); if (!w) return false;
         const a = li.getBoundingClientRect(), b = w.getBoundingClientRect();
@@ -389,11 +412,12 @@ try {
       }));
       assert.ok(inside.length >= 4 && inside.every(Boolean), "every option shows its explanation inside the option");
       await page.screenshot({ path: path.join(SHOTS, "04-feedback-right.png") });
-      // on a wide screen, where to study moves out of the card into the free space to its left
+      // the App view: on a wide screen, where to study sits in the aside, right of the question and under the plate's datum line
       await page.setViewportSize({ width: 1600, height: 1000 });
-      await page.waitForTimeout(350);                      // the panel slides in
-      const [side, card] = await Promise.all(["#qz-body .qz-study", "#quiz"].map(s => page.$eval(s, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top }; })));
-      assert.ok(side.r <= card.l - 8 && Math.abs(side.t - card.t) < 2, "on a wide screen, where to study sits left of the quiz card, level with its top");
+      await page.waitForTimeout(350);
+      const [side, main, line] = await Promise.all(["#qz-body .qz-study", "#qz-body .qz-main", "#qz-body .qz-app > .dm-datum"].map(s => page.$eval(s, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top }; })));
+      assert.ok(side.l >= main.r + 8 && side.t > line.t, "on a wide screen, where to study sits in the aside right of the question, under the datum line");
+      assert.ok(await page.locator("#qz-body .qz-fb .dm-choice.is-correct").count() >= 1 && await page.locator("#qz-body .qz-plate .dm-plate__no").count() === 1, "Datum choices and the plate header");
       await page.screenshot({ path: path.join(SHOTS, "04b-feedback-wide.png") });
       await page.setViewportSize({ width: 1200, height: 900 });
     }
@@ -414,7 +438,7 @@ try {
   await page.click('#qz-body [data-qz="finish"]');
   await page.waitForFunction(h => location.hash === h, `#${QA.id}/done`, { timeout: 3000 });
   // the top rung of the ladder: a big banner with an icon; the dimmed page round it is an effect, so not with effects off
-  await page.waitForSelector(".fx-banner.show.k-day .b-i");
+  await page.waitForSelector(".fx-banner.show.k-day .b-no");
   assert.match(await page.textContent(".fx-banner"), new RegExp(`Day ${QA.day} complete`), "finishing a day gets the day's banner");
   assert.equal(await page.locator(".fx-veil.show").count(), 0, "no veil with effects off");
   assert.match(await page.textContent("#card .c-t"), new RegExp(`Day ${QA.day} is done`));
@@ -452,6 +476,8 @@ try {
     if (i === 0) {
       assert.ok(await page.locator("#qz-body .qz-fb li.wrong").count() >= 1, "wrong pick is marked");
       assert.ok(await page.locator("#qz-body .qz-fb li.right").count() === q.a.length, "right answer is marked");
+      const edge = await page.evaluate(() => [".is-correct", ".is-wrong"].map(c => getComputedStyle(document.querySelector("#qz-body .qz-fb .dm-choice" + c)).borderTopColor));
+      assert.ok(edge[0] !== edge[1], "right is drawn in ink, the wrong pick in signal: " + edge.join(" / "));
       assert.match(await page.textContent("#qz-meta .qz-cb"), /0 in a row/, "a miss with no run leaves the meter at 0");
       await page.fill("#qz-body [data-note]", "mixed up stateful and stateless");
       await page.screenshot({ path: path.join(SHOTS, "07-feedback-wrong.png") });
@@ -534,7 +560,7 @@ try {
   assert.ok(await page.locator("#sh-body .wk > li").count() >= 1);
   assert.match(await page.textContent("#sh-body"), /shaky/i);
   await page.screenshot({ path: path.join(SHOTS, "10-weak.png") });
-  await page.click("#sh-body > .qz-refs [data-jump]");    // "Open step" leaves the sheet for that step's card
+  await page.click("#sh-body .sh-shaky [data-jump]");    // "Open step" leaves the sheet for that step's card
   assert.ok(await page.locator("#flow").isVisible() && await page.locator("#sheet[open]").count() === 0);
   assert.equal(await hash(page), `#${QA.id}/${ck1}`);
   await goHome(page);
@@ -674,7 +700,7 @@ try {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   assert.ok(overflow <= 1, `no horizontal scroll on mobile (overflow ${overflow}px)`);
   const [mDay, mGo] = await page.$$eval("#next .nx-day, #next .nx-go", els => els.map(e => { const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom }; }));
-  assert.ok(mGo.t >= mDay.b, "on a phone the next step comes under the day");
+  assert.ok(mGo.t >= mDay.t && mGo.b <= mDay.b, "on a phone the next step stays in the day's hero");
   await page.screenshot({ path: path.join(SHOTS, "15-mobile-dark.png") });
   await setState(page, s => { s.run = null; });
   await page.reload();
@@ -700,7 +726,10 @@ try {
   await page.click('#qz-body [data-qz="check"]');
   await page.screenshot({ path: path.join(SHOTS, "18-mobile-feedback.png"), fullPage: false });
   const qOverflow = await page.evaluate(() => { const d = document.getElementById("quiz"); return d.scrollWidth - d.clientWidth; });
-  assert.ok(qOverflow <= 1, "quiz dialog fits the phone width");
+  // name what sticks out, so a failure says where to look
+  const qWide = qOverflow <= 1 ? [] : await page.evaluate(() => { const d = document.getElementById("quiz"), r = d.getBoundingClientRect().left + d.clientWidth;
+    return [...d.querySelectorAll("*")].filter(e => e.getBoundingClientRect().right > r + 1).slice(0, 8).map(e => `${e.tagName.toLowerCase()}.${[...e.classList].join(".")} ${Math.round(e.getBoundingClientRect().right - r)}px`); });
+  assert.ok(qOverflow <= 1, `quiz dialog fits the phone width (${qOverflow}px over: ${qWide.join(", ")})`);
   await ctx.close();
 
   log("a touch screen: no key hints, fields that don't make iOS zoom, no notification button, a tap shows a term");
@@ -1003,12 +1032,12 @@ try {
   await page.reload();
   await page.click("#b-set");
   assert.equal(await page.locator("#s-theme").count(), 0, "no theme choice: the app is dark only");
-  await page.selectOption("#s-size", "l");
+  await page.click('#s-size [data-v="l"]');
   await page.click('#settings button[value="save"]');
   await page.waitForFunction(() => !document.getElementById("settings").open && document.documentElement.dataset.size, null, { timeout: 3000 }).catch(() => {});   // the dialog's close event comes a moment after the click
   assert.equal(await page.evaluate(() => document.documentElement.dataset.size), "l", "text size applies");
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue("--paper").trim()), "#111111", "dark colours (Datum, Excimer paper) although the system is light");
-  assert.ok(await page.evaluate(() => document.querySelector("#bd svg.dm-bd[data-figure='orbit']")), "the backdrop is drawn: Datum's orbit on the overview");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue("--ground").trim()), "#050D10", "dark colours (Datum 6 Night, the carbon ground) although the system is light");
+  assert.ok(await page.evaluate(() => document.querySelector(".dm-page")), "the page stands on Datum 6's lit ground (dm-page); Datum 6 has no backdrop figure");
   await page.reload();
   assert.equal(await page.evaluate(() => document.documentElement.dataset.size), "l", "and stays after a reload");
   await openCard(page, HELPDAY, HELP);
@@ -1183,7 +1212,7 @@ try {
   await setState(page, s => { s.settings = { start: new Date().toISOString().slice(0, 10), fx: false, sound: false }; delete s.timer; });
   await page.reload();
   const tmBox = await page.locator("#timer").boundingBox();
-  assert.ok(tmBox.y <= 1 && tmBox.width >= 1100, "the strip runs along the top of the page");
+  assert.ok(tmBox.y <= 48 && tmBox.width >= 1100, `the header with the timer runs across the top of the page, inside Datum's ground margin: ${JSON.stringify(tmBox)}`);
   assert.equal(await page.textContent("#timer .tm-time"), "50:00");
   await page.click("[data-start-day]");
   await page.waitForFunction(() => !document.getElementById("flow").hidden);
@@ -1413,7 +1442,7 @@ try {
   assert.ok(st.xpDay[tday].hit && st.chal[`${wk}:steps`] === tday && st.settings.goal === 100, "the goal and the challenge are recorded once");
   await goHome(page);
   assert.ok(await page.locator("#today .td-goal.hit").count(), "the ring shows the goal reached");
-  assert.match(await page.textContent("#today .td-ch li.done"), /Complete 40 steps\s*✓ Done/);
+  assert.match(await page.textContent("#today .td-ch li.done"), /Complete 40 steps\s*Done/);
   await page.locator("#today").screenshot({ path: path.join(SHOTS, "30-today.png") });
   const nBadges = await page.evaluate(() => document.querySelectorAll(".fx-badges .fx-bd, .fx-badges > *").length);
   await page.reload();

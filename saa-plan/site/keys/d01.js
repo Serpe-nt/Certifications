@@ -11,7 +11,7 @@ Object.assign(window.KEYS, {
       "If you get AWS's new sign-up (a Google, GitHub, Apple or Amazon login, with \"projects\" and \"AWS Settings\"), follow its screens. You then have a personal login from the start, and the admin-user block later on Day 1 does not apply."
     ],
     k: [
-      ["Guard the mailbox", "Forgot your password? on the sign-in page sends the reset directions to the account's email address. So whoever can open that mailbox can reset the root user's password."]
+      ["Guard the mailbox", "“Forgot your password?” on the sign-in page sends the reset directions to the account's email address. So whoever can open that mailbox can reset the root user's password."]
     ],
     q: {
       q: "You have just created an AWS account with an email address and a password. What are those two now?",
