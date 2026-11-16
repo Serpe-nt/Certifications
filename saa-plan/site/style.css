@@ -1,15 +1,18 @@
-/* SAA-C03 plan in the Datum design system, in its "Excimer" colours (the owner's reference poster): a near-black
-   ground ruled by a yellow-tinted modular grid, charcoal plates, and one cadmium yellow for what is live, the view's one
-   title and the marks that lock onto it. Tokens come from dm/tokens.css (dark only), the components from dm/bundle.css;
-   this file maps the app's own markup onto them; the backdrop is Datum's own (Datum.backdrop).
-   The rules (Datum's README): one subject per view; structure is hairlines (rule, and grid for the poster's yellow
-   lines), ink for what is current or focused; square corners or 45-degree cuts; no shadows, glows, gradients or blur;
-   sans (Saira) for reading, uppercase mono (IBM Plex Mono) for labels and facts. Motion: one arrival per view (the
-   backdrop fades up, crosshairs lock on, the content switches on in order), one live element, eased feedback
-   (cubic-bezier(.16,1,.3,1) for what travels, linear for what switches). The quiz, the mock, the drill, results,
-   badges and the celebrations are in fx.css. */
+/* SAA-C03 plan in the Datum design system, version 6 (the owner's claude.ai artifact "Datum", vendored unchanged in
+   dm/: bundle.css, datum.js, tokens.json and tokens.css written from it), in Datum's default Night palette, carbon and
+   ember: the pair nearest the owner's black and orange. The overview's hero is Datum's Hero: a copy column beside a bay
+   whose slot holds the cloud photo, graded and relit by Datum, its summit on the datum line.
+   Views are moving to Datum 6 one at a time. Until a view has moved, its rules below still use Datum 4 token names;
+   the aliases under "ground" map those names onto Datum 6 tokens. The quiz, the mock, the drill, results, badges and
+   the celebrations are in fx.css. */
 
 /* ---------- ground ---------- */
+/* Datum 4 token names the views not yet moved still use, mapped onto Datum 6 tokens (dm/tokens.css); a view drops
+   them when it moves to Datum 6 components. Datum 6 has no alert colour: an alert is the signal on a hazard band. */
+:root{--paper:var(--sheet);--paper-raised:var(--mist);--paper-sunk:var(--ground);--ink-3:var(--steel);--rule:var(--line);
+  --signal-edge:var(--signal);--alert:var(--signal);--alert-text:var(--signal-text);--on-alert:var(--on-signal);
+  --action:var(--signal);--on-action:var(--on-signal);--font-display:var(--font-sans);--stroke-bold:var(--stroke-datum);--stroke-bar:6px;
+  --chamfer:var(--cut-m);--chamfer-l:var(--cut-l);--chamfer-xl:var(--cut-xl);--notch:24px;--dm-tick:80ms;--dm-step:160ms;--dm-beat:1200ms}
 :root{color-scheme:dark;--wrap:1240px;--gut:var(--space-8);--rail:var(--space-12)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -140,7 +143,7 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .tb-title{display:grid;gap:var(--space-4);min-width:0;justify-items:start}
 .tb-title .tb-k{color:var(--ink-3)}
 .tb-title .tb-k,.tb-tools>button{background-color:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}   /* plates: no text bare on the backdrop */
-.tb-h{width:fit-content;max-width:14ch;margin:0;font:500 clamp(40px,4.2vw,56px)/1.04 var(--font-display);letter-spacing:-.02em;color:var(--ink);text-wrap:balance;
+.tb-h{width:fit-content;max-width:22ch;margin:0;font:600 40px/44px var(--font-sans);letter-spacing:-.03em;color:var(--ink);text-wrap:balance;
   background:var(--paper);box-shadow:0 0 0 var(--space-3) var(--paper)}
 .tb-cells{grid-column:2;display:grid;grid-template-columns:auto auto;column-gap:var(--space-8);min-width:300px;margin:0;background:var(--paper);box-shadow:0 0 0 var(--space-3) var(--paper)}
 .tb-cell{display:contents}
@@ -189,14 +192,16 @@ body.in-flow .tb{display:none}
     var(--x) 0 calc(100% - 9px)/19px 1px,var(--x) 9px 100%/1px 19px,var(--x) 100% calc(100% - 9px)/19px 1px,var(--x) calc(100% - 9px) 100%/1px 19px;background-repeat:no-repeat}
 @media (min-width:900px){.nx-body{grid-template-columns:minmax(0,2fr) minmax(320px,1fr);align-items:stretch}}
 .nx-day.dm-frame{--tab:150px;--foot:120px;display:flex;flex-direction:column;gap:var(--space-6);padding:calc(var(--notch) + var(--space-6)) var(--space-6) calc(var(--space-6) + var(--space-6))}
-.hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-6);align-items:start}
-.hero-n{min-width:200px;gap:var(--space-3)!important}
-.hero-n .dm-dotnum{width:auto;height:auto;max-height:104px}
-.hero-n .dm-dot-off{fill:var(--rule)}
-.hero-x{display:grid;gap:var(--space-3);min-width:0}
-.hero-t{margin:0;font:600 30px/1.1 var(--font-sans);color:var(--ink);text-wrap:balance}
+/* the hero is Datum's (dm-hero, dm-bay, dm-slot): only what the app adds to it is here */
+.next .dm-hero .dm-bay{min-height:600px}
+.nx-go{display:grid;justify-items:start;gap:var(--space-2);padding-top:var(--space-4);border-top:var(--stroke-hair) solid var(--line)}
+.nx-go .nx-step{margin:0;font-size:17px;line-height:1.45}
+.nx-go .nx-where{margin:0;color:var(--ink-2);font:400 13px/20px var(--font-mono)}
+.nx-go .nx-a{margin-top:var(--space-2)}
+.nx-steps{width:248px;display:grid;gap:var(--space-3);box-sizing:border-box}
+.nx-steps .dm-stat__head{color:var(--ink)}
+.nx-steps .segs{margin:0}
 .goal{margin:0;color:var(--ink-2);font-size:16px;line-height:1.55;max-width:68ch}
-.hero .dm-meta{max-width:440px}
 .hero-p{display:grid;gap:var(--space-2);margin-top:auto}
 .hero-p>.muted{font:400 13px/20px var(--font-mono);color:var(--ink-3)}
 /* one segment per card of the day, grouped like its blocks: done filled ink, the next one signal and standing proud */
@@ -784,8 +789,6 @@ body.focus-view #card{zoom:1.06}
   .tb-title,.tb-cells,.tb-tools{grid-column:1;grid-row:auto}
   .tb-cells{min-width:0;width:100%}
   .tb-tools{justify-content:flex-start}
-  .hero{grid-template-columns:1fr}
-  .hero-n{min-width:0;max-width:260px}
   .today{grid-template-columns:1fr}
   .tr-grid{grid-template-columns:1fr}
   .ov-h,.panel>summary{margin:var(--space-8) 0 var(--space-4)}
@@ -798,7 +801,7 @@ body.focus-view #card{zoom:1.06}
   .tm-chip button{padding:0 var(--space-3)}
   .tm-go{width:40px}
   .tm-pop{width:min(300px,100vw)}
-  .tb-h{font-size:clamp(44px,13vw,60px)}
+  .tb-h{font-size:32px;line-height:36px}
   .st-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .st-grid .st:nth-child(4n+1){border-left:var(--stroke-hair) solid var(--rule)}
   .st-grid .st:nth-child(odd){border-left:0}
@@ -806,6 +809,7 @@ body.focus-view #card{zoom:1.06}
   .nx-day.dm-frame{--tab:128px;--foot:96px;padding:calc(var(--notch) + var(--space-4)) var(--space-4) calc(var(--space-6) + var(--space-4))}
   .nx-go.dm-cut{padding:var(--space-4)}
   .hero-t{font-size:24px}
+  .next .dm-hero .dm-bay{min-height:420px}
   .nx-step{font-size:17px}
   .nx-where{display:none}   /* the card says where; here the button comes first */
   .nx-st{margin-left:0;flex-basis:100%}

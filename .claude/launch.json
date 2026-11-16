@@ -8,6 +8,13 @@
       "port": 8099
     },
     {
+      "name": "saa-hero-drafts",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "-d", "saa-plan", "8098"],
+      "port": 8098,
+      "url": "http://localhost:8098"
+    },
+    {
       "name": "saa-go-test",
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-NoProfile", "-Command", "$env:ADDR='127.0.0.1:8090'; $env:SITE_DIR='../site'; $env:DB_PATH=(Join-Path $env:TEMP 'saa-preview-test.db'); Remove-Item $env:DB_PATH* -ErrorAction SilentlyContinue; Set-Location saa-plan/server; go run ."],

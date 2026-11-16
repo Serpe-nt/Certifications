@@ -33,8 +33,8 @@ window.FX = (() => {
   let C = {};
   function pal() {
     const cs = getComputedStyle(document.documentElement), v = (n, f) => cs.getPropertyValue(n).trim() || f;
-    C = { sig: v("--signal", "#F7D123"), edge: v("--signal-edge", "#F7D123"), ink: v("--ink", "#EDEBE4"), ink3: v("--ink-3", "#8E8A7F"),
-      raised: v("--paper-raised", "#1C1C1B"), paper: v("--paper", "#111111"), rule: v("--rule", "#36342C"), alert: v("--alert", "#FF5533") };   // fallbacks = dm/tokens.css
+    C = { sig: v("--signal", "#FF4A1C"), edge: v("--signal-edge", "#FF4A1C"), ink: v("--ink", "#EAF1F2"), ink3: v("--ink-3", "#6B8A93"),
+      raised: v("--paper-raised", "#131F23"), paper: v("--paper", "#0B1518"), rule: v("--rule", "#1F2D32"), alert: v("--alert", "#FF4A1C") };   // fallbacks = Datum 6 carbon (dm/tokens.css) through the aliases in style.css
   }
   // Mixes of pieces by heat. "raised" pieces are paper with an ink outline, so they read on either theme.
   const MIX = {

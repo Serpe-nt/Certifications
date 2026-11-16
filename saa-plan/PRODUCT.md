@@ -28,8 +28,9 @@ Details live in `CLAUDE.md` and `docs/architecture.md`. Constraints that bind de
 
 ## Brand Commitments
 
-- Design system: the owner's Datum design system (claude.ai artifact "Datum"), vendored in `site/dm/`.
-- Colours: the "Excimer" palette taken from the owner's reference poster (near-black, charcoal plates, one cadmium yellow), dark only (owner's choice, 2026-11-13).
+- Design system: the owner's Datum design system (claude.ai artifact "Datum", version 6), vendored unchanged in `site/dm/`.
+- Colours: Datum's default Night palette, carbon and ember, the pair nearest the owner's black and orange reference (2026-11-16); dark only.
+- Hero: a real cloud photo in Datum's hero slot, graded and relit by Datum (owner's choice over drawn clouds, 2026-11-16).
 - Motion: poster-grade (owner's choice over Datum's stricter budget), with every existing effect kept and retouched.
 
 ## Evidence on Hand

@@ -124,9 +124,9 @@ try {
   });
   let tb = await topBox();
   assert.ok(tb.next.b <= tb.stats.t && tb.stats.t <= tb.map.t, "the card for today comes first, then the numbers, then the day tiles");
-  assert.ok(tb.go.l >= tb.day.r && Math.abs(tb.go.t - tb.day.t) < 2, `the next step beside the day: ${JSON.stringify([tb.day, tb.go])}`);
+  assert.ok(tb.go.l >= tb.day.l && tb.go.r <= tb.day.r && tb.go.t >= tb.day.t, `the next step in the day's hero (Datum's copy column): ${JSON.stringify([tb.day, tb.go])}`);
   assert.ok(tb.big.b <= tb.h, "the big button is on the first screen");
-  assert.equal(await page.locator("#next .primary").count(), 1, "one orange button on the card");
+  assert.equal(await page.locator("#next .dm-btn--signal").count(), 1, "one signal button on the card");
   assert.equal(await page.locator("#next .segs i").count(), D1.ids.length + (D1.quiz ? 1 : 0), "one segment per card of the day");
   await page.setViewportSize({ width: 1920, height: 1080 });
   tb = await topBox();
@@ -674,7 +674,7 @@ try {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   assert.ok(overflow <= 1, `no horizontal scroll on mobile (overflow ${overflow}px)`);
   const [mDay, mGo] = await page.$$eval("#next .nx-day, #next .nx-go", els => els.map(e => { const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom }; }));
-  assert.ok(mGo.t >= mDay.b, "on a phone the next step comes under the day");
+  assert.ok(mGo.t >= mDay.t && mGo.b <= mDay.b, "on a phone the next step stays in the day's hero");
   await page.screenshot({ path: path.join(SHOTS, "15-mobile-dark.png") });
   await setState(page, s => { s.run = null; });
   await page.reload();

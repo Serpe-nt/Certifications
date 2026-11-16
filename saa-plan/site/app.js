@@ -440,7 +440,7 @@ const bdEl = document.getElementById("bd");
 let bdKey = "", bdT = 0, inT = 0;
 function bdDraw() {
   const d = view.day && dayOf(view.day), w = innerWidth, h = innerHeight, k = `${view.day}|${w}|${h}`;
-  if (!window.Datum || k === bdKey) return;
+  if (!window.Datum || !Datum.backdrop || k === bdKey) return;   // Datum 6 has no backdrop: it lights the ground instead
   bdEl.toggleAttribute("data-dm-redraw", !!bdKey && bdKey.split("|")[0] === view.day);
   bdKey = k;
   bdEl.innerHTML = Datum.backdrop(d ? { figure: "grid", width: w, height: h, seed: d.id, ghost: pad2(d.day) }
@@ -651,6 +651,8 @@ const liveQuiz = d => !!(S.run && S.run.kind === "day" && S.run.day === d.id && 
 // The card at the top of the overview. Its day is the one with the earliest open step (today's, unless you are behind
 // or ahead); left: the day, its goal and its progress; right: the next step in a box of its block's colour, with the
 // one big button under it. The head holds today's date and where the plan stands (st, from refresh).
+// Datum's "next" icon (straight segments, square caps), for the end cell of a signal button
+const ICON_NEXT = `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M8.5 3.5L13 8l-4.5 4.5"/></svg>`;
 function renderNext(ti, st) {
   const el = document.getElementById("next");
   const pre = warmHTML(), n = nextStep(), td = ti >= 1 && ti <= LAST ? DAYS[ti - 1] : null;
@@ -673,30 +675,36 @@ function renderNext(ti, st) {
     const r = S.quiz[d.id], tries = r ? r.tries.length : 0, live = liveQuiz(d);
     kick = "Up next";
     body = `<span class="tag t-quiz">Quiz</span><p class="nx-step">${live ? `You are on question ${S.run.i + 1} of ${S.run.ids.length}.` : tries ? `Best so far ${r.best} of ${QZ.DAILY}. A retake draws different questions.` : `Every step is done. ${QZ.DAILY} questions, pass at ${QZ.needed(QZ.DAILY)}.`}</p>`;
-    act = `<button type="button" class="primary big" data-quiz-start="${d.id}">${live ? "Resume quiz" : tries ? `Retake the Day ${d.day} quiz` : `Take the Day ${d.day} quiz`} <span aria-hidden="true">→</span></button>` +
-      `<a class="btn" href="#${d.id}/quiz">Open Day ${d.day}</a>`;
+    act = `<button type="button" class="dm-btn dm-btn--signal big" data-quiz-start="${d.id}">${live ? "Resume quiz" : tries ? `Retake the Day ${d.day} quiz` : `Take the Day ${d.day} quiz`} <span class="dm-end">${ICON_NEXT}</span></button>` +
+      `<a class="dm-btn dm-btn--line" href="#${d.id}/quiz">Open Day ${d.day}</a>`;
   } else {
     const t = TAGS[n.g.t] ? n.g.t : "check";
     kick = k ? "Next step" : "First step";
     body = `<span class="tag t-${t}">${n.g.label || TAGS[n.g.t]}</span><p class="nx-step">${n.it[1]}</p>` +
       (n.g.where ? `<p class="nx-where">${n.g.where}</p>` : "");
-    act = `<a class="btn primary big" href="#${d.id}" data-start-day>${k ? "Continue" : "Start"} Day ${d.day} <span aria-hidden="true">→</span></a>`;
+    act = `<a class="dm-btn dm-btn--signal big" href="#${d.id}" data-start-day>${k ? "Continue" : "Start"} Day ${d.day} <span class="dm-end">${ICON_NEXT}</span></a>`;
   }
-  // The hero: a frame holding the day as a dot-matrix numeral in a sunk well, beside its title, goal and numbers.
-  const dots = window.Datum ? Datum.dotNumeral(pad2(d.day), { pitch: 13, label: `Day ${d.day}` }) : `<b>${pad2(d.day)}</b>`;
-  const meta = [["Steps", `${pad2(k)} / ${pad2(ids.length)}`], ["Time left", `~${fmtH(dayLeft(d))}`], ["Planned", fmtD(dayDate(d.day))]];
+  // The hero, Datum 6's Hero: a copy column (the day as the plate number, its goal, the next step and the one signal
+  // button, the facts, the title in a bite) beside a bay holding the cloud photo in Datum's slot (Datum grades it and
+  // relights its summit, the key point, which sits on the datum line). A glass panel in the bay carries today's steps.
+  const code = d.id.toUpperCase(), bc = window.Datum ? Datum.barcode(code, { height: 20 }) : "";
+  const facts = [["Steps", `${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? ", then the quiz" : ""}`], ["Time", `~${fmtH(dayLeft(d))} left`],
+    ["Planned", fmtD(dayDate(d.day))], ["Exam", fmtD(dayDate(LAST))]];
   // before Day 1 the head already says when the plan starts
   setHTML(el, pre + head(d.day === ti ? "Today" : "Next up", d.day === ti ? fmtD(dayDate(d.day)) : ti < 1 ? "" : `planned for ${fmtD(dayDate(d.day))}`) + cal +
-    `<div class="nx-body"><div class="nx-day dm-frame dm-frame--foot is-live"><span class="dm-frame__tab"><span class="dm-idx">/${pad2(d.day)}</span>${d.day === ti ? "Today" : "Next up"}<span class="dm-slants" aria-hidden="true"></span></span>` +
-    `<div class="hero"><div class="hero-n dm-readout__well"><div class="dm-readout__cap"><span class="dm-label">Day</span><span class="dm-data">/ ${LAST}</span></div>${dots}</div>` +
-    `<div class="hero-x"><h2 class="hero-t">${d.title}</h2><p class="goal">${d.goal}</p>` +
-    `<dl class="dm-meta">${meta.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join("")}</dl></div></div>` +
-    `<div class="hero-p"><div class="dm-progress__head"><span class="dm-label">Steps today</span><span class="dm-data">${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? " + quiz" : ""}</span></div>` +
-    `<div class="segs" aria-hidden="true">${segs}</div>` +
-    `<span class="muted">${k} of ${ids.length} steps done${hasQuiz(d) ? ", then the quiz" : ""}. About ${fmtH(dayLeft(d))} left.</span></div>` +
-    `<span class="dm-frame__foot dm-data">${esc(d.id.toUpperCase())}</span></div>` +
-    `<div class="nx-go dm-cut is-current"><div class="nx-gk"><span>${kick}</span><span class="muted">Step ${pad2(cards.indexOf(at) + 1)} / ${pad2(cards.length)}</span></div>` +
-    body + `<div class="nx-a">${act}</div></div></div>`);
+    `<section class="dm-hero nx-day" aria-label="Day ${d.day}"><div class="dm-hero__copy">` +
+    `<div class="dm-plate"><span class="dm-plate__no">PL.${pad2(d.day)}</span><span class="dm-plate__id">${bc}<span>SAA-C03 / Day ${d.day} of ${LAST}<br>${esc(code)}</span></span></div>` +
+    `<p class="dm-hero__lead">${d.goal}</p>` +
+    `<div class="nx-go"><span class="dm-label dm-label--br">${kick}</span>${body}<div class="dm-hero__acts nx-a">${act}</div></div>` +
+    `<dl class="dm-spec">${facts.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join("")}</dl>` +
+    `<div class="dm-bite"><h2 class="dm-display--light hero-t">${d.title}</h2></div></div>` +
+    `<div class="dm-bay" style="--dm-kx:53%;--dm-ky:12%"><div class="dm-marks dm-plus" aria-hidden="true">` +
+    `<i class="dm-arc dm-arc--dash" style="--r:120px"></i><i class="dm-arc" style="--r:300px"></i><i class="dm-arc dm-arc--ticks" style="--r:300px"></i>` +
+    `<span class="dm-micro" style="--x:40px;--y:104px">Day ${pad2(d.day)} of ${LAST}<br>Step ${pad2(cards.indexOf(at) + 1)} of ${pad2(cards.length)}</span></div>` +
+    `<div class="dm-slot" style="--dm-slot-pos:53% 0"><img src="img/cloud.webp" width="2000" height="918" alt="A towering cumulus cloud lit by the low sun" decoding="async"><div class="dm-slot__light"></div></div>` +
+    `<div class="dm-glass dm-pin nx-steps" style="--r:24px;--b:24px"><div class="dm-stat__head"><span>Steps today</span><span>${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? " + quiz" : ""}</span></div>` +
+    `<div class="segs" aria-hidden="true">${segs}</div></div></div>` +
+    `<div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></section>`);
 }
 
 // ---------- day flow: one card at a time ----------
