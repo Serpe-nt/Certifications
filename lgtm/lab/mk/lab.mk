@@ -22,6 +22,10 @@ LAB_VOLUME_FULL_RATIO ?= 0.85
 # lab-check fails when a Longhorn disk has less than this ratio free (Longhorn itself stops
 # scheduling replicas at 15%). Raise it to see the check fail.
 LAB_LONGHORN_FREE_RATIO ?= 0.25
+# lab-check fails when Longhorn's kafka-trim has not succeeded for this many hours and at
+# least three of its runs started in one hour more (the alert LabKafkaTrimNotSucceeding of lab-glue uses
+# the same number, alerts.kafkaTrimMaxHours).
+LAB_KAFKA_TRIM_MAX_HOURS ?= 3
 
 # The playbook lives in ansible/playbooks/, the roles in ansible/roles/.
 LAB_ROLES_PATH = ANSIBLE_ROLES_PATH=$(ANSIBLE_DIR)/roles
@@ -49,7 +53,7 @@ reset: ## Remove the lab releases, their volumes and bucket objects; keep the cl
 
 lab-check: ## Smoke test: every signal arrives and the shop can be followed metric -> trace -> log
 	LAB_KUBECONFIG=$(LAB_KUBECONFIG) LAB_GATEWAY_URL=$(LAB_GATEWAY_URL) LAB_CHECK_WARMUP=$(LAB_CHECK_WARMUP) \
-	LAB_VOLUME_FULL_RATIO=$(LAB_VOLUME_FULL_RATIO) LAB_LONGHORN_FREE_RATIO=$(LAB_LONGHORN_FREE_RATIO) \
+	LAB_VOLUME_FULL_RATIO=$(LAB_VOLUME_FULL_RATIO) LAB_LONGHORN_FREE_RATIO=$(LAB_LONGHORN_FREE_RATIO) 	LAB_KAFKA_TRIM_MAX_HOURS=$(LAB_KAFKA_TRIM_MAX_HOURS) \
 	bash $(CURDIR)/tests/lab/smoke.sh
 
 calico-renew: lab-tools ## After a long sleep of the PC: restart calico-node node by node (new CNI token), wait, check

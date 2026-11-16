@@ -4,6 +4,15 @@ selects every PrometheusRule in the cluster). LabVolumeFillingUp fires when a
 volume of the lab is more than 85% full; `make lab-check` fails at the same
 threshold. Kafka's volumes filled on 2026-11-11 with nobody told
 (lgtm/docs/adr/l5-kafka-disk.md).
+
+LabKafkaTrimNotSucceeding fires when Longhorn's hourly kafka-trim has not
+succeeded for kafkaTrimMaxHours and Prometheus saw at least three of its runs
+start in the hour more than that. Without the trim a Kafka replica grows towards its
+whole volume. Longhorn keeps no failed Job of the trim, so KubeJobFailed no
+longer reports it; the second condition keeps the alert quiet after a cold
+start, when the last success is from before the shutdown and the first runs
+fail while Longhorn starts (lgtm/docs/adr/l12-kafka-trim-after-start.md).
+`make lab-check` fails on the same expression (tests/lab/kafka-trim.sh).
 */ -}}
 {{- if .Values.alerts.enabled }}
 apiVersion: monitoring.coreos.com/v1
@@ -31,4 +40,28 @@ spec:
               A volume of the lab is above {{ mulf .Values.alerts.volumeFullRatio 100 }}% of its size.
               Find what grows (lgtm/lab/docs/budget.md, "Volumes and buckets") and
               free or grow it before it fills (lgtm/lab/docs/runbook.md).
+    - name: lab-kafka-trim
+      rules:
+        - alert: LabKafkaTrimNotSucceeding
+          expr: |
+            (
+              time() - max by (namespace, cronjob) (
+                kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}
+              ) > {{ .Values.alerts.kafkaTrimMaxHours }} * 3600
+            )
+            and
+            (
+              max by (namespace, cronjob) (
+                changes(kube_cronjob_status_last_schedule_time{namespace="longhorn-system", cronjob="kafka-trim"}[{{ add .Values.alerts.kafkaTrimMaxHours 1 }}h])
+              ) >= 3
+            )
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn's kafka-trim has not succeeded for {{ "{{" }} $value | humanizeDuration {{ "}}" }}."
+            description: >-
+              The hourly filesystem trim of the Kafka volumes has failed or not run for
+              more than {{ .Values.alerts.kafkaTrimMaxHours }} hours. Without it a Kafka replica grows
+              towards its whole volume. Find out why (lgtm/lab/docs/runbook.md,
+              "The Kafka trim keeps failing").
 {{- end }}

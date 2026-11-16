@@ -22,6 +22,11 @@ defaultSettings:
   # storageMinimalAvailablePercentage still stops scheduling on a disk that is really full.
   storageOverProvisioningPercentage: 200
   storageMinimalAvailablePercentage: 15
+  # Keep no failed Job of a RecurringJob (default 1). The hourly kafka-trim fails at every
+  # cold start, while Longhorn is still starting, and a kept failed Job holds KubeJobFailed
+  # until someone deletes it. The alert LabKafkaTrimNotSucceeding (lab-glue) and
+  # `make lab-check` report a trim that keeps failing (lgtm/docs/adr/l12-kafka-trim-after-start.md).
+  recurringFailedJobsHistoryLimit: 0
 csi:
   # One of each CSI sidecar per two workers is enough for a lab (default 3).
   attacherReplicaCount: 2
