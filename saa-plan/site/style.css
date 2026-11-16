@@ -452,187 +452,224 @@ a.dt.is-done:focus-visible{outline-color:var(--on-ink)}   /* ink on ink would hi
 .cl-run{margin:0 0 var(--space-4);padding:var(--space-3) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--alert);border-top:var(--stroke-bar) solid var(--alert)}
 .cl-run h3{margin:0 0 var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
 
-/* ---------- day flow: one step on one card, Back / Mark complete / Next under it ---------- */
-body.in-flow .wrap{padding-bottom:220px}   /* room to scroll the end of a long card clear of the buttons */
-.fl-top{display:flex;gap:var(--space-3) var(--space-4);align-items:flex-end;flex-wrap:wrap;margin-bottom:var(--space-6)}
-.fl-day{display:flex;gap:var(--space-1) var(--space-4);align-items:baseline;flex-wrap:wrap;flex:1 1 360px;min-width:0}
-.fl-day>:not(.today-badge){background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
-.fl-dn{font:500 44px/1 var(--font-display);letter-spacing:-.02em;color:var(--ink)}   /* the day view's one title, Datum's quiet voice */
-.fl-tt{font:600 20px/1.25 var(--font-sans);color:var(--ink)}
-.fl-dd{font:400 13px/20px var(--font-mono);color:var(--ink-2)}
-.fl-day .today-badge{order:-1}
-.fl-day .fl-dn{order:-2}   /* Today sits beside the day number, so a long title wraps instead of the badge */
-.fl-tools{display:flex;gap:var(--space-1) var(--space-3);flex-wrap:wrap;background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
-.fl-tools [aria-pressed="true"]{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
-/* the strip: one square per card, grouped like the day's blocks; the count at the card's right edge */
-.fl-prog{display:flex;gap:var(--space-2) var(--space-4);align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:var(--space-4)}
-.fl-prog>*{background:var(--paper);box-shadow:0 0 0 var(--space-1) var(--paper)}
-.fl-strip{display:flex;gap:var(--space-1) var(--space-3);flex-wrap:wrap;justify-content:center;min-width:0}
-.fl-g{display:inline-flex;gap:0;padding-bottom:var(--space-1);border-bottom:var(--stroke-bold) solid transparent}
-.fl-g.cur{border-bottom-color:var(--ink)}   /* the block you are in */
-.fl-blk{flex-basis:100%;text-align:center;color:var(--ink-2)}
-.fl-blk:empty{visibility:hidden}
-.fl-blk:empty::before{content:"\00a0"}
-@media (min-width:761px){
-  .fl-prog{display:grid;grid-template-columns:minmax(110px,1fr) auto minmax(110px,1fr);row-gap:var(--space-2)}
-  .fl-strip{grid-column:2;grid-row:1}
-  .fl-count{grid-column:3;grid-row:1;justify-self:end}
-  .fl-blk{grid-column:2;grid-row:2}
-}
-.dot{display:inline-grid;place-items:center;width:22px;height:22px;min-height:0;padding:0;border:0;background:none}
-.dot::before{content:"";width:12px;height:12px;border:var(--stroke-hair) solid var(--ink-3);background:var(--paper-raised)}
-.dot:not(:disabled):hover{background:none}
-@media (hover:hover){.dot:hover::before{border-color:var(--ink);background:var(--paper)}}
-.dot.on::before{background:var(--ink);border-color:var(--ink)}
-.dot.qd::before{transform:rotate(45deg) scale(.82)}
-.dot[aria-current]::before{width:14px;height:18px;background:var(--signal);border-color:var(--signal-edge)}
-.dot.on[aria-current]::before{background:var(--signal);outline:var(--stroke-hair) solid var(--ink);outline-offset:1px}
-.fl-count{color:var(--ink);white-space:nowrap}
+/* ---------- day flow: Datum 6's App view ---------- */
+/* One step per screen, as Datum's App view: a sheet on the lit ground; the day's plate header (the day is the plate
+   number, "Step N of M" its id) with the datum line under it; the step as an article in a dm-split with a 320px aside;
+   Back / Mark complete / Next on a bar at the window's foot, Mark complete the one signal button. The card's parts are
+   Datum's quiet blocks: open sections under a bracketed label, why in corner brackets, the trap a note, the billable
+   things the screen's one alert, the knowledge check the one soft block on mist. Only the page scrolls: no part of the
+   view has a scroll bar of its own, nothing folds. Datum 6 tokens only (no Datum 4 aliases). */
+body.in-flow{--wrap:1320px}
+body.in-flow .wrap{padding-bottom:calc(var(--control) + var(--space-24))}   /* the end of a long card scrolls clear of the bar */
+.fl{--fl-pad:var(--space-6);padding:var(--space-6) var(--fl-pad) var(--space-12)}
+@media (min-width:861px){.fl{--fl-pad:var(--space-12);padding-top:var(--space-8);padding-bottom:var(--space-16)}}
 
-/* the card: an article panel with one cut corner; the step's label, its headline, where to do it, then the boxes */
-.card{position:relative;padding:var(--space-6) var(--space-6) var(--space-8);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);
-}
-.card::after{content:"";position:absolute;top:-1px;right:-1px;width:calc(var(--chamfer-l) + 1px);height:calc(var(--chamfer-l) + 1px);background:linear-gradient(to bottom left,var(--paper) calc(50% - .75px),var(--rule) calc(50% - .75px),var(--rule) calc(50% + .75px),transparent calc(50% + .75px))}
-/* a new step arrives: a yellow scan line runs along the card's top edge, then its parts switch on in order (motion block) */
-.card::before{content:"";position:absolute;top:0;left:0;right:var(--chamfer-l);height:var(--stroke-hair);background:var(--ink-3);transform:scaleX(0);transform-origin:left;pointer-events:none}
-.c-h{display:flex;gap:var(--space-2) var(--space-3);align-items:center;flex-wrap:wrap;min-height:24px}
-.c-meta{color:var(--ink-3)}
-.c-h .pill{margin-left:auto}
-.c-t{margin:var(--space-4) 0 var(--space-3);font:400 22px/1.4 var(--font-sans);color:var(--ink);outline:0}
-.c-t b{font-weight:600}
-.c-n{margin:var(--space-2) 0 0;color:var(--ink-2);font-size:16px}
-.c-kick{margin:var(--space-6) 0 0;font:500 12px/18px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
-.c-kick b{color:var(--ink-2);font-weight:500}
-.c-hl{margin:var(--space-2) 0 var(--space-4);max-width:24ch;font:600 clamp(30px,3.4vw,46px)/1.02 var(--font-display);letter-spacing:-.03em;color:var(--ink);text-wrap:balance}
-.c-where{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin:var(--space-2) 0 0;padding:var(--space-2) var(--space-2) var(--space-2) var(--space-3);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule)}
-.c-where .bi{display:none}
-.c-where .where{flex:1 1 0;min-width:0;font-size:13px;line-height:20px}
-.c-where .where::before{content:"> ";color:var(--ink-3)}
-.c-les{margin:var(--space-3) 0 0;color:var(--ink-2);font-size:15px}
-.c-head{margin-bottom:var(--space-2)}
-@media (min-width:761px){.card{padding:var(--space-8) var(--space-12) var(--space-12)}}
+/* the day head: back to the overview, the day's title and date, the day's tools */
+.fl-top{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-6);margin-bottom:var(--space-8);padding-bottom:var(--space-6);border-bottom:var(--stroke-hair) solid var(--line)}
+.fl-day{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-1) var(--space-4);flex:1 1 320px;min-width:0}
+.fl-tt{font:600 17px/24px var(--font-sans);color:var(--ink);text-wrap:balance}
+.fl-dd{font:400 12px/18px var(--font-mono);letter-spacing:.04em;color:var(--ink-2)}
+.fl-today{height:24px;padding:0 10px 0 8px}
+.fl-tools{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.fl-tools .dm-btn[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+.fl :is(.dm-btn,.dm-btn:hover){text-decoration:none}
+.fl .dm-btn{font:600 14px/1 var(--font-sans);letter-spacing:0;text-transform:none;min-height:0}
+.fl .dm-btn--s{font-size:13px}
+@media (hover:hover){.fl .dm-btn:not(:disabled):hover{background-size:auto;border-color:var(--edge)}
+  .fl .dm-btn--line:not(:disabled):hover{color:var(--ink)}
+  .fl .dm-btn--signal:not(:disabled):hover{color:var(--on-signal)}}
+
+/* the split: the article and its aside; under 1024 px the aside follows the article */
+.fl-body{--aside:320px;--gap:var(--space-12);align-items:start}
+@media (max-width:1023px){.fl-body{grid-template-columns:minmax(0,1fr)}}
+.fl-main{min-width:0}
+.fl-aside{min-width:0;display:grid;gap:var(--space-8);align-content:start;padding-top:calc(76px + var(--space-6))}
+@media (max-width:1023px){.fl-aside{padding-top:var(--space-12);margin-top:var(--space-4);border-top:var(--stroke-hair) solid var(--line)}}
+.fl-body>.dm-datum .dm-datum__key{left:100%;margin-left:-20px}
+
+/* the plate header: PL.NN, the barcode of the day's id, the day of the plan and the step */
+.fl-plate .dm-plate__no{color:var(--ink)}
+
+/* the train: one square cell per card, grouped like the day's blocks; done filled, the one on screen lit by a lamp,
+   the quiz a square stood on its corner. Cells are buttons (a tap goes to that card); the square is ::before so the
+   step and block effects (fx.css) can flash it. */
+.fl-prog{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3) var(--space-6);margin:var(--space-6) 0 var(--space-8)}
+.fl-strip.dm-train{gap:var(--space-2) var(--space-4);align-items:center;min-width:0}
+.fl-g{display:flex;gap:5px;padding-bottom:6px;border-bottom:var(--stroke-datum) solid transparent}
+.fl-g.cur{border-bottom-color:var(--off)}   /* the block you are in */
+.fl-left{font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.dot{display:inline-grid;place-items:center;width:18px;height:18px;min-height:0;padding:0;border:0;background:none;cursor:pointer}
+.dot::before{content:"";grid-area:1/1;box-sizing:border-box;width:18px;height:18px;border:var(--stroke-line) solid var(--off);transition:border-color var(--dm-fast)}
+.dot.on::before{background:var(--ink);border-color:var(--ink)}
+.dot.qd::before{transform:rotate(45deg) scale(.74)}
+.dot[aria-current]::before{border-color:var(--ink)}
+.dot[aria-current]::after{content:"";grid-area:1/1;width:7px;height:7px;background:var(--signal);box-shadow:var(--dm-lamp-glow)}
+.dot:not(:disabled):hover{background:none}
+@media (hover:hover){.dot:hover::before{border-color:var(--ink)}}
+.dot:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:2px}
+
+/* the card: the task's title at 40px, its facts as Datum's spec table, then the parts */
+.card{position:relative;min-width:0}
+.c-head{margin-bottom:var(--space-8)}
+.c-t{margin:0 0 var(--space-6);color:var(--ink);outline:0}
+.c-t.c-hl{font-size:40px;line-height:44px;max-width:22ch}
+.c-t.dm-heading{max-width:44ch}
+.c-t.dm-heading b{font-weight:600}
+.c-spec{max-width:760px}
+.c-spec dd{flex:1 1 auto;flex-wrap:wrap;min-width:0;padding:var(--space-2) 0;font-weight:400;font-size:14px;line-height:20px;color:var(--ink)}
+.c-spec dd b{font-weight:600}
+.c-tag{font-weight:600}
+.c-spec .c-meta{font:400 12px/18px var(--font-mono);letter-spacing:.04em;text-transform:none;color:var(--ink-2)}
+.c-where .where{flex:1 1 200px;min-width:0;font:400 14px/20px var(--font-sans);letter-spacing:0;text-transform:none;color:var(--ink)}
+.c-open-l{margin-left:auto}
+.c-state{height:24px;padding:0 10px 0 8px}
+.c-state .dm-icon,.fl-ok .dm-icon{width:12px;height:12px}
+.c-les{margin:var(--space-6) 0 0;max-width:68ch;font-size:16px;line-height:1.6;color:var(--ink-2)}
+.c-les .dm-label{margin-right:var(--space-2);color:var(--ink)}
+.c-n{margin:var(--space-3) 0 0;max-width:68ch;font-size:15px;line-height:1.6;color:var(--ink-2)}
+.txt{text-wrap:pretty}
+
+/* the parts: an open section under a bracketed label */
+.box{display:block;margin-top:var(--space-12)}
+.box>.box-h{display:block;margin:0 0 var(--space-4);font:700 11px/14px var(--font-sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.box p{margin:0}
+.box>.cq-q,.box>.cq-v{margin:0 0 var(--space-4)}
+/* why it exists: the purpose first, held by four corner brackets, read at lead size */
+.b-why{padding:var(--space-6) var(--space-8) var(--space-8)}
+.b-why p{max-width:64ch;font-size:19px;line-height:1.6;color:var(--ink)}
+.b-why p+p{margin-top:var(--space-4);padding-top:var(--space-4);border-top:var(--stroke-hair) solid var(--line)}   /* the problem, then the idea that answers it */
+/* do it: numbered actions on hairlines, the number in data */
+.c-do{margin:0;padding:0;list-style:none;counter-reset:do;max-width:72ch;font-size:17px;line-height:1.55;border-bottom:var(--stroke-hair) solid var(--line)}
+.c-do li{counter-increment:do;position:relative;padding:var(--space-3) 0 var(--space-3) 48px;border-top:var(--stroke-hair) solid var(--line)}
+.c-do li::before{content:counter(do,decimal-leading-zero);position:absolute;left:0;top:var(--space-3);font:400 12px/26px var(--font-mono);letter-spacing:.04em;color:var(--ink-2)}
+.b-do .c-done{margin-top:var(--space-4);max-width:72ch;font-size:16px;line-height:1.55}
+/* what to know: labelled points, label and text on one hairline row */
+.c-key ul{margin:0;padding:0;list-style:none;font-size:16px;line-height:1.55}
+.c-key ul:not(.k-list) li{position:relative;padding:var(--space-2) 0 var(--space-2) var(--space-6);border-top:var(--stroke-hair) solid var(--line)}
+.c-key ul:not(.k-list) li::before{content:"";position:absolute;left:2px;top:calc(var(--space-2) + 9px);width:6px;height:6px;background:var(--steel)}
+.k-list{list-style:none;margin:0;padding:0;border-bottom:var(--stroke-hair) solid var(--line)}
+.k-list li{display:grid;grid-template-columns:minmax(140px,220px) minmax(0,1fr);gap:var(--space-1) var(--space-6);padding:var(--space-3) 0;border-top:var(--stroke-hair) solid var(--line)}
+.k-list .k-l{font:600 15px/1.45 var(--font-sans);color:var(--ink)}
+/* the exam trap: a note (brackets, outlined icon cell); the billable things: the alert (hazard band) */
+.box.dm-notice{display:flex;margin-top:var(--space-12)}
+.box.dm-notice .dm-notice__title{margin:0 0 var(--space-1);font:600 17px/24px var(--font-sans);letter-spacing:0;text-transform:none}
+.b-trap .dm-notice__body p{margin:0;max-width:68ch;font-size:16px;line-height:1.55;color:var(--ink)}
+.b-cost.dm-notice--alert .dm-notice__title{font:700 25px/1 var(--font-plate);font-stretch:75%;text-transform:uppercase}
+.b-cost .dm-notice__body{flex:1;min-width:0}
+/* the knowledge check and the self-check: the one soft block on mist, its corner cut */
+.b-q,.b-check{padding:var(--space-6);background:var(--mist);clip-path:polygon(0 0,100% 0,100% calc(100% - var(--cut-l)),calc(100% - var(--cut-l)) 100%,0 100%)}
+.cq-q{font-size:17px;line-height:1.55}
+.cq-a{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-4);margin-top:var(--space-4);font-size:14px}
+.cq-v{font:600 15px/22px var(--font-sans)}
+.cq-v.bad{color:var(--signal-text)}
+.b-check>p{margin:0 0 var(--space-4);font-size:15px}
 .c-score{margin-top:var(--space-4)}
 .box>.c-score{margin-top:0}
 .b-score .scores-grid label{padding:0;border-bottom:0}
-.c-st{margin:var(--space-4) 0 var(--space-1);max-width:72ch;font-size:16px}
-.c-st.ok{font-weight:600}
-.c-st.ok::before{content:"[ ✓ ] ";font-family:var(--font-mono);font-size:13px}
-.c-open{margin:var(--space-2) 0 0;padding:0;list-style:none;display:grid;gap:var(--space-1)}
-.c-open li::before{content:"□ ";font-family:var(--font-mono);color:var(--ink-3)}
-.c-w{margin-top:var(--space-3)}
-.c-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:var(--space-6) 0 0;border:var(--stroke-hair) solid var(--rule);border-top:0}
-.c-facts div{padding:var(--space-3) var(--space-4) var(--space-4);border-top:var(--stroke-hair) solid var(--rule)}
-.c-facts div+div{border-left:var(--stroke-hair) solid var(--rule)}
-.c-facts dt{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.c-facts dd{margin:var(--space-1) 0 0;font:600 22px/1.2 var(--font-display)}
-
-/* the parts of a step: an outlined panel under a mono label; the marker says what it holds */
-.box{display:block;margin-top:var(--space-4);padding:var(--space-4);background:var(--paper);border:var(--stroke-hair) solid var(--rule)}
-.box-h{display:flex;gap:var(--space-2);align-items:center;margin:0 0 var(--space-3);color:var(--ink)}
-.box-h .bi{flex:none;width:8px;height:8px;background:var(--ink)}
-.box>p{margin:0}
-.box>.cq-q,.box>.cq-v{margin:0 0 var(--space-3)}
-.txt{text-wrap:pretty}
-.b-why{border-color:var(--ink-3)}   /* the why: the one part outlined a step brighter */
-.b-why .bi{width:10px;height:10px;background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
-.b-why p{font-size:19px;line-height:1.6;color:var(--ink);max-width:68ch}
-.b-why p+p{margin-top:var(--space-3);padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule)}   /* the problem, then the idea that answers it */
-.b-do{border-color:var(--rule)}
-.c-do{margin:0;padding:0;list-style:none;counter-reset:do;display:grid;gap:var(--space-3);font-size:17px;line-height:1.55}
-/* the number hangs in the margin: the step is running text (terms, code), so it must stay one flow, not grid cells */
-.c-do li{counter-increment:do;position:relative;padding-left:44px}
-.c-do li::before{content:counter(do,decimal-leading-zero);position:absolute;left:0;top:0;font:600 12px/26px var(--font-mono);color:var(--ink-3)}
-.b-do .c-done{margin:var(--space-4) 0 0;padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule);font-size:16.5px;line-height:1.55}
-.b-trap{border-color:var(--alert)}
-.b-trap .bi{width:24px;height:10px;background:repeating-linear-gradient(135deg,var(--alert) 0 3px,transparent 3px 6px)}
-.b-trap .box-h{color:var(--alert-text)}
-.b-trap p{font-size:16.5px;line-height:1.55}
-.b-q{border-color:var(--rule)}
-.b-q .bi{background:var(--signal);outline:var(--stroke-hair) solid var(--signal-edge)}
-.cq-q{margin:0 0 var(--space-3);font-size:17px;line-height:1.55}
-.cq-a{display:flex;gap:var(--space-3) var(--space-4);align-items:center;flex-wrap:wrap;margin-top:var(--space-3);font-size:14px}
-.cq-v{margin:0 0 var(--space-3);font:600 13px/20px var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
-.cq-v.bad{color:var(--alert-text)}
-.b-check>p{margin:0 0 var(--space-3);font-size:14.5px}
-.b-exam .bi,.b-look .bi,.b-cues .bi{background:none;outline:var(--stroke-hair) solid var(--ink);outline-offset:-1px}
-.b-docs .bi,.b-terms .bi{background:var(--ink-3)}
-.b-notes{background:var(--paper-sunk)}
-.notes-l{display:block;margin-top:var(--space-4);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.notes-l textarea,.b-notes textarea{display:block;width:100%;margin-top:var(--space-1);min-height:96px;resize:vertical;padding:var(--space-2) var(--space-3);font:400 15px/24px var(--font-sans);color:var(--ink);
-  background:var(--paper-sunk) repeating-linear-gradient(transparent 0 23px,var(--rule) 23px 24px);background-attachment:local;border:var(--stroke-hair) solid var(--ink);border-radius:0;text-transform:none;letter-spacing:0}
-.card .c-notes{margin-top:var(--space-8)}
-.saved{margin-left:var(--space-2);opacity:0;color:var(--ink);text-transform:uppercase;transition:opacity var(--dm-step) linear}
+/* my notes: Datum's field */
+.b-notes{position:relative}
+.b-notes textarea.dm-input{margin-top:0;min-height:120px;font-size:15px;line-height:24px}
+.saved{position:absolute;top:0;right:0;font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);opacity:0;transition:opacity var(--dm-fast) linear}
 .saved.show{opacity:1}
-.saved::before{content:"[ ✓ ";color:var(--ink-3)}
-.saved::after{content:" ]";color:var(--ink-3)}
-/* what to know: labelled points, so the list can be scanned */
-.c-key ul{margin:0;padding:0;list-style:none;display:grid;gap:var(--space-2);font-size:16.5px;line-height:1.55}
-.c-key ul:not(.k-list) li{padding-left:var(--space-4);position:relative}
-.c-key ul:not(.k-list) li::before{content:"+";position:absolute;left:0;font-family:var(--font-mono);color:var(--ink-3)}
-.c-key ul.k-list{gap:0}
-.k-list{list-style:none;margin:0;padding:0}
-.k-list li{display:grid;grid-template-columns:minmax(130px,220px) 1fr;gap:2px var(--space-6);padding:var(--space-3) 0;border-top:var(--stroke-hair) solid var(--rule)}
-.k-list li:first-child{border-top:0;padding-top:0}
-.k-list .k-l{font:600 15px/1.45 var(--font-sans);color:var(--ink)}   /* a label here is a short sentence: read, not scanned as a code */
-/* the panels beside the card: docs, terms, exam topics, practice, exam wording */
-.c-docs{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);font-size:14.5px}
-.c-tags{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);font-size:14px}
-.c-tags li{display:grid;grid-template-columns:minmax(0,1fr) 64px 44px;gap:var(--space-2);align-items:center}
-.c-tags .wk-n,.wk-n{text-align:right;font:400 12px var(--font-mono);color:var(--ink-2)}
-.c-hint{margin:var(--space-2) 0 0;font-size:12.5px}
-.c-fold summary{cursor:pointer;list-style:none;margin:0}
+/* the course diagram's section */
+.c-fold summary{display:flex;align-items:center;gap:var(--space-2);cursor:pointer;list-style:none;margin:0}
 .c-fold summary::-webkit-details-marker{display:none}
-.c-fold summary::after{content:"[ + ]";margin-left:auto;color:var(--ink-3);white-space:nowrap}
-.c-fold[open] summary::after{content:"[ – ]"}
+.c-fold summary .bi{display:none}
+.c-fold summary::after{content:"[ + ]";margin-left:auto;color:var(--ink-2);white-space:nowrap}
+.c-fold[open] summary::after{content:"[ \2013 ]"}
 .c-fold summary .muted{text-transform:none;letter-spacing:0}
-.c-fold[open] summary{margin-bottom:var(--space-3)}
-.c-terms{margin:0;display:grid;gap:var(--space-3);font-size:14px}
-.c-terms div{display:grid;gap:1px}
+.c-fold[open] summary{margin-bottom:var(--space-4)}
+.box.c-fold>.box-h{font:700 11px/14px var(--font-sans);letter-spacing:.08em;text-transform:uppercase}
+
+/* the quiz card and the day's summary on the same article */
+.c-h{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) var(--space-3);min-height:24px}
+.card>.c-h+.c-t{margin-top:var(--space-6)}
+.card>.c-t:not(.dm-title):not(.dm-heading){font:600 40px/44px var(--font-sans);letter-spacing:-.03em;text-wrap:balance}
+.c-meta{font:400 12px/18px var(--font-mono);letter-spacing:.04em;color:var(--ink-2)}
+.c-st{margin:var(--space-6) 0 var(--space-1);max-width:72ch;font-size:16px}
+.c-st.ok{font-weight:600}
+.c-open{margin:var(--space-3) 0 0;padding:0;list-style:none;display:grid;gap:var(--space-2)}
+.c-open li{position:relative;padding-left:var(--space-6)}
+.c-open li::before{content:"";position:absolute;left:0;top:6px;width:10px;height:10px;box-sizing:border-box;border:var(--stroke-line) solid var(--off)}
+.c-w{margin-top:var(--space-4)}
+.c-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:var(--space-8) 0 0;border-top:var(--stroke-hair) solid var(--line)}
+.c-facts div{padding:var(--space-3) var(--space-4) var(--space-4) 0;border-bottom:var(--stroke-hair) solid var(--line)}
+.c-facts dt{font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.c-facts dd{margin:var(--space-2) 0 0;font:800 42px/.84 var(--font-plate);font-stretch:75%}
+
+/* the shared label rule above sets these in mono; here they are Datum steps and a subheading */
+.fl-blocks .dm-step__title{font:400 15px/18px var(--font-sans);letter-spacing:0;text-transform:none}
+.fl-blocks .is-now .dm-step__title{font-weight:600}
+.side-t.dm-subheading{font:600 17px/24px var(--font-sans);letter-spacing:0;text-transform:none}
+
+/* the aside: where you are in the day (Datum's steps: the block on screen and the next), then On the exam, Look it up */
+.fl-blocks{margin:0}
+.fl-blocks:empty{display:none}
+.side{display:block;min-width:0}
+.side-t{margin:0;padding-bottom:var(--space-3);border-bottom:var(--stroke-line) solid var(--ink)}
+.side .box{margin-top:var(--space-6)}
+.side-cols{display:grid;gap:0 var(--space-8);align-items:start}
+@media (min-width:761px) and (max-width:1023px){.side-cols{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.c-docs{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3);font-size:14px;line-height:20px}
+.c-docs li{display:flex;align-items:baseline;gap:var(--space-2)}
+.c-docs .dm-icon{flex:none;width:12px;height:12px;color:var(--ink-2)}
+.c-tags{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3);font-size:14px}
+.c-tags li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px var(--space-3);align-items:center}
+.c-tags .dm-bar{grid-column:1/-1}
+.c-tags .dm-bar.low .dm-bar__fill{background:var(--steel)}
+.c-tags .wk-n,.wk-n{text-align:right;font:400 12px/18px var(--font-mono);color:var(--ink-2)}
+.c-hint{margin:var(--space-3) 0 0;font-size:13px;line-height:20px;color:var(--ink-2)}
+.c-prac{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3);margin-top:var(--space-4);padding-top:var(--space-4);border-top:var(--stroke-hair) solid var(--line);font-size:14px;line-height:20px}
+.c-la{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3);font-size:14px}
+.c-terms{margin:0;display:grid;gap:var(--space-3);font-size:14px;line-height:20px}
+.c-terms div{display:grid;gap:2px}
 .c-terms dt{font-weight:600}
 .c-terms dd{margin:0;color:var(--ink-2)}
-.cue-l{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3);font-size:14px}
-.cue-l li{display:grid;gap:1px}
+.cue-l{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3);font-size:14px;line-height:20px}
+.cue-l li{display:grid;gap:2px}
 .cue-l .muted{font-size:13px}
-.c-prac{display:flex;gap:var(--space-2) var(--space-3);align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:var(--space-3);padding-top:var(--space-3);border-top:var(--stroke-hair) solid var(--rule);font-size:14px}
-.c-la{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);font-size:14.5px}
-.side{padding:var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--rule)}
-.side .box{background:var(--paper)}
-.side-t{margin:0;color:var(--ink)}
 .in-note{margin:var(--space-1) 0 0;font-size:14.5px;white-space:pre-wrap;color:var(--ink-2)}
-/* Where they go: an article and the sidebar beside it, like a post on DEV. Only the page scrolls: no panel has a scroll
-   bar of its own, everything shows in full. Under 1300 px the sidebar's panels follow the article; phones get one column. */
-.fl-body{position:relative;display:grid;gap:var(--space-4);align-items:start;grid-template-areas:"card" "right" "left"}
-#card{grid-area:card;min-width:0}
-#side-r{grid-area:right;min-width:0}
-#side-l{grid-area:left;min-width:0}
-.side-cols{display:grid;gap:0 var(--space-4);align-items:start}
-@media (min-width:761px){
-  body.in-flow{--wrap:1000px}
-  .side-cols{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-/* the article (up to 1000 px) and the sidebar (360 px) side by side and centred together; the strip and the buttons line up with the article */
-@media (min-width:1300px){
-  body.in-flow{--wrap:1384px}
-  .fl-prog{width:min(1000px,100% - 384px);margin-inline:0 auto}
-  .fl-body{grid-template-columns:minmax(0,1000px) 360px;grid-template-rows:auto 1fr;grid-template-areas:"card right" "card left";gap:var(--space-4) var(--space-6)}
-  .fl-body.no-r{grid-template-areas:"card left" "card ."}
-  .side-cols{grid-template-columns:minmax(0,1fr)}
-}
-/* the three buttons stay at the bottom of the window, on a rail of their own */
-.fl-nav{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:1fr auto 1fr;gap:var(--space-3);align-items:center;padding:var(--space-3) max(var(--space-4),calc((100% - 1000px)/2));background:var(--paper);border-top:var(--stroke-hair) solid var(--rule)}
+
+/* the bar at the window's foot: Back, the one signal action, Next, lined up with the article */
+.fl-nav{--fl-x:calc(max(0px,(100% - var(--wrap) - 2 * var(--gut)) / 2) + var(--gut) + var(--fl-pad));position:fixed;left:0;right:0;bottom:0;z-index:15;
+  display:grid;grid-template-columns:1fr auto 1fr;gap:var(--space-3);align-items:center;padding:var(--space-3) var(--fl-x);background:var(--sheet);border-top:var(--stroke-hair) solid var(--line)}
+@media (min-width:1024px){.fl-nav{padding-right:calc(var(--fl-x) + 320px + var(--space-12))}}
 .fl-b{justify-self:start}
 .fl-n{justify-self:end}
-.fl-nav>button{min-height:44px}
-.fl-mid{display:flex;gap:var(--space-3);align-items:center}
-.fl-mid .big{min-width:260px}
-.fl-ok{font:600 13px/20px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
-.fl-ok::before{content:"[ ";color:var(--ink-3)}
-.fl-ok::after{content:" ]";color:var(--ink-3)}
-/* key caps for ← → and Enter; on touch screens and phones the arrows are plain arrows and Enter goes */
-.kh{display:inline-block;min-width:1.6em;padding:0 .35em;background:none;color:inherit;border:var(--stroke-hair) solid currentColor;font:500 .9em/1.5 var(--font-mono);text-align:center;opacity:.75;vertical-align:.04em}
-.kh-w{margin-left:.6em;font-size:.8em}
-@media (hover:none),(max-width:640px){.kh{border:0;padding:0;min-width:0;font:inherit;opacity:1;vertical-align:baseline}.kh-w{display:none}}
-@media (min-width:1300px){.fl-nav{padding-left:max(var(--space-4),calc((100% - 1384px)/2));padding-right:max(400px,calc((100% - 616px)/2))}}
+.fl-mid{display:flex;align-items:center;gap:var(--space-4)}
+.fl-go{min-width:280px;justify-content:space-between}
+.fl-ok{height:30px}
+/* key caps for the arrows and Enter; on touch screens and phones they go */
+.kh{display:inline-block;min-width:1.6em;padding:0 .4em;background:none;color:inherit;border:var(--stroke-hair) solid currentColor;font:500 11px/1.6 var(--font-mono);text-align:center;opacity:.7}
+.fl-b .kh,.fl-n:not(.dm-btn--signal) .kh{display:none}
+@media (hover:none),(max-width:640px){.fl-nav .kh{display:none}}
+
+/* focus view: the article alone */
+body.focus-view .fl-aside{display:none!important}
+body.focus-view .fl-body{grid-template-columns:minmax(0,1fr)}
+@media (min-width:1024px){body.focus-view .fl-nav{padding-right:var(--fl-x)}}
+
+/* phones: a smaller plate, the arrows alone in their end cells */
+@media (max-width:640px){
+  .fl{--fl-pad:var(--space-4);padding-top:var(--space-4)}
+  .fl-top{gap:var(--space-3);margin-bottom:var(--space-6)}
+  .fl-tools .dm-btn--s{padding:0 var(--space-3)}
+  .fl-plate .dm-plate__no{font-size:56px}
+  .fl-pre{display:none}
+  .c-t.c-hl{font-size:30px;line-height:34px}
+  .c-t.dm-heading{font-size:20px;line-height:26px}
+  .card>.c-t:not(.dm-title):not(.dm-heading){font-size:30px;line-height:34px}
+  .b-why{padding:var(--space-4) var(--space-4) var(--space-6)}
+  .b-why p{font-size:17px}
+  .k-list li{grid-template-columns:1fr}
+  .c-do li{padding-left:36px}
+  .c-spec dt{width:64px}
+  .fl-nav{gap:var(--space-2);padding:var(--space-2)}
+  .fl-b,.fl-n{padding:0 4.5px;gap:0}
+  .fl-bl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .fl-go{min-width:0}
+  .fl-mid{gap:var(--space-2)}
+}
 
 /* glossary: a definition over the term on hover, Tab or a click; a tap on a touch screen toggles it (no sticky hover there) */
 .g{border-bottom:var(--stroke-hair) dotted currentColor;cursor:help;position:relative}
@@ -765,10 +802,9 @@ dialog.costnag p{margin:var(--space-2) 0;font-size:15px}
 :root[data-size="l"] :is(#card,.side,#sh-body,#brk-body),:root[data-size="l"] #qz-body>:not(.qz-side){zoom:1.1}
 :root[data-size="xl"] :is(#card,.side,#sh-body,#brk-body),:root[data-size="xl"] #qz-body>:not(.qz-side){zoom:1.22}
 
-/* ---------- focus view: the card alone, a little larger ---------- */
-body.focus-view #side-l,body.focus-view #side-r{display:none!important}
-body.focus-view .fl-body{grid-template-columns:minmax(0,980px)!important;grid-template-rows:auto!important;grid-template-areas:"card"!important;justify-content:center}
-@media (min-width:1300px){body.focus-view .fl-nav{padding-inline:max(var(--space-4),calc((100% - 980px)/2))}body.focus-view .fl-prog{width:min(980px,100%);margin-inline:auto}}
+/* ---------- focus view (F): the article alone, centred at a reading width, a little larger ---------- */
+body.focus-view .fl-main{width:100%;max-width:980px;margin-inline:auto}
+@media (min-width:1024px){body.focus-view .fl-nav{padding-inline:max(var(--fl-x),calc((100% - 980px) / 2))}}
 body.focus-view #card{zoom:1.06}
 :root[data-size="l"] body.focus-view #card{zoom:1.17}
 :root[data-size="xl"] body.focus-view #card{zoom:1.3}
@@ -816,15 +852,6 @@ body.focus-view #card{zoom:1.06}
   .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
   .dt.dm-cell,.dm-cell--empty{min-height:120px}
   .dm-cell--empty{display:none}
-  .fl-dn{font-size:34px}
-  .card{padding:var(--space-4) var(--space-4) var(--space-6)}
-  .c-t{font-size:19px}
-  .c-t.c-hl{font-size:clamp(26px,7.5vw,34px)}
-  .c-terms div{grid-template-columns:1fr;gap:0}
-  .k-list li{grid-template-columns:1fr}
-  .fl-nav{gap:var(--space-2);padding:var(--space-2)}
-  .fl-nav>button{padding:0 var(--space-3)}
-  .fl-mid .big{min-width:0;padding:0 var(--space-3)}
   .db{grid-template-columns:110px minmax(0,1fr) 52px}
   .db.tl{grid-template-columns:52px minmax(0,1fr) 110px}
   .rd-list li{grid-template-columns:minmax(0,1fr) auto;gap:var(--space-1) var(--space-3)}
@@ -867,17 +894,16 @@ body.focus-view #card{zoom:1.06}
    it). A resize redraws the same view still. Live: the orbit's one node drifts (Datum), the next segment beats. */
 @media (prefers-reduced-motion:no-preference){
   :root:not([data-dm-motion="off"]) #bd:not([data-dm-redraw])>svg{animation:dm-on 900ms linear backwards}
-  :root:not([data-dm-motion="off"]) :is(.nx-body,.fl-body)::before{animation:x-lock 760ms var(--dm-ease) 200ms backwards}
-  :root:not([data-dm-motion="off"]) .card.in::before{animation:x-scan 820ms var(--dm-ease)}
-  :root:not([data-dm-motion="off"]) :is(.card,.side).in>*{animation:x-on 420ms var(--dm-ease) backwards;animation-delay:calc(var(--n,0) * 60ms)}
-  :is(.card,.side).in>:nth-child(2){--n:1}
-  :is(.card,.side).in>:nth-child(3){--n:2}
-  :is(.card,.side).in>:nth-child(n+4){--n:3}
+  :root:not([data-dm-motion="off"]) .nx-body::before{animation:x-lock 760ms var(--dm-ease) 200ms backwards}
+  /* the day view: Datum's own arrival (dm-arrive on #flow, bundle.css) in data-i order; the lamp of the card on
+     screen is the view's one pulse */
+  .fl [data-i="1"]{--i:1}
+  .fl [data-i="2"]{--i:2}
+  .fl [data-i="3"]{--i:3}
+  :root:not(.fx-off):not([data-dm-motion="off"]):not([data-dm-motion="calm"]) .dot[aria-current]::after{animation:dm-pulse var(--dm-cycle) ease-in-out infinite}
   :root:not(.fx-off):not([data-dm-motion="calm"]) .segs i.nx{animation:x-pulse var(--dm-beat) steps(1) infinite}
 }
 @keyframes x-lock{from{opacity:0;transform:scale(1.04) rotate(.4deg)}}
-@keyframes x-scan{0%{transform:scaleX(0);opacity:1}62%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
-@keyframes x-on{from{opacity:0;transform:translateY(6px)}}
 @keyframes x-pulse{50%{background:var(--paper-raised)}}
 /* the motion levels (Settings, or effects off): calm stops the loops, off holds everything still */
 :root[data-dm-motion="calm"] :is(.timer.over .tm-fill,.segs i.nx,.dm-bd-drift){animation:none!important}

@@ -160,23 +160,29 @@
 <p class="foot">Course, module, lesson and lab names follow the outlines of the AWS Solutions Architect Learning Plan (Includes Labs) and the Exam Prep Plan (SAA-C03) as Skill Builder listed them on 12 October 2026. If a name is worded differently in your view, go by the order: lectures first, then their labs. Quiz and mock questions are original practice questions written in the exam's style, not official AWS questions. Progress is saved on the server when it runs from Docker, and in this browser either way; export a backup in Settings now and then.</p>
 </div>
 
-<!-- One day, one step at a time: a single card with Back, Mark complete and Next under it -->
-<div id="flow" hidden>
+<!-- One day, one step at a time: Datum's App view. A sheet with the day's plate header and the datum line under it,
+     the step as an article in a dm-split with its 320px aside, Back / Mark complete / Next on a bar at the window's foot -->
+<div id="flow" class="fl dm-sheet" hidden>
   <div class="fl-top">
-    <button type="button" class="ghost" data-home>← Overview</button>
+    <button type="button" class="dm-btn dm-btn--s dm-btn--line dm-btn--lead fl-home" data-home><span class="dm-end"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H3M7.5 3.5L3 8l4.5 4.5"/></svg></span>Overview</button>
     <div class="fl-day" id="fl-day"></div>
     <div class="fl-tools" id="fl-tools"></div>
   </div>
-  <div class="fl-prog">
-    <div class="fl-strip" id="fl-strip"></div>
-    <span class="fl-count" id="fl-count"></span>
-    <span class="fl-blk" id="fl-blk"></span>
-  </div>
-  <!-- the step in the middle; on wide screens "Look it up" on its left and "On the exam" on its right, below it on narrower ones -->
-  <div class="fl-body" id="fl-body">
-    <article id="card" class="card" aria-live="polite"></article>
-    <aside id="side-r" class="side side-r" aria-label="On the exam" hidden></aside>
-    <aside id="side-l" class="side side-l" aria-label="Look it up" hidden></aside>
+  <div class="dm-split fl-body" id="fl-body">
+    <section class="fl-main">
+      <div class="dm-plate fl-plate" id="fl-plate" data-i="0"></div>
+      <div class="fl-prog" data-i="1">
+        <div class="fl-strip dm-train" id="fl-strip" role="group" aria-label="Steps of the day"></div>
+        <span class="fl-left" id="fl-left"></span>
+      </div>
+      <article id="card" class="card" aria-live="polite" data-i="2"></article>
+    </section>
+    <aside class="fl-aside" id="fl-aside" data-i="3">
+      <ol class="dm-steps fl-blocks" id="fl-blocks" aria-label="Where you are in the day"></ol>
+      <section id="side-r" class="side side-r" aria-label="On the exam" hidden></section>
+      <section id="side-l" class="side side-l" aria-label="Look it up" hidden></section>
+    </aside>
+    <div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div>
   </div>
   <div class="fl-nav" id="fl-nav"></div>
 </div>

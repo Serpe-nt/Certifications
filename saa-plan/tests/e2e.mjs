@@ -210,39 +210,54 @@ try {
   await page.fill(`#card [data-inote="${HELP}"]`, "look at this again");
   await page.waitForTimeout(600);
   assert.equal((await state(page)).inotes[HELP], "look at this again");
-  assert.ok(await page.evaluate(() => document.querySelector('#side-l details[data-sec="terms"]').open), "terms start open in their panel");
+  assert.ok(await page.locator("#side-l .b-terms dt").first().isVisible(), "terms show in Look it up");
+  assert.equal(await page.locator("#fl-aside details").count(), 0, "nothing in the aside folds");
   await page.screenshot({ path: path.join(SHOTS, "02-step-card.png"), fullPage: true });
 
-  log("wide screens: the article with the sidebar (On the exam, then Look it up) to its right, centred together; narrower screens: both under it; only the page scrolls");
+  log("Datum's App view: the plate header (the day as PL.NN, Step N of M) over the datum line; the article in a dm-split with its 320px aside (where you are, On the exam, Look it up) from 1024 px, under it below; only the page scrolls");
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.evaluate(() => scrollTo(0, 0));
-  await page.waitForTimeout(300);
-  const box3 = () => Promise.all(["#side-l", "#card", "#side-r", "#fl-strip"].map(sel => page.$eval(sel, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; })));
+  await page.waitForTimeout(1500);   // after the arrival
+  const box3 = () => Promise.all(["#side-l", "#card", "#side-r", "#fl-strip", "#fl-aside", "#fl-plate", "#fl-body > .dm-datum", "#fl-blocks"].map(sel => page.$eval(sel, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; })));
   // no part of the day view keeps its own scroll bar: what doesn't fit lengthens the page
   const ownScroll = () => page.evaluate(() => [...document.querySelectorAll("#flow *")].filter(e => /auto|scroll/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1).map(e => e.id || e.className));
-  let [pl, pc, pr, ps] = await box3();
-  const mid = b => (b.l + b.r) / 2;
-  assert.ok(pc.r <= pr.l && Math.abs(pr.t - pc.t) < 2 && pl.t >= pr.b && Math.abs(pl.l - pr.l) < 2, `the sidebar right of the article, level with its top, Look it up under On the exam: ${JSON.stringify([pc, pr, pl])}`);
-  const vw = await page.evaluate(() => document.body.getBoundingClientRect().width);   // the page's width without the scroll bar's gutter (clientWidth counts it in some browsers)
-  assert.ok(pc.r - pc.l > 900 && Math.abs(pc.l - (vw - pr.r)) < 12 && Math.abs(mid(ps) - mid(pc)) < 2, `a wide article, centred with its sidebar, the dots over the article: ${JSON.stringify([pc, pr, ps])}`);
+  const sideBySide = async () => {
+    const [pl, pc, pr, ps, pa, pp, pd, pb] = await box3();
+    assert.ok(Math.abs(pa.r - pa.l - 320) < 2 && pc.r <= pa.l && pb.b <= pr.t && pr.b <= pl.t && Math.abs(pl.l - pr.l) < 2,
+      `a 320px aside right of the article: where you are, On the exam, then Look it up: ${JSON.stringify([pc, pa, pb, pr, pl])}`);
+    assert.ok(Math.abs(pd.t - pp.b) < 3 && pd.r >= pa.r - 1 && pd.l <= pp.l + 1 && pa.t < pd.t && ps.t > pd.b && ps.r <= pc.r && pc.t > ps.b,
+      `the datum line under the plate across the split, the steps under it over the article: ${JSON.stringify([pp, pd, ps, pc])}`);
+    return pc;
+  };
+  const pc16 = await sideBySide();
+  assert.ok(pc16.r - pc16.l > 800, `a wide article at 1600 px: ${JSON.stringify(pc16)}`);
+  assert.match(await page.textContent("#fl-plate .dm-plate__no"), /^PL\.\d\d$/, "the day is the plate number");
+  assert.match(await page.textContent("#fl-plate"), /Step \d+ of \d+/, "the plate names the step");
+  assert.equal(await page.locator("#flow .dm-btn--signal").count(), 1, "one signal button on the screen");
+  assert.equal(await page.locator("#card .c-hl.dm-title, #card .c-t.dm-heading").count(), 1, "the task's title is Datum's title (or a heading for a step without its own)");
   assert.deepEqual(await ownScroll(), [], "nothing scrolls on its own");
   const [bk, bn] = await page.evaluate(id => { const d = window.PLAN.find(x => x.groups && x.groups.some(g => g.items.some(it => it[0] === id))); return [d.groups.findIndex(g => g.items.some(it => it[0] === id)) + 1, d.groups.length]; }, HELP);
   assert.equal(await page.locator("#fl-strip .fl-g.cur").count(), 1, "the block you are in is underlined in the strip");
-  if (bn > 1) assert.match(await page.textContent("#fl-blk"), new RegExp(`, block ${bk} of ${bn}$`), "and named under it");
+  if (bn > 1) assert.match(await page.textContent("#fl-blk"), new RegExp(`, block ${bk} of ${bn}$`), "and named in the aside");
+  assert.ok(await page.locator("#fl-blocks .dm-step").count() <= 2, "the aside names the block on screen and the next one, never the day's list");
   const navKeys = await page.$$eval("#fl-nav [aria-keyshortcuts]", bs => bs.map(b => b.getAttribute("aria-keyshortcuts")).join(" "));
   assert.ok(/ArrowLeft/.test(navKeys) && /ArrowRight/.test(navKeys) && /Enter/.test(navKeys), `the bar's buttons name their keys: ${navKeys}`);
   await page.screenshot({ path: path.join(SHOTS, "02b-step-card-wide.png") });
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.waitForTimeout(300);
-  [pl, pc, pr, ps] = await box3();
-  assert.ok(pr.t >= pc.b && pl.t >= pr.b && Math.abs(mid(ps) - mid(pc)) < 2, "under the card: On the exam, then Look it up; the dots over the card's middle");
+  await sideBySide();
   assert.deepEqual(await ownScroll(), [], "nothing scrolls on its own");
-  await page.click('#side-l details[data-sec="terms"] > summary');      // fold it
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.waitForTimeout(300);
+  {
+    const [pl, pc, pr, , pa] = await box3();
+    assert.ok(pa.t >= pc.b && pr.t >= pc.b && pl.t >= pr.b, "under 1024 px the aside follows the article: On the exam, then Look it up");
+  }
+  assert.deepEqual(await ownScroll(), [], "nothing scrolls on its own");
+  await page.setViewportSize({ width: 1200, height: 900 });
   await page.click("#fl-nav [data-next]");
-  if (await page.locator('#side-l details[data-sec="terms"]').count())
-    assert.ok(!(await page.evaluate(() => document.querySelector('#side-l details[data-sec="terms"]').open)), "a folded helper list stays folded on the next card");
 
-  log("a rewritten card reads like an article: course, headline, where, lessons; a step you carry out lists its actions and how you know it worked");
+  log("a rewritten card reads like an article: headline, then its spec (course, where), lessons; a step you carry out lists its actions and how you know it worked");
   {
     const rw = await page.evaluate(() => {
       const ids = Object.keys(window.KEYS).filter(id => window.KEYS[id].head);
@@ -254,7 +269,7 @@ try {
     if (rw.lect) {
       await openCard(page, rw.lday, rw.lect);
       assert.equal(await page.textContent("#card .c-hl"), rw.head, "the card's own headline");
-      assert.ok(await page.evaluate(() => { const k = document.querySelector("#card .c-kick"), t = document.querySelector("#card .c-hl"), w = document.querySelector("#card .c-where"), l = document.querySelector("#card .c-les"), y = document.querySelector("#card .c-why"); return !!(k && w && l && y) && k.compareDocumentPosition(t) & 4 && t.compareDocumentPosition(w) & 4 && w.compareDocumentPosition(l) & 4 && l.compareDocumentPosition(y) & 4; }), "course, headline, where, lessons, then why it exists");
+      assert.ok(await page.evaluate(() => { const k = document.querySelector("#card .c-kick"), t = document.querySelector("#card .c-hl"), w = document.querySelector("#card .c-where"), l = document.querySelector("#card .c-les"), y = document.querySelector("#card .c-why"); return !!(k && w && l && y) && t.compareDocumentPosition(k) & 4 && k.compareDocumentPosition(w) & 4 && w.compareDocumentPosition(l) & 4 && l.compareDocumentPosition(y) & 4; }), "headline, course, where, lessons, then why it exists");
       assert.ok(await page.locator("#card .c-why p").count() === 2, "the problem, then the idea, in one box");
     }
     if (rw.act) {

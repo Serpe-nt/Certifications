@@ -712,29 +712,57 @@ const plain = {};
 // a rewritten card names its topic in its own headline; the others go by the step text
 const stepTitle = id => (id === "quiz" ? "End-of-day quiz" : plain[id] || (plain[id] = strip((KEYS[id] || {}).head || itemIndex[id].it[1])));
 const flipLabel = id => S.conf[id] === "shaky" ? "Shaky: show answer" : "Show answer";
+// Datum's icons (16px, straight segments and 45-degree cuts), for the day view's buttons and notices
+const IC = {
+  back: `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H3M7.5 3.5L3 8l4.5 4.5"/></svg>`,
+  check: `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8.5l4 4 8-9"/></svg>`,
+  info: `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 7h2.5v6M5.5 13h5.5M8.5 3v1.5"/></svg>`,
+  alert: `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3l6 10.5H2zM8 7v3M8 11.6v.4"/></svg>`,
+  out: `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 12.5L12 4M5.5 3.5h7v7"/></svg>`
+};
+// The day view is Datum's App view: the plate header names the day and the step, the datum line runs under it, the
+// step's article and its aside sit in a dm-split, one signal button moves the day on.
 function renderFlow(moved) {
   const d = dayOf(view.day), ids = stepIds(d), at = view.at, i = ids.indexOf(at);
-  document.getElementById("fl-day").innerHTML = `<span class="fl-dn">Day ${d.day}</span><span class="fl-tt">${d.title}</span>` +
-    `<span class="fl-dd">${fmtD(dayDate(d.day))}</span>${d.day === todayIdx() ? `<span class="today-badge">Today</span>` : ""}`;
-  const tools = [`<button type="button" class="ghost" data-focus-view aria-pressed="${!!ui.focusView}" title="Hide the panels around the card (F)">${ui.focusView ? "Show panels" : "Focus view"}</button>`,
-    `<button type="button" class="ghost" data-search title="Search (Ctrl+K)">Search</button>`,
-    `<button type="button" class="ghost" data-sheet="daynotes">Day notes</button>`];
-  if (d.groups.some(g => g.t === "build")) tools.push(`<button type="button" class="ghost" data-cleanup="${d.id}">Cleanup check</button>`);
-  for (const t of d.tools || []) tools.push(t === "notebook" ? `<button type="button" class="ghost" data-sheet="notebook">Notebook</button>` : `<button type="button" class="ghost" data-sheet="weak">Weak spots</button>`);
+  const isToday = d.day === todayIdx();
+  document.getElementById("fl-day").innerHTML = `<span class="fl-tt">${d.title}</span>` +
+    `<span class="fl-dd">${fmtD(dayDate(d.day))}</span>${isToday ? `<span class="dm-tag fl-today"><span class="dm-lamp dm-lamp--s"></span>Today</span>` : ""}`;
+  const tool = (attrs, label) => `<button type="button" class="dm-btn dm-btn--s dm-btn--line" ${attrs}>${label}</button>`;
+  const tools = [tool(`data-focus-view aria-pressed="${!!ui.focusView}" title="Hide the aside beside the step (F)"`, ui.focusView ? "Show panels" : "Focus view"),
+    tool(`data-search title="Search (Ctrl+K)"`, "Search"), tool(`data-sheet="daynotes"`, "Day notes")];
+  if (d.groups.some(g => g.t === "build")) tools.push(tool(`data-cleanup="${d.id}"`, "Cleanup check"));
+  for (const t of d.tools || []) tools.push(t === "notebook" ? tool(`data-sheet="notebook"`, "Notebook") : tool(`data-sheet="weak"`, "Weak spots"));
   document.getElementById("fl-tools").innerHTML = tools.join("");
 
-  // one dot per card, grouped like the day's blocks
-  const dot = id => {
+  // the plate: the day is the plate number, the barcode encodes the day's id, the id says which step this is
+  const code = d.id.toUpperCase(), bc = window.Datum ? Datum.barcode(code, { height: 20 }) : "";
+  document.getElementById("fl-plate").innerHTML = `<span class="dm-plate__no">PL.${pad2(d.day)}</span><span class="dm-plate__id">${bc}` +
+    `<span><span class="fl-pre">SAA-C03 / </span>Day ${d.day} of ${LAST}<br><span id="fl-count">${at === "done" ? "Day complete" : `Step ${i + 1} of ${ids.length}`}</span></span></span>`;
+
+  // the train: one square cell per card, grouped like the day's blocks; done cells filled, the one on screen lit
+  const cell = id => {
     const on = id === "quiz" ? quizOk(d) : done(id), t = stepTitle(id);
     return `<button type="button" class="dot${on ? " on" : ""}${id === "quiz" ? " qd" : ""}${id === fxMark.pop ? " pop" : ""}" data-at="${id}"${id === at ? ' aria-current="step"' : ""} title="${esc(t)}" aria-label="${esc(`Step ${ids.indexOf(id) + 1}: ${t}${on ? " (done)" : ""}`)}"></button>`;
   };
-  // the block you are in is underlined in the strip and named under it
   const gi = d.groups.findIndex(g => g.items.some(it => it[0] === at)), cur = gi >= 0 && d.groups[gi];
-  document.getElementById("fl-strip").innerHTML = d.groups.map((g, k) => `<span class="fl-g${g.key === fxMark.wave ? " wave" : ""}${k === gi ? " cur" : ""}">${g.items.map(it => dot(it[0])).join("")}</span>`).join("") +
-    (hasQuiz(d) ? `<span class="fl-g${at === "quiz" ? " cur" : ""}">${dot("quiz")}</span>` : "");
-  document.getElementById("fl-count").textContent = at === "done" ? "Day complete" : `Step ${i + 1} of ${ids.length}`;
-  document.getElementById("fl-blk").textContent = at === "quiz" ? "End-of-day quiz" : !cur ? ""
-    : d.groups.length > 1 ? `${cur.label || TAGS[cur.t]}, block ${gi + 1} of ${d.groups.length}` : cur.label || TAGS[cur.t];
+  document.getElementById("fl-strip").innerHTML = d.groups.map((g, k) => `<span class="fl-g${g.key === fxMark.wave ? " wave" : ""}${k === gi ? " cur" : ""}">${g.items.map(it => cell(it[0])).join("")}</span>`).join("") +
+    (hasQuiz(d) ? `<span class="fl-g${at === "quiz" ? " cur" : ""}">${cell("quiz")}</span>` : "");
+  const left = dayLeft(d);
+  document.getElementById("fl-left").textContent = dayDone(d) ? "Day done" : left > 0 ? `~${fmtH(left)} left today` : "";
+
+  // the aside opens with where you are in the day: the block on screen and the one after it (never the day's list)
+  const bName = g => strip(g.label || TAGS[g.t]);
+  const bNote = (g, k) => { const n = g.items.filter(it => done(it[0])).length; return groupDone(g) ? "Done" : `${n} of ${g.items.length} steps done${g.min ? `, ~${fmtH(g.min)}` : ""}`; };
+  let blocks = "";
+  if (at === "quiz") blocks = `<li class="dm-step is-now" aria-current="step"><span class="dm-step__title" id="fl-blk">End-of-day quiz</span><span class="dm-step__note">${QZ.DAILY} questions, pass at ${QZ.needed(QZ.DAILY)}</span></li>`;
+  else if (at === "done") blocks = `<li class="dm-step is-done"><span class="dm-step__title" id="fl-blk">Day ${d.day} complete</span><span class="dm-step__note">${plural(dIds(d).length, "step")} done</span></li>`;
+  else if (cur) {
+    const nx = d.groups[gi + 1];
+    blocks = `<li class="dm-step is-now" aria-current="step"><span class="dm-step__title" id="fl-blk">${esc(bName(cur))}${d.groups.length > 1 ? `, block ${gi + 1} of ${d.groups.length}` : ""}</span><span class="dm-step__note">${bNote(cur)}</span></li>` +
+      (nx ? `<li class="dm-step${groupDone(nx) ? " is-done" : ""}"><span class="dm-step__title">Then: ${esc(bName(nx))}</span><span class="dm-step__note">${bNote(nx)}</span></li>`
+        : hasQuiz(d) ? `<li class="dm-step${quizOk(d) ? " is-done" : ""}"><span class="dm-step__title">Then: end-of-day quiz</span><span class="dm-step__note">${QZ.DAILY} questions</span></li>` : "");
+  }
+  document.getElementById("fl-blocks").innerHTML = blocks;
 
   // Typing in a field on the card or its panels: leave them alone, only the frame around them changes.
   const typing = !moved && bodyEl.contains(document.activeElement) && document.activeElement.matches("textarea,input");
@@ -749,36 +777,41 @@ function renderFlow(moved) {
     dgMark(cardEl);
     if (answer) flip(at, true);
     if (moved) {
-      for (const el of [cardEl, sideL, sideR]) { el.classList.remove("in"); void el.offsetWidth; el.classList.add("in"); }
-      // the arrival plays once: a re-render of the same card (a picked answer, a note saved) must not replay it
-      clearTimeout(inT); inT = setTimeout(() => { for (const el of [cardEl, sideL, sideR]) el.classList.remove("in"); }, 1000);
+      // Datum's arrival, once per new card: the datum line draws, the plate, the train, the card and the aside settle
+      // on it in order (dm-arrive, data-i). A re-render of the same card (a picked answer, a note saved) never replays it.
+      flowEl.classList.remove("dm-arrive"); void flowEl.offsetWidth; flowEl.classList.add("dm-arrive");
+      clearTimeout(inT); inT = setTimeout(() => flowEl.classList.remove("dm-arrive"), 1400);
     }
   }
 
-  // Back, the card's main action, Next
+  // Back, the card's main action, Next. The one signal button is the action that moves the day on: Mark complete
+  // (or Start quiz, Start Day N) while the step is open, Next once it is done.
   const back = at === "done" ? ids[ids.length - 1] : ids[i - 1] || "";
   const next = at === "done" ? "" : ids[i + 1] || (dayDone(d) ? "done" : "");
   // the keys that press them (the keydown handler below) show as key caps; on touch screens the arrows stay plain arrows
-  const kh = k => `<kbd class="kh${k.length > 1 ? " kh-w" : ""}" aria-hidden="true">${k}</kbd>`, enter = ` aria-keyshortcuts="Enter"`;
+  const kh = k => `<kbd class="kh" aria-hidden="true">${k}</kbd>`, enter = ` aria-keyshortcuts="Enter"`;
+  const end = ic => `<span class="dm-end">${ic}</span>`;
+  const sig = "dm-btn dm-btn--signal fl-go";
   let mid, isDone = false;
   if (at === "done") {
     const nx = DAYS.find(x => x.day > d.day && !dayDone(x));
-    mid = nx ? `<a class="btn primary big" href="#${nx.id}" data-main data-start-day${enter}>Start Day ${nx.day}${kh("Enter")}</a>` : `<button type="button" class="primary big" data-home data-main${enter}>Back to the overview${kh("Enter")}</button>`;
+    mid = nx ? `<a class="${sig}" href="#${nx.id}" data-main data-start-day${enter}>Start Day ${nx.day}${kh("Enter")}${end(ICON_NEXT)}</a>`
+      : `<button type="button" class="${sig}" data-home data-main${enter}>Back to the overview${kh("Enter")}${end(ICON_NEXT)}</button>`;
   } else if (at === "quiz") {
     const r = S.quiz[d.id], live = liveQuiz(d);
     isDone = quizOk(d) && !live;
-    mid = isDone ? `<span class="fl-ok">✓ Passed</span>`
-      : `<button type="button" class="primary big" data-quiz-start="${d.id}" data-main${enter}${itemsDone(d) || live ? "" : " disabled"}>${live ? "Resume quiz" : r && r.tries.length ? "Retake quiz" : "Start quiz"}${kh("Enter")}</button>`;
+    mid = isDone ? `<span class="dm-tag dm-tag--solid fl-ok">${IC.check}Passed</span>`
+      : `<button type="button" class="${sig}" data-quiz-start="${d.id}" data-main${enter}${itemsDone(d) || live ? "" : " disabled"}>${live ? "Resume quiz" : r && r.tries.length ? "Retake quiz" : "Start quiz"}${kh("Enter")}${end(ICON_NEXT)}</button>`;
   } else {
     isDone = done(at);
-    mid = isDone ? `<span class="fl-ok">✓ Completed</span><button type="button" class="link" data-undo="${at}">Undo</button>`
-      : `<button type="button" class="primary big" data-complete="${at}" data-main${enter}>✓ Mark complete${kh("Enter")}</button>`;
+    mid = isDone ? `<span class="dm-tag dm-tag--solid fl-ok">${IC.check}Completed</span><button type="button" class="link" data-undo="${at}">Undo</button>`
+      : `<button type="button" class="${sig}" data-complete="${at}" data-main${enter}>Mark complete${kh("Enter")}${end(IC.check)}</button>`;
   }
   const nextMain = isDone && next;
   document.getElementById("fl-nav").innerHTML =
-    `<button type="button" class="fl-b ghost" data-back data-at="${back}" aria-keyshortcuts="ArrowLeft"${back ? "" : " disabled"}>${kh("←")} Back</button>` +
+    `<button type="button" class="dm-btn dm-btn--line dm-btn--lead fl-b" data-back data-at="${back}" aria-keyshortcuts="ArrowLeft"${back ? "" : " disabled"}>${end(IC.back)}<span class="fl-bl">Back</span></button>` +
     `<div class="fl-mid">${mid}</div>` +
-    (at === "done" ? `<span></span>` : `<button type="button" class="fl-n ${nextMain ? "primary" : "ghost"}" data-next data-at="${next}" aria-keyshortcuts="ArrowRight${nextMain ? " Enter" : ""}"${nextMain ? " data-main" : ""}${next ? "" : " disabled"}>Next ${kh("→")}</button>`);
+    (at === "done" ? `<span></span>` : `<button type="button" class="dm-btn ${nextMain ? "dm-btn--signal" : "dm-btn--line"} fl-n" data-next data-at="${next}" aria-keyshortcuts="ArrowRight${nextMain ? " Enter" : ""}"${nextMain ? " data-main" : ""}${next ? "" : " disabled"}><span class="fl-bl">Next</span>${nextMain ? kh("Enter") : ""}${end(ICON_NEXT)}</button>`);
 }
 
 // Docs for a step: the pages its key points cite, then the AWS pages its own quiz questions point to most often
@@ -807,10 +840,16 @@ function tagStats() {
   }
   return m;
 }
-// A section of the card or a panel: an outlined panel under a mono label; the marker beside the label says what kind
-// of thing it holds (signal for why, alert hazard for the trap, ink for the rest). icon stays for the call sites, unused.
-const box = (kind, icon, title, body, cls = "") =>
-  `<section class="box b-${kind}${cls ? " " + cls : ""}"><h3 class="box-h"><span class="bi" aria-hidden="true"></span>${title}</h3>${body}</section>`;
+// A part of the card or the aside, as one of Datum's quiet blocks. Most parts are open sections under a bracketed label
+// on a hairline; why it exists is held by four corner brackets (dm-brackets); the exam trap is a note (dm-notice); the
+// billable things are the screen's one alert (dm-notice--alert: the hazard band); the knowledge check and the self-check
+// are the one soft block on mist. icon stays for the call sites, unused.
+const BOX_NOTE = { trap: ["", IC.info], cost: [" dm-notice--alert", IC.alert] };
+const box = (kind, icon, title, body, cls = "") => {
+  const c = `box b-${kind}${cls ? " " + cls : ""}`, note = BOX_NOTE[kind];
+  if (note) return `<section class="${c} dm-notice${note[0]}"><span class="dm-notice__icon">${note[1]}</span><div class="dm-notice__body"><h3 class="box-h dm-notice__title">${title}</h3>${body}</div></section>`;
+  return `<section class="${c}${kind === "why" ? " dm-brackets" : ""}"><h3 class="box-h dm-label dm-label--br">${title}</h3>${body}</section>`;
+};
 // A box that folds; whether it is open is remembered across cards, in this browser.
 const foldBox = (kind, icon, sec, title, n, body, openByDefault) =>
   `<details class="box b-${kind} c-fold" data-sec="${sec}"${(sec in ui ? ui[sec] : openByDefault) ? " open" : ""}><summary class="box-h"><span class="bi" aria-hidden="true"></span>${title} <span class="muted">${n}</span></summary>${body}</details>`;
@@ -925,17 +964,18 @@ function stepCardHTML(id) {
   const head = kp && kp.head, steps = kp && kp.do;
   // "<b>Course</b> → lessons": a rewritten card shows the course over its headline and the lessons under it
   const parts = /^<b>([^<]{3,120})<\/b>\s*→\s*(.+)$/.exec(txt);
-  let h = `<header class="c-head"><div class="c-h"><span class="tag t-${g.t}">${g.label || TAGS[g.t]}</span>` +
-    (n > 1 ? `<span class="c-meta">${g.items.indexOf(it) + 1} of ${n}</span>` : "") +
-    (g.min ? `<span class="c-meta">~${fmtH(g.min)}${n > 1 ? " for this block" : ""}</span>` : "") +
-    (done(id) ? `<span class="pill ok">✓ Completed</span>` : "") + `</div>`;
-  if (head && parts && !steps) h += `<p class="c-kick">${parts[1]}</p>`;
-  h += head ? `<h2 class="c-t c-hl" tabindex="-1">${esc(head)}</h2>` : `<h2 class="c-t txt" tabindex="-1">${txt}</h2>`;
-  // where to do it comes right after the title: it is where the step happens, read before anything else
-  if (g.where || url) h += `<div class="c-where"><span class="bi" aria-hidden="true"></span>${g.where ? `<span class="where">Where: ${g.where}</span>` : `<span class="where"></span>`}${url ? `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open ↗</a>` : ""}</div>`;
+  // The task's title (Datum's title at 40px; a step without its own headline keeps its plan text, a size down), then
+  // its facts as a spec table: the block, the course, where to do it, the time. Where comes before anything you read.
+  let h = `<header class="c-head">` + (head ? `<h2 class="dm-title c-t c-hl" tabindex="-1">${esc(head)}</h2>` : `<h2 class="dm-heading c-t txt" tabindex="-1">${txt}</h2>`);
+  const spec = [[`Block`, `<span class="c-tag">${g.label || TAGS[g.t]}</span>${n > 1 ? `<span class="c-meta">Step ${g.items.indexOf(it) + 1} of ${n}</span>` : ""}`, "c-h"]];
+  if (head && parts && !steps) spec.push(["Course", parts[1], "c-kick"]);
+  if (g.where || url) spec.push(["Where", `<span class="where">${g.where || ""}</span>${url ? `<a class="dm-btn dm-btn--s dm-btn--line c-open-l" href="${esc(url)}" target="_blank" rel="noopener">Open<span class="dm-end">${IC.out}</span></a>` : ""}`, "c-where"]);
+  if (g.min) spec.push(["Time", `~${fmtH(g.min)}${n > 1 ? " for this block" : ""}`, ""]);
+  spec.push(["State", done(id) ? `<span class="dm-tag dm-tag--solid c-state">${IC.check}Completed</span>` : `<span class="c-meta">Open</span>`, ""]);
+  h += `<dl class="dm-spec c-spec">${spec.map(([k, v, c]) => `<div${c ? ` class="${c}"` : ""}><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>`;
   // a reading block ("Read: …") is a Watch group too, but you read it
   const lessons = /^Read\b/.test(g.label || "") ? "To read" : LESSONS[g.t];
-  if (head && !steps) h += `<p class="c-les txt">${lessons ? `${lessons}: ` : ""}${parts ? parts[2] : txt}</p>`;
+  if (head && !steps) h += `<p class="c-les txt">${lessons ? `<span class="dm-label">${lessons}</span> ` : ""}${parts ? parts[2] : txt}</p>`;
   if (note && !steps) h += `<p class="c-n txt">${note}</p>`;
   h += `</header>`;
   // Purpose first: the problem or need behind the step, then the idea that answers it, before any detail.
@@ -948,9 +988,9 @@ function stepCardHTML(id) {
   if (d.decision === id) { const [cls, v] = verdictHTML(); h += `<div class="verdict ${cls}" data-verdict>${v}</div>`; }
   if (g.t === "check" && CARDS[id]) {
     h += box("check", "", "Self-check", `<p class="muted">Explain it out loud first, then open the model answer and compare.</p>` +
-      `<button type="button" class="flip${S.conf[id] === "shaky" ? " shaky" : ""}" data-flip="${id}" aria-expanded="false" aria-controls="ca-${id}">${flipLabel(id)}</button>` +
+      `<button type="button" class="dm-btn dm-btn--s dm-btn--line flip${S.conf[id] === "shaky" ? " shaky" : ""}" data-flip="${id}" aria-expanded="false" aria-controls="ca-${id}">${flipLabel(id)}</button>` +
       `<div class="card-a" id="ca-${id}" hidden><div class="card-t">${CARDS[id]}</div><div class="card-b"><span class="muted">How close were you?</span>` +
-      `<button type="button" data-conf="ok" data-cid="${id}">Got it</button><button type="button" data-conf="shaky" data-cid="${id}">Shaky</button></div></div>`, "c-check");
+      `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-conf="ok" data-cid="${id}">Got it</button><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-conf="shaky" data-cid="${id}">Shaky</button></div></div>`, "c-check");
   }
   if (kp) {
     // a point is [label, text]; a bare string is the older form
@@ -965,8 +1005,8 @@ function stepCardHTML(id) {
   if (g.t === "build" && (BILL.steps[id] || g.items.indexOf(it) === g.items.length - 1)) h += costBoxHTML(d);
   // after the reading, the knowledge check: one question on what this card taught; then your notes close the article, like the comments under a post
   return h + dgHTML(id) + cardQHTML(id) +
-    `<label class="box b-notes c-notes"><span class="box-h"><span class="bi" aria-hidden="true"></span>My notes on this step <span class="saved" data-saved="${id}">saved</span></span>` +
-    `<textarea data-inote="${id}" maxlength="${NOTE_MAX}" placeholder="What surprised you, what to look at again…">${esc(S.inotes[id] || "")}</textarea></label>`;
+    `<label class="box b-notes c-notes dm-field"><span class="box-h dm-label dm-label--br">My notes on this step</span><span class="saved" data-saved="${id}">Saved</span>` +
+    `<textarea class="dm-input" data-inote="${id}" maxlength="${NOTE_MAX}" placeholder="What surprised you, what to look at again…">${esc(S.inotes[id] || "")}</textarea></label>`;
 }
 // Two lists side by side when there is room (CSS decides); one alone needs no columns.
 const sideCols = (a, b) => (a && b ? `<div class="side-cols"><div class="side-col">${a}</div><div class="side-col">${b}</div></div>` : a + b);
@@ -979,33 +1019,35 @@ function sideHTML(id) {
   const cues = [];
   for (const t of tags) for (const c of CUES) if ((CUE_TAGS[c[0]] || []).includes(t) && !cues.includes(c) && cues.length < 4) cues.push(c);
 
+  // nothing in the aside folds: every part shows in full, and only the page scrolls
   const l = sideCols(
-    docs.length ? box("docs", "", "AWS docs", `<ul class="c-docs">${docs.map(([t, u]) => `<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a></li>`).join("")}</ul>`) : "",
-    terms.length ? foldBox("terms", "", "terms", "Terms in this step", terms.length, `<dl class="c-terms">${terms.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`, true) : "");
+    docs.length ? box("docs", "", "AWS docs", `<ul class="c-docs">${docs.map(([t, u]) => `<li><a class="dm-link" href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>${IC.out}</li>`).join("")}</ul>`) : "",
+    terms.length ? box("terms", "", "Terms in this step", `<dl class="c-terms">${terms.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`) : "");
 
   // how you stand and what to tell apart in one column, how the exam words it in the other
   let r = "";
   if (tags.length || qs.length) {
     const acc = tagStats();
     let b = "";
+    // a topic per row: its name, your share right as a thin Datum bar, right of all answered
     if (tags.length) b += `<ul class="c-tags">${tags.map(t => {
       const a = acc[t];
-      return `<li><span>${esc(t)}</span><span class="tr"><span class="fi${a && a[0] / a[1] < 0.7 ? " low" : ""}" style="width:${a ? pct(a[0], a[1]) : 0}%"></span></span><span class="wk-n">${a ? `${a[0]}/${a[1]}` : "new"}</span></li>`;
-    }).join("")}</ul><p class="muted c-hint">Your quiz answers on each topic so far, right of all.</p>`;
+      return `<li><span class="c-tn">${esc(t)}</span><span class="wk-n">${a ? `${a[0]}/${a[1]}` : "New"}</span><span class="dm-bar dm-bar--thin${a && a[0] / a[1] < 0.7 ? " low" : ""}" style="--value:${a ? pct(a[0], a[1]) : 0}" aria-hidden="true"><span class="dm-bar__fill"></span></span></li>`;
+    }).join("")}</ul><p class="c-hint">Your quiz answers on each topic so far, right of all.</p>`;
     if (qs.length) {
       const seen = qs.filter(q => S.qs[q.id]), right = seen.filter(q => S.qs[q.id].last).length;
       const live = S.run && !S.run.done && S.run.kind === "step" && S.run.item === id;
       b += `<div class="c-prac"><span>${plural(qs.length, "quiz question")} ${qs.length === 1 ? "covers" : "cover"} this step.` +
         (seen.length ? ` You have answered ${seen.length}, ${right} right at the last try.` : "") + `</span>` +
-        `<button type="button" data-step-quiz="${id}">${live ? "Resume practice" : `Try ${Math.min(QZ.STEP, qs.length)} now`}</button></div>`;
+        `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-step-quiz="${id}">${live ? "Resume practice" : `Try ${Math.min(QZ.STEP, qs.length)} now`}</button></div>`;
     }
     r += box("exam", "", "Exam topics", b);
   }
   const las = LA.filter(e => (e.tags || []).some(t => tags.includes(t))).slice(0, 4);
   if (las.length) r += box("look", "", "Look-alikes on these topics", `<ul class="c-la">${las.map(e => `<li><button type="button" class="link" data-look="${esc(e.id)}">${esc(e.title)}</button></li>`).join("")}</ul>`);
-  r = sideCols(r, cues.length ? foldBox("cues", "", "cues", "Exam wording on these topics", cues.length,
-    `<ul class="cue-l">${cues.map(c => `<li><b>${esc(c[0])}</b><span>→ ${esc(c[1])}</span><span class="muted">${esc(c[2])}</span></li>`).join("")}</ul>`, true) : "");
-  return { l: l && `<div class="side-t">Look it up</div>${l}`, r: r && `<div class="side-t">On the exam</div>${r}` };
+  r = sideCols(r, cues.length ? box("cues", "", "Exam wording on these topics",
+    `<ul class="cue-l">${cues.map(c => `<li><b>${esc(c[0])}</b><span>Points to ${esc(c[1])}</span><span class="muted">${esc(c[2])}</span></li>`).join("")}</ul>`) : "");
+  return { l: l && `<h2 class="side-t dm-subheading">Look it up</h2>${l}`, r: r && `<h2 class="side-t dm-subheading">On the exam</h2>${r}` };
 }
 function quizCardHTML(d) {
   const r = S.quiz[d.id], tries = r ? r.tries.length : 0, ok = quizOk(d), live = liveQuiz(d);
