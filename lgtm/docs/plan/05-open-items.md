@@ -79,6 +79,8 @@ Done by the planner on the night of 2026-11-15 to 16, on `main` with every card 
 - **The mock exams**: each was started and submitted once on the built site. Both draw 60 questions by the domain weights (OTCA 11, 28, 15 and 6; PCA 11, 12, 17, 9 and 11), run a 90-minute clock, and show a result per domain with every question explained.
 - **The lab**, read on 2026-11-16 at 00:18 UTC: five nodes Ready, every pod running, every fault flag off (the rule of `productCatalogFailure` included), no `learn-` namespace, no rule group in a ruler, no alert besides Watchdog, product-catalog's p95 at 8.6 ms and checkout's at 15.6 ms, memory at 55 to 62% on the workers and 70% on the control-plane node, the fullest volume at 34%.
 
+A second sweep followed on 2026-11-16, by the design worker in the owner's UI round (pull request 123): every one of the 314 pages at 1440 and 390 pixels, every lab Practice tab, the quiz, practice, both mock exams and the dialogs on the real course, and keyboard, focus, the lab check kinds, motion settings and contrast on the sample course. Every page answered 200 with no console or CSP error and no broken internal link among 1,344. What it fixed is in that pull request; the planner looked at the cursor, the pinned bar on a desktop and a phone, a lab step, Mark complete and the icons on the built site before merging.
+
 ## Decisions not taken yet
 
 - Native histograms: the lab's Prometheus scrapes classic histograms only; one setting turns native ones on (`prometheus.prometheusSpec.scrapeNativeHistograms`). Module m04 step 8 is a concept step until then.
