@@ -85,23 +85,39 @@ at 19:08 and was kept (`lgtm/docs/verification/m17.md`).
 With option 1, `KubeJobFailed` no longer reports the trim at all, and a trim that fails for hours
 lets a Kafka replica grow towards its whole volume (`l5-kafka-disk.md`). The lab therefore gets
 its own alert, `LabKafkaTrimNotSucceeding` in lab-glue 0.4.0, and `make lab-check` gets check 11
-(`tests/lab/kafka-trim.sh`) on the same expression. Both read one series of kube-state-metrics,
-`kube_cronjob_status_last_successful_time`
+(`tests/lab/kafka-trim.sh`) on the same expression. Both read two series of kube-state-metrics,
+`kube_cronjob_status_last_successful_time` and `kube_cronjob_created`
 (https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/workload/cronjob-metrics.md):
 
 ```promql
-(time() - max by (namespace, cronjob) (kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}) > 3 * 3600)
+(
+  time() - max by (namespace, cronjob) (
+    kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}
+    or
+    kube_cronjob_created{namespace="longhorn-system", cronjob="kafka-trim"}
+  ) > 3 * 3600
+)
 and
-(max by (namespace, cronjob) (count_over_time(kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}[3h:10m])) >= 18)
+(
+  max by (namespace, cronjob) (
+    count_over_time(kube_cronjob_created{namespace="longhorn-system", cronjob="kafka-trim"}[3h:10m])
+  ) >= 18
+)
 ```
 
-The trim has not succeeded for three hours, and Prometheus had the series at each of the 18
-ten-minute steps of those three hours, so the lab was running the whole time. The age alone would
-fire after every start of the lab: the last success is then from before the stop, 13 hours old on
-2026-11-16, until the first run after the start succeeds. The subquery
-`count_over_time(...[3h:10m])` counts the steps at which the series had a sample within
-Prometheus's lookback of five minutes, so it gives the same count for any scrape interval up to
-five minutes.
+The first half is the time since the last success. A CronJob that has never succeeded has no
+`kube_cronjob_status_last_successful_time` at all, so the half falls back to the time since the
+CronJob was created; a success is always later than the creation, so `max` takes the success
+whenever there is one. On the lab on 2026-11-16 the `or` expression returned the age of the last
+success.
+
+The second half asks that Prometheus had the CronJob's `kube_cronjob_created` at each of the 18
+ten-minute steps of the last three hours, so the lab was running the whole time. That series
+exists from the CronJob's creation, success or not. The age alone would fire after every start of
+the lab: the last success is then from before the stop, 13 hours old on 2026-11-16, until the
+first run after the start succeeds. The subquery `count_over_time(...[3h:10m])` counts the steps
+at which the series had a sample within Prometheus's lookback of five minutes, so it gives the
+same count for any scrape interval up to five minutes.
 
 The alert has `for: 10m`. The age passes three hours a few seconds before the third run after the
 last success finishes, so without the wait a run that succeeds 20 seconds late could fire the
@@ -116,16 +132,22 @@ to ten minutes before the alert fires.
 | A night off, the trim keeps failing | Fires about 3 hours 10 minutes after the start |
 | A stop of two to three hours, the run at boot and the next fail | Quiet: Prometheus has not watched the last three hours |
 | A worker is down for one run | Quiet: the last success is two hours old at most |
-| The CronJob or the RecurringJob is deleted | Quiet: the series is gone. `make lab-check` fails with `Prometheus reports no successful run of kafka-trim`; this is the one case where the check and the alert differ |
+| A new lab whose trim never succeeds | Fires about 3 hours 10 minutes after the CronJob was created |
+| A new lab whose first run succeeds | Quiet; `make lab-check` passes before the first run too (`has not succeeded since its CronJob was created ... hours ago`) |
+| The CronJob or the RecurringJob is deleted | Quiet: both series are gone. `make lab-check` fails with `Prometheus reports no CronJob kafka-trim in longhorn-system`; this is the one case where the check and the alert differ |
 
-`tests/lab/kafka-trim-rule.test.yml` tests the first, third, fourth and fifth cases with
-`promtool test rules`, the fifth with samples from before the stop.
+`make lab-rule-test` runs `tests/lab/kafka-trim-rule.test.yml` with `promtool test rules`, from the
+image of the lab's Prometheus version. It covers the first, third, fourth, fifth, seventh and
+eighth cases, the fifth with samples from before the stop.
 
 A first version of the rule asked instead for at least three changes of
 `kube_cronjob_status_last_schedule_time` in four hours. This card's independent check found that
 it fires after a stop of about two and a half hours, because the change to the last successful
 run, from before the stop, still counts, and that it never fires for a trim that stops running.
-The version above has neither fault.
+A second version read only `kube_cronjob_status_last_successful_time` in both halves; the
+planner's review found that it never fires for a trim that has never succeeded, and that
+`make lab-check` failed on a lab built less than an hour before. The version above has none of
+these faults.
 
 ## Decision
 

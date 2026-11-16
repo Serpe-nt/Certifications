@@ -55,7 +55,7 @@ Every node reaches the API and the lab's names through `lb`, so `lb` must come u
 
 ## What a slow start looks like
 
-For the first minutes after a start, some pods show `Unknown` or restart while their dependencies come back. After a night switched off on 2026-11-16, the record in `acceptance-lab.md` shows every pod of this lab Ready about six minutes after the VMs booted, with nothing done by hand. In those minutes Longhorn's hourly cleanup of the Kafka disks starts the run it missed, and that run fails because Longhorn is not ready yet. Since a change made the same day, Longhorn keeps no failed run, and the next hour's run does the work. Wait before you act; look at a pod only if it is still down ten minutes after the nodes are `Ready`.
+For the first minutes after a start, some pods show `Unknown` or restart while their dependencies come back. After a night switched off on 2026-11-16, the record in `acceptance-lab.md` shows every pod of this lab Ready about six minutes after the VMs booted, with nothing done by hand. In those minutes Longhorn's hourly cleanup of the Kafka disks starts the run it missed, and that run fails because Longhorn is not ready yet. Longhorn keeps no failed run, so nothing is left to clean up, and the next hour's run does the work. Wait before you act; look at a pod only if it is still down ten minutes after the nodes are `Ready`.
 
 ## After the PC has slept
 

@@ -171,8 +171,9 @@ CronJob runs the hour it missed within seconds, before Longhorn and Kafka are re
 fails. Longhorn's setting `recurringFailedJobsHistoryLimit: 0` (`helm/platform/longhorn/values.yaml`)
 keeps no failed Job, so a failed run leaves nothing behind and Prometheus's `KubeJobFailed` does not
 fire for it. A trim that really stops is reported by the lab's alert `LabKafkaTrimNotSucceeding`
-(lab-glue) and by check 11 of `make lab-check`: no success for 3 hours while Prometheus watched it
-the whole time (`runbook.md`, "The Kafka trim keeps failing";
+(lab-glue) and by check 11 of `make lab-check`: no success for 3 hours, counted from the CronJob's
+creation if it never succeeded, while Prometheus watched it the whole time (`runbook.md`, "The Kafka
+trim keeps failing";
 `lgtm/docs/adr/l12-kafka-trim-after-start.md`).
 
 The same role sets `dataLocality: best-effort` on the three Kafka volumes, one at a time, so that

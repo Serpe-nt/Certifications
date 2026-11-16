@@ -6,8 +6,9 @@ threshold. Kafka's volumes filled on 2026-11-11 with nobody told
 (lgtm/docs/adr/l5-kafka-disk.md).
 
 LabKafkaTrimNotSucceeding fires when Longhorn's hourly kafka-trim has not
-succeeded for kafkaTrimMaxHours while Prometheus watched the CronJob the whole
-time (a sample at every 10-minute step). Without the trim a Kafka replica grows
+succeeded for kafkaTrimMaxHours (counted from the CronJob's creation if it never
+succeeded) while Prometheus watched the CronJob the whole time (a sample of
+kube_cronjob_created at every 10-minute step). Without the trim a Kafka replica grows
 towards its whole volume. Longhorn keeps no failed Job of the trim, so
 KubeJobFailed no longer reports it. The second condition keeps the alert quiet
 after the lab was off: the last success is then from before the stop, and the
@@ -49,12 +50,14 @@ spec:
             (
               time() - max by (namespace, cronjob) (
                 kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}
+                or
+                kube_cronjob_created{namespace="longhorn-system", cronjob="kafka-trim"}
               ) > {{ .Values.alerts.kafkaTrimMaxHours }} * 3600
             )
             and
             (
               max by (namespace, cronjob) (
-                count_over_time(kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}[{{ .Values.alerts.kafkaTrimMaxHours }}h:10m])
+                count_over_time(kube_cronjob_created{namespace="longhorn-system", cronjob="kafka-trim"}[{{ .Values.alerts.kafkaTrimMaxHours }}h:10m])
               ) >= {{ mul .Values.alerts.kafkaTrimMaxHours 6 }}
             )
           for: 10m

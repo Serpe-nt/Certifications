@@ -975,8 +975,9 @@ Ready at 13:21:39 and the last at 13:27:02 (`loki-compactor-0`), with nothing do
   `kafka-trim-29913907`, the missed run of 13:07. It got `502 Bad Gateway` and then `500 ...
   failed to find valid mountpoint` from Longhorn's API (events `FailedFilesystemTrim`) and failed
   with `BackoffLimitExceeded` at 13:23:22. The CronJob kept it (`failedJobsHistoryLimit: 1`).
-- Firing alerts from 13:25 (Prometheus `ALERTS`, one-minute steps): `Watchdog`, and
-  `KubeJobFailed` for `kafka-trim-29913907` from 13:40 to 13:46. The Job was deleted by hand at
+- Alerts after the start (Prometheus `ALERTS`): `Watchdog` firing from 13:25, and `KubeJobFailed`
+  for `kafka-trim-29913907` pending from 13:24:45 and firing from 13:39:15 to 13:46:00 (the
+  planner's reading; one-minute steps showed 13:40 to 13:46). The Job was deleted by hand at
   about 13:46, before this card changed anything; the card did not delete it.
 
 ### Change
@@ -999,6 +1000,17 @@ Ready at 13:21:39 and the last at 13:27:02 (`loki-compactor-0`), with nothing do
    values are the role's. Prometheus evaluated the new `LabKafkaTrimNotSucceeding` at 14:28:47:
    query with `count_over_time(...[3h:10m])) >= 18`, `duration` 600, state `inactive`, health
    `ok`.
+5. The planner's review found that this version never fires for a trim that has never succeeded
+   (`kube_cronjob_status_last_successful_time` exists only after the first success) and that
+   check 11 failed on a lab built less than an hour before. The rule now counts the age from the
+   CronJob's creation when there is no success (`... or kube_cronjob_created`) and reads
+   `kube_cronjob_created` for the watched steps. `.bin/helm upgrade ... --reuse-values` at
+   14:53:40 (revision 4); `make lab TAGS=glue` after it: `changed=0`. Prometheus at 14:54:47:
+   query `(time() - max by (namespace, cronjob) (kube_cronjob_status_last_successful_time{...} or
+   kube_cronjob_created{...}) > 3 * 3600) and (max by (namespace, cronjob)
+   (count_over_time(kube_cronjob_created{...}[3h:10m])) >= 18)`, `duration` 600, state
+   `inactive`, health `ok`. The `or` half at 14:56:32 returned 2953 s, the age of the success of
+   14:07:20.
 
 ### A failed run leaves nothing
 
@@ -1012,24 +1024,25 @@ kafka-trim-l12-test`. Afterwards `kubectl -n longhorn-system get jobs` listed on
 
 ### The rule and the check
 
-- `promtool test rules tests/lab/kafka-trim-rule.test.yml` (prom/prometheus:v3.13.5, the lab's
-  Prometheus version, run in Docker on the PC): `SUCCESS`. Four cases: a trim that never succeeds
-  again while the lab runs is quiet at 179 and 185 minutes and fires at 192; a night off whose
-  first run after the start succeeds stays quiet; a night off after which the trim keeps failing
-  is quiet at 960 minutes and fires at 1000, about 3 hours 26 minutes after the start; a stop of
-  two and a half hours, with samples from before it and two failed runs after it, stays quiet.
-- Check 11 alone, 14:25: `PASS  kafka-trim last succeeded 0.3 hours ago (threshold 3 hours)`.
-  With `LAB_KAFKA_TRIM_MAX_HOURS=0.5` at 14:38:01, more than half an hour after the trim of 14:07:
-  `FAIL  kafka-trim last succeeded 0.5 hours ago while Prometheus watched it (threshold 0.5 hours;
-  ...)`, exit 1.
+- `make lab-rule-test` (`promtool test rules tests/lab/kafka-trim-rule.test.yml` from
+  prom/prometheus:v3.13.5, the lab's Prometheus version, in Docker on the PC), final rule:
+  `SUCCESS`. Six cases: a trim that never succeeds again while the lab runs is quiet at 179 and
+  185 minutes and fires at 192; a night off whose first run after the start succeeds stays quiet;
+  a night off after which the trim keeps failing is quiet at 960 minutes and fires at 1000, about
+  3 hours 26 minutes after the start; a stop of two and a half hours, with samples from before it
+  and two failed runs after it, stays quiet; a new lab whose trim never succeeds is quiet at 185
+  minutes and fires at 192; a new lab whose trim works stays quiet.
+- Check 11 alone, final rule, 14:55:01: `PASS  kafka-trim last succeeded 0.8 hours ago (threshold
+  3 hours)`. With `LAB_KAFKA_TRIM_MAX_HOURS=0.5`: `FAIL  kafka-trim last succeeded 0.8 hours ago,
+  while Prometheus watched it (threshold 0.5 hours; ...)`, exit 1.
 
 ### Afterwards
 
-- `make lab-check` 14:38:02: `LAB CHECK PASSED`, check 11 `PASS  kafka-trim last succeeded 0.5
-  hours ago (threshold 3 hours)`.
-- `make lab` from the card's branch, every release, 14:38:11 to 14:39:18: `ok=29 changed=0
+- `make lab-check` 14:55:04, final rule: `LAB CHECK PASSED`, check 11 `PASS  kafka-trim last
+  succeeded 0.8 hours ago (threshold 3 hours)`.
+- `make lab` from the card's branch, every release, 14:55:14 to 14:56:20: `ok=29 changed=0
   unreachable=0 failed=0`.
-- Alerts at 14:39:18: `Watchdog` only.
+- Alerts at 14:56:20: `Watchdog` only.
 - Step 13's action 5 of m17, `kubectl get jobs -A | grep -v Complete`, at 14:39:18: the header
   line only.
 

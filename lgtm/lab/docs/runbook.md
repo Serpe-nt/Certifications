@@ -340,8 +340,10 @@ Done on 2026-11-12 (`acceptance-lab.md`, "Kafka ran out of disk").
 ## The Kafka trim keeps failing
 
 What you see: the alert `LabKafkaTrimNotSucceeding` (lab-glue), or `make lab-check` failing check 11
-with `kafka-trim last succeeded ... hours ago`. Both fire when Longhorn's hourly `kafka-trim` has not
-succeeded for 3 hours while Prometheus watched it the whole time; the alert waits 10 minutes more.
+with `kafka-trim last succeeded ... hours ago` (or `has not succeeded since its CronJob was created`).
+Both fire when Longhorn's hourly `kafka-trim` has not succeeded for 3 hours, counted from the
+CronJob's creation if it never succeeded, while Prometheus watched it the whole time; the alert
+waits 10 minutes more.
 Without the trim, Longhorn keeps every block Kafka has deleted, and the Kafka replicas grow towards
 their whole 10 GiB (`lgtm/docs/adr/l5-kafka-disk.md`). The hours while the lab was off do not
 count, so neither alert nor check can fire before the lab has run for 3 hours
@@ -351,8 +353,7 @@ Longhorn keeps no failed Job of the trim, so `kubectl get jobs` shows nothing. R
 last success and the events of the failed runs (one hour in the cluster, longer in Loki):
 
 ```bash
-kubectl -n longhorn-system get cronjob kafka-trim -o jsonpath='{.status.lastSuccessfulTime}{"
-"}'
+kubectl -n longhorn-system get cronjob kafka-trim -o jsonpath='{.status.lastSuccessfulTime}{"\n"}'
 kubectl -n longhorn-system get events --field-selector involvedObject.name=kafka-trim
 ```
 
