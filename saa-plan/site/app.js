@@ -1578,11 +1578,50 @@ let intro = null;    // { title, html, go, goLabel } shown before a quiz or mock
 let drill = null;    // "Which service?" round, kept in memory only
 
 const runTitle = r => r.kind === "day" ? `Day ${dayOf(r.day).day} quiz` : r.kind === "mock" ? "Mock exam" : r.kind === "warm" ? "Warm-up" : r.kind === "step" ? "Step practice" : "Review";
+// The header's progress line is Datum's thin bar (dm-bar--thin): the fill takes --value.
+const qzBarEl = document.getElementById("qz-bar");
+qzBarEl.className = "dm-bar__fill"; qzBarEl.parentElement.classList.add("dm-bar", "dm-bar--thin");
+const setBar = v => qzBarEl.style.setProperty("--value", Math.max(0, Math.min(100, v || 0)).toFixed(2));
 function head(title, parts, barPct) {
   document.getElementById("qz-title").textContent = title;
   document.getElementById("qz-meta").innerHTML = parts.filter(Boolean).map(p => `<span>${p}</span>`).join("");
-  document.getElementById("qz-bar").style.width = Math.max(0, Math.min(100, barPct || 0)) + "%";
+  setBar(barPct);
 }
+// Datum's icons (16px, straight segments and 45-degree cuts), for the quiz screens.
+const dmIcon = p => `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="${p}"/></svg>`;
+const I_CHECK = dmIcon("M2 8.5l4 4 8-9"), I_CROSS = dmIcon("M3 3l10 10M13 3L3 13"), I_INFO = dmIcon("M6 7h2.5v6M5.5 13h5.5M8.5 3v1.5"),
+  I_PREV = dmIcon("M14 8H3M7.5 3.5L3 8l4.5 4.5"), I_GRID = dmIcon("M1.5 1.5h5v5h-5zM9.5 1.5h5v5h-5zM1.5 9.5h5v5h-5zM9.5 9.5h5v5h-5z"), I_CLOCK = dmIcon("M5 2h6l3 3v6l-3 3H5l-3-3V5zM8 5v3.5h3"), I_STRIKE = dmIcon("M3 13L13 3");
+// The quiz screens are Datum's App view: a plate header that names where you are, the datum line under it across the
+// screen, the task in the main column (the question in title at 40px, the answers as dm-choices, the one signal button)
+// and its facts in the aside (score, the question train, the notices). A new screen arrives once (dm-arrive: the line
+// draws, the content settles); redrawing the same screen after a pick does not replay it.
+let qzShown = "";
+function plateHTML(no, code, l1, l2) {
+  code = String(code).toUpperCase().replace(/[^A-Z0-9.-]/g, "").slice(0, 24);
+  const bc = window.Datum ? Datum.barcode(code, { height: 20 }) : "";
+  return `<div class="dm-plate qz-plate" data-i style="--i:0"><span class="dm-plate__no">${no}</span><span class="dm-plate__id">${bc}<span>${l1}<br>${l2}</span></span></div>`;
+}
+function appHTML(key, plate, main, aside = "", cls = "") {
+  const arrive = key !== qzShown;
+  qzShown = key;
+  return `<div class="qz-app dm-split${cls ? " " + cls : ""}${aside ? "" : " is-solo"}${arrive ? " dm-arrive" : ""}"><section class="qz-main">${plate}${main}</section>` +
+    (aside ? `<aside class="qz-aside">${aside}</aside>` : "") + `<div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></div>`;
+}
+// A question over 440 characters (about one in four) is set at 32px instead of 40, so its answers stay near it.
+const qLong = q => (q.q.replace(/<[^>]+>/g, "").length > 440 ? " is-long" : "");
+// The plate's number: the plan day the run belongs to (PL.03), the mock's attempt (MK.02) or the drill's round (DR.14).
+const mockNo = r => S.mocks.length + (r.done ? 0 : 1);
+function runNo(r) {
+  if (r.kind === "mock") return `MK.${pad2(mockNo(r))}`;
+  const d = r.kind === "day" ? dayOf(r.day) : r.kind === "step" && itemIndex[r.item] ? itemIndex[r.item].d : workDay();
+  return `PL.${pad2(d ? d.day : 1)}`;
+}
+// A notice (Datum's three kinds): note (brackets), done (a solid ink block). Title and body are trusted markup.
+const noticeHTML = (kind, icon, title, body = "", extra = "", cls = "") =>
+  `<div class="dm-notice${kind ? ` dm-notice--${kind}` : ""}${cls ? " " + cls : ""}"><span class="dm-notice__icon">${icon}</span><div class="dm-notice__body"><strong class="dm-notice__title">${title}</strong>${body ? `<p>${body}</p>` : ""}</div>${extra}</div>`;
+// The one signal button of a screen (Datum: the action that moves the task on), with its arrow in the end cell.
+const sigBtn = (attrs, label, dis = false) => `<button type="button" class="dm-btn dm-btn--signal qz-go" ${attrs}${dis ? " disabled" : ""}>${label} <span class="dm-end">${ICON_NEXT}</span></button>`;
+const lineBtn = (attrs, label, dis = false, lead = "") => `<button type="button" class="dm-btn dm-btn--line${lead ? " dm-btn--lead" : ""}" ${attrs}${dis ? " disabled" : ""}>${lead ? `<span class="dm-end">${lead}</span> ` : ""}${label}</button>`;
 // Put keyboard focus on the main action, not the ✕ that showModal() picks by default.
 function focusMain() {
   for (const sel of ['[data-qz="go"]', '[data-qz="next"]', '[data-qz="retake"]', '[data-qz="finish"]', ".qz-o", "[data-drill]"]) {
@@ -1647,27 +1686,33 @@ function promptMock() {
   if (S.run && S.run.kind === "mock" && !S.run.done) return openQuiz();
   intro = {
     title: "Mock exam", goLabel: `Start the ${QZ.MOCK.minutes}-minute exam`, go: () => startRun("mock"),
-    html: `<p class="qz-lead">A full SAA-C03 practice run, original questions in the exam's style.</p><ul class="qz-facts">` +
-      `<li>${QZ.MOCK.n} questions in ${QZ.MOCK.minutes} minutes, split by domain like the exam guide (30 / 26 / 24 / 20 %).</li>` +
+    no: `MK.${pad2(S.mocks.length + 1)}`, code: `MOCK-${pad2(S.mocks.length + 1)}`, l2: `Attempt ${S.mocks.length + 1}`,
+    lead: "A full practice run in the exam's style",
+    html: `<ul class="qz-facts">` +
       `<li>No feedback until you finish, like the real exam. Flag questions and come back to them.</li>` +
       `<li>The clock keeps running if you close this window; it submits itself when time is up.</li>` +
-      `<li>Afterwards: your score by domain and every question with explanations. Each attempt draws different questions.</li></ul>`
+      `<li>Afterwards: your score by domain and every question with explanations. Each attempt draws different questions.</li></ul>`,
+    aside: `<dl class="dm-spec" data-i style="--i:2"><div><dt>Questions</dt><dd>${QZ.MOCK.n}</dd></div><div><dt>Time</dt><dd>${QZ.MOCK.minutes} min</dd></div>` +
+      `<div><dt>Domains</dt><dd>30 / 26 / 24 / 20 %</dd></div><div><dt>Aim</dt><dd>80% or more</dd></div></dl>`
   };
   openQuiz();
 }
 function renderIntro() {
   head(intro.title, [], 0);
-  qzBody.innerHTML = intro.html + `<div class="qz-a"><button type="button" data-qz="close">Later</button><button type="button" class="primary" data-qz="go">${intro.goLabel}</button></div>`;
+  qzBody.innerHTML = appHTML(`intro:${intro.title}`, plateHTML(intro.no, intro.code, `SAA-C03 / ${intro.title}`, intro.l2),
+    `<div class="dm-title qz-q" role="heading" aria-level="3" data-i style="--i:1">${intro.lead}</div>${intro.html}` +
+    `<div class="qz-a">${lineBtn('data-qz="close"', "Later")}${sigBtn('data-qz="go"', intro.goLabel)}</div>`, intro.aside);
 }
 
-// what each option says, which ones were right, which one you picked, and why (QuizOption rows after checking:
-// the right one filled signal, your wrong pick with an alert key, each with its state word; colour never says it alone)
+// What each option says, which ones were right, which one you picked, and why: Datum's choices after checking (the
+// right one drawn in ink with a filled key, your wrong pick in signal), each with its state word and icon, so colour
+// never says it alone; the option's explanation under it.
 function fbHTML(q, ord, ans, anim = false) {
-  return `<ol class="qz-fb${anim ? " fresh" : ""}">${ord.map((oi, k) => {
+  return `<ol class="qz-fb dm-choices${anim ? " fresh" : ""}">${ord.map((oi, k) => {
     const right = q.a.includes(oi), mine = ans.includes(oi);
-    const word = right ? (mine ? "✓ Your answer" : "✓ Correct") : mine ? "✕ Your answer" : "";
-    return `<li class="${right ? "right" : mine ? "wrong" : ""}"><span class="qz-l">${LETTERS[k]}</span><div class="qz-c"><div class="qz-t">${q.o[oi]}</div><div class="qz-why">${q.x[oi]}</div></div>` +
-      `<span class="qz-s${mine ? " mine" : ""}">${word}</span></li>`;
+    const st = right ? `<span class="dm-choice__state">${I_CHECK}${mine ? "Your answer" : "Correct"}</span>` : mine ? `<span class="dm-choice__state">${I_CROSS}Your answer</span>` : "";
+    return `<li class="${right ? "right" : mine ? "wrong" : ""}"><div class="dm-choice${right ? " is-correct" : mine ? " is-wrong" : ""}" aria-disabled="true"><span class="dm-choice__key">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span>${st}</div>` +
+      `<div class="qz-why">${q.x[oi]}</div></li>`;
   }).join("")}</ol>`;
 }
 // Show where to watch or read first (Skill Builder), then hands-on, then self-checks; within a kind, in the plan's order.
@@ -1679,9 +1724,9 @@ const studyRefs = q => byKind([...q.ref, ...(TAG_STEPS[q.tags[0]] || []), ...(TA
 function refHTML(id, extra = "") {
   const { d, g, it } = itemIndex[id];
   const url = linkFor(g.link);
-  return `<li><div class="ref-h">${extra}<span class="tag t-${g.t}">${g.label || TAGS[g.t]}</span><span class="muted">Day ${d.day}</span></div><div class="ref-t">${it[1]}</div>` +
+  return `<li><div class="ref-h">${extra}<span class="dm-tag dm-tag--quiet">${g.label || TAGS[g.t]}</span><span>Day ${d.day}</span></div><div class="ref-t">${it[1]}</div>` +
     (g.where ? `<div class="where">${g.where}</div>` : "") +
-    `<div class="ref-a">${url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Open ↗</a>` : ""}<button type="button" class="sm" data-jump="${id}">Open step</button></div></li>`;
+    `<div class="ref-a">${url ? `<a class="dm-btn dm-btn--s dm-btn--line" href="${esc(url)}" target="_blank" rel="noopener">Open ↗</a>` : ""}<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-jump="${id}">Open step</button></div></li>`;
 }
 // side: the feedback on the question just answered; wide screens show it beside the quiz card (style.css, .qz-side).
 // miss: the question was missed (picked = the options chosen, when known), so it links to its look-alike tables
@@ -1689,18 +1734,19 @@ function studyHTML(q, side = false, miss = false, picked) {
   const refs = studyRefs(q), las = miss ? laFor(q, picked) : [];
   const doc = q.doc && DOCS[q.doc];
   if (!refs.length && !doc && !las.length) return "";
-  return `<div class="qz-study${side ? " qz-side" : ""}"><div class="qz-sh">Where to study this</div><ul class="qz-refs">${refs.map(id => refHTML(id)).join("")}</ul>` +
+  return `<div class="qz-study${side ? " qz-side" : ""}"><div class="qz-sh dm-label dm-label--br">Where to study this</div><ul class="qz-refs">${refs.map(id => refHTML(id)).join("")}</ul>` +
     (doc ? `<div class="qz-doc">AWS page: <a href="${doc[1]}" target="_blank" rel="noopener">${doc[0]} ↗</a></div>` : "") + laLinks(las) + `</div>`;
 }
-const answerHTML = q => `<ul class="qz-ans">${q.a.map(i => `<li><b>✓ ${q.o[i]}</b><div class="qz-why">${q.x[i]}</div></li>`).join("")}</ul>`;
+const answerHTML = q => `<ul class="qz-ans">${q.a.map(i => `<li><b>${I_CHECK}${q.o[i]}</b><div class="qz-why">${q.x[i]}</div></li>`).join("")}</ul>`;
 // One click says why a question was missed; the weak spots and the overview show the pattern.
 const whyHTML = q => {
   const b = S.book[q.id];
   if (!b) return "";
-  return `<div class="why-r" role="group" aria-label="Why did you miss it?"><span class="why-k">Why did you miss it?</span>${WHY.map(([k, i, t]) => `<button type="button" class="sm" data-why="${k}" data-wq="${esc(q.id)}" aria-pressed="${b.why === k}">${i ? `${i} ` : ""}${t}</button>`).join("")}</div>`;
+  return `<div class="why-r" role="group" aria-label="Why did you miss it?"><span class="why-k dm-label dm-label--br">Why did you miss it?</span>${WHY.map(([k, i, t]) => `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-why="${k}" data-wq="${esc(q.id)}" aria-pressed="${b.why === k}">${t}</button>`).join("")}</div>`;
 };
-const noteHTML = q => `<label class="qz-note">A line for your notebook, if you like.<input type="text" maxlength="300" data-note="${q.id}" value="${esc((S.book[q.id] || {}).note || "")}" placeholder="e.g. mixed up gateway and interface endpoints"></label>`;
-const optsHTML = (q, ord, on) => `<div class="qz-opts">${ord.map((oi, k) => `<button type="button" class="qz-o${on.includes(oi) ? " on" : ""}" data-o="${oi}" aria-pressed="${on.includes(oi)}"><span class="qz-l">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span><span class="qz-s" aria-hidden="true">${on.includes(oi) ? "Selected" : ""}</span></button>`).join("")}</div>`;
+const noteHTML = q => `<label class="qz-note"><span class="dm-label dm-label--br">Notebook</span>A line for your notebook, if you like.<input type="text" maxlength="300" data-note="${q.id}" value="${esc((S.book[q.id] || {}).note || "")}" placeholder="e.g. mixed up gateway and interface endpoints"></label>`;
+// The answers before checking: Datum's choices; a pick is is-selected (filled ink).
+const optsHTML = (q, ord, on) => `<ul class="qz-opts dm-choices">${ord.map((oi, k) => `<li><button type="button" class="dm-choice qz-o${on.includes(oi) ? " is-selected on" : ""}" data-o="${oi}" aria-pressed="${on.includes(oi)}"><span class="dm-choice__key">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span>${on.includes(oi) ? `<span class="dm-choice__state">${I_CHECK}Picked</span>` : ""}</button></li>`).join("")}</ul>`;
 
 // Record an answer everywhere it matters: stats, spaced repetition, notebook.
 // Returns whether the answer earned XP: a right answer the first time, right after a miss, or right when it was
@@ -1739,22 +1785,30 @@ function comboHTML(r) {
   const segs = t => t - [0, ...ROW_UP].filter(m => m < t).pop();
   const n = r.row, { to, pct } = comboStep(n), meter = (w, from, t) => `<span class="cb-m" aria-hidden="true" style="--u:${segs(t)}"><i style="width:${w}%;--from:${from}%"></i></span>`;
   if (comboFx === "broke") return `<span class="qz-cb broke" title="Right answers in a row">` +
-    `<span class="cb-f" aria-hidden="true">✕</span><span class="cb-n">Streak lost <small>at ${comboWas}</small></span>${meter(0, comboStep(comboWas).pct, to)}<span class="cb-to">${to}</span></span>`;
+    `<span class="cb-f" aria-hidden="true">${I_CROSS}</span><span class="cb-n">Streak lost <small>at ${comboWas}</small></span>${meter(0, comboStep(comboWas).pct, to)}<span class="cb-to">${to}</span></span>`;
   const h = n >= 20 ? 4 : n >= 10 ? 3 : n >= 5 ? 2 : n >= 3 ? 1 : 0, prev = comboStep(Math.max(0, n - 1));
   const fx = comboFx === "up" ? (ROW_MARKS.includes(n) ? " boom" : " up") : comboFx === "miss" ? " miss" : "";
   const from = comboFx === "miss" ? comboStep(comboWas).pct : comboFx === "up" && prev.to === to ? prev.pct : comboFx === "up" ? 0 : pct;
   return `<span class="qz-cb h${h}${fx}" title="Right answers in a row; the next streak badge at ${to}">` +
     `<span class="cb-f" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="cb-n"><b>${n}</b> in a row</span>` +
-    `${meter(pct, from, to)}<span class="cb-to">${n >= to ? "✓" : to}</span></span>`;
+    `${meter(pct, from, to)}<span class="cb-to">${n >= to ? I_CHECK : to}</span></span>`;
 }
-// One square per question, numbered (a Trace of the run): right ink, wrong alert, the one on screen signal, not
-// answered an outline. Click one to go there. The one just answered pops.
+// The run as Datum's train, one square per question: right filled ink, wrong drawn in signal, the one on screen
+// outlined with a lamp, not answered empty. Click one to go there. The one just answered pops.
 function mapHTML(r) {
   if (r.ids.length < 2) return "";
-  return `<div class="qz-map">${r.ids.map((k, i) => {
+  return `<div class="qz-map dm-train" role="group" aria-label="Questions">${r.ids.map((k, i) => {
     const a = r.ans[k], st = !a ? "" : QZ.isRight(QBY[k], a) ? "ok" : "bad";
-    return `<button type="button" tabindex="-1" data-go="${i}" class="${st}${i === r.i ? " cur" : ""}${i === r.i && fresh && st ? " just" : ""}" aria-label="Question ${i + 1}${st === "ok" ? ", right" : st ? ", wrong" : ""}">${pad2(i + 1)}</button>`;
+    const label = `Question ${i + 1}${st === "ok" ? ", right" : st ? ", wrong" : ""}`;
+    return `<button type="button" tabindex="-1" data-go="${i}" class="${st}${i === r.i ? " cur" : ""}${i === r.i && fresh && st ? " just" : ""}" aria-label="${label}" title="${label}"></button>`;
   }).join("")}</div>`;
+}
+// The aside of a quiz question: the score so far as a stat, the train of questions under it.
+function qAsideHTML(r, right, answered) {
+  const n = r.ids.length;
+  return `<div class="dm-stat dm-stat--m qz-stat" data-i style="--i:2"><div class="dm-stat__head"><span class="dm-label--br">Score</span><span>${right} of ${answered}</span></div>` +
+    `<div class="dm-stat__row"><span class="dm-stat__num">${answered ? pct(right, answered) : 0}</span><span class="dm-stat__unit">%</span></div></div>` +
+    (n > 1 ? `<div class="qz-trainb" data-i style="--i:3">${mapHTML(r)}<div class="dm-stat__head"><span>Question ${pad2(r.i + 1)} of ${pad2(n)}</span><span>${pad2(answered)} answered</span></div></div>` : "");
 }
 // The next question not answered yet after the one on screen, wrapping round; -1 when every one is answered.
 function nextOpen(r) {
@@ -1765,24 +1819,28 @@ function renderQ() {
   const r = S.run, id = r.ids[r.i], q = QBY[id], ord = r.ord[id] || QZ.order(q), ans = r.ans[id], n = r.ids.length, sel = picks[id] || [];
   r.ord[id] = ord;
   const answered = Object.keys(r.ans).filter(k => QBY[k]);
-  const right = answered.filter(k => QZ.isRight(QBY[k], r.ans[k])).length, bump = c => fresh && (comboFx === "up") === (c === "ok") ? " bump" : "";
-  head(runTitle(r), [`Question ${pad2(r.i + 1)} / ${pad2(n)}`, `<span class="ok${bump("ok")}">✓ ${right}</span>`, `<span class="bad${bump("bad")}">✕ ${answered.length - right}</span>`, comboHTML(r)], answered.length / n * 100);
+  const right = answered.filter(k => QZ.isRight(QBY[k], r.ans[k])).length;
+  head(runTitle(r), [comboHTML(r)], answered.length / n * 100);
+  const plate = plateHTML(runNo(r), runCode(r), `SAA-C03 / ${runTitle(r)}`, `Question ${pad2(r.i + 1)} of ${pad2(n)}`);
+  const title = `<div class="dm-title qz-q${qLong(q)}" role="heading" aria-level="3" data-i style="--i:1">${q.q}</div>`;
   // Previous and Next move one question either way and never answer; the main button checks, then goes on to the next open question.
-  const prev = n > 1 ? `<button type="button" data-qz="prev"${r.i ? "" : " disabled"}>← Previous</button>` : "";
-  const skip = r.i + 1 < n ? `<button type="button" data-qz="skip">Next →</button>` : "";
+  const prev = n > 1 ? lineBtn('data-qz="prev"', "Previous", !r.i, I_PREV) : "";
+  const skip = r.i + 1 < n ? lineBtn('data-qz="skip"', "Next") : "";
   if (!ans) {
     const multi = q.a.length > 1;
-    qzBody.innerHTML = mapHTML(r) + `<div class="qz-q">${q.q}</div>${optsHTML(q, ord, sel)}` +
-      `<p class="qz-hint muted">${multi ? "Pick two, then check." : "Pick one, then check."}<span class="kbd"> Keys A–${LETTERS[ord.length - 1]} and Enter work too, ← and → move between questions.</span></p>` +
-      `<div class="qz-a qz-nav">${prev}${skip}<button type="button" class="primary" data-qz="check"${sel.length === q.a.length ? "" : " disabled"}>Check answer</button></div>`;
+    qzBody.innerHTML = appHTML(`q:${r.t0}:${r.i}`, plate, title + optsHTML(q, ord, sel) +
+      `<p class="qz-hint">${multi ? "Pick two, then check." : "Pick one, then check."}<span class="kbd"> Keys A–${LETTERS[ord.length - 1]} and Enter work too, ← and → move between questions.</span></p>` +
+      `<div class="qz-a qz-nav">${prev}${skip}${sigBtn('data-qz="check"', "Check answer", sel.length !== q.a.length)}</div>`, qAsideHTML(r, right, answered.length));
   } else {
     const ok = QZ.isRight(q, ans), to = nextOpen(r);
     const keyL = ord.map((oi, k) => q.a.includes(oi) ? LETTERS[k] : "").filter(Boolean).join(" and ");
-    const main = to < 0 ? "See results" : to === r.i + 1 ? "Next question →" : `Continue at question ${to + 1} →`;
-    qzBody.innerHTML = mapHTML(r) + `<div class="qz-q">${q.q}</div>` +
-      `<div class="qz-verdict ${ok ? "ok" : "bad"}${fresh ? " fresh" : ""}" role="status">${ok ? `<span class="v-s">✓ Correct</span>` : `<span class="v-s">✕ Incorrect</span><span class="v-l">The answer is ${keyL}.</span>`}${fresh === "xp" ? `<span class="xp-up">+${XP.right} XP</span>` : ""}</div>` +
-      fbHTML(q, ord, ans, fresh) + studyHTML(q, true, !ok, ans) + (ok ? "" : whyHTML(q) + noteHTML(q)) +
-      `<div class="qz-a qz-nav">${prev}${to === r.i + 1 ? "" : skip}<button type="button" class="primary" data-qz="next">${main}</button></div>`;
+    const main = to < 0 ? "See results" : to === r.i + 1 ? "Next question" : `Continue at question ${to + 1}`;
+    const xp = fresh === "xp" ? `<span class="dm-tag dm-tag--solid xp-up">+${XP.right} XP</span>` : "";
+    const verdict = ok ? noticeHTML("done", I_CHECK, "Correct", "", xp, `qz-verdict ok${fresh ? " fresh" : ""}`)
+      : noticeHTML("", I_CROSS, "Not this one", `The answer is ${keyL}.`, "", `qz-verdict bad${fresh ? " fresh" : ""}`);
+    qzBody.innerHTML = appHTML(`q:${r.t0}:${r.i}`, plate, title + `<div role="status">${verdict}</div>` + fbHTML(q, ord, ans, fresh) + (ok ? "" : whyHTML(q) + noteHTML(q)) +
+      `<div class="qz-a qz-nav">${prev}${to === r.i + 1 ? "" : skip}${sigBtn('data-qz="next"', main)}</div>`,
+      qAsideHTML(r, right, answered.length) + studyHTML(q, true, !ok, ans));
   }
   fresh = false; comboFx = "";
 }
@@ -1795,7 +1853,7 @@ function goQ(i) {
   refocus(r.ans[r.ids[i]] ? '[data-qz="next"]' : ".qz-o");
 }
 // After Previous, Next or Flag in the mock: the same control again, or the main one where it is gone (the last question).
-const mockFocus = a => (qzBody.querySelector(`[data-qz="${a}"]`) || qzBody.querySelector(".mk-a .primary") || qzBody).focus({ preventScroll: true });
+const mockFocus = a => (qzBody.querySelector(`[data-qz="${a}"]`) || qzBody.querySelector(".mk-a .qz-go") || qzBody).focus({ preventScroll: true });
 // Re-rendering replaces the buttons; put focus back somewhere sensible inside the dialog.
 function refocus(sel) {
   const el = qzBody.querySelector(sel);
@@ -1900,14 +1958,18 @@ function finishRun() {
   qzDlg.scrollTop = 0;
   focusMain();
 }
-function missedHTML(missed) {
-  if (!missed.length) return "";
-  // Group by where to study, so six misses on one module read as one place to go back to.
+// The misses of a finished run: the places to go back to (grouped, so six misses on one module read as one place),
+// and the questions, each folded with its answer. items = [{q, i}] with i the question's number in the run.
+function goBackHTML(items) {
   const refs = {};
-  missed.forEach(q => { const id = studyRefs(q)[0]; if (id) refs[id] = (refs[id] || 0) + 1; });
+  items.forEach(({ q }) => { const id = studyRefs(q)[0]; if (id) refs[id] = (refs[id] || 0) + 1; });
   const order = Object.keys(refs).sort((a, b) => refs[b] - refs[a]);
-  return `<h3 class="sub-h">Go back to</h3><ul class="qz-refs">${order.map(id => refHTML(id, `<span class="pill warn">${plural(refs[id], "miss", "misses")}</span>`)).join("")}</ul>` +
-    `<h3 class="sub-h">Questions you missed</h3><ol class="qz-missed">${missed.map(q => `<li><details><summary>${q.q}</summary>${answerHTML(q)}${whyHTML(q)}</details></li>`).join("")}</ol>`;
+  return order.length ? `<div class="qz-study qz-back" data-i style="--i:5"><div class="qz-sh dm-label dm-label--br">Go back to</div><ul class="qz-refs">${order.map(id => refHTML(id, `<span class="dm-tag">${plural(refs[id], "miss", "misses")}</span>`)).join("")}</ul></div>` : "";
+}
+function missedHTML(items) {
+  if (!items.length) return "";
+  return `<h3 class="sub-h qz-sub"><span class="dm-label dm-label--br">Questions you missed</span><span>${items.length}</span></h3>` +
+    `<ol class="qz-missed">${items.map(({ q, i }) => `<li class="wrong"><details><summary><span class="qz-no">Q${pad2(i + 1)}</span><span class="qz-sq">${q.q}</span></summary>${answerHTML(q)}${whyHTML(q)}</details></li>`).join("")}</ol>`;
 }
 // How a finished quiz went: "ace" (every answer right), "pass" or "fail". The bar is the pass mark on a day quiz,
 // 72% on a mock exam (where its results call it close to the line), 60% on a review, warm-up or step practice.
@@ -1916,18 +1978,19 @@ function outcome(r) {
   if (n && sc === n) return "ace";
   return (r.kind === "day" ? QZ.passed(sc, n) : sc / n >= (r.kind === "mock" ? 0.72 : 0.6)) ? "pass" : "fail";
 }
-// Stars, the level with the XP this quiz earned, and the longest run of right answers.
+// Stars, the level with the XP this quiz earned, and the longest run of right answers. The stars are three train
+// cells (lit ink, one after another); the level is a gauge whose cells fill from where the run started.
 function rewardHTML(r) {
   const o = outcome(r), [sc, n] = r.kind === "mock" ? [r.res.score, r.res.n] : [r.score, r.ids.length];
   const stars = o === "ace" ? 3 : o === "fail" ? 0 : sc / n >= (r.kind === "day" ? 0.95 : 0.8) ? 2 : 1;
   const L = levelOf(r.xp1 >= 0 ? r.xp1 : xpTotal()), gain = r.xp0 >= 0 ? L.x - r.xp0 : 0;
   const from = r.xp0 >= L.from ? (r.xp0 - L.from) / (L.to - L.from) * 100 : 0;   // a level gained: the bar fills from empty
-  const row = r.rowMax >= 2 ? `Longest run of right answers: ${r.rowMax}${r.rowMax < 3 ? "" : r.rowMax > r.best0 ? ", your best yet" : r.rowMax === r.best0 ? ", equal to your best" : ""}. ` : "";
-  // the stars are three squares: lit in signal, unlit an outline
-  return `<div class="qz-rw"><div class="stars" role="img" aria-label="${stars} of 3 stars">${[0, 1, 2].map(k => `<span class="${k < stars ? "on" : ""}" style="animation-delay:${0.2 + k * 0.25}s"></span>`).join("")}</div>` +
-    `<div class="rw-x"><div class="rw-l"><b>Level ${L.n}</b><span class="muted">${rankOf(L.n)}</span>${gain > 0 ? `<span class="xp-up">+${gain} XP</span>` : ""}</div>` +
-    `<span class="xpbar"><span style="--from:${from}%;width:${L.pct}%"></span></span>` +
-    `<span class="muted">${row}${L.to - L.x} XP to level ${L.n + 1}.</span></div></div>`;
+  const row = r.rowMax >= 2 ? ` Longest run of right answers: ${r.rowMax}${r.rowMax < 3 ? "" : r.rowMax > r.best0 ? ", your best yet" : r.rowMax === r.best0 ? ", equal to your best" : ""}.` : "";
+  return `<div class="qz-rw" data-i style="--i:4"><div class="dm-stat__head"><span class="dm-label--br">Stars</span><span>${stars} of 3</span></div>` +
+    `<div class="stars" role="img" aria-label="${stars} of 3 stars">${[0, 1, 2].map(k => `<span class="${k < stars ? "on" : ""}" style="animation-delay:${0.3 + k * 0.25}s"></span>`).join("")}</div>` +
+    `<div class="dm-gauge qz-xp"><div class="dm-gauge__head"><span class="dm-label dm-label--br">Level ${L.n}</span>${gain > 0 ? `<span class="dm-tag dm-tag--solid xp-up">+${gain} XP</span>` : `<span class="dm-gauge__val">${L.pct}<small>%</small></span>`}</div>` +
+    `<div class="dm-bar" role="progressbar" aria-label="XP to level ${L.n + 1}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${L.pct}"><div class="dm-bar__fill" style="--qz-v:${Math.max(L.pct, 1)};--from:${Math.max(Math.round(from), 1)}"></div></div></div>` +
+    `<p class="rw-x">${rankOf(L.n)}. ${L.to - L.x} XP to level ${L.n + 1}.${row}</p></div>`;
 }
 // A South Park GIF for the outcome (gifs.js), taken in turn from its list so it changes every time.
 // Loaded from GIPHY; if that fails (offline, a GIF taken down) the space closes again.
@@ -1947,34 +2010,32 @@ function gifHTML(r) {
   let g = list.find(x => x[0] === r.gif);
   if (!g) { r.gif = pickGif(outcome(r)); g = list.find(x => x[0] === r.gif); save(); }   // a run finished before GIFs, or the list changed
   const [id, alt] = g, still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  return `<figure class="qz-gif"><img src="https://media.giphy.com/media/${id}/${still ? "giphy_s" : "giphy"}.gif" alt="${esc(alt || "South Park")}" referrerpolicy="no-referrer" decoding="async"><figcaption>via GIPHY</figcaption></figure>`;
+  return `<figure class="qz-gif" data-i style="--i:3"><img src="https://media.giphy.com/media/${id}/${still ? "giphy_s" : "giphy"}.gif" alt="${esc(alt || "South Park")}" referrerpolicy="no-referrer" decoding="async"><figcaption>Via GIPHY</figcaption></figure>`;
 }
-// The run's own id, for the result's foot and its barcode: the day and the try ("D03-T2"), the mock's number, the step,
-// or the kind and the date.
+// The run's own id, for the plate's barcode: the day and the try ("D03-T2"), the mock's number, the step, or the kind and the date.
 function runCode(r) {
-  if (r.kind === "day") { const d = dayOf(r.day), q = S.quiz[r.day]; return `D${pad2(d ? d.day : 0)}-T${q && q.tries.length ? q.tries.length : 1}`; }
-  if (r.kind === "mock") return `MOCK-${pad2(S.mocks.length)}`;
+  if (r.kind === "day") { const d = dayOf(r.day), q = S.quiz[r.day]; return `D${pad2(d ? d.day : 0)}-T${q && q.tries.length ? q.tries.length + (r.done ? 0 : 1) : 1}`; }
+  if (r.kind === "mock") return `MOCK-${pad2(mockNo(r))}`;
   if (r.kind === "step") return `STEP-${String(r.item).toUpperCase()}`;
   return `${r.kind === "warm" ? "WARM" : "REV"}-${today()}`;
 }
-// The score box as a Datum Result: a frame with the verdict as one bracketed word, the score on a dial and on a
-// ruler against the bar (the pass mark of a day quiz, 80% aimed at on a mock, 60% on the rest), the number and what it
-// means, the run's id as a real barcode in the frame's foot; the GIF beside it.
-function resHTML(r, cls, score, msg) {
-  const gif = gifHTML(r), A = window.Datum, [sc, n] = r.kind === "mock" ? [r.res.score, r.res.n] : [r.score, r.ids.length];
-  const p = n ? Math.round(sc / n * 100) : 0;
-  const [barK, bar] = r.kind === "day" ? ["Pass", Math.round(QZ.needed(n) / n * 100)] : r.kind === "mock" ? ["Aim", 80] : ["Bar", 60];
-  const below = p < bar;
-  const word = r.kind === "day" ? (QZ.passed(sc, n) ? "Passed" : "Retry") : r.kind === "mock" ? (cls === "ok" ? "Ready" : cls === "mid" ? "Close" : "Retry") : outcome(r) === "fail" ? "Retry" : "Done";
-  const label = `Score ${p}%, ${barK.toLowerCase()} mark ${bar}%`, code = runCode(r);
-  const dial = A ? `<span class="dm-dial${below ? " is-below" : ""}">${A.dial(p, { target: bar, size: 112, label })}<span class="dm-dial__val">${p}<small>%</small></span></span>` : "";
-  const ruler = `<div class="dm-ruler${below ? " is-below" : ""}" style="--value:${p};--target:${bar}" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" aria-label="${label}">` +
-    `<div class="dm-ruler__track"><span class="dm-ruler__target" data-label="${barK} ${bar}"></span><span class="dm-ruler__pointer" data-label="${p}%"></span></div>` +
-    `<div class="dm-ruler__scale" aria-hidden="true"><span>0</span><span>50</span><span>100</span></div></div>`;
-  return `<section class="qz-res dm-frame dm-frame--foot ${cls}${gif ? " has-gif" : ""}" aria-label="Result"><span class="dm-frame__tab">Result</span>` +
-    `<div class="qz-res-t"><p class="qz-vd dm-bracketed${word === "Retry" ? " is-alert" : ""}">${word}</p>` +
-    `<div class="qz-res-m">${dial}<div class="qz-res-x"><div class="qz-score">${score}</div><div class="qz-msg">${msg}</div></div></div>${ruler}</div>` +
-    `${gif}<span class="dm-frame__foot">${esc(code)}${A ? A.barcode(code, { height: 10 }).replace("<svg", '<svg aria-hidden="true"') : ""}</span></section>` + rewardHTML(r);
+// The results as an App view: the plate (the run's number and code), the verdict as the title (what ran, then the
+// word, quieter), the score as the view's one big stat with its facts beside it, a gauge of the score against the bar
+// (the pass mark of a day quiz, 80% aimed at on a mock, 60% on the rest), what it means; the GIF, the stars, the level
+// and where to go back to in the aside. main = what follows (misses, domains), acts = the buttons.
+function resHTML(r, cls, side, msg, main, acts, back = "") {
+  const gif = gifHTML(r), [sc, n] = r.kind === "mock" ? [r.res.score, r.res.n] : [r.score, r.ids.length];
+  const p = n ? Math.round(sc / n * 100) : 0, code = runCode(r);
+  const [barK, bar] = r.kind === "day" ? ["Pass mark", Math.round(QZ.needed(n) / n * 100)] : r.kind === "mock" ? ["Aim", 80] : ["Bar", 60];
+  const word = r.kind === "day" ? (QZ.passed(sc, n) ? "Passed" : "Not passed yet") : r.kind === "mock" ? (cls === "ok" ? "Ready" : cls === "mid" ? "Close to the line" : "Not there yet") : outcome(r) === "fail" ? "Worth another go" : "Done";
+  const stat = `<div class="dm-stat qz-score" data-i style="--i:2"><div class="dm-stat__head"><span class="dm-label--br">Score</span><span>${barK} ${bar}%</span></div>` +
+    `<div class="dm-stat__row"><span class="dm-stat__num">${p}</span><span class="dm-stat__unit">%</span><span class="dm-stat__side">${side}<br>${esc(code)}</span></div></div>`;
+  const gauge = `<div class="qz-gauge${p < bar ? " is-below" : ""}" data-i style="--i:3"><div class="dm-bar" role="meter" aria-label="Score ${p}%, ${barK.toLowerCase()} ${bar}%" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><div class="dm-bar__fill" style="--value:${Math.max(p, 1)}"></div></div>` +
+    `<div class="dm-bar__scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div><span class="qz-target" style="--at:${bar}">${barK} ${bar}</span></div>`;
+  return appHTML(`res:${r.t0}`, plateHTML(runNo(r), code, `SAA-C03 / ${runTitle(r)}`, "Results"),
+    `<div class="dm-title qz-q qz-vd" role="heading" aria-level="3" data-i style="--i:1">${runTitle(r)}<br><em>${word}</em></div>${stat}${gauge}<p class="qz-msg" data-i style="--i:4">${msg}</p>` +
+    `<div class="qz-a" data-i style="--i:5">${acts}</div>${main}`,
+    gif + rewardHTML(r) + back, `qz-res ${cls}${gif ? " has-gif" : ""}`);
 }
 function hookGif() {
   const img = qzBody.querySelector(".qz-gif img");
@@ -1986,21 +2047,20 @@ function hookGif() {
 function renderResult() {
   const r = S.run, n = r.ids.length;
   r.seen = true;
-  const missed = r.ids.filter(id => !QZ.isRight(QBY[id], r.ans[id])).map(id => QBY[id]);
+  const missed = r.ids.map((id, i) => ({ q: QBY[id], i })).filter(x => !QZ.isRight(x.q, r.ans[x.q.id]));
   head(runTitle(r), ["Results"], 100);
-  const score = `${r.score} <small>of ${n}</small>`;
+  const side = `${r.score} of ${n} right`;
   if (r.kind === "day") {
     const d = dayOf(r.day), pass = QZ.passed(r.score, n);
-    qzBody.innerHTML = resHTML(r, pass ? "ok" : "bad", score,
-      pass ? `Pass mark ${QZ.needed(n)}.${r.cel ? ` Day ${d.day} is complete.` : ""}` : `You need ${QZ.needed(n)} to pass. A retake draws different questions, and the ones you missed come back for review over the next days.`) +
-      missedHTML(missed) +
-      `<div class="qz-a">${pass
-        ? `<button type="button" class="primary" data-qz="finish">${r.cel ? `Finish Day ${d.day} →` : "Close"}</button>`
-        : `<button type="button" data-qz="finish">Close</button><button type="button" class="primary" data-qz="retake">Retake with new questions</button>`}</div>`;
+    qzBody.innerHTML = resHTML(r, pass ? "ok" : "bad", side,
+      pass ? `Pass mark ${QZ.needed(n)}.${r.cel ? ` Day ${d.day} is complete.` : ""}` : `You need ${QZ.needed(n)} to pass. A retake draws different questions, and the ones you missed come back for review over the next days.`,
+      missedHTML(missed),
+      pass ? sigBtn('data-qz="finish"', r.cel ? `Finish Day ${d.day}` : "Close results")
+        : lineBtn('data-qz="finish"', "Close") + sigBtn('data-qz="retake"', "Retake with new questions"), goBackHTML(missed));
   } else {
-    qzBody.innerHTML = resHTML(r, missed.length ? (outcome(r) === "fail" ? "bad" : "") : "ok", score,
-      missed.length ? "The ones you missed come back in a few days." : "Every answer right.") + missedHTML(missed) +
-      `<div class="qz-a"><button type="button" class="primary" data-qz="finish">Close</button></div>`;
+    qzBody.innerHTML = resHTML(r, missed.length ? (outcome(r) === "fail" ? "bad" : "") : "ok", side,
+      missed.length ? "The ones you missed come back in a few days." : "Every answer right.", missedHTML(missed),
+      sigBtn('data-qz="finish"', "Close results"), goBackHTML(missed));
   }
   hookGif();
 }
@@ -2029,16 +2089,18 @@ function renderMockQ() {
   r.ord[id] = ord;
   const answered = r.ids.filter(k => (r.ans[k] || []).length).length;
   head("Mock exam", [`Question ${pad2(r.i + 1)} / ${r.ids.length}`, mkClock(r), `${pad2(answered)} answered`], answered / r.ids.length * 100);
-  const last = r.i + 1 >= r.ids.length, multi = q.a.length > 1;
-  qzBody.innerHTML = `<div class="mk-tools"><button type="button" data-qz="flag" class="flagb" aria-pressed="${!!r.flag[id]}">${r.flag[id] ? "■ Flagged for review" : "□ Flag for review"}</button>` +
-    `<span class="muted mk-hint"><span class="kbd">Click or drag over words to highlight them. Shift + 1–${ord.length} or the / button strikes an option out.</span><span class="touch">Tap a word to highlight it. The / button strikes an option out.</span></span></div>` +
-    `<div class="qz-q mk-q">${q.q}</div>` +
-    `<div class="qz-opts mk-opts${multi ? " multi" : ""}">${ord.map((oi, k) => `<div class="mk-row${xs.includes(oi) ? " x" : ""}">` +
-      `<button type="button" class="qz-o${mine.includes(oi) ? " on" : ""}" data-o="${oi}" aria-pressed="${mine.includes(oi)}"><span class="qz-l">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span></button>` +
-      `<button type="button" class="mk-x" data-qz="strike" data-x="${oi}" aria-pressed="${xs.includes(oi)}" title="${xs.includes(oi) ? "Bring this option back" : "Strike this option out"}" aria-label="${xs.includes(oi) ? "Bring back" : "Strike out"} option ${LETTERS[k]}">/</button></div>`).join("")}</div>` +
-    `<div class="qz-a mk-a"><button type="button" data-qz="prev"${r.i ? "" : " disabled"}>← Previous</button>` +
-    `<button type="button" data-qz="grid">Review all</button>` +
-    `<button type="button" class="primary" data-qz="${last ? "grid" : "mnext"}">${last ? "Review and finish" : "Next →"}</button></div>`;
+  const last = r.i + 1 >= r.ids.length, multi = q.a.length > 1, fl = r.ids.filter(k => r.flag[k]).length;
+  const flag = `<button type="button" data-qz="flag" class="dm-btn dm-btn--s dm-btn--line flagb" aria-pressed="${!!r.flag[id]}">${r.flag[id] ? "Flagged for review" : "Flag for review"}</button>`;
+  const aside = `<div class="dm-stat dm-stat--m qz-stat" data-i style="--i:2"><div class="dm-stat__head"><span class="dm-label--br">Answered</span><span>of ${r.ids.length}</span></div>` +
+    `<div class="dm-stat__row"><span class="dm-stat__num">${pad2(answered)}</span><span class="dm-stat__side">${fl ? `${fl} flagged` : "None flagged"}</span></div></div>` +
+    `<div class="mk-tools" data-i style="--i:3">${flag}<p class="mk-hint"><span class="kbd">Click or drag over words to highlight them. Shift + 1–${ord.length} or the / button strikes an option out.</span><span class="touch">Tap a word to highlight it. The / button strikes an option out.</span></p></div>`;
+  qzBody.innerHTML = appHTML(`mk:${r.t0}:${r.i}`, plateHTML(runNo(r), runCode(r), "SAA-C03 / Mock exam", `Question ${pad2(r.i + 1)} of ${r.ids.length}`),
+    `<div class="dm-title qz-q mk-q${qLong(q)}" role="heading" aria-level="3" data-i style="--i:1">${q.q}</div>` +
+    `<ul class="qz-opts dm-choices mk-opts${multi ? " multi" : ""}">${ord.map((oi, k) => `<li class="mk-row${xs.includes(oi) ? " x" : ""}">` +
+      `<button type="button" class="dm-choice qz-o${mine.includes(oi) ? " is-selected on" : ""}" data-o="${oi}" aria-pressed="${mine.includes(oi)}"><span class="dm-choice__key">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span></button>` +
+      `<button type="button" class="dm-btn dm-btn--icon dm-btn--line mk-x" data-qz="strike" data-x="${oi}" aria-pressed="${xs.includes(oi)}" title="${xs.includes(oi) ? "Bring this option back" : "Strike this option out"}" aria-label="${xs.includes(oi) ? "Bring back" : "Strike out"} option ${LETTERS[k]}">${I_STRIKE}</button></li>`).join("")}</ul>` +
+    `<div class="qz-a mk-a">${lineBtn('data-qz="prev"', "Previous", !r.i, I_PREV)}${lineBtn('data-qz="grid"', "Review all", false, I_GRID)}` +
+    `${sigBtn(`data-qz="${last ? "grid" : "mnext"}"`, last ? "Review and finish" : "Next question")}</div>`, aside);
   mkWords();
 }
 // Wrap every word of the question in a span (numbered in reading order) and mark the highlighted ones.
@@ -2099,11 +2161,15 @@ function renderGrid() {
   const fl = r.ids.filter(k => r.flag[k]).length;
   head("Mock exam", ["Review", mkClock(r)], (r.ids.length - un) / r.ids.length * 100);
   const show = k => (gridF === "flag" ? !!r.flag[k] : gridF === "open" ? !(r.ans[k] || []).length : true);
-  qzBody.innerHTML = `<p>${r.ids.length - un} of ${r.ids.length} answered${fl ? `, ${fl} flagged` : ""}. Pick a number to go back to it.</p>` +
-    `<div class="seg mk-f" role="group" aria-label="Show">${[["", `All (${r.ids.length})`], ["flag", `Flagged (${fl})`], ["open", `Not answered (${un})`]].map(([k, l]) => `<button type="button" data-grid-f="${k}" aria-pressed="${gridF === k}">${l}</button>`).join("")}</div>` +
-    `<div class="mk-grid">${r.ids.map((k, i) => show(k) ? `<button type="button" data-go="${i}" class="${(r.ans[k] || []).length ? "ans" : ""}${r.flag[k] ? " flag" : ""}" aria-label="Question ${i + 1}, ${(r.ans[k] || []).length ? "answered" : "not answered"}${r.flag[k] ? ", flagged" : ""}">${i + 1}</button>` : "").join("") || `<p class="muted">None.</p>`}</div>` +
-    `<div class="mk-key"><span class="ans">Answered</span><span class="flag">Flagged</span><span>Not answered</span></div>` +
-    `<div class="qz-a"><button type="button" data-qz="back">Back to the questions</button><button type="button" class="primary" data-qz="finish-mock">Finish exam</button></div>`;
+  const aside = `<div class="dm-stat dm-stat--m qz-stat" data-i style="--i:2"><div class="dm-stat__head"><span class="dm-label--br">Answered</span><span>of ${r.ids.length}</span></div>` +
+    `<div class="dm-stat__row"><span class="dm-stat__num">${pad2(r.ids.length - un)}</span><span class="dm-stat__side">${fl} flagged<br>${un} open</span></div></div>` +
+    `<div class="mk-key" data-i style="--i:3"><span class="ans">Answered</span><span class="flag">Flagged</span><span>Not answered</span></div>`;
+  qzBody.innerHTML = appHTML(`grid:${r.t0}`, plateHTML(runNo(r), runCode(r), "SAA-C03 / Mock exam", "Review"),
+    `<div class="dm-title qz-q" role="heading" aria-level="3" data-i style="--i:1">Review your answers<br><em>${r.ids.length - un} of ${r.ids.length} answered</em></div>` +
+    `<p class="qz-hint">Pick a number to go back to it.</p>` +
+    `<div class="dm-seg mk-f" role="group" aria-label="Show">${[["", `All (${r.ids.length})`], ["flag", `Flagged (${fl})`], ["open", `Not answered (${un})`]].map(([k, l]) => `<button type="button" data-grid-f="${k}" aria-pressed="${gridF === k}">${l}</button>`).join("")}</div>` +
+    `<div class="mk-grid">${r.ids.map((k, i) => show(k) ? `<button type="button" data-go="${i}" class="${(r.ans[k] || []).length ? "ans" : ""}${r.flag[k] ? " flag" : ""}" aria-label="Question ${i + 1}, ${(r.ans[k] || []).length ? "answered" : "not answered"}${r.flag[k] ? ", flagged" : ""}">${pad2(i + 1)}</button>` : "").join("") || `<p class="qz-hint">None.</p>`}</div>` +
+    `<div class="qz-a">${lineBtn('data-qz="back"', "Back to the questions", false, I_PREV)}${sigBtn('data-qz="finish-mock"', "Finish exam")}</div>`, aside);
 }
 function finishMock(auto) {
   const r = S.run;
@@ -2138,12 +2204,15 @@ function renderMockResult() {
     : cls === "mid" ? "Close to the line. Work through the misses below and your weakest domain."
     : "Not there yet. Work through the misses below, then the weak-spot map.";
   const list = r.ids.map((id, i) => ({ q: QBY[id], i, ok: QZ.isRight(QBY[id], r.ans[id]) })).filter(x => !r.only || !x.ok);
-  qzBody.innerHTML = resHTML(r, cls, `${res.pct}% <small>${res.score} of ${res.n} in ${r.mins} min</small>`, msg) +
-    `<p class="muted">The real exam reports a scaled score from 100 to 1000 (720 to pass), and AWS doesn't publish how right answers map to it, so treat this percentage as a rough guide. Aim for 80% or more here.${prev.length ? ` Earlier mocks: ${prev.join(", ")}.` : ""}</p>` +
-    `<div class="dom-bars">${res.dom.map(([a, n], i) => bar(`D${i + 1} ${doms[i]}`, pct(a, n), `${a}/${n}`)).join("")}</div>` +
-    `<div class="mk-rev-h"><h3 class="sub-h">Review</h3><label class="chk"><input type="checkbox" data-only${r.only ? " checked" : ""}> Only the ones I got wrong</label></div>` +
-    `<ol class="qz-missed">${list.map(x => `<li value="${x.i + 1}" class="${x.ok ? "right" : "wrong"}"><details><summary>${x.ok ? "✓" : "✕"} ${x.q.q}</summary>${fbHTML(x.q, r.ord[x.q.id] || QZ.order(x.q), r.ans[x.q.id] || [])}${x.ok ? "" : whyHTML(x.q)}${studyHTML(x.q, false, !x.ok, r.ans[x.q.id])}</details></li>`).join("") || "<li>Nothing wrong.</li>"}</ol>` +
-    `<div class="qz-a"><button type="button" class="primary" data-qz="finish">Close</button></div>`;
+  // the four domains as Datum gauges: name, the share right in the plate face, the cells
+  const domHTML = `<div class="qz-doms">${res.dom.map(([a, n], i) => { const p = pct(a, n); return `<div class="dm-gauge"><div class="dm-gauge__head"><span class="dm-label dm-label--br">D${i + 1} ${doms[i]}</span><span class="dm-gauge__val">${p}<small>% / ${a} of ${n}</small></span></div>` +
+    `<div class="dm-bar" role="progressbar" aria-label="Domain ${i + 1}, ${doms[i]}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><div class="dm-bar__fill" style="--value:${Math.max(p, 1)}"></div></div></div>`; }).join("")}</div>`;
+  qzBody.innerHTML = resHTML(r, cls, `${res.score} of ${res.n} right<br>${r.mins} min`, msg,
+    `<p class="qz-hint">The real exam reports a scaled score from 100 to 1000 (720 to pass), and AWS doesn't publish how right answers map to it, so treat this percentage as a rough guide. Aim for 80% or more here.${prev.length ? ` Earlier mocks: ${prev.join(", ")}.` : ""}</p>` +
+    `<h3 class="sub-h qz-sub"><span class="dm-label dm-label--br">By domain</span></h3>${domHTML}` +
+    `<div class="mk-rev-h"><h3 class="sub-h qz-sub"><span class="dm-label dm-label--br">Review</span></h3><label class="chk"><input type="checkbox" data-only${r.only ? " checked" : ""}> Only the ones I got wrong</label></div>` +
+    `<ol class="qz-missed">${list.map(x => `<li class="${x.ok ? "right" : "wrong"}"><details><summary><span class="qz-no">Q${pad2(x.i + 1)}</span><span class="qz-sq">${x.q.q}</span><span class="qz-mark">${x.ok ? I_CHECK : I_CROSS}<span class="sr">${x.ok ? "Right" : "Wrong"}</span></span></summary>${fbHTML(x.q, r.ord[x.q.id] || QZ.order(x.q), r.ans[x.q.id] || [])}${x.ok ? "" : whyHTML(x.q)}${studyHTML(x.q, false, !x.ok, r.ans[x.q.id])}</details></li>`).join("") || `<li class="qz-none">Nothing wrong.</li>`}</ol>`,
+    sigBtn('data-qz="finish"', "Close results"));
   hookGif();
 }
 
@@ -2198,7 +2267,7 @@ function drillTick() {
   if (left <= 0) return drillEnd();
   const el = document.getElementById("dr-time");
   if (el) el.textContent = Math.ceil(left / 1000) + " s";
-  document.getElementById("qz-bar").style.width = (100 - left / 600) + "%";
+  setBar(100 - left / 600);
 }
 function drillPick(k) {
   if (!drill || drill.lock || drill.done) return;
@@ -2207,18 +2276,20 @@ function drillPick(k) {
   if (ok) drill.score++; else { drill.missed.push(it); drill.lives--; }
   drill.lock = true;
   qzBody.querySelectorAll("[data-dr]").forEach((b, i) => {
-    if (drill.opts[i] === drillAns(it)) b.classList.add("right");
-    else if (i === k) b.classList.add("wrong");
+    if (drill.opts[i] === drillAns(it)) { b.classList.add("right", "is-correct"); b.insertAdjacentHTML("beforeend", `<span class="dm-choice__state">${I_CHECK}Correct</span>`); }
+    else if (i === k) { b.classList.add("wrong", "is-wrong"); b.insertAdjacentHTML("beforeend", `<span class="dm-choice__state">${I_CROSS}Your answer</span>`); }
   });
   const sc = document.getElementById("dr-score");
   if (sc) sc.textContent = `Score ${drill.score}`;
+  const num = document.getElementById("dr-num");
+  if (num) num.textContent = pad2(drill.score);
   const lv = document.getElementById("dr-lives");
   if (lv) lv.innerHTML = livesHTML();
   FX.sound(ok ? "pop" : "miss");
   const over = (drill.mode === "lives" && drill.lives <= 0) || (drill.mode === "day" && drill.n >= drill.items.length);
   setTimeout(() => { if (!drill || drill.done) return; if (over) return drillEnd(); drill.lock = false; drill.i++; drillNext(); }, ok ? 350 : 1200);
 }
-const livesHTML = () => [0, 1, 2].map(i => `<span class="${i < drill.lives ? "on" : ""}" aria-hidden="true">${i < drill.lives ? "■" : "□"}</span>`).join("") + `<span class="sr">${plural(Math.max(0, drill.lives), "life", "lives")} left</span>`;
+const livesHTML = () => [0, 1, 2].map(i => `<span class="${i < drill.lives ? "on" : ""}" aria-hidden="true"></span>`).join("") + `<span class="sr">${plural(Math.max(0, drill.lives), "life", "lives")} left</span>`;
 // Days in a row with the daily five done, up to today (or yesterday, while today's is still open).
 function dailyRun() {
   const d = midnight();
@@ -2242,23 +2313,33 @@ function drillEnd() {
 function stopDrill() { if (drill) clearInterval(drill.timer); drill = null; }
 function renderDrill() {
   const m = DRILL_MODES[drill.mode], title = drill.mode === "go" ? "Which service?" : `Which service? ${m.t}`;
+  const round = Math.min(99, S.drill.runs + (drill.done ? 0 : 1)), no = `DR.${pad2(round)}`, code = `DRILL-${drill.mode.toUpperCase()}-${pad2(round)}`;
   if (!drill.done) {
     const it = drill.items[drill.i % drill.items.length], rev = drill.mode === "rev";
     const meta = drill.end ? [`<span id="dr-time">${Math.ceil((drill.end - Date.now()) / 1000)} s</span>`] : drill.mode === "lives" ? [`<span id="dr-lives" class="dr-lives">${livesHTML()}</span>`] : [`${drill.n + 1} of ${drill.items.length}`];
     head(title, [...meta, `<span id="dr-score">Score ${drill.score}</span>`], drill.end ? 100 - (drill.end - Date.now()) / 600 : drill.mode === "day" ? drill.n / drill.items.length * 100 : 0);
-    qzBody.innerHTML = `<div class="dr-req${rev ? " dr-svc" : ""}">${rev ? `<span class="muted">What is this one for?</span>` : ""}${esc(rev ? it[1] : it[0])}</div>` +
-      `<div class="qz-opts dr-opts${rev ? " dr-long" : ""}">${drill.opts.map((o, k) => `<button type="button" class="qz-o" data-dr="${k}"><span class="qz-l">${k + 1}</span><span class="qz-t">${esc(o)}</span></button>`).join("")}</div><p class="muted kbd">Keys 1–4 work too.</p>`;
+    const aside = `<div class="dm-stat dm-stat--m qz-stat" data-i style="--i:2"><div class="dm-stat__head"><span class="dm-label--br">Score</span><span>${m.b}</span></div>` +
+      `<div class="dm-stat__row"><span class="dm-stat__num" id="dr-num">${pad2(drill.score)}</span><span class="dm-stat__side">${plural(drill.n, "answer")}</span></div></div>` +
+      (drill.mode === "day" ? `<div class="dm-train" role="img" aria-label="Question ${drill.n + 1} of ${drill.items.length}" data-i style="--i:3">${drill.items.map((x, i) => `<i class="${i < drill.n ? "is-done" : i === drill.n ? "is-now" : ""}"></i>`).join("")}</div>` : "") +
+      `<p class="qz-hint">${m.d}</p>`;
+    qzBody.innerHTML = appHTML(`dr:${drill.date}:${drill.mode}:${round}`, plateHTML(no, code, `SAA-C03 / ${title}`, drill.mode === "day" ? `Question ${pad2(drill.n + 1)} of ${pad2(drill.items.length)}` : `Round ${round}`),
+      `<div class="dm-title qz-q dr-req${rev ? " dr-svc" : ""}" role="heading" aria-level="3" data-i style="--i:1">${rev ? `<span class="dm-label dm-label--br">What is this one for?</span>` : ""}${esc(rev ? it[1] : it[0])}</div>` +
+      `<ul class="qz-opts dm-choices dr-opts${rev ? " dr-long" : ""}">${drill.opts.map((o, k) => `<li><button type="button" class="dm-choice qz-o" data-dr="${k}"><span class="dm-choice__key">${k + 1}</span><span class="qz-t">${esc(o)}</span></button></li>`).join("")}</ul><p class="qz-hint kbd">Keys 1–4 work too.</p>`, aside);
     return;
   }
   const best = drill.mode === "day" ? "" : drill.best ? "New personal best." : `Your best: ${S.drill[{ go: "best", rev: "rev", lives: "lives" }[drill.mode]]}.`;
   const day = drill.mode === "day" ? (drill.first ? `Today's result. ${dailyRun() > 1 ? `${dailyRun()} days in a row.` : "Come back tomorrow for the next five."}` : `Today's result stays ${S.drill.day[drill.date]} of 5: only the first try counts.`) : "";
-  head(title, [drill.mode === "lives" ? "Out of lives" : drill.mode === "day" ? "Done" : "Time is up"], 100);
-  // the result in a frame like a quiz's: the state as one bracketed word, the count, what it means
-  qzBody.innerHTML = `<section class="qz-res dm-frame ok" aria-label="Result"><span class="dm-frame__tab">Result</span><div class="qz-res-t">` +
-    `<p class="qz-vd dm-bracketed">${drill.mode === "lives" ? "Out" : drill.mode === "day" ? "Done" : "Time"}</p>` +
-    `<div class="qz-res-x"><div class="qz-score">${drill.score} <small>right of ${drill.n}</small></div><div class="qz-msg">${best}${day}</div></div></div></section>` +
-    (drill.missed.length ? `<h3 class="sub-h">Missed</h3><ul class="dr-missed">${drill.missed.map(it => `<li><div>${esc(it[0])}</div><div><b>${esc(it[1])}</b>: ${esc(it[3])}</div></li>`).join("")}</ul>` : "") +
-    `<div class="qz-a"><button type="button" data-qz="close">Close</button>${drill.mode === "day" ? "" : `<button type="button" class="primary" data-drill-mode="${drill.mode}">Play again</button>`}</div>`;
+  const end = drill.mode === "lives" ? "Out of lives" : drill.mode === "day" ? "Done" : "Time is up";
+  head(title, [end], 100);
+  // the result like a quiz's: the title says how it ended, the count is the view's one big stat
+  qzBody.innerHTML = appHTML(`drres:${drill.date}:${round}`, plateHTML(no, code, `SAA-C03 / ${title}`, "Results"),
+    `<div class="dm-title qz-q qz-vd" role="heading" aria-level="3" data-i style="--i:1">${title}<br><em>${end}</em></div>` +
+    `<div class="dm-stat qz-score" data-i style="--i:2"><div class="dm-stat__head"><span class="dm-label--br">Right</span><span>${m.b}</span></div>` +
+    `<div class="dm-stat__row"><span class="dm-stat__num">${pad2(drill.score)}</span><span class="dm-stat__side">${drill.score} right of ${drill.n}<br>${esc(code)}</span></div></div>` +
+    `<p class="qz-msg" data-i style="--i:3">${best}${day}</p>` +
+    `<div class="qz-a" data-i style="--i:4">${drill.mode === "day" ? sigBtn('data-qz="close"', "Close") : lineBtn('data-qz="close"', "Close") + sigBtn(`data-drill-mode="${drill.mode}"`, "Play again")}</div>` +
+    (drill.missed.length ? `<h3 class="sub-h qz-sub"><span class="dm-label dm-label--br">Missed</span><span>${drill.missed.length}</span></h3><ul class="dr-missed">${drill.missed.map(it => `<li><div class="dr-m-q">${esc(it[0])}</div><div><b>${esc(it[1])}</b>: ${esc(it[3])}</div></li>`).join("")}</ul>` : ""),
+    "", "qz-res ok");
 }
 
 // ---------- quiz dialog events ----------
@@ -2323,7 +2404,7 @@ document.addEventListener("keydown", e => {
     return;
   }
   if (r.kind === "mock") {
-    if (k === "arrowright" || k === "enter") { const nb = qzBody.querySelector(k === "enter" ? ".mk-a .primary" : '[data-qz="mnext"]'); if (nb) { e.preventDefault(); nb.click(); } }
+    if (k === "arrowright" || k === "enter") { const nb = qzBody.querySelector(k === "enter" ? ".mk-a .qz-go" : '[data-qz="mnext"]'); if (nb) { e.preventDefault(); nb.click(); } }
     else if (k === "arrowleft") { e.preventDefault(); qzBody.querySelector('[data-qz="prev"]')?.click(); }
     else if (k === "f") { e.preventDefault(); qzBody.querySelector('[data-qz="flag"]')?.click(); }
     return;
@@ -2426,15 +2507,17 @@ function weakHTML() {
   return h;
 }
 function badgesHTML() {
-  const L = levelOf(xpTotal()), next = Math.floor((L.n - 1) / 2) + 1;
-  // the level as a readout; each badge a cell whose code is filled ink once earned (state is fill)
-  return `<div class="lv"><div class="lv-n"><small>Level</small>${pad2(L.n)}</div><div class="lv-x"><b>${rankOf(L.n)}</b>` +
-    `<span class="xpbar"><span style="width:${L.pct}%"></span></span>` +
-    `<span class="muted">${L.x} XP, ${L.to - L.x} to level ${L.n + 1}.${next < RANKS.length ? ` Next title at level ${next * 2 + 1}: ${RANKS[next]}.` : ""}</span></div></div>` +
-    `<p class="muted">XP: ${XP.right} for a right quiz answer the first time, right after a miss, or right when it is due for review (repeats earn nothing), ${XP.step} for a completed step, ${XP.pass} for a day quiz passed, and what each badge is worth. ` +
+  const L = levelOf(xpTotal()), next = Math.floor((L.n - 1) / 2) + 1, got = ACH.filter(a => S.ach[a.id]).length;
+  // the level as the sheet's one stat with its gauge to the next level; each badge a row whose code cell fills ink once earned
+  return `<div class="lv"><div class="dm-stat lv-n"><div class="dm-stat__head"><span class="dm-label--br">Level</span><span>${rankOf(L.n)}</span></div>` +
+    `<div class="dm-stat__row"><span class="dm-stat__num">${pad2(L.n)}</span><span class="dm-stat__side">${L.x} XP<br>${got} of ${ACH.length} badges</span></div></div>` +
+    `<div class="dm-gauge lv-x"><div class="dm-gauge__head"><span class="dm-label dm-label--br">To level ${L.n + 1}</span><span class="dm-gauge__val">${L.to - L.x}<small>XP</small></span></div>` +
+    `<div class="dm-bar" role="progressbar" aria-label="XP to level ${L.n + 1}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${L.pct}"><div class="dm-bar__fill" style="--value:${Math.max(L.pct, 1)}"></div></div>` +
+    `<p class="lv-t">${next < RANKS.length ? `Next title at level ${next * 2 + 1}: ${RANKS[next]}.` : "The top title."}</p></div></div>` +
+    `<p class="lv-p">XP: ${XP.right} for a right quiz answer the first time, right after a miss, or right when it is due for review (repeats earn nothing), ${XP.step} for a completed step, ${XP.pass} for a day quiz passed, and what each badge is worth. ` +
     `Your longest run of right answers: ${S.rowBest || "none yet"}.</p>` +
-    `<ul class="ach">${ACH.map(a => `<li class="${S.ach[a.id] ? "on" : ""}"><span class="ach-i">${a.i}</span><span class="ach-x"><b>${a.t}</b><span>${a.d}</span>` +
-      `<span class="muted">${S.ach[a.id] ? `Earned ${fmtD(parseDate(S.ach[a.id]))}, +${a.xp}&nbsp;XP` : `+${a.xp}&nbsp;XP`}</span></span></li>`).join("")}</ul>`;
+    `<ul class="ach dm-list">${ACH.map(a => `<li class="dm-row${S.ach[a.id] ? " on" : " is-off"}"><span class="dm-row__key ach-i">${a.i}</span><span class="ach-x"><b>${a.t}</b><span>${a.d}</span></span>` +
+      `<span class="dm-row__val">+${a.xp}&nbsp;XP</span><span class="dm-row__state">${S.ach[a.id] ? `${I_CHECK}${fmtD(parseDate(S.ach[a.id]))}` : "Not yet"}</span></li>`).join("")}</ul>`;
 }
 // ---------- search (Ctrl+K, / or 🔍): steps, key points, terms, exam wording, your notes, the notebook ----------
 const srDlg = document.getElementById("search"), srQ = document.getElementById("sr-q"), srList = document.getElementById("sr-list");

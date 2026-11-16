@@ -389,11 +389,12 @@ try {
       }));
       assert.ok(inside.length >= 4 && inside.every(Boolean), "every option shows its explanation inside the option");
       await page.screenshot({ path: path.join(SHOTS, "04-feedback-right.png") });
-      // on a wide screen, where to study moves out of the card into the free space to its left
+      // the App view: on a wide screen, where to study sits in the aside, right of the question and under the plate's datum line
       await page.setViewportSize({ width: 1600, height: 1000 });
-      await page.waitForTimeout(350);                      // the panel slides in
-      const [side, card] = await Promise.all(["#qz-body .qz-study", "#quiz"].map(s => page.$eval(s, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top }; })));
-      assert.ok(side.r <= card.l - 8 && Math.abs(side.t - card.t) < 2, "on a wide screen, where to study sits left of the quiz card, level with its top");
+      await page.waitForTimeout(350);
+      const [side, main, line] = await Promise.all(["#qz-body .qz-study", "#qz-body .qz-main", "#qz-body .qz-app > .dm-datum"].map(s => page.$eval(s, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top }; })));
+      assert.ok(side.l >= main.r + 8 && side.t > line.t, "on a wide screen, where to study sits in the aside right of the question, under the datum line");
+      assert.ok(await page.locator("#qz-body .qz-fb .dm-choice.is-correct").count() >= 1 && await page.locator("#qz-body .qz-plate .dm-plate__no").count() === 1, "Datum choices and the plate header");
       await page.screenshot({ path: path.join(SHOTS, "04b-feedback-wide.png") });
       await page.setViewportSize({ width: 1200, height: 900 });
     }
@@ -414,7 +415,7 @@ try {
   await page.click('#qz-body [data-qz="finish"]');
   await page.waitForFunction(h => location.hash === h, `#${QA.id}/done`, { timeout: 3000 });
   // the top rung of the ladder: a big banner with an icon; the dimmed page round it is an effect, so not with effects off
-  await page.waitForSelector(".fx-banner.show.k-day .b-i");
+  await page.waitForSelector(".fx-banner.show.k-day .b-no");
   assert.match(await page.textContent(".fx-banner"), new RegExp(`Day ${QA.day} complete`), "finishing a day gets the day's banner");
   assert.equal(await page.locator(".fx-veil.show").count(), 0, "no veil with effects off");
   assert.match(await page.textContent("#card .c-t"), new RegExp(`Day ${QA.day} is done`));
@@ -452,6 +453,8 @@ try {
     if (i === 0) {
       assert.ok(await page.locator("#qz-body .qz-fb li.wrong").count() >= 1, "wrong pick is marked");
       assert.ok(await page.locator("#qz-body .qz-fb li.right").count() === q.a.length, "right answer is marked");
+      const edge = await page.evaluate(() => [".is-correct", ".is-wrong"].map(c => getComputedStyle(document.querySelector("#qz-body .qz-fb .dm-choice" + c)).borderTopColor));
+      assert.ok(edge[0] !== edge[1], "right is drawn in ink, the wrong pick in signal: " + edge.join(" / "));
       assert.match(await page.textContent("#qz-meta .qz-cb"), /0 in a row/, "a miss with no run leaves the meter at 0");
       await page.fill("#qz-body [data-note]", "mixed up stateful and stateless");
       await page.screenshot({ path: path.join(SHOTS, "07-feedback-wrong.png") });
