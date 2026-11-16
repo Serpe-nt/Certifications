@@ -50,9 +50,6 @@
   <span class="hd-tg"><button type="button" id="b-fx" class="hd-t" title="Visual effects"></button><button type="button" id="b-snd" class="hd-t" title="Sounds"></button></span>
 </div>
 
-<!-- The backdrop: Datum's figure behind everything, seeded with the view (app.js bdDraw); holds no information -->
-<div class="bd-host" aria-hidden="true"><div class="dm-backdrop" id="bd"></div></div>
-
 <div class="wrap">
 
 <!-- Overview, today first. The hero sheet: the day to work on with its next step and one signal button. A strip, then the
@@ -60,7 +57,7 @@
      scores; the days as tiles (today's tile the one signal field); where things happen and the links. -->
 <div id="home" class="ov dm-arrive">
 <main class="dm-sheet dm-sheet--marks ov-hero">
-<div id="slip" class="slip" role="status" hidden></div>
+<div id="slip" class="dm-notice dm-notice--alert slip" role="status" hidden></div>
 <section id="next" class="next" aria-live="polite"></section>
 </main>
 
@@ -198,18 +195,25 @@
 </div>
 </div><!-- /dm-page -->
 
+<!-- Dialogs. Each is a plate in Datum's App view: the plate header (.dlg-plate, filled by app.js setPlate) names it, the
+     datum line runs under it, the parts are Datum's fields, rows and notices, and the action that answers it is the one
+     signal button. app.js arrive() replays Datum's arrival each time one opens. -->
+
 <!-- Cleanup check -->
-<dialog id="cleanup">
-  <form method="dialog">
-    <h2>Cleanup check <span id="cl-day" class="muted"></span></h2>
-    <p class="muted">Before you stop for the day — in ③ your AWS account, Region eu-west-1, confirm:</p>
-    <div id="cl-run" class="cl-run" hidden></div>
-    <ul id="cl-list" class="cl"></ul>
-    <p id="cl-ok" class="cl-ok" hidden>[ ✓ All clean ] Nothing left running up a bill.</p>
-    <div class="row end">
-      <a class="btn" id="cl-open" target="_blank" rel="noopener">Open AWS ↗</a>
-      <button value="close" class="primary">Done</button>
-    </div>
+<dialog id="cleanup" class="dlg" aria-labelledby="cl-t">
+  <form method="dialog" class="dlg-b">
+    <div class="qz-app dm-split is-solo"><section class="qz-main">
+      <div class="dlg-plate"></div>
+      <h2 id="cl-t" class="dm-heading dlg-t" data-i style="--i:1">Cleanup check</h2>
+      <p class="dlg-lead" data-i style="--i:1">Before you stop for the day — in ③ your AWS account, Region eu-west-1, confirm:</p>
+      <div id="cl-run" class="dm-notice dm-notice--alert dlg-alert cl-run" data-i style="--i:2" hidden></div>
+      <ul id="cl-list" class="cl" data-i style="--i:2"></ul>
+      <div id="cl-ok" class="dm-notice dm-notice--done cl-ok" role="status" hidden><span class="dm-notice__icon"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8.5l4 4 8-9"/></svg></span><div class="dm-notice__body"><b class="dm-notice__title">All clean</b><p>Nothing left running up a bill.</p></div></div>
+      <div class="dlg-acts" data-i style="--i:3">
+        <a class="dm-btn dm-btn--line" id="cl-open" target="_blank" rel="noopener">Open AWS<span class="dm-end"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 12.5L12 4M5.5 3.5h7v7"/></svg></span></a>
+        <button value="close" class="dm-btn dm-btn--signal">Done<span class="dm-end"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8.5l4 4 8-9"/></svg></span></button>
+      </div>
+    </section><div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></div>
   </form>
 </dialog>
 
@@ -224,7 +228,7 @@
   <div id="qz-body" class="qz-body"></div>
 </dialog>
 
-<!-- Notebook, weak spots, exam wording, day notes -->
+<!-- Notebook, weak spots, exam wording, look-alikes, badges, day notes, a course diagram larger (app.js renderSheet) -->
 <dialog id="sheet" class="qz" aria-labelledby="sh-title">
   <div class="qz-h">
     <h2 id="sh-title"></h2>
@@ -234,53 +238,75 @@
 </dialog>
 
 <!-- The evening reminder: billable things still running in your own AWS account -->
-<dialog id="costnag" class="costnag" aria-labelledby="cn-t">
-  <h2 id="cn-t" tabindex="-1">Still running in your AWS account</h2>
-  <div id="cn-body"></div>
-  <div class="row end">
-    <a class="btn" id="cn-open" target="_blank" rel="noopener">Open AWS ↗</a>
-    <button type="button" data-cn="night">Keep running tonight</button>
-    <button type="button" data-cn="later">In 30 minutes</button>
-    <button type="button" class="primary" data-cn="done">Done</button>
+<dialog id="costnag" class="dlg costnag" aria-labelledby="cn-t">
+  <div class="dlg-b">
+    <div class="qz-app dm-split is-solo"><section class="qz-main">
+      <div class="dlg-plate"></div>
+      <h2 id="cn-t" class="dm-heading dlg-t" tabindex="-1" data-i style="--i:1">Still running in your AWS account</h2>
+      <div id="cn-body" data-i style="--i:2"></div>
+      <div class="dlg-acts" data-i style="--i:3">
+        <a class="dm-btn dm-btn--line" id="cn-open" target="_blank" rel="noopener">Open AWS<span class="dm-end"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 12.5L12 4M5.5 3.5h7v7"/></svg></span></a>
+        <button type="button" class="dm-btn dm-btn--line" data-cn="night">Keep running tonight</button>
+        <button type="button" class="dm-btn dm-btn--line" data-cn="later">In 30 minutes</button>
+        <button type="button" class="dm-btn dm-btn--signal" data-cn="done">Done<span class="dm-end"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8.5l4 4 8-9"/></svg></span></button>
+      </div>
+    </section><div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></div>
   </div>
 </dialog>
 
-<!-- Settings -->
-<dialog id="settings">
-  <form method="dialog">
-    <h2>Settings</h2>
-    <label class="field">Day 1 date <input type="date" id="s-start" required></label>
-    <label class="field">Booked exam date
-      <input type="date" id="s-exam">
-      <small>After you book the exam. The plan warns you if it slips past this date.</small>
-    </label>
-    <div class="field" id="s-slips" hidden><span id="s-slips-t" class="muted"></span> <button type="button" id="s-unslip">Undo schedule moves</button></div>
-    <label class="field">AWS sign-in URL
-      <input type="url" id="s-portal" placeholder="https://123456789012.signin.aws.amazon.com/console">
-      <small>Your admin user's console sign-in page (Day 1). "Open" buttons for ③ your account will use it.</small>
-    </label>
-    <label class="chk"><input type="checkbox" id="s-fx"> Visual effects</label>
-    <label class="chk"><input type="checkbox" id="s-snd"> Sounds</label>
-    <label class="chk"><input type="checkbox" id="s-gif"> South Park GIFs on quiz results (loaded from GIPHY)</label>
-    <label class="field">Daily XP goal <small>The dial on the overview. A day's quiz with its steps is worth about 400.</small>
-      <select id="s-goal"><option>100</option><option>150</option><option>200</option><option>300</option><option>400</option><option>600</option></select></label>
-    <div class="s-disp">
-      <label class="field">Text size <small>Cards, panels and quizzes.</small>
-        <select id="s-size"><option value="">Normal</option><option value="l">Larger</option><option value="xl">Largest</option></select></label>
-      <label class="field">Motion <small>This browser only. Calm stops the loops; off holds everything still.</small>
-        <select id="s-motion"><option value="">Full</option><option value="calm">Calm</option><option value="off">Off</option></select></label>
-    </div>
-    <div class="row">
-      <button type="button" id="s-export">Export progress</button>
-      <button type="button" id="s-import">Import…</button>
-      <input type="file" id="s-file" accept="application/json,.json" hidden>
-      <button type="button" id="s-reset" class="danger">Reset progress</button>
-    </div>
-    <small class="muted" id="s-sync"></small>
-    <div class="row end">
-      <button value="cancel" formnovalidate>Cancel</button>
-      <button value="save" class="primary">Save</button>
-    </div>
+<!-- Settings: the plan, effects and display, progress; Save is the one signal button -->
+<dialog id="settings" class="dlg" aria-labelledby="set-t">
+  <form method="dialog" class="dlg-b">
+    <div class="qz-app dm-split is-solo"><section class="qz-main">
+      <div class="dlg-plate"></div>
+      <h2 id="set-t" class="dm-heading dlg-t" data-i style="--i:1">Settings</h2>
+      <section class="dlg-s" data-i style="--i:2">
+        <h3 class="dm-label dm-label--br dlg-h">The plan</h3>
+        <div class="dlg-g2">
+          <div class="dm-field"><label for="s-start">Day 1 date</label><input class="dm-input" type="date" id="s-start" required></div>
+          <div class="dm-field"><label for="s-exam">Booked exam date</label><input class="dm-input" type="date" id="s-exam">
+            <p class="dm-field__note">After you book the exam. The plan warns you if it slips past this date.</p></div>
+        </div>
+        <div class="dm-notice dlg-slips" id="s-slips" hidden><span class="dm-notice__icon"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 7h2.5v6M5.5 13h5.5M8.5 3v1.5"/></svg></span>
+          <div class="dm-notice__body"><p id="s-slips-t"></p></div><button type="button" id="s-unslip" class="dm-btn dm-btn--s dm-btn--line">Undo schedule moves</button></div>
+        <div class="dm-field"><label for="s-portal">AWS sign-in URL</label>
+          <input class="dm-input" type="url" id="s-portal" placeholder="https://123456789012.signin.aws.amazon.com/console">
+          <p class="dm-field__note">Your admin user's console sign-in page (Day 1). "Open" buttons for ③ your account will use it.</p></div>
+      </section>
+      <section class="dlg-s" data-i style="--i:3">
+        <h3 class="dm-label dm-label--br dlg-h">Effects and display</h3>
+        <ul class="dlg-sws">
+          <li><label class="dlg-sw"><span>Visual effects</span><input type="checkbox" class="dm-switch" id="s-fx"></label></li>
+          <li><label class="dlg-sw"><span>Sounds</span><input type="checkbox" class="dm-switch" id="s-snd"></label></li>
+          <li><label class="dlg-sw"><span>South Park GIFs on quiz results<small>Loaded from GIPHY.</small></span><input type="checkbox" class="dm-switch" id="s-gif"></label></li>
+        </ul>
+        <div class="dlg-g2">
+          <div class="dm-field"><span class="dm-label" id="s-size-l">Text size</span>
+            <div class="dm-seg" id="s-size" role="group" aria-labelledby="s-size-l"><button type="button" data-v="" aria-pressed="true">Normal</button><button type="button" data-v="l" aria-pressed="false">Larger</button><button type="button" data-v="xl" aria-pressed="false">Largest</button></div>
+            <p class="dm-field__note">Cards, panels and quizzes.</p></div>
+          <div class="dm-field"><span class="dm-label" id="s-motion-l">Motion</span>
+            <div class="dm-seg" id="s-motion" role="group" aria-labelledby="s-motion-l"><button type="button" data-v="" aria-pressed="true">Full</button><button type="button" data-v="calm" aria-pressed="false">Calm</button><button type="button" data-v="off" aria-pressed="false">Off</button></div>
+            <p class="dm-field__note">This browser only. Calm stops the loops; off holds everything still.</p></div>
+        </div>
+        <div class="dm-field dlg-goal"><label for="s-goal">Daily XP goal</label>
+          <select class="dm-input" id="s-goal"><option>100</option><option>150</option><option>200</option><option>300</option><option>400</option><option>600</option></select>
+          <p class="dm-field__note">The dial on the overview. A day's quiz with its steps is worth about 400.</p></div>
+      </section>
+      <section class="dlg-s" data-i style="--i:4">
+        <h3 class="dm-label dm-label--br dlg-h">Progress</h3>
+        <div class="dm-notice dlg-sync"><span class="dm-notice__icon"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 7h2.5v6M5.5 13h5.5M8.5 3v1.5"/></svg></span><div class="dm-notice__body"><p id="s-sync"></p></div></div>
+        <div class="dlg-row">
+          <button type="button" id="s-export" class="dm-btn dm-btn--s dm-btn--line">Export progress</button>
+          <button type="button" id="s-import" class="dm-btn dm-btn--s dm-btn--line">Import…</button>
+          <input type="file" id="s-file" accept="application/json,.json" hidden>
+          <button type="button" id="s-reset" class="dm-btn dm-btn--s dm-btn--line dlg-danger">Reset progress</button>
+        </div>
+      </section>
+      <div class="dlg-acts" data-i style="--i:5">
+        <button value="cancel" formnovalidate class="dm-btn dm-btn--line">Cancel</button>
+        <button value="save" class="dm-btn dm-btn--signal">Save<span class="dm-end"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8.5l4 4 8-9"/></svg></span></button>
+      </div>
+    </section><div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></div>
   </form>
 </dialog>
 
@@ -288,14 +314,18 @@
 <dialog id="search" class="qz srch" aria-labelledby="sr-title">
   <div class="qz-h"><h2 id="sr-title">Search</h2><button type="button" class="qz-x" data-sr-close aria-label="Close">✕</button></div>
   <div class="qz-body">
-    <input type="search" id="sr-q" autocomplete="off" spellcheck="false" placeholder="Key points, steps, terms, your notes, the notebook…" aria-controls="sr-list">
-    <ul id="sr-list" class="sr-list" role="listbox" aria-label="Results"></ul>
-    <p class="muted sr-hint"><span class="kbd">↑ and ↓ move, Enter opens, Esc closes. </span>Every word you type must appear.</p>
+    <div class="qz-app dm-split is-solo"><section class="qz-main">
+      <div class="dlg-plate"></div>
+      <div class="dm-field sr-f" data-i style="--i:1"><label class="sr" for="sr-q">Search</label>
+        <input class="dm-input" type="search" id="sr-q" autocomplete="off" spellcheck="false" placeholder="Key points, steps, terms, your notes, the notebook…" aria-controls="sr-list"></div>
+      <ul id="sr-list" class="sr-list" role="listbox" aria-label="Results" data-i style="--i:2"></ul>
+      <p class="sr-hint" data-i style="--i:3"><span class="kbd"><kbd>↑</kbd> and <kbd>↓</kbd> move, <kbd>Enter</kbd> opens, <kbd>Esc</kbd> closes. </span>Every word you type must appear.</p>
+    </section><div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></div>
   </div>
 </dialog>
 
 <!-- Break reminder: a focus block ended, or the break has run past 10 minutes. Last in the page: it can open over the quiz. -->
-<dialog id="brk" class="brk" aria-labelledby="brk-t"><div id="brk-body"></div></dialog>
+<dialog id="brk" class="dlg brk" aria-labelledby="brk-t"><div id="brk-body" class="dlg-b"></div></dialog>
 
 <script src="plan.js"></script>
 <script src="quiz/meta.js"></script>

@@ -195,7 +195,7 @@ Carbon neutrals in a cool teal cast, with one ember that behaves as light.
 ### Neutral
 - **Carbon Ground** (`ground`): the table the sheets lie on: page margin, the bay, the gaps between sheets. Never flat in a bay; lit by `ground-lit` and the signal.
 - **Lit Ground** (`ground-lit`): the ambient pool of light behind a subject and at the top of the page. A fill for light only, never a block.
-- **Sheet** (`sheet`): every surface that holds content: the hero sheet, the mosaic sheet, the day view, the quiz dialog, inputs.
+- **Sheet** (`sheet`): every surface that holds content: the hero sheet, the mosaic sheet, the day view, every dialog, inputs.
 - **Mist** (`mist`): one step off the sheet: nav tabs, the timer face, soft blocks (the knowledge check, self-check), tooltips, code.
 - **Hairline** (`line`): table rows, mosaic dividers, the `dm-spec` facts rules. Decoration, not a control border.
 - **Off** (`off`): inactive shapes only: unreached steps, unlit bar cells, idle question squares, quiet tag outlines. Never text.
@@ -242,7 +242,7 @@ Carbon neutrals in a cool teal cast, with one ember that behaves as light.
 The page is Datum's page: `.dm-page` with grain on the carbon ground, content held to a 1240px wrap with 32px gutters (`plate-margin`). Sheets sit on the ground with ground showing around them.
 
 - **Header:** a Datum nav block on a sheet, sticky: the mark and SAA-C03, the views as tabs, then the sync notice, the focus timer, Search and Settings. Under it a Datum strip in micro type: where you are, the Effects and Sound switches.
-- **Overview:** the hero sheet (Datum's Hero: a copy column beside the bay), a strip, then one flush sheet holding three Datum mosaics on 12 columns with 1px `line` gaps: the cells (running, where you stand, the numbers, today, practice, readiness, day by day, scores), the day map (one cell per day, a row per week), and the places and links. Cells span 6 or 12 below 1180px; the day map drops to 4 then 2 columns.
+- **Overview:** the hero sheet (Datum's Hero: a copy column beside the bay), a strip, then one flush sheet holding three Datum mosaics on 12 columns with 1px `line` gaps: the cells (running, where you stand, the numbers, today, practice, readiness, day by day, scores), the day map (one cell per day, a row per week; today's cell solid ink with a lit lamp, since the hero's Start is the view's one signal fill), and the places and links. Cells span 6 or 12 below 1180px; the day map drops to 4 then 2 columns.
 - **Hero:** the copy column holds, top to bottom, the plate header PL.NN with its barcode, the lead (the day's goal), the next step with the one signal button, a `dm-spec` facts table, and the day's title in the bite. The bay holds the cloud photo in a `dm-slot`, Datum's arcs and micro marks, and a glass "Steps today" panel. At desktop widths the summit sits on the datum line (key point pinned at 76px from the bay's top); below 860px the hero stacks and the key light shrinks to the summit (radius 150px).
 - **Day view and quiz:** Datum's App view. A `dm-sheet` with a `dm-plate` header (PL.NN, barcode, "Step N of M"), the datum line under it, a train of square step cells, then a `dm-split`: the article and a 320px aside. The aside goes under the article below 1024px. The action bar with Back, Mark complete and Next sits at the window's foot.
 - **Rhythm:** Datum's spacing scale, 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96. 16px inside cards and between hero blocks, 24px sheet padding and button sides, 32px between groups, 48px between sections.
@@ -310,8 +310,11 @@ Drawn on a canvas in Datum's language: the key light on the ground, the datum li
 ### Motion
 Datum's own grammar: `--dm-ease` cubic-bezier(.2,.8,.2,1), 150ms state changes, a 620ms arrival in which the datum line draws and content settles in order, a 3.2s cycle for the one pulsing lamp. Stopped by `prefers-reduced-motion` and `data-dm-motion="off"`.
 
-### Transitional layer (not part of the system)
-Views not fully moved still use Datum 4 token names (`--paper`, `--paper-raised`, `--rule`, `--alert`, `--action`, `--chamfer` and others), mapped onto Datum 6 tokens by aliases at the top of `style.css`, along with legacy button, pill and label rules. New work uses Datum 6 tokens and `dm-*` components directly; a view drops the aliases when it moves.
+### Dialogs (signature)
+Every dialog is a plate in Datum's App view, on the sheet with its rim and no cut, over the ground dimmed to 86%. A plate header names it with the figure that matters: `SET` for Settings, `CL.04` for Day 4's cleanup check, `RN.02` for two things still running, the clock for the break reminder (`50:00`; the break running on, in `signal-text` once it is over; the time away), and on the sheet dialog `NB.06` open notebook questions, `WS.25` weak topics, `EW.45` phrases, `LA.19` look-alike tables, `LV.07` your level, `PL.NN` a day's notes, `CD.NN` a course diagram; Search counts its results, `SR.12`. The datum line runs under the plate, and Datum's arrival plays as the dialog opens.
+- **Small dialogs** (Settings, the cleanup check, the evening reminder, the break reminder): a heading, then groups under bracketed labels on hairlines; Datum fields (`dm-field`, `dm-input`), switches in rows (`dm-switch`), segmented controls (`dm-seg`) for text size and motion, checks in rows (`dm-check`); what is still running is the dialog's one alert notice, all clean its done notice; a foot of line buttons and the one signal button with its end cell (Save, Done, Start break, Start focus, Count it).
+- **Sheets** (notebook, weak spots, exam wording, look-alikes, badges, day notes, the larger diagram): a sticky title bar with Close, then the plate, then the list in the main column and its facts in a 320px aside (counts in a `dm-spec`, why you miss, the domains as gauges, the level). Look-alikes open on an index of numbered rows; a table's last row, the exam cue, is a soft block on mist with a lamp. Search is Datum's field over rows with the kind in a key cell; the picked row is filled ink and a found word is underlined in signal, never filled.
+- **Phones:** sheets and Search fill the screen; the small dialogs take the width less 12px each side, one column, the signal button first and full width.
 
 ## Do's and Don'ts
 
@@ -332,5 +335,5 @@ Views not fully moved still use Datum 4 token names (`--paper`, `--paper-raised`
 - **Don't** round corners or cast offset drop shadows; depth is light, rim and glow.
 - **Don't** set prose or headings in Martian Mono.
 - **Don't** set display and display-light in the same view.
-- **Don't** add new rules on the Datum 4 alias names; they are a transitional layer, not the system.
+- **Don't** bring back Datum 4 names (`--paper`, `--rule`, `--alert`, `button.primary`, pills); every rule uses Datum 6 tokens and `dm-*` components.
 - **Don't** trim, merge or quiet a celebration rung.

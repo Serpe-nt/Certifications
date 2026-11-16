@@ -429,24 +429,9 @@ function setView(day, at, push) {
   document.body.classList.toggle("in-flow", !!d);
   if (d) renderFlow(moved);
   railNav();
-  bdDraw();
   if (moved) { shown = key; movedAt = Date.now(); scrollTo(0, 0); }
 }
-// ---------- the backdrop (Datum.backdrop) and the rail ----------
-// The backdrop is Datum's: one figure, low in contrast, drawn to the window and seeded with the view, so each day keeps
-// its own drawing; its one piece of text is the day's real number. A small orbit on a gutter crossing on the overview,
-// the plain grid while you read a step (Datum's Operate views). A new view fades it up; a resize redraws it still.
-const bdEl = document.getElementById("bd");
-let bdKey = "", bdT = 0, inT = 0;
-function bdDraw() {
-  const d = view.day && dayOf(view.day), w = innerWidth, h = innerHeight, k = `${view.day}|${w}|${h}`;
-  if (!window.Datum || !Datum.backdrop || k === bdKey) return;   // Datum 6 has no backdrop: it lights the ground instead
-  bdEl.toggleAttribute("data-dm-redraw", !!bdKey && bdKey.split("|")[0] === view.day);
-  bdKey = k;
-  bdEl.innerHTML = Datum.backdrop(d ? { figure: "grid", width: w, height: h, seed: d.id, ghost: pad2(d.day) }
-    : { figure: "orbit", width: w, height: h, seed: "overview", at: [0.82, 0.3], scale: 0.62, grid: 64, glow: false });
-}
-addEventListener("resize", () => { clearTimeout(bdT); bdT = setTimeout(bdDraw, 150); });
+let inT = 0;
 // The views as the nav block's tabs: the overview, and the day (the one on screen, or the one the next step is on)
 function railNav() {
   const d = view.day && dayOf(view.day), w = d || (nextStep() || {}).d || DAYS[DAYS.length - 1];
@@ -473,7 +458,7 @@ let ui = {};
 try { const u = JSON.parse(localStorage.getItem(UI_KEY)); if (isObj(u)) ui = u; } catch (e) {}
 const saveUI = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} };
 // Text size, motion and the focus view are this browser's choice (Settings, the Focus view button), never synced.
-// There is one theme, the dark Excimer one (a theme saved by an older version is dropped on the next Save).
+// There is one theme, Datum's Night (a theme saved by an older version is dropped on the next Save).
 // Motion is the Datum level: full (arrival, response, live loops), calm (no loops), off (static); with effects off
 // a full level drops to calm. The reduced-motion system setting always means off (bundle.css and fx.css).
 const motionLevel = () => { const m = ui.motion === "calm" || ui.motion === "off" ? ui.motion : "full"; return m === "full" && !S.settings.fx ? "calm" : m; };
@@ -497,7 +482,7 @@ const ICON_OUT = `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><p
 const ICON_CHECK = `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8.5l4 4 8-9"/></svg>`;
 const shortDate = d => `${d.getDate()} ${MON[d.getMonth()]}`;
 // The days as a mosaic: a row per week (its name, its theme, a train of its days), then one cell per day. Today's cell
-// holds the view's one signal field. A row that is short of a full width is closed by hatched cells (empty, Datum).
+// is solid ink with a lit lamp (the view's one signal fill is the hero's button). A row that is short of a full width is closed by hatched cells (empty, Datum).
 function renderMap(ti) {
   const hatch = n => `<span class="dm-cell dm-hatch dt-x" aria-hidden="true"></span>`.repeat((8 - n % 8) % 8);
   let h = "", days = [], wk = null;
@@ -523,12 +508,11 @@ function tileHTML(d, ti) {
   const st = complete ? `Done${S.dayDone[d.id] ? " " + esc(shortDate(parseDate(S.dayDone[d.id]))) : ""}` : quizDue ? "Quiz to pass" : k ? `${k} of ${ids.length} steps, ~${fmtH(dayLeft(d))} left` : `${plural(ids.length, "step")}, ~${fmtH(dayPlanned(d))}`;
   const p = pct(k + (hasQuiz(d) && quizOk(d) ? 1 : 0), stepIds(d).length);
   const body = `<span class="dt-top"><span class="dt-n">${pad2(d.day)}</span>` +
-    (now ? `<span class="dt-k">Today</span>` : complete ? `<span class="dt-ok">${ICON_CHECK}</span>` : quizDue ? `<span class="dm-lamp dm-lamp--s" aria-hidden="true"></span>` : "") + `</span>` +
+    (now ? `<span class="dt-k"><span class="dm-lamp dm-lamp--s" aria-hidden="true"></span>Today</span>` : complete ? `<span class="dt-ok">${ICON_CHECK}</span>` : quizDue ? `<span class="dm-lamp dm-lamp--s" aria-hidden="true"></span>` : "") + `</span>` +
     `<span class="dt-t">${d.title}</span><span class="dt-d">${esc(shortDate(dayDate(d.day)))}</span><span class="dt-s">${st}</span>` +
     (complete ? "" : `<span class="dm-bar dm-bar--thin dt-b" aria-hidden="true"><span class="dm-bar__fill" style="--value:${p}"></span></span>`);
   const attrs = `href="#${d.id}" data-day="${d.id}" data-done="${complete ? 1 : 0}" data-quiz="${quizDue ? 1 : 0}" data-today="${now ? 1 : 0}" aria-label="Day ${d.day}, ${esc(strip(d.title))}: ${st}"${now ? ' aria-current="date"' : ""}`;
-  return now ? `<a class="dt dm-cell dm-cell--flush is-now" ${attrs}><span class="dm-field-signal dt-f">${body}</span></a>`
-    : `<a class="dt dm-cell${complete ? " is-done" : quizDue ? " is-quiz" : ""}" ${attrs}>${body}</a>`;
+  return `<a class="dt dm-cell${now ? " is-now" : complete ? " is-done" : quizDue ? " is-quiz" : ""}" ${attrs}>${body}</a>`;
 }
 function renderLinks() {
   const nav = document.getElementById("links");
@@ -599,11 +583,11 @@ function refresh() {
     st.push(`<span>Plan period ended ${fmtD(dayDate(LAST))}</span>`);
   } else {
     const overdue = DAYS.filter(d => d.day < ti).reduce((a, d) => a + dayLeft(d), 0);
-    if (overdue > 0) st.push(`<span class="pill ${overdue > 180 ? "bad" : "warn"}">Behind: ~${fmtH(overdue)} from earlier days</span>`);
-    else if (DAYS.some(d => d.day > ti && dIds(d).some(done))) st.push(`<span class="pill ok">Ahead of plan</span>`);
-    else st.push(`<span class="pill ok">On track</span>`);
+    if (overdue > 0) st.push(`<span class="dm-tag tg-warn">Behind: ~${fmtH(overdue)} from earlier days</span>`);
+    else if (DAYS.some(d => d.day > ti && dIds(d).some(done))) st.push(`<span class="dm-tag dm-tag--solid">Ahead of plan</span>`);
+    else st.push(`<span class="dm-tag dm-tag--solid">On track</span>`);
   }
-  if (S.settings.exam && dayDate(LAST) > parseDate(S.settings.exam)) st.push(`<span class="pill bad">Plan now ends after your booked exam</span>`);
+  if (S.settings.exam && dayDate(LAST) > parseDate(S.settings.exam)) st.push(`<span class="dm-tag tg-warn">Plan now ends after your booked exam</span>`);
   const daysToExam = diffDays(examD, new Date());
   if (daysToExam >= 0) st.push(`<span>${daysToExam ? `Exam in <b>${plural(daysToExam, "day")}</b>` : "<b>Exam today</b>"}</span>`);
 
@@ -630,10 +614,11 @@ function renderSlip() {
   if (!d || S.slipSkip === today()) { el.hidden = true; el.innerHTML = ""; return; }
   const late = diffDays(new Date(), dayDate(d.day));
   el.hidden = false;
-  el.innerHTML = `<span>Day ${d.day} was planned for <b>${fmtD(dayDate(d.day))}</b> and isn't finished.</span>` +
-    `<button type="button" class="primary" data-slip="${late}">Move Day ${d.day}${d.day < LAST ? "–" + LAST : ""} ${plural(late, "day")} later</button>` +
-    `<button type="button" data-slip="skip">Not now</button>` +
-    (S.settings.exam ? `<span class="muted">Booked exam: ${fmtD(parseDate(S.settings.exam))}. Pearson VUE lets you reschedule up to 24 h before.</span>` : "");
+  // Datum's alert (the hazard band); its buttons in ink, since the view's one signal fill is the hero's Start
+  el.innerHTML = `<span class="dm-notice__icon">${IC.alert}</span><div class="dm-notice__body"><p class="slip-t">Day ${d.day} was planned for <b>${fmtD(dayDate(d.day))}</b> and isn't finished.</p>` +
+    (S.settings.exam ? `<p>Booked exam: ${fmtD(parseDate(S.settings.exam))}. Pearson VUE lets you reschedule up to 24 h before.</p>` : "") +
+    `<div class="slip-a"><button type="button" class="dm-btn dm-btn--s" data-slip="${late}">Move Day ${d.day}${d.day < LAST ? "–" + LAST : ""} ${plural(late, "day")} later</button>` +
+    `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-slip="skip">Not now</button></div></div>`;
 }
 function applySlip(v) {
   if (v === "skip") { S.slipSkip = today(); save(); refresh(); return; }
@@ -665,10 +650,12 @@ function warmInfo() {
 function warmHTML() {
   const w = warmInfo();
   if (!w) return "";
-  // the warm-up's Start is not orange: the card's one orange button is the day's
+  // a Datum note; its Start is ink, not signal: the view's one signal button is the day's
+  const note = (txt, acts) => `<div class="nx-warm dm-notice"><span class="dm-notice__icon">${IC.info}</span><div class="dm-notice__body"><p>${txt}</p></div><div class="nx-wb">${acts}</div></div>`;
   return w.kind === "warm"
-    ? `<div class="nx-warm"><span><b>Warm-up:</b> ${plural(w.n, "quick question")} from yesterday before you start. Recalling it now is what makes it stick.</span><span class="nx-wb"><button type="button" class="nx-wgo" data-warm="start">Start the warm-up</button><button type="button" class="ghost" data-warm="skip">Skip today</button></span></div>`
-    : `<div class="nx-warm"><span><b>${plural(w.n, "missed question")}</b> ${w.n === 1 ? "is" : "are"} due for review.</span><span class="nx-wb"><button type="button" data-review>Review now</button></span></div>`;
+    ? note(`<b>Warm-up:</b> ${plural(w.n, "quick question")} from yesterday before you start. Recalling it now is what makes it stick.`,
+      `<button type="button" class="dm-btn dm-btn--s" data-warm="start">Start the warm-up</button><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-warm="skip">Skip today</button>`)
+    : note(`<b>${plural(w.n, "missed question")}</b> ${w.n === 1 ? "is" : "are"} due for review.`, `<button type="button" class="dm-btn dm-btn--s" data-review>Review now</button>`);
 }
 const liveQuiz = d => !!(S.run && S.run.kind === "day" && S.run.day === d.id && !S.run.done);
 // The card at the top of the overview. Its day is the one with the earliest open step (today's, unless you are behind
@@ -679,17 +666,18 @@ const ICON_NEXT = `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><
 function renderNext(ti, st) {
   const el = document.getElementById("next");
   const pre = warmHTML(), n = nextStep(), td = ti >= 1 && ti <= LAST ? DAYS[ti - 1] : null;
-  const head = (k, date) => `<div class="nx-h"><span class="nx-k">${k}</span>${date ? `<span class="nx-d">${date}</span>` : ""}<span class="nx-st">${st.join("")}</span></div>`;
   if (!n) {
+    // the plan done: its last plate, where it stands, and the mock exam as the one signal button
     el.className = "next all-done";
-    setHTML(el, pre + head("All done", fmtD(new Date())) + `<p class="nx-fin"><span class="nx-k">Plan complete</span> Every day is done. Book the exam and go pass SAA-C03.</p>` +
-      `<div class="nx-a"><button type="button" class="primary big" data-mock>${S.run && S.run.kind === "mock" && !S.run.done ? "Resume mock exam" : "Take a mock exam"} <span aria-hidden="true">→</span></button></div>`);
+    setHTML(el, pre + `<div class="dm-plate"><span class="dm-plate__no">PL.${pad2(LAST)}</span><span class="dm-plate__id"><span>SAA-C03<br>${fmtD(new Date())}</span></span></div>` +
+      `<div class="nx-h">${st.join("")}</div><h2 class="dm-display--light nx-fin-t">Plan complete</h2><p class="nx-fin">Every day is done. Book the exam and go pass SAA-C03.</p>` +
+      `<div class="nx-a"><button type="button" class="dm-btn dm-btn--signal big" data-mock>${S.run && S.run.kind === "mock" && !S.run.done ? "Resume mock exam" : "Take a mock exam"} <span class="dm-end">${ICON_NEXT}</span></button></div>`);
     return;
   }
   el.className = "next";
   const { d } = n, ids = dIds(d), k = ids.filter(done).length, cards = stepIds(d), at = n.quiz ? "quiz" : n.it[0];
   // the card is on another day than the calendar's: say which day today is on the plan
-  const cal = td && td !== d ? `<p class="nx-cal">Today on the plan: Day ${td.day}, ${td.title}${dayDone(td) ? ` <span class="pill ok">✓ Done</span>` : `, about ${fmtH(dayLeft(td))}`}</p>` : "";
+  const cal = td && td !== d ? `<p class="nx-cal">Today on the plan: Day ${td.day}, ${td.title}${dayDone(td) ? ` <span class="dm-tag dm-tag--solid nx-ok">Done</span>` : `, about ${fmtH(dayLeft(td))}`}</p>` : "";
   // one segment per card, grouped like the day's blocks: the done ones filled ink, the next one signal and standing proud
   const seg = id => `<i class="${(id === "quiz" ? quizOk(d) : done(id)) ? "on" : id === at ? "nx" : ""}${id === "quiz" ? " q" : ""}"></i>`;
   const segs = d.groups.map(g => `<span style="flex:${g.items.length}">${gIds(g).map(seg).join("")}</span>`).join("") + (hasQuiz(d) ? `<span style="flex:1">${seg("quiz")}</span>` : "");
@@ -697,13 +685,12 @@ function renderNext(ti, st) {
   if (n.quiz) {
     const r = S.quiz[d.id], tries = r ? r.tries.length : 0, live = liveQuiz(d);
     kick = "Up next";
-    body = `<span class="tag t-quiz">Quiz</span><p class="nx-step">${live ? `You are on question ${S.run.i + 1} of ${S.run.ids.length}.` : tries ? `Best so far ${r.best} of ${QZ.DAILY}. A retake draws different questions.` : `Every step is done. ${QZ.DAILY} questions, pass at ${QZ.needed(QZ.DAILY)}.`}</p>`;
+    body = `<span class="dm-tag nx-tag">Quiz</span><p class="nx-step">${live ? `You are on question ${S.run.i + 1} of ${S.run.ids.length}.` : tries ? `Best so far ${r.best} of ${QZ.DAILY}. A retake draws different questions.` : `Every step is done. ${QZ.DAILY} questions, pass at ${QZ.needed(QZ.DAILY)}.`}</p>`;
     act = `<button type="button" class="dm-btn dm-btn--signal big" data-quiz-start="${d.id}">${live ? "Resume quiz" : tries ? `Retake the Day ${d.day} quiz` : `Take the Day ${d.day} quiz`} <span class="dm-end">${ICON_NEXT}</span></button>` +
       `<a class="dm-btn dm-btn--line" href="#${d.id}/quiz">Open Day ${d.day}</a>`;
   } else {
-    const t = TAGS[n.g.t] ? n.g.t : "check";
     kick = k ? "Next step" : "First step";
-    body = `<span class="tag t-${t}">${n.g.label || TAGS[n.g.t]}</span><p class="nx-step">${n.it[1]}</p>` +
+    body = `<span class="dm-tag dm-tag--quiet nx-tag">${n.g.label || TAGS[n.g.t]}</span><p class="nx-step">${n.it[1]}</p>` +
       (n.g.where ? `<p class="nx-where">${n.g.where}</p>` : "");
     act = `<a class="dm-btn dm-btn--signal big" href="#${d.id}" data-start-day>${k ? "Continue" : "Start"} Day ${d.day} <span class="dm-end">${ICON_NEXT}</span></a>`;
   }
@@ -891,9 +878,9 @@ function dgPartHTML(dg, pid) {
 // The picture with the step's parts as buttons and the open part explained under it (or beside it, in the larger view).
 function dgViewHTML(key, id, sel, big) {
   const dg = DGS[key], rel = id ? dgRel(id, dg) : [];
-  const chips = rel.length ? `<p class="dg-rel"><span class="muted">This step:</span>${rel.map(p => `<button type="button" class="sm" data-dg-part="${esc(p)}">${esc(dg.parts[p].name)}</button>`).join("")}</p>` : "";
+  const chips = rel.length ? `<p class="dg-rel"><span class="muted">This step:</span>${rel.map(p => `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-dg-part="${esc(p)}">${esc(dg.parts[p].name)}</button>`).join("")}</p>` : "";
   return `<div class="dg-box" data-dg="${key}" data-rel="${esc(rel.join(" "))}">${chips}<div class="dg-pic"><div class="dg-wrap">${DG.svg(dg, key + (big ? "-big" : ""))}</div>` +
-    (big ? "" : `<button type="button" class="sm dg-big" data-dg-big="${esc(id)}" title="Open the diagram larger">Larger ↗</button>`) +
+    (big ? "" : `<button type="button" class="dm-btn dm-btn--s dm-btn--line dg-big" data-dg-big="${esc(id)}" title="Open the diagram larger">Larger${IC.out}</button>`) +
     `</div><div class="dg-part" aria-live="polite" data-sel="${esc(sel)}">${dgPartHTML(dg, sel)}</div></div>`;
 }
 function dgHTML(id) {
@@ -926,9 +913,10 @@ function openDiagram(id) {
   openSheet("dg");
 }
 function dgSheet() {
-  const id = shDlg.dataset.dg || "", key = dgKey(id);
-  if (!key) return ["Course diagram", ""];
-  return [DGS[key].title, `<p class="muted dg-why txt">${DGS[key].why}</p>${dgViewHTML(key, id, dgSel.id === id ? dgSel.part : "", true)}`];
+  const id = shDlg.dataset.dg || "", key = dgKey(id), n = /\d+/.exec(key || "");
+  if (!key) return { t: "Course diagram", no: "CD", main: "" };
+  return { t: DGS[key].title, no: `CD.${pad2(n ? n[0] : 0)}`, code: key, l1: "Course diagram", l2: `${plural(Object.keys(DGS[key].parts || {}).length, "part")}`,
+    main: `<p class="sh-p sh-lead dg-why txt"${di(1)}>${DGS[key].why}</p><div${di(2)}>${dgViewHTML(key, id, dgSel.id === id ? dgSel.part : "", true)}</div>` };
 }
 
 // ---------- look-alikes: services the exam sets against each other, side by side ----------
@@ -952,15 +940,19 @@ function laFor(q, picked) {
 const laLinks = list => list.length ? `<div class="qz-la"><span>Compare side by side:</span>${list.map(e => `<button type="button" class="link" data-look="${esc(e.id)}">${esc(e.title)}</button>`).join("")}</div>` : "";
 const laTag = tag => LA.filter(e => (e.tags || []).includes(tag));
 let laOn = "";   // the table a link opened: shown first and marked
-function lookHTML() {
+// The look-alikes sheet: an index of the tables (a numbered row each, with your open notebook questions that link to
+// it), then each table under its number. Its last row is what gives the service away on the exam.
+function lookSheet() {
   const miss = Object.create(null);
   for (const { q, b } of bookEntries()) if (!b.fixed) for (const e of laFor(q)) miss[e.id] = (miss[e.id] || 0) + 1;
-  return `<p class="muted">Services the exam sets against each other, row by row. A question you miss whose right and wrong answers name two services of one table links here; the number is your open notebook questions that do.</p>` +
-    `<div class="la-nav">${LA.map(e => `<button type="button" class="sm${e.id === laOn ? " on" : ""}" data-la-go="${esc(e.id)}">${esc(e.title)}${miss[e.id] ? ` <span class="pill warn">${miss[e.id]}</span>` : ""}</button>`).join("")}</div>` +
-    LA.map(e => `<section class="la${e.id === laOn ? " on" : ""}" id="la-${esc(e.id)}"><h3 class="sub-h">${esc(e.title)}</h3><p class="la-why">${e.why}</p>` +
-      `<table class="la-t"><thead><tr><th></th>${e.cols.map(c => `<th scope="col">${esc(c)}</th>`).join("")}</tr></thead><tbody>` +
-      e.rows.map((r, i) => `<tr${i === e.rows.length - 1 ? ' class="la-cue"' : ""}><th scope="row">${esc(r[0])}</th>${r.slice(1).map((c, k) => `<td data-col="${esc(e.cols[k])}">${c}</td>`).join("")}</tr>`).join("") +
-      `</tbody></table>${(e.docs || []).length ? `<p class="la-docs">AWS pages: ${e.docs.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a>`).join(" · ")}</p>` : ""}</section>`).join("");
+  return { t: "Look-alikes", no: `LA.${pad2(LA.length)}`, code: "lookalikes", l1: "Look-alikes", l2: `${LA.length} tables`,
+    main: `<p class="sh-p sh-lead"${di(1)}>Services the exam sets against each other, row by row. A question you miss whose right and wrong answers name two services of one table links here; the number is your open notebook questions that do.</p>` +
+      `<ol class="la-nav dm-list"${di(2)} aria-label="Tables">${LA.map((e, i) => `<li><button type="button" class="dm-row la-go${e.id === laOn ? " on" : ""}" data-la-go="${esc(e.id)}"><span class="dm-row__key">${pad2(i + 1)}</span>` +
+        `<span class="dm-row__name">${esc(e.title)}</span><span class="dm-row__state">${miss[e.id] ? `<span class="dm-tag tg-warn la-miss" title="Open notebook questions">${miss[e.id]}</span>` : ""}</span></button></li>`).join("")}</ol>` +
+      LA.map((e, n) => `<section class="la${e.id === laOn ? " on" : ""}" id="la-${esc(e.id)}"><h3 class="la-h"><span class="dm-row__key">${pad2(n + 1)}</span><span class="dm-subheading">${esc(e.title)}</span></h3><p class="la-why">${e.why}</p>` +
+        `<div class="la-tw"><table class="la-t"><thead><tr><th></th>${e.cols.map(c => `<th scope="col">${esc(c)}</th>`).join("")}</tr></thead><tbody>` +
+        e.rows.map((r, i) => `<tr${i === e.rows.length - 1 ? ' class="la-cue"' : ""}><th scope="row">${esc(r[0])}</th>${r.slice(1).map((c, k) => `<td data-col="${esc(e.cols[k])}">${c}</td>`).join("")}</tr>`).join("") +
+        `</tbody></table></div>${(e.docs || []).length ? `<p class="la-docs"><span class="dm-label">AWS pages</span>${e.docs.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}${IC.out}</a>`).join("")}</p>` : ""}</section>`).join("") };
 }
 function openLook(id) {
   laOn = LA_BY[id] ? id : "";
@@ -1074,10 +1066,10 @@ function sideHTML(id) {
 function quizCardHTML(d) {
   const r = S.quiz[d.id], tries = r ? r.tries.length : 0, ok = quizOk(d), live = liveQuiz(d);
   const open = dIds(d).filter(id => !done(id));
-  let h = `<div class="c-h"><span class="tag t-quiz">Quiz</span><span class="c-meta">${QZ.DAILY} questions, ~${QUIZ_MIN} min</span>${ok ? `<span class="pill ok">✓ Passed</span>` : ""}</div>` +
+  let h = `<div class="c-h"><span class="dm-tag c-state">Quiz</span><span class="c-meta">${QZ.DAILY} questions, ~${QUIZ_MIN} min</span>${ok ? `<span class="dm-tag dm-tag--solid c-state">${IC.check}Passed</span>` : ""}</div>` +
     `<h2 class="c-t" tabindex="-1">End-of-day quiz</h2><p class="c-n">${QZ.describe(d)}. Pass at ${QZ.needed(QZ.DAILY)} of ${QZ.DAILY} to complete Day ${d.day}.</p>`;
   if (live) h += `<p class="c-st">In progress: question ${S.run.i + 1} of ${S.run.ids.length}.</p>`;
-  else if (ok) h += `<p class="c-st ok">Passed with ${r.best} of ${QZ.DAILY} on ${fmtD(parseDate(r.passed))}.</p><div class="c-w"><button type="button" data-quiz-start="${d.id}">Practice again</button></div>`;
+  else if (ok) h += `<p class="c-st ok">Passed with ${r.best} of ${QZ.DAILY} on ${fmtD(parseDate(r.passed))}.</p><div class="c-w"><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-quiz-start="${d.id}">Practice again</button></div>`;
   else if (open.length) {
     h += `<p class="c-st">${plural(open.length, "step")} still open. The quiz unlocks when every step of the day is complete.</p>` +
       `<ul class="c-open">${open.map(id => `<li><button type="button" class="link" data-at="${id}">${esc(stepTitle(id))}</button></li>`).join("")}</ul>`;
@@ -1097,7 +1089,7 @@ function doneCardHTML(d) {
   if (r && r.passed) facts.push(["Quiz", `${r.best} of ${QZ.DAILY}, ${plural(r.tries.length, "try", "tries")}`]);
   if (m >= 1) facts.push(["Focus time", `${fmtH(m)} of ~${fmtH(dayPlanned(d))} planned`]);
   if (S.dayDone[d.id]) facts.push(["Finished", fmtD(parseDate(S.dayDone[d.id]))]);
-  return `<div class="c-h"><span class="pill ok">✓ Day complete</span></div><h2 class="c-t" tabindex="-1">Day ${d.day} is done</h2><p class="c-n">${d.title}</p>` +
+  return `<div class="c-h"><span class="dm-tag dm-tag--solid c-state">${IC.check}Day complete</span></div><h2 class="c-t" tabindex="-1">Day ${d.day} is done</h2><p class="c-n">${d.title}</p>` +
     `<dl class="c-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>` +
     (nx ? `<p class="c-st">Next: <b>Day ${nx.day}</b>, ${nx.title} (${fmtD(dayDate(nx.day))}).</p>`
       : DAYS.every(dayDone) ? `<p class="c-st">Every day is done. Take a mock exam from the overview, then go pass SAA-C03.</p>` : "");
@@ -1550,7 +1542,6 @@ function weakestDomain() {
   }
   return w;
 }
-const bar = (label, value, text, cls = "") => `<div class="db ${cls}"><span>${label}</span><span class="tr"><span class="fi" style="width:${Math.max(0, Math.min(100, value))}%;display:block"></span></span><span>${text}</span></div>`;
 // The overview's scores: a thin bar of cells per figure, its name and value over it
 const gauge = (label, value, text, cls = "") => `<div class="sc-g${cls ? " " + cls : ""}"><div class="sc-gh"><span>${label}</span><span class="sc-gv">${text}</span></div><span class="dm-bar dm-bar--thin" aria-hidden="true"><span class="dm-bar__fill" style="--value:${Math.max(0, Math.min(100, value))}"></span></span></div>`;
 function renderScores() {
@@ -1661,15 +1652,25 @@ const I_CHECK = dmIcon("M2 8.5l4 4 8-9"), I_CROSS = dmIcon("M3 3l10 10M13 3L3 13
 // screen, the task in the main column (the question in title at 40px, the answers as dm-choices, the one signal button)
 // and its facts in the aside (score, the question train, the notices). A new screen arrives once (dm-arrive: the line
 // draws, the content settles); redrawing the same screen after a pick does not replay it.
-let qzShown = "";
+// The screen last drawn in each dialog (qz: the quiz, sh: the sheet): a new one arrives, a redraw of the same doesn't.
+const appShown = { qz: "", sh: "" };
 function plateHTML(no, code, l1, l2) {
   code = String(code).toUpperCase().replace(/[^A-Z0-9.-]/g, "").slice(0, 24);
   const bc = window.Datum ? Datum.barcode(code, { height: 20 }) : "";
   return `<div class="dm-plate qz-plate" data-i style="--i:0"><span class="dm-plate__no">${no}</span><span class="dm-plate__id">${bc}<span>${l1}<br>${l2}</span></span></div>`;
 }
-function appHTML(key, plate, main, aside = "", cls = "") {
-  const arrive = key !== qzShown;
-  qzShown = key;
+// Every dialog is a plate too (index.html: .dlg-plate in a .qz-app): its plate header, the datum line under it, and
+// Datum's arrival each time it opens (the line draws, the parts settle in data-i order).
+const setPlate = (dlg, no, code, l1, l2) => { dlg.querySelector(".dlg-plate").innerHTML = plateHTML(no, code, l1, l2); };
+function arrive(dlg) {
+  const app = dlg.querySelector(".qz-app");
+  app.classList.remove("dm-arrive");
+  void app.offsetWidth;   // restart the animation
+  app.classList.add("dm-arrive");
+}
+function appHTML(key, plate, main, aside = "", cls = "", slot = "qz") {
+  const arrive = key !== appShown[slot];
+  appShown[slot] = key;
   return `<div class="qz-app dm-split${cls ? " " + cls : ""}${aside ? "" : " is-solo"}${arrive ? " dm-arrive" : ""}"><section class="qz-main">${plate}${main}</section>` +
     (aside ? `<aside class="qz-aside">${aside}</aside>` : "") + `<div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></div>`;
 }
@@ -2276,7 +2277,7 @@ function renderMockResult() {
   qzBody.innerHTML = resHTML(r, cls, `${res.score} of ${res.n} right<br>${r.mins} min`, msg,
     `<p class="qz-hint">The real exam reports a scaled score from 100 to 1000 (720 to pass), and AWS doesn't publish how right answers map to it, so treat this percentage as a rough guide. Aim for 80% or more here.${prev.length ? ` Earlier mocks: ${prev.join(", ")}.` : ""}</p>` +
     `<h3 class="sub-h qz-sub"><span class="dm-label dm-label--br">By domain</span></h3>${domHTML}` +
-    `<div class="mk-rev-h"><h3 class="sub-h qz-sub"><span class="dm-label dm-label--br">Review</span></h3><label class="chk"><input type="checkbox" data-only${r.only ? " checked" : ""}> Only the ones I got wrong</label></div>` +
+    `<div class="mk-rev-h"><h3 class="sub-h qz-sub"><span class="dm-label dm-label--br">Review</span></h3><label class="dm-check"><input type="checkbox" data-only${r.only ? " checked" : ""}> Only the ones I got wrong</label></div>` +
     `<ol class="qz-missed">${list.map(x => `<li class="${x.ok ? "right" : "wrong"}"><details><summary><span class="qz-no">Q${pad2(x.i + 1)}</span><span class="qz-sq">${x.q.q}</span><span class="qz-mark">${x.ok ? I_CHECK : I_CROSS}<span class="sr">${x.ok ? "Right" : "Wrong"}</span></span></summary>${fbHTML(x.q, r.ord[x.q.id] || QZ.order(x.q), r.ans[x.q.id] || [])}${x.ok ? "" : whyHTML(x.q)}${studyHTML(x.q, false, !x.ok, r.ans[x.q.id])}</details></li>`).join("") || `<li class="qz-none">Nothing wrong.</li>`}</ol>`,
     sigBtn('data-qz="finish"', "Close results"));
   hookGif();
@@ -2506,48 +2507,67 @@ function mockTick() {
   for (const m of [10, 1]) if (left < m * 60000 && left > m * 60000 - 5000 && mkWarned !== `${r.t0}:${m}`) { mkWarned = `${r.t0}:${m}`; FX.toast(`<b>${m === 1 ? "1 minute" : "10 minutes"} left</b> in the mock exam`, "warn"); }
 }
 
-// ---------- notebook, weak spots, cheat sheet, day notes ----------
+// ---------- notebook, weak spots, cheat sheet, day notes, look-alikes, badges, the larger diagram ----------
+// The sheet dialog is Datum's App view, like the quiz: a plate that names the sheet with the figure that matters on it
+// (NB.06: six open questions; LV.07: your level), the datum line under it, the list in the main column and its facts
+// in the aside. Each builder returns { t: title, no: plate number, code: barcode, l1, l2: the plate's two lines,
+// main, aside }; data-i orders the parts as they settle.
 const shDlg = document.getElementById("sheet"), shBody = document.getElementById("sh-body");
 let nbFilter = "open";
 function openSheet(kind) {
   shDlg.dataset.kind = kind;
+  appShown.sh = "";   // a sheet that opens arrives, the one shown last too
   renderSheet();
   if (!shDlg.open) shDlg.showModal();
   shDlg.scrollTop = 0;
 }
 function renderSheet() {
-  const kind = shDlg.dataset.kind;
-  const [title, html] = kind === "notebook" ? ["Wrong-answer notebook", notebookHTML()] : kind === "weak" ? ["Weak spots", weakHTML()]
-    : kind === "daynotes" ? dayNotesHTML() : kind === "badges" ? ["Badges and level", badgesHTML()] : kind === "look" ? ["Look-alikes", lookHTML()] : kind === "dg" ? dgSheet() : ["Exam wording", cuesHTML()];
-  document.getElementById("sh-title").textContent = title;
-  shBody.innerHTML = html;
+  const kind = shDlg.dataset.kind, s = (SHEETS[kind] || SHEETS.cues)();
+  document.getElementById("sh-title").textContent = s.t;
+  shBody.innerHTML = appHTML(`sh:${kind}`, plateHTML(s.no, s.code || kind, s.l1 || s.t, s.l2 || ""), s.main, s.aside || "", "sh-app", "sh");
   if (kind === "dg") { dgMark(shBody); applyGlossary(shBody); }
 }
+const di = i => ` data-i style="--i:${i}"`;
+const shEmpty = txt => `<div class="dm-notice sh-empty"${di(1)}><span class="dm-notice__icon">${IC.info}</span><div class="dm-notice__body"><p>${txt}</p></div></div>`;
+// a group in a sheet: Datum's bracketed label over it
+const shSec = (i, label, body, cls = "") => `<section class="sh-sec${cls ? " " + cls : ""}"${di(i)}><h3 class="dm-label dm-label--br sh-h">${label}</h3>${body}</section>`;
 // Notes for the day on screen, plus the notes written on its single steps.
-function dayNotesHTML() {
+function dayNotesSheet() {
   const d = dayOf(view.day);
-  if (!d) return ["Day notes", ""];
+  if (!d) return { t: "Day notes", no: "PL", main: "" };
   const mine = dIds(d).filter(id => (S.inotes[id] || "").trim());
-  return [`Day ${d.day} notes`,
-    `<label class="notes-l">Notes for the whole day <span class="saved" data-saved="${d.id}">saved</span>` +
-    `<textarea data-notes="${d.id}" placeholder="${esc(d.notesHint || "Weak spots, wrong answers, things to revisit…")}">${esc(S.notes[d.id] || "")}</textarea></label>` +
-    (mine.length ? `<h3 class="sub-h">Your notes on single steps</h3><ul class="qz-refs">${mine.map(id => `<li><div class="ref-t">${itemIndex[id].it[1]}</div>` +
-      `<p class="in-note">${esc(S.inotes[id])}</p><div class="ref-a"><button type="button" class="sm" data-jump="${id}">Open step</button></div></li>`).join("")}</ul>`
-      : `<p class="muted">Notes you write on single steps of this day are listed here too.</p>`)];
+  return { t: `Day ${d.day} notes`, no: `PL.${pad2(d.day)}`, code: `${d.id}-notes`, l1: "Day notes", l2: `Day ${d.day} of ${LAST}`,
+    main: `<div class="dm-field notes-l"${di(1)}><label for="dn-${d.id}">Notes for the whole day</label><span class="saved" data-saved="${d.id}">saved</span>` +
+      `<textarea class="dm-input" id="dn-${d.id}" data-notes="${d.id}" placeholder="${esc(d.notesHint || "Weak spots, wrong answers, things to revisit…")}">${esc(S.notes[d.id] || "")}</textarea></div>` +
+      (mine.length ? shSec(2, "Your notes on single steps", `<ul class="qz-refs">${mine.map(id => `<li><div class="ref-t">${itemIndex[id].it[1]}</div>` +
+        `<p class="in-note">${esc(S.inotes[id])}</p><div class="ref-a"><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-jump="${id}">Open step</button></div></li>`).join("")}</ul>`)
+        : `<p class="sh-p"${di(2)}>Notes you write on single steps of this day are listed here too.</p>`) };
 }
 function bookEntries() {
   return Object.keys(S.book).filter(id => QBY[id]).map(id => ({ q: QBY[id], b: S.book[id] }))
     .sort((x, y) => (x.b.at < y.b.at ? 1 : x.b.at > y.b.at ? -1 : y.b.misses - x.b.misses));
 }
-function notebookHTML() {
+// The notebook: the filter, then one folded row per question (how often you missed it in its key cell, the question,
+// open or fixed); the counts, the export and why you miss in the aside.
+function notebookSheet() {
   const all = bookEntries(), weakDay = DAYS.find(d => d.quiz === "weak");
-  if (!all.length) return `<p class="muted">Empty for now. Every question you miss in a quiz, review or mock exam lands here, with a line for why you missed it.</p>`;
   const open = all.filter(e => !e.b.fixed), fixed = all.filter(e => e.b.fixed);
+  const s = { t: "Wrong-answer notebook", no: `NB.${pad2(open.length)}`, code: "notebook", l1: "Notebook", l2: `${open.length} open / ${fixed.length} fixed` };
+  if (!all.length) { s.main = shEmpty("Empty for now. Every question you miss in a quiz, review or mock exam lands here, with a line for why you missed it."); return s; }
   const list = nbFilter === "open" ? open : nbFilter === "fixed" ? fixed : all;
-  return `<div class="seg">${[["open", `Open (${open.length})`], ["fixed", `Fixed (${fixed.length})`], ["all", `All (${all.length})`]].map(([k, l]) => `<button type="button" data-nb="${k}" aria-pressed="${nbFilter === k}">${l}</button>`).join("")}<button type="button" class="nb-exp" data-nb-export>Export as Markdown</button></div>` +
-    `<p class="muted">Fixed means you answered it right after missing it. ${weakDay ? `Day ${weakDay.day} and the` : "The"} morning of the exam ${weakDay ? "are" : "is"} for this list.</p>` +
-    `<ol class="qz-missed nb">${list.map(({ q, b }) => `<li class="${b.fixed ? "right" : "wrong"}"><details><summary>${q.q}<span class="nb-m">${q.tags.map(esc).join(", ")}. Missed ${b.misses}×${b.fixed ? ", answered right since" : ""}.</span></summary>` +
-      `${answerHTML(q)}${whyHTML(q)}<label class="qz-note">My note<input type="text" maxlength="300" data-note="${q.id}" value="${esc(b.note || "")}"></label>${studyHTML(q, false, true)}</details></li>`).join("") || `<li class="muted">Nothing here.</li>`}</ol>`;
+  s.main = `<div class="sh-bar"${di(1)}><div class="dm-seg" role="group" aria-label="Show">${[["open", `Open (${open.length})`], ["fixed", `Fixed (${fixed.length})`], ["all", `All (${all.length})`]]
+      .map(([k, l]) => `<button type="button" data-nb="${k}" aria-pressed="${nbFilter === k}">${l}</button>`).join("")}</div></div>` +
+    `<ol class="qz-missed nb"${di(2)}>${list.map(({ q, b }) => `<li class="${b.fixed ? "right" : "wrong"}"><details><summary><span class="qz-no" title="Missed ${plural(b.misses, "time")}"><span class="sr">Missed </span>${b.misses}×</span>` +
+      `<span class="qz-sq">${q.q}<span class="nb-m">${q.tags.map(esc).join(", ")}${b.fixed ? " / answered right since" : ""}</span></span>` +
+      `<span class="qz-mark">${b.fixed ? I_CHECK : I_CROSS}<span class="sr">${b.fixed ? "Fixed" : "Open"}</span></span></summary>` +
+      `${answerHTML(q)}${whyHTML(q)}<label class="qz-note"><span class="dm-label dm-label--br">My note</span><input type="text" maxlength="300" data-note="${q.id}" value="${esc(b.note || "")}"></label>${studyHTML(q, false, true)}</details></li>`).join("")
+      || `<li class="qz-none">Nothing here.</li>`}</ol>`;
+  s.aside = `<dl class="dm-spec sh-spec"${di(1)}><div><dt>Open</dt><dd>${open.length}</dd></div><div><dt>Fixed</dt><dd>${fixed.length}</dd></div>` +
+      `<div><dt>Missed</dt><dd>${plural(all.reduce((a, e) => a + e.b.misses, 0), "time")} in all</dd></div></dl>` +
+    `<p class="sh-p"${di(2)}>Fixed means you answered it right after missing it. ${weakDay ? `Day ${weakDay.day} and the` : "The"} morning of the exam ${weakDay ? "are" : "is"} for this list.</p>` +
+    `<div${di(2)}><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-nb-export>Export as Markdown</button></div>` +
+    shSec(3, "Why you miss", whyPatternHTML(), "sh-why");
+  return s;
 }
 function exportNotebook() {
   const md = ["# SAA-C03 wrong-answer notebook", "", `Exported ${fmtD(new Date())}.`, ""];
@@ -2562,32 +2582,39 @@ function exportNotebook() {
   }
   download(md.join("\n"), `saa-wrong-answers-${today()}.md`, "text/markdown");
 }
-function weakHTML() {
+// Weak spots: the topics weakest first (a thin bar each, folded open to where to study them) and the shaky self-checks;
+// why you miss and the exam domains as gauges in the aside.
+function weakSheet() {
   const w = QZ.weakTags(WITH_CARDQ, S.qs), dom = QZ.domainAcc(WITH_CARDQ.filter(q => q.dom), S.qs);   // an exam-technique card question has no domain
-  const shaky = Object.keys(S.conf).filter(id => S.conf[id] === "shaky" && itemIndex[id]);
-  if (!w.length && !shaky.length && !whyCounts().length) return `<p class="muted">Nothing yet. This fills in as you answer quiz questions and mark self-checks as shaky.</p>`;
-  let h = `<h3 class="sub-h">Why you miss</h3>${whyPatternHTML()}`;
-  if (dom.some(x => x[1])) h += `<h3 class="sub-h">By exam domain</h3><div class="dom-bars">${dom.map(([a, n], i) => n ? bar(`D${i + 1} ${DOMAINS[i]}`, pct(a, n), `${pct(a, n)}%`) : "").join("")}</div>`;
-  if (w.length) h += `<h3 class="sub-h">By topic, weakest first</h3><p class="muted">Share of answers right, counting every attempt. Open a topic to see where to study it.</p>` +
-    `<ul class="wk">${w.map(t => `<li><details><summary><span class="wk-t">${esc(t.tag)}</span><span class="tr"><span class="fi${t.acc < 0.7 ? " low" : ""}" style="width:${Math.round(t.acc * 100)}%"></span></span><span class="wk-n">${t.right}/${t.seen}</span></summary>` +
-      `<ul class="qz-refs">${tagRefs(t.tag).map(id => refHTML(id)).join("")}</ul>${laLinks(laTag(t.tag))}</details></li>`).join("")}</ul>`;
-  if (shaky.length) h += `<h3 class="sub-h">Self-checks you marked shaky</h3><ul class="qz-refs">${shaky.map(id => refHTML(id)).join("")}</ul>`;
-  return h;
+  const shaky = Object.keys(S.conf).filter(id => S.conf[id] === "shaky" && itemIndex[id]), low = w.filter(t => t.acc < 0.7).length;
+  const s = { t: "Weak spots", no: `WS.${pad2(low)}`, code: "weak", l1: "Weak spots", l2: `${plural(low, "topic")} under 70%` };
+  const none = "Nothing yet. This fills in as you answer quiz questions and mark self-checks as shaky.";
+  if (!w.length && !shaky.length && !whyCounts().length) { s.main = shEmpty(none); return s; }
+  s.main = (w.length ? shSec(1, "By topic, weakest first", `<p class="sh-p">Share of answers right, counting every attempt. Open a topic to see where to study it.</p>` +
+      `<ul class="wk">${w.map(t => `<li${t.acc < 0.7 ? ' class="low"' : ""}><details><summary><span class="wk-t">${esc(t.tag)}</span>` +
+        `<span class="dm-bar dm-bar--thin wk-b" aria-hidden="true"><span class="dm-bar__fill" style="--value:${Math.round(t.acc * 100)}"></span></span><span class="wk-n">${t.right}/${t.seen}</span></summary>` +
+        `<div class="wk-d"><ul class="qz-refs">${tagRefs(t.tag).map(id => refHTML(id)).join("")}</ul>${laLinks(laTag(t.tag))}</div></details></li>`).join("")}</ul>`) : "") +
+    (shaky.length ? shSec(2, "Self-checks you marked shaky", `<ul class="qz-refs sh-shaky">${shaky.map(id => refHTML(id)).join("")}</ul>`) : "") || shEmpty(none);
+  s.aside = shSec(1, "Why you miss", whyPatternHTML(), "sh-why") +
+    (dom.some(x => x[1]) ? shSec(2, "By exam domain", `<ul class="rd-list sh-doms">${dom.map(([a, n], i) => n ? `<li><div class="dm-gauge"><div class="dm-gauge__head"><span class="rd-n">D${i + 1} ${DOMAINS[i]}</span>` +
+      `<span class="dm-gauge__val">${pct(a, n)}<small>%</small></span></div><div class="dm-bar" role="img" aria-label="${pct(a, n)}% right"><div class="dm-bar__fill" style="--value:${Math.max(pct(a, n), 1)}"></div></div></div></li>` : "").join("")}</ul>`) : "");
+  return s;
 }
-function badgesHTML() {
+// Badges: one row per badge (its code cell fills ink once earned); the level, its gauge and how XP is earned in the aside.
+function badgesSheet() {
   const L = levelOf(xpTotal()), next = Math.floor((L.n - 1) / 2) + 1, got = ACH.filter(a => S.ach[a.id]).length;
-  // the level as the sheet's one stat with its gauge to the next level; each badge a row whose code cell fills ink once earned
-  return `<div class="lv"><div class="dm-stat lv-n"><div class="dm-stat__head"><span class="dm-label--br">Level</span><span>${rankOf(L.n)}</span></div>` +
-    `<div class="dm-stat__row"><span class="dm-stat__num">${pad2(L.n)}</span><span class="dm-stat__side">${L.x} XP<br>${got} of ${ACH.length} badges</span></div></div>` +
-    `<div class="dm-gauge lv-x"><div class="dm-gauge__head"><span class="dm-label dm-label--br">To level ${L.n + 1}</span><span class="dm-gauge__val">${L.to - L.x}<small>XP</small></span></div>` +
-    `<div class="dm-bar" role="progressbar" aria-label="XP to level ${L.n + 1}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${L.pct}"><div class="dm-bar__fill" style="--value:${Math.max(L.pct, 1)}"></div></div>` +
-    `<p class="lv-t">${next < RANKS.length ? `Next title at level ${next * 2 + 1}: ${RANKS[next]}.` : "The top title."}</p></div></div>` +
-    `<p class="lv-p">XP: ${XP.right} for a right quiz answer the first time, right after a miss, or right when it is due for review (repeats earn nothing), ${XP.step} for a completed step, ${XP.pass} for a day quiz passed, and what each badge is worth. ` +
-    `Your longest run of right answers: ${S.rowBest || "none yet"}.</p>` +
-    `<ul class="ach dm-list">${ACH.map(a => `<li class="dm-row${S.ach[a.id] ? " on" : " is-off"}"><span class="dm-row__key ach-i">${a.i}</span><span class="ach-x"><b>${a.t}</b><span>${a.d}</span></span>` +
-      `<span class="dm-row__val">+${a.xp}&nbsp;XP</span><span class="dm-row__state">${S.ach[a.id] ? `${I_CHECK}${fmtD(parseDate(S.ach[a.id]))}` : "Not yet"}</span></li>`).join("")}</ul>`;
+  return { t: "Badges and level", no: `LV.${pad2(L.n)}`, code: `level-${L.n}`, l1: rankOf(L.n), l2: `${got} of ${ACH.length} badges`,
+    main: `<ul class="ach dm-list"${di(1)}>${ACH.map(a => `<li class="dm-row${S.ach[a.id] ? " on" : " is-off"}"><span class="dm-row__key ach-i">${a.i}</span><span class="ach-x"><b>${a.t}</b><span>${a.d}</span></span>` +
+      `<span class="dm-row__val">+${a.xp}&nbsp;XP</span><span class="dm-row__state">${S.ach[a.id] ? `${I_CHECK}${fmtD(parseDate(S.ach[a.id]))}` : "Not yet"}</span></li>`).join("")}</ul>`,
+    aside: `<div class="lv"${di(1)}><div class="dm-stat lv-n"><div class="dm-stat__head"><span class="dm-label--br">Level</span><span>${rankOf(L.n)}</span></div>` +
+      `<div class="dm-stat__row"><span class="dm-stat__num">${pad2(L.n)}</span><span class="dm-stat__side">${L.x} XP<br>${got} of ${ACH.length} badges</span></div></div>` +
+      `<div class="dm-gauge lv-x"><div class="dm-gauge__head"><span class="dm-label dm-label--br">To level ${L.n + 1}</span><span class="dm-gauge__val">${L.to - L.x}<small>XP</small></span></div>` +
+      `<div class="dm-bar" role="progressbar" aria-label="XP to level ${L.n + 1}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${L.pct}"><div class="dm-bar__fill" style="--value:${Math.max(L.pct, 1)}"></div></div>` +
+      `<p class="lv-t">${next < RANKS.length ? `Next title at level ${next * 2 + 1}: ${RANKS[next]}.` : "The top title."}</p></div></div>` +
+      `<p class="lv-p"${di(2)}>XP: ${XP.right} for a right quiz answer the first time, right after a miss, or right when it is due for review (repeats earn nothing), ${XP.step} for a completed step, ${XP.pass} for a day quiz passed, and what each badge is worth. ` +
+      `Your longest run of right answers: ${S.rowBest || "none yet"}.</p>` };
 }
-// ---------- search (Ctrl+K, / or 🔍): steps, key points, terms, exam wording, your notes, the notebook ----------
+// ---------- search (Ctrl+K, / or the header's Search): steps, key points, terms, exam wording, your notes, the notebook ----------
 const srDlg = document.getElementById("search"), srQ = document.getElementById("sr-q"), srList = document.getElementById("sr-list");
 let srStatic = null, srHits = [], srAt = 0;
 const plainOf = h => strip(String(h || "")).replace(/\s+/g, " ").trim();
@@ -2656,15 +2683,18 @@ function srRender() {
   const q = srQ.value.trim(), words = srWords(q);
   srHits = srFind(q);
   srAt = Math.min(srAt, Math.max(0, srHits.length - 1));
-  srList.innerHTML = !q ? `<li class="muted sr-none">Type a word or two.</li>`
-    : !srHits.length ? `<li class="muted sr-none">Nothing found for “${esc(q)}”.</li>`
+  // the plate counts what was found (SR.12); a result is a row: its kind in the key cell, the title and the words around
+  // the match, where it is
+  setPlate(srDlg, `SR.${pad2(srHits.length)}`, "search", "Search", !q ? "Steps, terms, notes" : srHits.length === 40 ? "The best 40" : plural(srHits.length, "result"));
+  srList.innerHTML = !q ? `<li class="sr-none">Type a word or two.</li>`
+    : !srHits.length ? `<li class="sr-none">Nothing found for “${esc(q)}”.</li>`
     : srHits.map((e, i) => `<li role="option" class="sr-it${i === srAt ? " on" : ""}" data-sr="${i}" aria-selected="${i === srAt}">` +
-      `<span class="sr-h"><span class="sr-k">${esc(e.kind)}</span>${e.where ? `<span class="muted">${esc(e.where)}</span>` : ""}</span>` +
-      `<b class="sr-t">${srMark(e.title, words)}</b><span class="sr-s">${srMark(e.full ? e.text : srSnip(e.text, words), words)}</span></li>`).join("");
+      `<span class="sr-k">${esc(e.kind)}</span><span class="sr-b"><b class="sr-t">${srMark(e.title, words)}</b><span class="sr-s">${srMark(e.full ? e.text : srSnip(e.text, words), words)}</span></span>` +
+      `<span class="sr-w">${esc(e.where)}</span></li>`).join("");
 }
 function openSearch() {
   if (document.querySelector("dialog[open]") && !srDlg.open) return;
-  if (!srDlg.open) srDlg.showModal();
+  if (!srDlg.open) { arrive(srDlg); srDlg.showModal(); }
   srAt = 0; srRender(); srQ.focus(); srQ.select();
 }
 function srOpen(i) {
@@ -2719,10 +2749,10 @@ function cardQHTML(id) {
   if (cardQ.ans) {
     const ok = QZ.isRight(q, cardQ.ans);
     b += `<p class="cq-v ${ok ? "ok" : "bad"}" role="status">${ok ? "✓ Right." : "✕ Not this time. It is in your notebook now and comes back in review."}</p>` +
-      fbHTML(q, cardQ.ord, cardQ.ans) + `<div class="cq-a"><button type="button" class="sm" data-cq-again>Answer again</button></div>`;
+      fbHTML(q, cardQ.ord, cardQ.ans) + `<div class="cq-a"><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-cq-again>Answer again</button></div>`;
   } else {
     b += `<div class="qz-opts cq-opts">${cardQ.ord.map((oi, k) => { const on = cardQ.sel.includes(oi); return `<button type="button" class="qz-o${on ? " on" : ""}" data-cq-o="${oi}" aria-pressed="${on}"><span class="qz-l">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span></button>`; }).join("")}</div>` +
-      `<div class="cq-a"><button type="button" data-cq-check${cardQ.sel.length === q.a.length ? "" : " disabled"}>Check answer</button>` +
+      `<div class="cq-a"><button type="button" class="dm-btn dm-btn--s" data-cq-check${cardQ.sel.length === q.a.length ? "" : " disabled"}>Check answer</button>` +
       (s && s.seen ? `<span class="muted">Last time: ${s.last ? "right" : "missed"}.</span>` : "") + `</div>`;
   }
   return box("q", "", "Knowledge check", b, "c-q");
@@ -2756,11 +2786,12 @@ function cardQClick(b) {
   if (f) f.focus({ preventScroll: true });
 }
 
-function cuesHTML() {
-  return `<p class="muted">Exam questions hide the deciding requirement in a phrase. Spot it and half the options fall away.</p>` +
-    `<table class="cues"><thead><tr><th>When you read</th><th>It usually points to</th><th>Example</th></tr></thead><tbody>` +
-    CUES.map(c => `<tr><td><b>${esc(c[0])}</b></td><td>${esc(c[1])}</td><td class="muted">${esc(c[2])}</td></tr>`).join("") + `</tbody></table>`;
-}
+// The cheat sheet: the phrase, what it points to and an example, one row each on hairlines
+const cuesSheet = () => ({ t: "Exam wording", no: `EW.${pad2(CUES.length)}`, code: "wording", l1: "Exam wording", l2: `${CUES.length} phrases`,
+  main: `<p class="sh-p sh-lead"${di(1)}>Exam questions hide the deciding requirement in a phrase. Spot it and half the options fall away.</p>` +
+    `<table class="cues"${di(2)}><thead><tr><th scope="col">When you read</th><th scope="col">It usually points to</th><th scope="col">Example</th></tr></thead><tbody>` +
+    CUES.map(c => `<tr><th scope="row">${esc(c[0])}</th><td>${esc(c[1])}</td><td class="cu-x">${esc(c[2])}</td></tr>`).join("") + `</tbody></table>` });
+const SHEETS = { notebook: notebookSheet, weak: weakSheet, daynotes: dayNotesSheet, badges: badgesSheet, look: lookSheet, dg: dgSheet, cues: cuesSheet };
 shDlg.addEventListener("click", e => {
   const g = e.target.closest(".g");   // a term in the larger diagram: a tap shows its definition
   if (g) { g.classList.toggle("show"); return; }
@@ -2810,11 +2841,12 @@ const sinceText = at => {
   const d = new Date(at), mins = (Date.now() - at) / 60000, hm = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   return `since ${iso(d) === today() ? hm : `${fmtD(d)} ${hm}`} (${mins < 1 ? "just now" : fmtH(mins)})`;
 };
-const costAddHTML = dayId => `<div class="cost-add"><select data-cost-k aria-label="What you created">${Object.entries(BILL.kinds).map(([k, v]) => `<option value="${k}">${esc(v[0])}</option>`).join("")}</select>` +
-  `<input type="text" maxlength="60" data-cost-l placeholder="Its name, if you like" aria-label="Its name"><button type="button" data-cost-add="${esc(dayId)}">Add</button></div>`;
-const costItemHTML = (x, undo) => `<li class="${x.gone ? "gone" : ""}"><span class="ci-n"><b>${esc(costName(x))}</b>${x.gone ? ` <span class="pill ok">deleted</span>` : ` <span class="muted">${sinceText(x.at)}</span>`}</span>` +
-  (BILL.kinds[x.k][1] ? `<span class="ci-d muted">${esc(BILL.kinds[x.k][1])}</span>` : "") +
-  (x.gone ? (undo ? `<button type="button" class="link sm" data-cost-back="${esc(x.id)}">Undo</button>` : "") : `<button type="button" class="sm" data-cost-gone="${esc(x.id)}">✓ Deleted</button>`) + `</li>`;
+const costAddHTML = dayId => `<div class="cost-add"><select class="dm-input" data-cost-k aria-label="What you created">${Object.entries(BILL.kinds).map(([k, v]) => `<option value="${k}">${esc(v[0])}</option>`).join("")}</select>` +
+  `<input class="dm-input" type="text" maxlength="60" data-cost-l placeholder="Its name, if you like" aria-label="Its name"><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-cost-add="${esc(dayId)}">Add</button></div>`;
+// One row per billable thing: its name and since when, what it bills for, and Deleted (Undo once it is)
+const costItemHTML = (x, undo) => `<li class="ci${x.gone ? " gone" : ""}"><span class="ci-n"><b>${esc(costName(x))}</b>${x.gone ? ` <span class="dm-tag dm-tag--quiet ci-tag">Deleted</span>` : ` <span class="ci-s">${sinceText(x.at)}</span>`}</span>` +
+  (BILL.kinds[x.k][1] ? `<span class="ci-d">${esc(BILL.kinds[x.k][1])}</span>` : "") +
+  (x.gone ? (undo ? `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-cost-back="${esc(x.id)}">Undo</button>` : "") : `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-cost-gone="${esc(x.id)}">${IC.check}Deleted</button>`) + `</li>`;
 function renderRunning() {
   const el = document.getElementById("running"), run = costRunning();
   el.hidden = !run.length;
@@ -2866,15 +2898,19 @@ const costDlg = document.getElementById("costnag");
 const costDue = () => costRunning().length > 0 && new Date().getHours() >= NAG_HOUR && S.cost.night !== today() && Date.now() >= S.cost.snooze;
 function renderCostNag() {
   const run = costRunning();
+  // the plate counts what is still running (RN.02); the list is the dialog's one alert, all clean its done notice
+  setPlate(costDlg, `RN.${pad2(run.length)}`, "running", "Still running", `After ${NAG_HOUR}:00`);
   document.getElementById("cn-body").innerHTML = run.length
-    ? `<p>It's evening, and ${run.length === 1 ? "this is" : "these are"} still in your AWS account:</p><ul class="cost-l">${run.map(x => costItemHTML(x)).join("")}</ul>` +
-      `<p class="muted">Delete ${run.length === 1 ? "it" : "them"} in the console, then mark ${run.length === 1 ? "it" : "each one"} here. Keeping something for tomorrow's step? Say so and the reminder stops for tonight.</p>`
-    : `<p class="cl-ok">All clean ✓. Nothing left running up a bill.</p>`;
+    ? `<p class="dlg-lead">It's evening, and ${run.length === 1 ? "this is" : "these are"} still in your AWS account:</p>` +
+      `<div class="dm-notice dm-notice--alert dlg-alert"><span class="dm-notice__icon">${IC.alert}</span><div class="dm-notice__body"><ul class="cost-l">${run.map(x => costItemHTML(x)).join("")}</ul></div></div>` +
+      `<p class="dlg-note">Delete ${run.length === 1 ? "it" : "them"} in the console, then mark ${run.length === 1 ? "it" : "each one"} here. Keeping something for tomorrow's step? Say so and the reminder stops for tonight.</p>`
+    : `<div class="dm-notice dm-notice--done cl-ok"><span class="dm-notice__icon">${IC.check}</span><div class="dm-notice__body"><b class="dm-notice__title">All clean</b><p>Nothing left running up a bill.</p></div></div>`;
   document.getElementById("cn-open").href = linkFor("own");
   costDlg.querySelector('[data-cn="night"]').hidden = costDlg.querySelector('[data-cn="later"]').hidden = !run.length;
 }
 function openCostNag() {
   renderCostNag();
+  arrive(costDlg);
   costDlg.showModal();
   costDlg.querySelector("h2").focus({ preventScroll: true });
   FX.sound("nag");
@@ -2903,12 +2939,13 @@ setInterval(() => {
 const clDlg = document.getElementById("cleanup");
 function openCleanup(dayId) {
   const d = DAYS.find(x => x.id === dayId);
-  document.getElementById("cl-day").textContent = d ? `· Day ${d.day}` : "";
+  setPlate(clDlg, d ? `CL.${pad2(d.day)}` : "CL", d ? `${d.id}-clean` : "clean", "Cleanup check", d ? `Day ${d.day} / eu-west-1` : "eu-west-1");
   document.getElementById("cl-open").href = linkFor("own");
   document.getElementById("cl-ok").hidden = true;
   renderCleanupRun();
   const ul = document.getElementById("cl-list");
-  ul.innerHTML = CLEANUP.map(([t, n], i) => `<li><label><input type="checkbox" data-cl="${i}"><span>${t}${n ? `<span class="n">${n}</span>` : ""}</span></label></li>`).join("");
+  ul.innerHTML = CLEANUP.map(([t, n], i) => `<li><label class="dm-check"><input type="checkbox" data-cl="${i}"><span>${t}${n ? `<span class="n">${n}</span>` : ""}</span></label></li>`).join("");
+  arrive(clDlg);
   if (!clDlg.open) clDlg.showModal();
 }
 clDlg.addEventListener("change", e => {
@@ -2923,7 +2960,8 @@ clDlg.addEventListener("close", runPending);
 function renderCleanupRun() {
   const run = costRunning(), el = document.getElementById("cl-run");
   el.hidden = !run.length;
-  el.innerHTML = run.length ? `<h3>Still running, from your list</h3><ul class="cost-l">${run.map(x => costItemHTML(x)).join("")}</ul>` : "";
+  el.innerHTML = run.length ? `<span class="dm-notice__icon">${IC.alert}</span><div class="dm-notice__body"><b class="dm-notice__title">Still running</b>` +
+    `<p>From your list.</p><ul class="cost-l">${run.map(x => costItemHTML(x)).join("")}</ul></div>` : "";
 }
 
 // ---------- events: day flow ----------
@@ -3091,12 +3129,18 @@ document.getElementById("b-set").onclick = () => {
   document.getElementById("s-snd").checked = S.settings.sound;
   document.getElementById("s-gif").checked = S.settings.gif;
   document.getElementById("s-goal").value = String(S.settings.goal);
-  document.getElementById("s-size").value = ui.size === "l" || ui.size === "xl" ? ui.size : "";
-  document.getElementById("s-motion").value = ui.motion === "calm" || ui.motion === "off" ? ui.motion : "";
+  segSet("s-size", ui.size === "l" || ui.size === "xl" ? ui.size : "");
+  segSet("s-motion", ui.motion === "calm" || ui.motion === "off" ? ui.motion : "");
   renderSettingsInfo();
+  setPlate(setDlg, "SET", "settings", "Settings", sync.on ? `Server, revision ${sync.rev}` : "This browser");
+  arrive(setDlg);
   setDlg.returnValue = "";
   setDlg.showModal();
 };
+// Text size and motion are Datum's segmented controls: the pressed button holds the value
+const segVal = id => (document.querySelector(`#${id} [aria-pressed="true"]`) || {}).dataset?.v || "";
+function segSet(id, v) { for (const b of document.querySelectorAll(`#${id} button`)) b.setAttribute("aria-pressed", String(b.dataset.v === v)); }
+setDlg.addEventListener("click", e => { const b = e.target.closest(".dm-seg button"); if (b) segSet(b.parentNode.id, b.dataset.v); });
 setDlg.addEventListener("close", () => {
   runPending();
   if (setDlg.returnValue !== "save") return;
@@ -3110,8 +3154,8 @@ setDlg.addEventListener("close", () => {
   S.settings.gif = document.getElementById("s-gif").checked;
   const goal = +document.getElementById("s-goal").value;
   if (GOALS.includes(goal)) S.settings.goal = goal;
-  delete ui.theme; ui.size = document.getElementById("s-size").value;
-  ui.motion = document.getElementById("s-motion").value;
+  delete ui.theme; ui.size = segVal("s-size");
+  ui.motion = segVal("s-motion");
   saveUI(); applyDisplay();
   save(); rebuild();
 });
@@ -3201,8 +3245,7 @@ function tmRender() {
   tm.querySelector(".tm-info").textContent = [day && (S.log[day.id] || 0) >= 1 ? `Focus on Day ${day.day} so far: ${fmtH(S.log[day.id])}.` : "Starts by itself when you start a day or complete a step.", permText()].filter(Boolean).join(" ");
   tm.querySelector('[data-tm="perm"]').hidden = !permAsk();
   document.title = t.running ? `${mmss(s)} ${!rest ? "Focus" : over ? "Break over" : "Break"} · SAA-C03 Plan` : t.ask ? "Focus block done · SAA-C03 Plan" : "SAA-C03 Plan";
-  const up = document.getElementById("brk-up");
-  if (up) up.textContent = mmss(restUp());
+  for (const up of document.querySelectorAll("#brk-up,[data-brk-up]")) up.textContent = mmss(restUp());
 }
 function tmSet(mode) { Object.assign(S.timer, { mode, running: false, left: FOCUS, up: 0, at: 0, ask: false }); tmSave(); }
 const startFocus = () => { logFocus(); Object.assign(S.timer, { mode: "focus", running: true, left: FOCUS, from: FOCUS, endAt: Date.now() + FOCUS * 1000, up: 0, at: 0, ask: false, day: (workDay() || {}).id || "", dev: DEV }); };
@@ -3299,18 +3342,24 @@ async function askPerms() {
 // The pop-up: "done" when a focus block has just ended, "over" when the break has run past 10 minutes.
 // It is a modal of its own, so it also comes up over an open quiz (and the quiz keys wait under it). The keyboard
 // goes to its heading, not a button, so a key typed for something else (a note, a quiz answer) doesn't answer it.
+// A plate like every dialog: its number is the clock (the block's 50:00, the break running on, the time away); the
+// answer that moves the timer on is the one signal button.
 function brkOpen(kind) {
   brkDlg.dataset.kind = kind;
-  brkBody.innerHTML = kind === "away"
-    ? `<h2 id="brk-t" tabindex="-1">Welcome back</h2><p>You were away for <b>${Math.max(1, Math.round((Date.now() - S.timer.away) / 60000))} minutes</b> during this focus block (no input, the screen off or the device asleep). Count that time as focus?</p>` +
-      `<p class="muted">Not counting it picks the block up where you left it.</p>` +
-      `<div class="row end"><button type="button" data-brk="skip-away">Don't count it</button><button type="button" class="primary" data-brk="keep-away">Count it</button></div>`
+  const away = Math.max(1, Math.round((Date.now() - S.timer.away) / 60000)), d = dayOf(S.timer.day) || workDay();
+  const btn = (a, t, sig) => `<button type="button" class="dm-btn${sig ? " dm-btn--signal" : " dm-btn--line"}" data-brk="${a}">${t}${sig ? `<span class="dm-end">${ICON_NEXT}</span>` : ""}</button>`;
+  const [no, l1, body] = kind === "away"
+    ? [mmss(away * 60), "Away", `<h2 id="brk-t" class="dm-heading dlg-t" tabindex="-1"${di(1)}>Welcome back</h2><div class="dlg-txt"${di(2)}><p>You were away for <b>${away} minutes</b> during this focus block (no input, the screen off or the device asleep). Count that time as focus?</p>` +
+      `<p class="dlg-note">Not counting it picks the block up where you left it.</p></div>` +
+      `<div class="dlg-acts"${di(3)}>${btn("skip-away", "Don't count it")}${btn("keep-away", "Count it", 1)}</div>`]
     : kind === "done"
-    ? `<h2 id="brk-t" tabindex="-1">Focus block done</h2><p>50 minutes of focus. Take a break now: it has no set length. The clock counts up, and after ${REST_NAG / 60} minutes it reminds you every minute to come back.</p>` +
-      `<div class="row end"><button type="button" data-brk="focus">Skip the break, focus again</button><button type="button" class="primary" data-brk="rest">Start break</button></div>`
-    : `<h2 id="brk-t" tabindex="-1">Break is over</h2><p>You have been on a break for <b id="brk-up">${mmss(restUp())}</b>. Time for the next 50 minutes of focus.</p>` +
-      `<p class="muted">Away for longer? Pause the break and the reminders stop until you resume it.</p>` +
-      `<div class="row end"><button type="button" data-brk="pause">Pause the break</button><button type="button" data-brk="later">Not yet</button><button type="button" class="primary" data-brk="focus">Start focus</button></div>`;
+    ? [mmss(FOCUS), "Focus block done", `<h2 id="brk-t" class="dm-heading dlg-t" tabindex="-1"${di(1)}>Focus block done</h2><div class="dlg-txt"${di(2)}><p>50 minutes of focus. Take a break now: it has no set length. The clock counts up, and after ${REST_NAG / 60} minutes it reminds you every minute to come back.</p></div>` +
+      `<div class="dlg-acts"${di(3)}>${btn("focus", "Skip the break, focus again")}${btn("rest", "Start break", 1)}</div>`]
+    : [`<span data-brk-up>${mmss(restUp())}</span>`, "Break", `<h2 id="brk-t" class="dm-heading dlg-t" tabindex="-1"${di(1)}>Break is over</h2><div class="dlg-txt"${di(2)}><p>You have been on a break for <b id="brk-up">${mmss(restUp())}</b>. Time for the next 50 minutes of focus.</p>` +
+      `<p class="dlg-note">Away for longer? Pause the break and the reminders stop until you resume it.</p></div>` +
+      `<div class="dlg-acts"${di(3)}>${btn("pause", "Pause the break")}${btn("later", "Not yet")}${btn("focus", "Start focus", 1)}</div>`];
+  brkBody.innerHTML = `<div class="qz-app dm-split is-solo dm-arrive"><section class="qz-main">${plateHTML(no, `brk-${kind}`, l1, d ? `Day ${d.day} of ${LAST}` : "SAA-C03")}${body}</section>` +
+    `<div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></div>`;
   if (!brkDlg.open) brkDlg.showModal();
   brkAt = Date.now();
   if (kind === "done") notify("Focus block done", "Time for a break. It has no set length.");

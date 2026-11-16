@@ -116,7 +116,9 @@ try {
   assert.match(await page.textContent("#stats .st-lv"), /Level\s*01/, "a level cell, starting at level 1");
   assert.equal(await page.locator("#home .dm-strip + .ov-sheet > .dm-mosaic").count(), 3, "a strip, then the mosaic sheet: the overview, the days, where things happen");
   assert.ok(await page.locator("#rl-nav [data-home-link][aria-current]").count(), "the nav block marks the overview");
-  assert.ok(await page.locator("#map .dt.is-now .dm-field-signal").count() <= 1, "today's tile is the one signal field");
+  assert.equal(await page.locator("#home .dm-field-signal").count(), 0, "no signal field on the overview: the hero's Start is its one signal fill");
+  assert.equal(await page.locator("#home .dm-btn--signal").count(), 1, "one signal button on the overview");
+  assert.ok(await page.locator("#map .dt.is-now .dm-lamp").count() === 1, "today's tile carries a lit lamp");
   assert.match(await page.textContent("#next"), /Start Day 1/);
   await page.screenshot({ path: path.join(SHOTS, "01-overview.png"), fullPage: false });
 
@@ -558,7 +560,7 @@ try {
   assert.ok(await page.locator("#sh-body .wk > li").count() >= 1);
   assert.match(await page.textContent("#sh-body"), /shaky/i);
   await page.screenshot({ path: path.join(SHOTS, "10-weak.png") });
-  await page.click("#sh-body > .qz-refs [data-jump]");    // "Open step" leaves the sheet for that step's card
+  await page.click("#sh-body .sh-shaky [data-jump]");    // "Open step" leaves the sheet for that step's card
   assert.ok(await page.locator("#flow").isVisible() && await page.locator("#sheet[open]").count() === 0);
   assert.equal(await hash(page), `#${QA.id}/${ck1}`);
   await goHome(page);
@@ -1030,7 +1032,7 @@ try {
   await page.reload();
   await page.click("#b-set");
   assert.equal(await page.locator("#s-theme").count(), 0, "no theme choice: the app is dark only");
-  await page.selectOption("#s-size", "l");
+  await page.click('#s-size [data-v="l"]');
   await page.click('#settings button[value="save"]');
   await page.waitForFunction(() => !document.getElementById("settings").open && document.documentElement.dataset.size, null, { timeout: 3000 }).catch(() => {});   // the dialog's close event comes a moment after the click
   assert.equal(await page.evaluate(() => document.documentElement.dataset.size), "l", "text size applies");

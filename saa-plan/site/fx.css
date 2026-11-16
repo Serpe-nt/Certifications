@@ -3,9 +3,8 @@
    line under it, the task as a title at 40px, the answers as dm-choices (correct drawn in ink, wrong in signal), progress
    as the train and the cell bar, explanations and verdicts as notices, the facts in the aside, one signal button.
    The celebrations are drawn in Datum's language too (fx.js): light on the ground, the datum line, arcs and bearing
-   rings about a key point, contours, slanted cells, lamps. Only Datum 6 tokens (dm/tokens.css) are used here; none of
-   the Datum 4 aliases. Motion is Datum's (dm-ease, 620 ms arrival); response animations stop with data-dm-motion="off"
-   and reduced motion, loops also with the effects switch (.fx-off) and data-dm-motion="calm". */
+   rings about a key point, contours, slanted cells, lamps. Only Datum 6 tokens (dm/tokens.css) are used here.
+   Motion is Datum's (dm-ease, 620 ms arrival); response animations stop with data-dm-motion="off" and reduced motion, loops also with the effects switch (.fx-off) and data-dm-motion="calm". */
 
 /* ================= the quiz dialog: a sheet in the App view ================= */
 dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;padding:0;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;
@@ -29,7 +28,7 @@ dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;
 .qz-body .sub-h{display:flex;gap:var(--space-2);align-items:center;margin:var(--space-6) 0 var(--space-2);font:700 11px/14px var(--font-sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 .qz-body .sub-h::after{content:"";flex:1;height:var(--stroke-hair);background:var(--line)}
 
-/* the buttons of the quiz screens are Datum's; the page's own button rules (style.css) must not reach into them */
+/* the buttons of the quiz screens are Datum's, held at Datum's size (style.css gives every button 44px on touch) */
 :is(#quiz,#sheet) :is(button,a).dm-btn{min-height:0;text-decoration:none}
 :is(#quiz,#sheet) button.dm-btn:disabled{padding-right:var(--space-6);background:transparent}
 :is(#quiz,#sheet) button.dm-btn:disabled:has(>.dm-end){padding-right:4.5px}
@@ -232,7 +231,7 @@ dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;
 .mk-key .flag::before{border-color:var(--ink);background:linear-gradient(var(--signal),var(--signal)) center/7px 7px no-repeat}
 .mk-rev-h{display:flex;gap:var(--space-4);align-items:center;justify-content:space-between;flex-wrap:wrap}
 .mk-rev-h .sub-h{flex:1}
-.mk-rev-h .chk{margin:var(--space-6) 0 var(--space-2);font-size:14px}
+.mk-rev-h .dm-check{margin:var(--space-6) 0 var(--space-2);font-size:14px}
 
 /* ---------- the "Which service?" drill ---------- */
 .dr-svc{display:grid;gap:var(--space-3)}
@@ -264,11 +263,7 @@ button.qz-o:not(.dm-choice).on .qz-l{background:var(--on-ink);color:var(--ink)}
 .card-b .muted{font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 .flip.shaky{color:var(--signal-text);border-color:var(--signal)}
 
-/* ---------- the sheet dialog: notebook filters, notes; badges and level ---------- */
-.seg{display:flex;gap:0;flex-wrap:wrap;margin-bottom:var(--space-2)}
-.seg button{margin:0 calc(var(--stroke-hair) * -1) 0 0}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
-.seg .nb-exp{margin-left:auto}
+/* ---------- the sheet dialog: the notebook's rows, badges and level (its App view is in style.css) ---------- */
 .nb-m{display:block;margin-top:2px;font:400 11px/16px var(--font-mono);color:var(--ink-2)}
 .qz-lead{margin-top:0;font-size:17px}
 .lv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-6) var(--space-8);align-items:end;padding-bottom:var(--space-6);border-bottom:var(--stroke-hair) solid var(--line)}
