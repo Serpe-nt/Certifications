@@ -1,0 +1,130 @@
+---
+id: m18-s04
+title: "Interview bank 2: Prometheus and PromQL"
+kind: concept
+minutes: 20
+order: 4
+outcome: You can answer, aloud and in under two minutes each, five questions on push and pull, metric types, rate(), histograms and cardinality, and handle the follow-up.
+exam:
+  - cert: pca
+    domain: P3
+    competency: Rates and Derivatives
+tags: [capstone-interview]
+sources:
+  - title: Prometheus FAQ, why do you pull rather than push
+    url: https://prometheus.io/docs/introduction/faq/
+    checked: 2026-11-15
+  - title: When to use the Pushgateway (Prometheus)
+    url: https://prometheus.io/docs/practices/pushing/
+    checked: 2026-11-15
+  - title: Metric types (Prometheus)
+    url: https://prometheus.io/docs/concepts/metric_types/
+    checked: 2026-11-15
+  - title: Query functions (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/querying/functions/
+    checked: 2026-11-15
+  - title: Histograms and summaries (Prometheus)
+    url: https://prometheus.io/docs/practices/histograms/
+    checked: 2026-11-15
+  - title: Native histograms specification (Prometheus)
+    url: https://prometheus.io/docs/specs/native_histograms/
+    checked: 2026-11-15
+  - title: Metric and label naming (Prometheus)
+    url: https://prometheus.io/docs/practices/naming/
+    checked: 2026-11-15
+  - title: Instrumentation practices (Prometheus)
+    url: https://prometheus.io/docs/practices/instrumentation/
+    checked: 2026-11-15
+---
+
+<Problem>
+"Write me a query for the error ratio of a service." You write `sum(http_requests_total{code=~"5.."}) / sum(http_requests_total)`. The interviewer nods and asks what that number means after a pod restarts. You look at the board and realise it is a ratio of totals since some start time, not of the last five minutes.
+</Problem>
+
+Prometheus questions are the most common technical questions in observability interviews, because most teams run it or something that speaks its language.
+
+<Idea>
+These five questions test whether you understand how Prometheus stores and reads numbers: who sends them, what a counter is, how a rate is computed, how percentiles are estimated, and what makes a series expensive. A whiteboard query is the usual follow-up, so each answer ends with one.
+</Idea>
+
+## Pull, push and the Pushgateway
+
+Asked: "Why does Prometheus pull? When would you push?"
+
+Prometheus scrapes an HTTP page on each target on a schedule. Its FAQ lists the advantages: you can start a second Prometheus on a laptop to test a change, you can tell reliably that a target is down because the scrape fails, and you can open the target's page in a browser to see what it exposes. The FAQ also says the difference is small and should not decide which system you choose. Push fits where a target cannot be reached or does not live long. The Pushgateway is meant for one case, the result of a batch job that belongs to no single machine. It becomes a single point of failure, it keeps every series until you delete it, and you lose the `up` metric for the job.
+
+Follow-up: "And OpenTelemetry?" OTLP pushes. In your lab the shop pushes to the Collector, and Prometheus pulls from the cluster's exporters.
+
+Taught in: [m02 step 9](../../m02/s09/), [m03 step 1](../../m03/s01/), [m03 step 5](../../m03/s05/).
+
+## Counter, gauge, histogram, summary
+
+Asked: "What metric types does Prometheus have, and which would you use for request duration?"
+
+A counter only goes up, and it starts again at zero when the process restarts; requests served and errors are counters. A gauge goes up and down, like memory in use or a queue's length. A histogram counts observations into buckets and also keeps their sum and count. A summary computes quantiles in the client. For request duration, choose a histogram: the server can compute any percentile from it, and you can add up the buckets of many pods. Quantiles from summaries cannot be added up across pods.
+
+Follow-up: "What is in a classic histogram on the scrape page?" Series named `_bucket` with an `le` label, one per upper bound, each counting everything at or below it, plus `_sum` and `_count`.
+
+Taught in: [m03 step 3](../../m03/s03/), [m03 step 4](../../m03/s04/), [m08 step 1](../../m08/s01/).
+
+## rate(), irate() and increase()
+
+Asked: "What is the difference between rate, irate and increase?"
+
+All three work on counters. `rate()` gives the average increase per second over the range, `increase()` gives the same change as a total for the range, and `irate()` uses only the last two samples. All three notice a counter reset and adjust for it, and `rate()` and `increase()` extrapolate to the edges of the range. Use `rate()` for alerts and most graphs; the documentation keeps `irate()` for graphs of fast-moving counters. When you aggregate, take the rate first and sum afterwards. Summing raw counters first hides the resets from `rate()`.
+
+Follow-up: "Write the error ratio of a service." <Query lang="promql">{`sum(rate(http_requests_total{code=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))`}</Query>
+
+Taught in: [m04 step 3](../../m04/s03/), [m04 step 4](../../m04/s04/), [m04 step 14](../../m04/s14/).
+
+## Percentiles from histograms
+
+Asked: "How do you get the 95th percentile latency, and how accurate is it?"
+
+With a classic histogram you take the rate of the buckets, sum it by `le`, and pass it to `histogram_quantile(0.95, ...)`. The result is an estimate: the function finds the bucket that holds the 95th percentile and interpolates inside it, so its error depends on how wide that bucket is. Buckets close to your SLO threshold make the estimate useful where it matters. Native histograms choose their buckets automatically at a high resolution and store them in one series. Prometheus supports them as stable since version 3.8, and scraping them still has to be switched on in the configuration.
+
+Follow-up: "Why not a summary?" Its quantiles are exact for one pod but cannot be combined into one percentile for the whole service.
+
+Taught in: [m04 step 7](../../m04/s07/), [m04 step 8](../../m04/s08/), [m11 step 12](../../m11/s12/).
+
+## Cardinality and naming
+
+Asked: "What is cardinality, and how have you kept it under control?"
+
+Every distinct set of label values is its own time series, and each series costs memory and storage. Labels multiply: 20 endpoints with 5 status codes on 50 pods are already 5,000 series. A label with unbounded values creates new series without end. The naming guide gives user IDs and email addresses as examples of what never belongs in a label, and a trace ID is another. Keep such values in logs or traces. Naming follows the same guide: one base unit in the name (seconds, bytes), `_total` on counters, and labels for the dimensions you aggregate by.
+
+Follow-up: "How do you find the expensive metrics?" Count series per metric name, or ask Mimir's cardinality API, then drop or relabel what nobody queries.
+
+Taught in: [m02 step 10](../../m02/s10/), [m03 step 10](../../m03/s10/), [m11 step 9](../../m11/s09/), [m17 step 9](../../m17/s09/).
+
+<InLab>
+Every query in these answers runs on your lab's Prometheus or Mimir. Before an interview, run the error ratio and a p95 for one shop service, and keep the numbers for your portfolio.
+</InLab>
+
+<Trap>
+A ratio of two raw counters is the most common whiteboard slip. Wrap each side in `rate()` over the same range first, then aggregate, then divide.
+</Trap>
+
+<Remember>
+Counter, rate first, sum second. Histograms for latency, because they add up across pods. Every new label value is a new series.
+</Remember>
+
+<Question id="q-m18-s04" answer="d">
+An interviewer asks why `sum(rate(x[5m]))` is right and `rate(sum(x)[5m:])` is wrong. What is the main reason?
+
+- A subquery over a sum cannot be evaluated by Prometheus at all
+
+  Prometheus does evaluate it. The result is just misleading.
+
+- The sum must come first so that the labels are dropped before the rate
+
+  It is the other way round. The order with the rate first is the correct one.
+
+- rate() needs a raw selector so that it can extrapolate to the window's edges
+
+  Extrapolation is not the issue here. A subquery also gives rate() a range.
+
+- After the sum, rate() can no longer see one pod's counter falling to zero
+
+  When one pod restarts, the sum drops a little, and rate() reads that as a reset of the sum.
+</Question>

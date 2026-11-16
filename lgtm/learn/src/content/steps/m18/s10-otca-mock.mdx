@@ -1,0 +1,92 @@
+---
+id: m18-s10
+title: "The OTCA mock exam: sit it, read it, act on it"
+kind: concept
+minutes: 110
+order: 10
+outcome: You can sit the site's OTCA mock exam under exam conditions, read its result per domain, and turn a score below 75% into a study plan.
+exam:
+  - cert: otca
+    domain: O2
+    competency: SDK Pipelines
+tags: [exam-otca]
+terms:
+  - term: Mock exam
+    def: A practice exam drawn like the real one, with the same number of questions, time and pass mark.
+  - term: Flag for review
+    def: A mark on a question you want to look at again before you submit.
+sources:
+  - title: OpenTelemetry Certified Associate (OTCA), Linux Foundation
+    url: https://training.linuxfoundation.org/certification/opentelemetry-certified-associate-otca/
+    checked: 2026-11-15
+  - title: "Candidate handbook: the multiple choice exam screen (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/lf-handbook2/exam-user-interface/examui-multiple-choice-exams
+    checked: 2026-11-15
+---
+
+<Problem>
+You have read every OpenTelemetry module and passed their quizzes. In a module quiz you knew which module the questions came from, you saw the explanation after each answer, and nobody timed you. The exam gives you none of that: 60 questions from four domains, mixed, against a clock.
+</Problem>
+
+<Idea>
+The site's OTCA mock exam is drawn like the real one: 60 questions split by the domain weights, 90 minutes, 75% to pass, and no feedback until you submit. Sit it once as if it were the exam. Its result per domain tells you where to study before the real one.
+</Idea>
+
+<Figures caption="Questions per domain in the OTCA mock exam" unit="questions">
+  <Stat label="O1 Fundamentals" value="11" amount={11} max={28} />
+  <Stat label="O2 API and SDK" value="28" amount={28} max={28} hot />
+  <Stat label="O3 Collector" value="15" amount={15} max={28} />
+  <Stat label="O4 Maintaining and debugging" value="6" amount={6} max={28} />
+</Figures>
+
+## What the mock exam is
+
+Open the [OTCA mock exam](../../../exam/otca/). Its first page shows the facts: 60 questions, 90 minutes, 45 right answers to pass, and the number of questions per domain. The site draws them from two places: the OTCA mock pool, written in the style of the exam, and the questions of the module quizzes that are mapped to an OTCA domain. Questions you have never answered come first, then the ones you got wrong last time, and the ones you got right last. So a second mock a week later is mostly new questions.
+
+While it runs there are no explanations and no celebrations. You can move between questions, flag one for review, and see which are answered. Your answers are saved as you go, so a reload or another device continues the same exam, and the clock keeps running. When the 90 minutes are over, the site submits the exam for you.
+
+## Sit it like the real exam
+
+Give it one sitting of 90 minutes with nothing else open, as the proctor would demand: no notes, no second screen, no phone, no lab. Do not pause; the real exam's timer does not pause either. Answer every question on the first pass, flag the ones you are not sure of, and use the time that is left on the flagged ones. A question left blank is a wrong answer.
+
+## Read the result
+
+After you submit, the result page shows your score as "N of 60 right" with the percentage, and a stamp: Passed or Not passed, against the pass mark of 75% (45 of 60). It says how many minutes you took, and whether time ran out. Below that, the result per domain gives a bar, a percentage and "right of asked" for O1 to O4. Further down, every question is shown again with your answer, the right one, and the explanation of each option. The mock's first page lists the scores of your last five tries.
+
+Read the domains before the total. A pass with 50% in one domain is luck in the other three. Then read the explanations of every question you got wrong and every one you guessed, even when the guess was right.
+
+## Below 75%, or close to it
+
+Take the weakest domain first, weighted by its share of the exam: a weak API and SDK domain costs more than a weak debugging domain. Go back to the steps of that domain's modules (step 9 lists them), then use the practice on the overview: the review queue brings back every question you answered wrongly in the mock after one day (a question left blank counts as wrong in the score, but does not enter the queue), and weak-spot practice drills the tags you miss most. Sit the mock again after a few days, when the readiness panel says ready for every domain. Book the real exam when a mock passes with some margin, for example 80% or more.
+
+<InLab>
+The mock exam needs no lab. The questions about the Collector and the SDK still read much easier if you have seen the lab's gateway configuration and the workshop service's SDK setup.
+</InLab>
+
+<Trap>
+Do not sit the mock in pieces with breaks, or with the course open in another tab. A score earned that way tells you nothing about the real 90 minutes.
+</Trap>
+
+<Remember>
+One sitting, 90 minutes, no help. Read the result per domain, then the explanations. Study the weakest heavy domain, let the review queue bring back what you answered wrongly, and sit it again before you book.
+</Remember>
+
+<Question id="q-m18-s10" answer="d">
+Your first OTCA mock ends at 47 of 60. Its result per domain shows O2 at 64%, the others between 82% and 100%. What is the best next step?
+
+- Book the real exam now, since 47 is above the pass mark of 45
+
+  Two questions of margin is little, and the API and SDK domain is not ready.
+
+- Sit the mock again tomorrow to see whether the score holds
+
+  The second mock draws mostly new questions, but you have not studied anything in between.
+
+- Study the modules of the domains that scored 82%, to bring them over 90%
+
+  Those domains are already strong. The weak domain weighs most.
+
+- Study the API and SDK, use the review queue, then sit the mock again
+
+  O2 is 46% of the exam and the weakest domain, so it gives the most points per hour of study.
+</Question>

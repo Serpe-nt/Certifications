@@ -1,0 +1,130 @@
+---
+id: m18-s08
+title: "Interview bank 6: incidents and running the stack"
+kind: concept
+minutes: 20
+order: 8
+outcome: You can answer, aloud and in under two minutes each, five questions on debugging an incident, postmortems, observability as code, tenants and limits, and monitoring the monitoring, and handle the follow-up.
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [capstone-interview]
+sources:
+  - title: Effective troubleshooting (Google SRE book)
+    url: https://sre.google/sre-book/effective-troubleshooting/
+    checked: 2026-11-15
+  - title: Introduction to exemplars (Grafana)
+    url: https://grafana.com/docs/grafana/latest/fundamentals/exemplars/
+    checked: 2026-11-15
+  - title: "Postmortem culture: learning from failure (Google SRE book)"
+    url: https://sre.google/sre-book/postmortem-culture/
+    checked: 2026-11-15
+  - title: As code and provisioning (Grafana)
+    url: https://grafana.com/docs/grafana/latest/as-code/
+    checked: 2026-11-15
+  - title: Authentication and authorization (Mimir)
+    url: https://grafana.com/docs/mimir/latest/manage/secure/authentication-and-authorization/
+    checked: 2026-11-15
+  - title: About runtime configuration (Mimir 3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/configure/about-runtime-configuration/
+    checked: 2026-11-15
+  - title: Monitor Grafana Mimir, dashboards and alerts (Mimir 3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/manage/monitor-grafana-mimir/installing-dashboards-and-alerts/
+    checked: 2026-11-15
+  - title: Loki meta-monitoring (Loki 3.7)
+    url: https://grafana.com/docs/loki/v3.7.x/operations/meta-monitoring/
+    checked: 2026-11-15
+---
+
+<Problem>
+The last part of an interview for a platform or SRE role is often a story: "Tell me about an incident you handled." or "Our Mimir fell over last month. What would you have done?" There is no single right fact to say. The interviewer listens for an order of moves, evidence, and what changed afterwards.
+</Problem>
+
+These questions test whether you can run the stack for other people.
+
+<Idea>
+Answer incident questions with a method and evidence: symptom, metric, trace, log, cause, and what you changed so that it does not happen again. Answer operations questions with what keeps the stack safe from its own users and from itself: code review for every change, limits per tenant, and a second, separate view that watches the stack.
+</Idea>
+
+## Debugging an incident
+
+Asked: "Walk me through how you would debug 'checkout is slow'."
+
+Start from the symptom and how bad it is: which share of users, since when. If many users are hurt, stop the damage first, then look for the cause. Use a metric to find when it started and which service and call are affected; compare with a quiet hour and ask what changed, since recent changes are a common cause. Open one trace of a slow request, from an exemplar on the latency graph or from a search, and find the span where the time goes. Read that trace's log lines for the error or the wait. Treat each finding as a guess and test it: is the same thing there on fast requests too? Stop when one piece of evidence explains the symptom.
+
+Follow-up: "What if the trace shows nothing slow in your services?" Look at the edges: a database, a queue, the network, or a span that is missing because one hop is not instrumented.
+
+Taught in: [m14 step 1](../../m14/s01/), [m14 step 2](../../m14/s02/), [m14 step 3](../../m14/s03/), [m13 step 12](../../m13/s12/).
+
+## Postmortems
+
+Asked: "What goes into a postmortem, and what makes a good one?"
+
+A summary, the impact, a timeline built from the data, the cause, the evidence that proves it, what went well and badly, and actions with an owner each. The SRE book asks for postmortems to be blameless: they look for the reasons in systems and processes and assume everyone acted in good faith with what they knew. Otherwise people stop reporting problems. A good postmortem is one someone else can check: every time and claim points to a query, a trace or a log line. Its actions make the next incident shorter or smaller, for example an alert that would have caught the problem earlier.
+
+Follow-up: "Who writes it?" Usually the person who led the incident, soon after it, with the others reviewing it while the data is still kept.
+
+Taught in: [m14 step 12](../../m14/s12/).
+
+## Dashboards and alerts as code
+
+Asked: "How do you manage dashboards and alert rules for twenty teams?"
+
+As code, in Git, with review and checks before anything reaches production. Grafana offers several ways: provisioning files read at startup, the Terraform provider, Git Sync, the Grafana Operator and the Foundation SDK for writing dashboards in a programming language. Rules live as files too, checked with `promtool` or `mimirtool` in CI and loaded into the ruler. The gains are the same as for application code: every change is reviewed, it can be repeated in another environment, and it can be rolled back. Secrets, such as a Grafana token, stay out of Git and come from a secret store.
+
+Follow-up: "Someone edits a provisioned dashboard in the screen. What happens?" Depending on the method, the change is refused, overwritten at the next sync, or shows as drift in the next plan; either way Git wins.
+
+Taught in: [m16 step 1](../../m16/s01/), [m16 step 5](../../m16/s05/), [m16 step 6](../../m16/s06/), [m16 step 9](../../m16/s09/).
+
+## Tenants and limits
+
+Asked: "One team's new service sends ten times the usual metrics, and everybody's queries slow down. How do you protect the shared stack?"
+
+Give each team its own tenant. In Mimir, Loki and Tempo the tenant is the `X-Scope-OrgID` header, and the store keeps each tenant's data apart. The header itself is not authentication: Mimir's documentation says to put an authenticating proxy in front that sets it. Then set limits per tenant: ingestion rate, active series, series per metric, query size. In Mimir they live in the runtime configuration, which it reloads every 10 seconds by default, without a restart. A tenant above its limit gets its excess writes refused, and the other tenants do not notice.
+
+Follow-up: "How do you choose the limits?" From each tenant's real use plus headroom, read from the store's own metrics, and raise them by request with a reason.
+
+Taught in: [m11 step 7](../../m11/s07/), [m11 step 8](../../m11/s08/), [m17 step 6](../../m17/s06/), [m17 step 7](../../m17/s07/).
+
+## Monitoring the monitoring
+
+Asked: "How do you know your monitoring works?"
+
+The stack exposes its own metrics and logs, and they must be collected by something that does not fail with it: a second small stack, or a hosted one. Mimir, Loki and Tempo ship dashboards and alerts for their own components, so you start with those. Watch the write path (refused and discarded samples, Kafka lag), the read path (query latency and errors), and the storage (volumes, object store errors). Add one alert that always fires, such as Watchdog, and alert when it stops arriving: silence from the stack then means trouble, not health.
+
+Follow-up: "Have you tested it?" Break parts on purpose in a drill: stop a broker, the object store or a node, and check what the dashboards and alerts showed.
+
+Taught in: [m17 step 10](../../m17/s10/), [m17 step 13](../../m17/s13/), [m15 step 1](../../m15/s01/).
+
+<InLab>
+Your lab gave you real stories for every topic here: the incidents of module m14, the game days of step 1, the drills of module m17, and the tenants `lab`, `prom` and your practice tenants. Use them in your answers instead of examples from a book.
+</InLab>
+
+<Trap>
+In an incident story, do not skip from "it was slow" to "I fixed it". The interviewer wants the middle: what you looked at, in which order, and what proved the cause.
+</Trap>
+
+<Remember>
+Incidents: method, evidence, what changed afterwards. Operations: Git for every change, a tenant and limits per team, and something outside the stack that watches it.
+</Remember>
+
+<Question id="q-m18-s08" answer="a">
+An interviewer asks why Mimir's tenant header alone does not protect one team's data from another team. What is the best answer?
+
+- Any client can set X-Scope-OrgID, so an authenticating proxy must set it
+
+  Mimir trusts the header it receives. Its documentation asks for a proxy that authenticates the caller and sets the tenant.
+
+- The header only applies to writes, so queries can read every tenant
+
+  Queries use the same header to choose the tenant. The problem is who may set it.
+
+- Tenants share one set of blocks, so their data is mixed in storage
+
+  Mimir keeps each tenant's data apart in the store. Separation is not the problem.
+
+- Limits are global, so one team can still use up the others' share
+
+  Limits can be set per tenant in the runtime configuration. That is about load, not about access.
+</Question>

@@ -1,0 +1,101 @@
+---
+id: m18-s11
+title: "The PCA exam: format, domains, booking and readiness"
+kind: concept
+minutes: 15
+order: 11
+outcome: You can say what the PCA exam is like, which modules of this course serve each of its domains, how it differs from OTCA, and when the site's readiness panel says to book it.
+exam:
+  - cert: pca
+    domain: P1
+    competency: Metrics
+tags: [exam-pca]
+sources:
+  - title: Prometheus Certified Associate (PCA), Linux Foundation
+    url: https://training.linuxfoundation.org/certification/prometheus-certified-associate/
+    checked: 2026-11-15
+  - title: PCA curriculum (PDF, cncf/curriculum)
+    url: https://raw.githubusercontent.com/cncf/curriculum/master/PCA_Curriculum.pdf
+    checked: 2026-11-15
+  - title: PCA README (cncf/curriculum, added 2025-11-28)
+    url: https://github.com/cncf/curriculum/blob/master/pca/README.md
+    checked: 2026-11-15
+  - title: "Multiple choice exams: important instructions (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/important-instructions-mc
+    checked: 2026-11-15
+  - title: "Multiple choice exams: frequently asked questions (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/faq-mc
+    checked: 2026-11-15
+  - title: "Candidate handbook: language (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/lf-handbook2/language
+    checked: 2026-11-15
+  - title: Exam terms of service, retake policy (Linux Foundation)
+    url: https://docs.linuxfoundation.org/tc-docs/certification/exam-terms-of-service
+    checked: 2026-11-15
+---
+
+<Problem>
+PromQL is the part of the course you used most, so PCA feels like the easier exam. Then you look at the curriculum and find exposition formats, push versus pull, Alertmanager and SLO vocabulary next to the queries. An exam on Prometheus asks about much more than queries.
+</Problem>
+
+<Idea>
+PCA has the same format as OTCA: 90 minutes online, proctored, multiple choice, 75% to pass. Its five domains reach from observability concepts to alerting, and PromQL is the largest with 28%. Booking and the rules of the day are the same as in step 9; only the content and the weights differ.
+</Idea>
+
+## The exam in numbers
+
+The exam page gives the format: online, proctored, multiple choice, 90 minutes, level beginner, no prerequisites. The exam alone costs 250 US dollars; 299 with the Linux Foundation's course LFS241 on Prometheus, and 495 with a year's THRIVE-ONE subscription. One retake is included, there are 12 months to schedule and take the exam, and a pass is valid for 2 years. The foundation's instructions for multiple-choice exams give 60 questions, its FAQ gives 75% to pass and results by email within 24 hours. The exam is in English. The way you book it and the rules on the day, from your ID to a clear desk, are the same as for OTCA in step 9.
+
+<Figures caption="PCA domains and weights, from the curriculum PDF and the exam page" unit="% of the exam">
+  <Stat label="Observability Concepts" value="18%" amount={18} max={28} />
+  <Stat label="Prometheus Fundamentals" value="20%" amount={20} max={28} />
+  <Stat label="PromQL" value="28%" amount={28} max={28} hot />
+  <Stat label="Instrumentation and Exporters" value="16%" amount={16} max={28} />
+  <Stat label="Alerting and Dashboarding" value="18%" amount={18} max={28} />
+</Figures>
+
+## What each domain asks, and where this course teaches it
+
+Observability Concepts (18%) covers metrics, logs and events, tracing and spans, push and pull, service discovery, and the basics of SLOs, SLAs and SLIs: module m02, with m03 for service discovery and m15 for SLOs. Prometheus Fundamentals (20%) covers the architecture, configuration and scraping, the limits of Prometheus, the data model and labels, and the exposition format: module m03, with m06 for scraping a cluster. PromQL (28%) covers selecting data, rates and derivatives, aggregation over time and over dimensions, binary operators, histograms and timestamp metrics: module m04, all of it. Instrumentation and Exporters (16%) covers client libraries, instrumentation, exporters, and structuring and naming metrics: module m03, with m06 for the cluster's exporters. Alerting and Dashboarding (18%) covers dashboarding basics, alerting rules, Alertmanager and when to alert: modules m05 and m15.
+
+The PCA curriculum PDF dates from 2022, before Prometheus 3. Native histograms, stable in Prometheus since 3.8, are not named in it; module m04 teaches them anyway, because you will meet them at work.
+
+On 2025-11-28 a README file was added to the curriculum repository with other weights: six domains, with PromQL at 30%, two domains at 20% (fundamentals and concepts, Prometheus architecture) and three at 10% (instrumentation, alerting and recording rules, ecosystem and integrations). The PDF and the exam page still give the five domains above, and nothing announces a change. This course and its mock exam follow the PDF and the exam page. Read both links in the sources before you book, in case the exam page has changed since.
+
+## Readiness and the order of the two exams
+
+The readiness panel on the overview works for PCA as it does for OTCA: per domain, the share of the questions you have met that you got right the last time, with a verdict once 10 are met (ready from 80%, close from 70%), and an overall figure weighted like the exam once every domain has one. Book when every domain says ready and the mock of the next step has passed with some margin.
+
+Which exam first is your choice. PCA leans on modules m02 to m06 and m15, OTCA on m02 and m07 to m09 and m14. If you finished the course in order, the Prometheus modules are further back: a review round before the PCA mock helps.
+
+<InLab>
+Every PromQL question on the exam can be tried on your lab's Prometheus or Mimir. When a mock question about a function surprises you, run the query before you read the explanation.
+</InLab>
+
+<Trap>
+Do not study only PromQL. It is the largest domain, and still less than a third of the exam; the four other domains decide the rest.
+</Trap>
+
+<Remember>
+Same format as OTCA: 60 questions, 90 minutes, 75%, one retake, valid 2 years. Five domains, PromQL the largest at 28%. Book when every domain is ready and a mock has passed.
+</Remember>
+
+<Question id="q-m18-s11" answer="a">
+You are ready in PromQL (90%) but close in the other four PCA domains (70 to 79%). A friend says PromQL is all that matters. What is the strongest reply?
+
+- PromQL is 28% of the exam, so the other domains carry 72% of the questions
+
+  Most questions come from the four other domains, and each is only close to ready.
+
+- PromQL questions are the hardest, so a high PromQL score makes up for the rest
+
+  The pass mark counts right answers, not difficulty. A strong domain cannot make up for four weak ones.
+
+- The exam has no PromQL questions any more since Prometheus 3
+
+  The curriculum and the exam page still list PromQL as the largest domain.
+
+- Each domain must reach 75% on its own to pass the exam
+
+  The pass mark of 75% applies to the whole exam, not to each domain.
+</Question>

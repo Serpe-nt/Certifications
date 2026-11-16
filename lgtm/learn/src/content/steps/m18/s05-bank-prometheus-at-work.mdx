@@ -1,0 +1,142 @@
+---
+id: m18-s05
+title: "Interview bank 3: Prometheus on Kubernetes, storage and Alertmanager"
+kind: concept
+minutes: 20
+order: 5
+outcome: You can answer, aloud and in under two minutes each, five questions on service discovery, the cluster's exporters, recording rules, long-term storage and Alertmanager, and handle the follow-up.
+exam:
+  - cert: pca
+    domain: P2
+    competency: Configuration and Scraping
+tags: [capstone-interview]
+sources:
+  - title: Prometheus configuration, kubernetes_sd_config and relabeling
+    url: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+    checked: 2026-11-15
+  - title: kube-state-metrics README
+    url: https://github.com/kubernetes/kube-state-metrics
+    checked: 2026-11-15
+  - title: Node exporter README
+    url: https://github.com/prometheus/node_exporter
+    checked: 2026-11-15
+  - title: Metrics for Kubernetes system components
+    url: https://kubernetes.io/docs/concepts/cluster-administration/system-metrics/
+    checked: 2026-11-15
+  - title: metrics-server README
+    url: https://github.com/kubernetes-sigs/metrics-server
+    checked: 2026-11-15
+  - title: Recording rules (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
+    checked: 2026-11-15
+  - title: Storage (Prometheus)
+    url: https://prometheus.io/docs/prometheus/latest/storage/
+    checked: 2026-11-15
+  - title: About the Grafana Mimir architecture (Mimir 3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/
+    checked: 2026-11-15
+  - title: Remote write tuning (Prometheus)
+    url: https://prometheus.io/docs/practices/remote_write/
+    checked: 2026-11-15
+  - title: Recording rules, naming (Prometheus)
+    url: https://prometheus.io/docs/practices/rules/
+    checked: 2026-11-15
+  - title: Alertmanager configuration
+    url: https://prometheus.io/docs/alerting/latest/configuration/
+    checked: 2026-11-15
+  - title: Alertmanager (Prometheus)
+    url: https://prometheus.io/docs/alerting/latest/alertmanager/
+    checked: 2026-11-15
+---
+
+<Problem>
+"We run Prometheus on Kubernetes. A new team deploys a service. How does it get monitored?" A short answer, "we add a scrape config", leads straight to the next question: who edits the file, how the pods are found, and what happens to the data after 15 days.
+</Problem>
+
+These questions come from people who run Prometheus for a team. They want to hear how it works when the cluster changes every hour.
+
+<Idea>
+On Kubernetes, Prometheus finds its targets through the API and rewrites their labels before each scrape. A few standard exporters cover the cluster itself. Recording rules make heavy queries cheap, a store such as Mimir keeps the data for longer, and Alertmanager decides who hears about an alert and how often.
+</Idea>
+
+## Service discovery and relabeling
+
+Asked: "How does Prometheus find pods on Kubernetes?"
+
+Kubernetes service discovery asks the API server for objects of one role: nodes, services, pods, endpoints, endpoint slices or ingresses. Each object becomes a target with metadata labels such as the namespace, the pod name and the pod's own labels. Relabeling then rewrites that label set before the scrape: keep only the targets you want, take the port from an annotation, copy the namespace into a label that stays. Metric relabeling is a separate step that runs on the samples, as the last step before they are stored. With the Prometheus Operator a team writes a ServiceMonitor or a PodMonitor next to its service, and the Operator turns it into scrape configuration.
+
+Follow-up: "How would you drop a noisy metric?" With `metric_relabel_configs` and `action: drop` on `__name__`, because it acts on samples after the scrape.
+
+Taught in: [m03 step 6](../../m03/s06/), [m03 step 7](../../m03/s07/), [m03 step 8](../../m03/s08/).
+
+## kube-state-metrics, cAdvisor and node exporter
+
+Asked: "Where do Kubernetes metrics come from?"
+
+Three sources, each for its own question. kube-state-metrics listens to the API server and turns the state of objects into metrics: desired and available replicas, pod phases, restarts. It reports what Kubernetes believes, not how much a container uses. The kubelet's built-in cAdvisor reports what each container uses, CPU, memory and network, at `/metrics/cadvisor`. Node exporter runs on every node and reports the hardware and the operating system: CPU time, memory, disks and file systems. A question such as "is this pod close to its memory limit?" needs two of them: usage from cAdvisor and the limit from kube-state-metrics.
+
+Follow-up: "And metrics-server?" It keeps only the latest values for `kubectl top` and the autoscalers; it is not a monitoring store.
+
+Taught in: [m06 step 2](../../m06/s02/), [m06 step 3](../../m06/s03/), [m06 step 4](../../m06/s04/), [m06 step 11](../../m06/s11/).
+
+## Recording rules
+
+Asked: "A dashboard takes 20 seconds to load. What do you do?"
+
+First find the slow query, then ask whether it runs the same heavy expression again and again, often a rate summed over thousands of series. A recording rule computes that expression at a fixed interval and stores the result as a new series, so the dashboard reads a few series instead of thousands. Name it with the convention `level:metric:operations`, for example `job:http_requests:rate5m`. SLO alerts use the same technique: one rule per window, and alerts that compare the precomputed ratios.
+
+Follow-up: "What is the cost?" One more series per result, evaluated all the time, and a new rule only has data from the moment it starts.
+
+Taught in: [m04 step 12](../../m04/s12/), [m15 step 11](../../m15/s11/), [m11 step 10](../../m11/s10/).
+
+## Long-term storage with remote write
+
+Asked: "How do you keep metrics for a year, or across many clusters?"
+
+Prometheus's local storage lives on one node. Its documentation says it is not clustered or replicated, so it is limited by that node's size and durability. Remote write sends every sample, as it is scraped, to a store that scales out. Mimir is one: its components scale on their own, it keeps blocks in object storage, and it separates tenants by the `X-Scope-OrgID` header. In this lab Prometheus keeps one day of data locally and remote-writes to Mimir, where Grafana queries the longer history.
+
+Follow-up: "What breaks if Mimir is down?" Local queries keep working, and remote write retries from Prometheus's write-ahead log without losing data, unless the store stays down for more than about two hours. After that the oldest samples are gone for the remote side.
+
+Taught in: [m03 step 12](../../m03/s12/), [m03 step 13](../../m03/s13/), [m11 step 1](../../m11/s01/), [m11 step 2](../../m11/s02/).
+
+## Alertmanager: routing, grouping, inhibition, silences
+
+Asked: "A whole cluster goes down and on-call gets 300 pages. How do you prevent that?"
+
+Prometheus evaluates the rules and sends the firing alerts to Alertmanager, which decides what to send to whom. Grouping puts alerts with the same labels, for example the same cluster and alert name, into one notification. Inhibition mutes alerts while another alert is firing: with "cluster unreachable" firing, the alerts of every service in that cluster stay quiet. A silence mutes matching alerts for a set time, for planned work. The routing tree sends each group to a receiver by its labels: the team's chat for warnings, the pager for critical ones.
+
+Follow-up: "Where do you set how often a firing group is sent again?" On the route, with `group_wait`, `group_interval` and `repeat_interval`.
+
+Taught in: [m15 step 2](../../m15/s02/), [m15 step 3](../../m15/s03/), [m15 step 4](../../m15/s04/), [m11 step 11](../../m11/s11/).
+
+<InLab>
+All five run in your lab: Prometheus in `prom` discovers its targets through ServiceMonitors, kube-state-metrics and node exporter run there, Prometheus scrapes cAdvisor from each kubelet, recording rules from module m15 ran in Mimir's ruler, and Prometheus remote-writes to Mimir as tenant `prom`.
+</InLab>
+
+<Trap>
+Do not say kube-state-metrics measures CPU or memory. It reports the objects' state from the API, such as requests and limits; the usage comes from cAdvisor.
+</Trap>
+
+<Remember>
+Discover through the API, rewrite labels before the scrape, three sources for three questions, record what is queried often, write remote for history, and let Alertmanager group and mute.
+</Remember>
+
+<Question id="q-m18-s05" answer="a">
+An interviewer asks which relabeling step can drop one metric name that a target exposes. Which is right?
+
+- metric_relabel_configs, because it acts on the scraped samples
+
+  Metric relabeling runs on each sample as the last step before it is stored, so it can match on __name__.
+
+- relabel_configs, because it runs before the scrape on every series
+
+  relabel_configs acts on the target's labels before the scrape. It sees targets, not the metrics they expose.
+
+- write_relabel_configs, because it decides what Prometheus stores locally
+
+  Write relabeling filters what is sent to remote storage. Prometheus still stores the sample locally.
+
+- alert_relabel_configs, because it filters the series rules are allowed to read
+
+  Alert relabeling changes alerts before they go to Alertmanager. It does not touch scraped samples.
+</Question>

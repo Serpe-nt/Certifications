@@ -1,0 +1,116 @@
+---
+id: m18-s13
+title: "What next: profiles, eBPF, load tests and Grafana Cloud"
+kind: concept
+minutes: 15
+order: 13
+outcome: You can say what Pyroscope, OpenTelemetry's eBPF instrumentation, k6 and Grafana Cloud's free tier each add to what you built, when a team needs each, and one first thing to try with each.
+exam:
+  - cert: none
+tags: [capstone-next]
+terms:
+  - term: Continuous profiling
+    def: Collecting profiles from running programs all the time, so you can compare any period with another.
+  - term: eBPF
+    def: A Linux kernel feature that runs small, checked programs inside the kernel to observe the system.
+  - term: Load test
+    def: A test that sends a planned amount of traffic to a system and measures how it behaves.
+sources:
+  - title: Introduction to Grafana Pyroscope
+    url: https://grafana.com/docs/pyroscope/latest/introduction/
+    checked: 2026-11-15
+  - title: What is profiling? (Pyroscope)
+    url: https://grafana.com/docs/pyroscope/latest/introduction/what-is-profiling/
+    checked: 2026-11-15
+  - title: OpenTelemetry eBPF Instrumentation (OBI)
+    url: https://opentelemetry.io/docs/zero-code/obi/
+    checked: 2026-11-15
+  - title: Grafana Beyla
+    url: https://grafana.com/docs/beyla/latest/
+    checked: 2026-11-15
+  - title: Grafana k6
+    url: https://grafana.com/docs/k6/latest/
+    checked: 2026-11-15
+  - title: Load test types (k6)
+    url: https://grafana.com/docs/k6/latest/testing-guides/test-types/
+    checked: 2026-11-15
+  - title: OpenTelemetry output (k6)
+    url: https://grafana.com/docs/k6/latest/results-output/real-time/opentelemetry/
+    checked: 2026-11-15
+  - title: Install k6
+    url: https://grafana.com/docs/k6/latest/set-up/install-k6/
+    checked: 2026-11-15
+  - title: Grafana Cloud pricing
+    url: https://grafana.com/pricing/
+    checked: 2026-11-15
+---
+
+<Problem>
+You have built and broken the whole stack, and two mock exams are behind you. A job ad asks for "profiling and eBPF experience", another for "performance testing with k6", a third for "Grafana Cloud". None of these is in your lab. Which one is worth an evening, and where do you start?
+</Problem>
+
+<Idea>
+Each of the four adds one thing to what you built. Pyroscope stores profiles, the signal that shows which function spends the CPU. eBPF instrumentation gives you traces and RED metrics without touching the code. k6 makes the traffic that tests your SLOs. Grafana Cloud runs the same stores for you. Try each against your lab before you put it on a CV.
+</Idea>
+
+<Compare caption="Three tools, three questions">
+  <Col title="Pyroscope">Which function is using the CPU or the memory?</Col>
+  <Col title="eBPF instrumentation">What do services do that nobody instrumented?</Col>
+  <Col title="k6">Does the system hold its SLO under the load we expect?</Col>
+</Compare>
+
+## Continuous profiling with Pyroscope
+
+A profile shows which parts of a program use the most resources, such as CPU time or memory, down to the function; module m02 introduced it as the fourth signal. Pyroscope is Grafana's store for profiles, built in the same style as Mimir, Loki and Tempo: multi-tenant, with its data in Grafana next to the other signals, and flame graphs to read it. A team needs it when a metric says a service uses too much CPU or memory and a trace says where the time goes, but neither says which code is to blame. Profiles come from SDKs in the application, or from Alloy, which can receive them and also collect them with eBPF.
+
+First thing to try: send profiles of the workshop service to a small Pyroscope and find its busiest function in a flame graph.
+
+## eBPF instrumentation: OBI and Beyla
+
+OpenTelemetry eBPF Instrumentation (OBI) watches applications from the Linux kernel and produces trace spans, RED metrics and the relationships between services, without changes to their code or configuration. It reads HTTP, gRPC, Kafka, several databases and more, for programs in many languages. Grafana Labs gave its Beyla project to OpenTelemetry in 2025, where it became OBI; Beyla is now Grafana's distribution of OBI with extras for its own stack. OBI runs on Linux on amd64 or arm64, with kernel 5.8 or later or a RHEL-family 4.18 kernel with the eBPF backports, needs BTF, and needs root or specific capabilities. A team needs it for services it cannot change or rebuild, or to see the whole cluster's traffic before anyone has instrumented anything.
+
+First thing to try: run OBI on your lab's nodes from a practice namespace, and compare its spans of the shop with the ones the shop's own SDKs send.
+
+## Load testing with k6
+
+k6 is Grafana's open-source tool for performance tests, which you write as scripts in JavaScript or TypeScript. Its guides name the usual test types: a smoke test that checks the script with almost no load, an average-load test, stress, spike and soak tests, and a breakpoint test that raises the load until the system fails. k6 can send its own results as OpenTelemetry metrics. A team needs it before a launch or a sale, and to prove that a change keeps the SLO: load and observability belong together, since the dashboards you built show what the load does.
+
+First thing to try: a smoke test against the lab's shop, then an average-load test while you watch the RED dashboard of checkout and the burn rate of your SLO. The `grafana/k6` container image needs no installation.
+
+## Grafana Cloud's free tier
+
+Grafana Cloud is Grafana's hosted service for metrics, logs, traces, profiles, k6 tests and Grafana itself; module m17 compared what that takes off a team and what it leaves. Its pricing page lists a free tier with no charges: all services with usage limits, for example 10,000 active metric series a month, 50 GB each of logs, traces and profiles a month, 500 virtual-user hours of k6 tests, 3 active Grafana users, and 14 days of retention. A team needs it when running the stores is not where it wants to spend its time.
+
+First thing to try: create a free stack, point a second exporter of your lab's Collector gateway at it, and compare the same query in both. Check the pricing page on the day, because the limits change.
+
+<InLab>
+Your lab already has what these tools plug into: OTLP endpoints, Alloy, a shop to load, and an SLO to defend. Each first thing to try fits in one practice namespace or one extra exporter, and each can be removed again.
+</InLab>
+
+<Trap>
+Do not list a tool on your CV after reading about it. Interviewers ask what you did with it; one small experiment against your own lab gives you an answer.
+</Trap>
+
+<Remember>
+Profiles for which code, eBPF for what nobody instrumented, load tests to prove an SLO, a managed stack for a team that would rather not run one. Try one at a time, on your lab.
+</Remember>
+
+<Question id="q-m18-s13" answer="b">
+A service's CPU use doubled after a release. Traces show the requests are slower, but every span is inside one large handler function. Which tool from this step helps most next?
+
+- k6, to repeat the load and confirm that the CPU use doubles
+
+  The load test would confirm the symptom, which you already know. It does not show which code spends the CPU.
+
+- Pyroscope, to see which functions inside the handler use the CPU
+
+  A profile shows CPU time per function, inside the span where the trace stops.
+
+- OBI, to add eBPF spans to the service without changing its code
+
+  OBI sees calls at the edges, such as HTTP and database requests. It does not split a function's own work.
+
+- Grafana Cloud, to keep the traces for longer than the lab's 48 hours
+
+  More retention keeps more of the same traces. It does not show what happens inside the handler.
+</Question>

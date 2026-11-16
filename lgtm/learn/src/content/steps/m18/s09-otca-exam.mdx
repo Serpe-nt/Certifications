@@ -1,0 +1,128 @@
+---
+id: m18-s09
+title: "The OTCA exam: format, domains, booking and readiness"
+kind: concept
+minutes: 20
+order: 9
+outcome: You can say what the OTCA exam is like, which modules of this course serve each of its domains, how to book and sit it online, and read the site's readiness panel to decide when to book.
+exam:
+  - cert: otca
+    domain: O1
+    competency: Analysis and Outcomes
+tags: [exam-otca]
+terms:
+  - term: Proctored exam
+    def: An exam watched live by a proctor, here through your webcam, microphone and screen.
+  - term: Domain
+    def: One part of an exam's curriculum, with a weight that sets its share of the questions.
+  - term: Readiness
+    def: The site's estimate per domain, from the share of questions you got right the last time.
+sources:
+  - title: OpenTelemetry Certified Associate (OTCA), Linux Foundation
+    url: https://training.linuxfoundation.org/certification/opentelemetry-certified-associate-otca/
+    checked: 2026-11-15
+  - title: OTCA curriculum (PDF, cncf/curriculum)
+    url: https://raw.githubusercontent.com/cncf/curriculum/master/OTCA_Curriculum.pdf
+    checked: 2026-11-15
+  - title: OTCA README (cncf/curriculum, added 2025-11-28)
+    url: https://github.com/cncf/curriculum/blob/master/otca/README.md
+    checked: 2026-11-15
+  - title: "Multiple choice exams: important instructions (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/important-instructions-mc
+    checked: 2026-11-15
+  - title: "Multiple choice exams: frequently asked questions (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/faq-mc
+    checked: 2026-11-15
+  - title: "Candidate handbook: scheduling, rescheduling, cancelling (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/lf-handbook2/scheduling-or-rescheduling-an-exam
+    checked: 2026-11-15
+  - title: "Candidate handbook: exam rules and policies (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/lf-handbook2/exam-rules-and-policies
+    checked: 2026-11-15
+  - title: "Candidate handbook: taking the exam (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/lf-handbook2/taking-the-exam
+    checked: 2026-11-15
+  - title: "Candidate handbook: the multiple choice exam screen (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/lf-handbook2/exam-user-interface/examui-multiple-choice-exams
+    checked: 2026-11-15
+  - title: "Candidate handbook: language (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/lf-handbook2/language
+    checked: 2026-11-15
+  - title: "Candidate handbook: identification and authentication (Linux Foundation)"
+    url: https://docs.linuxfoundation.org/tc-docs/certification/lf-handbook2/candidate-identification-and-authentication
+    checked: 2026-11-16
+  - title: Exam terms of service, retake policy (Linux Foundation)
+    url: https://docs.linuxfoundation.org/tc-docs/certification/exam-terms-of-service
+    checked: 2026-11-15
+---
+
+<Problem>
+You have finished the OpenTelemetry modules and want the certificate on your CV. The exam page says "Enroll Today", 250 dollars, 90 minutes. Before you pay you want to know what is on it, how the online proctoring works, and how to measure whether you are ready.
+</Problem>
+
+<Idea>
+OTCA is a 90-minute, online, proctored multiple-choice exam on four domains, and almost half of it is the OpenTelemetry API and SDK. Read the rules before you book, because most of them are about your room and your computer. Book when the site's readiness panel says ready for every domain, and after a mock exam has confirmed it.
+</Idea>
+
+## The exam in numbers
+
+The Linux Foundation's exam page gives the format: online, proctored, multiple choice, 90 minutes, level beginner, no prerequisites. It costs 250 US dollars for the exam alone, or 495 with a year's THRIVE-ONE subscription. The price includes one retake, and you have 12 months from the purchase to schedule and take the exam, the retake included. A pass is valid for 2 years. The page does not give the number of questions; the foundation's instructions for its multiple-choice exams give 60. Its FAQ gives the pass mark, 75%, and says results come by email within 24 hours. The exam is in English.
+
+<Figures caption="OTCA domains and weights, from the curriculum PDF and the exam page" unit="% of the exam">
+  <Stat label="Fundamentals of Observability" value="18%" amount={18} max={46} />
+  <Stat label="The OpenTelemetry API and SDK" value="46%" amount={46} max={46} hot />
+  <Stat label="The OpenTelemetry Collector" value="26%" amount={26} max={46} />
+  <Stat label="Maintaining and Debugging Observability Pipelines" value="10%" amount={10} max={46} />
+</Figures>
+
+## What each domain asks, and where this course teaches it
+
+Fundamentals of Observability (18%) covers telemetry data, semantic conventions, instrumentation, and analysis and outcomes: modules m02 and m14, with parts of m07 and m08. The OpenTelemetry API and SDK (46%) covers the data model, composability and extension, configuration, the three signals, SDK pipelines, context propagation and agents: modules m07 and m08, all of them. The OpenTelemetry Collector (26%) covers configuration, deployment, scaling, pipelines and transforming data: module m09. Maintaining and Debugging Observability Pipelines (10%) covers context propagation, debugging pipelines, error handling and schema management: the steps of m07, m08 and m09 on propagation, failures, debugging and schemas.
+
+On 2025-11-28 a README file was added to the curriculum repository with other weights: five domains of 20% each (fundamentals, instrumentation and SDKs, metrics, traces, logs and exporters). The PDF and the exam page still give the four domains above, and nothing announces a change. This course and its mock exam follow the PDF and the exam page. Read both links in the sources before you book, in case the exam page has changed since.
+
+## Booking and the day of the exam
+
+You buy the exam on its page with a Linux Foundation account. In the foundation's portal you then work through a checklist and press Schedule, which takes you to PSI, the proctoring company. There you pick a date and time up to 90 days ahead; the earliest slot is the next day. You can move or cancel the booking up to 24 hours before it starts. If you do not show up, the fee and the retake are lost.
+
+On the day, you start the check-in from the portal up to 30 minutes before your time, and you must start within 30 minutes after it. PSI's secure browser is installed then. A check-in specialist looks at your ID and asks you to show the room with the webcam. The ID must be an original, valid government ID with your photo and signature (or a biometric ID without one), and its name must match the name you gave the foundation exactly.
+
+The rules come from the handbook and the instructions. Your own computer, not a virtual machine and preferably not a work laptop, with one monitor, a webcam and a microphone. A quiet, private, well-lit room with the door closed, nobody else in it, and a clear desk: no notes, no phone, no smartwatch. You may not read questions aloud, leave the camera's view, or write anywhere outside the exam screen. Clear drinks in a label-free clear bottle or a clear glass are allowed. In the exam screen you can flag a question and come back to it from a review screen. The timer does not stop for a break or a lost connection.
+
+## Readiness: when to book
+
+The overview page of this site has a panel called Exam readiness. For each OTCA domain it counts the questions you have met so far, from the module quizzes, practice and review rounds, the mock exam and the questions at the end of each step, and the share of them you got right the last time. A domain needs 10 questions met before it gets a verdict: ready from 80%, close from 70%, otherwise not yet. Once every domain has a verdict, the panel gives an overall figure weighted like the exam. The panel is the site's own estimate, not the Linux Foundation's.
+
+A good rule: book when every domain says ready, then sit the mock exam of the next step under exam conditions. If the mock passes with some margin, keep the date.
+
+<InLab>
+The modules that serve OTCA are m02, m07, m08, m09 and m14. The site maps every step and question to one of the four domains, which is how the readiness panel and the mock exam know what to count.
+</InLab>
+
+<Trap>
+Do not book first and prepare afterwards. A booking cannot be moved in the last 24 hours, and a missed exam costs the fee and the retake.
+</Trap>
+
+<Remember>
+Four domains, almost half of it the API and SDK; 60 questions in 90 minutes, 75% to pass, one retake, valid 2 years. Book when the readiness panel says ready everywhere, and a mock has confirmed it.
+</Remember>
+
+<Question id="q-m18-s09" answer="b">
+Your readiness panel for OTCA shows Fundamentals 85%, API and SDK 68%, Collector 82%, Maintaining and Debugging 90%, each with more than 10 questions met. Where should your next week of study go?
+
+- Maintaining and Debugging, because one more push makes it perfect
+
+  It is already ready, and it weighs only 10% of the exam.
+
+- The API and SDK, because it is not yet ready and weighs 46% of the exam
+
+  It is the weakest domain and the heaviest one, so each point gained there counts most.
+
+- The Collector, because 82% is close to the line of 80%
+
+  It is ready already. A small domain margin matters less than a weak heavy domain.
+
+- All four equally, because the exam draws questions at random
+
+  The questions are drawn by the domain weights, so the heavy weak domain matters most.
+</Question>

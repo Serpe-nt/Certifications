@@ -1,0 +1,142 @@
+---
+id: m18-s07
+title: "Interview bank 5: OpenTelemetry and the Collector"
+kind: concept
+minutes: 20
+order: 7
+outcome: You can answer, aloud and in under two minutes each, five questions on instrumentation, semantic conventions, Collector patterns, Collector pipelines and Alloy, and handle the follow-up.
+exam:
+  - cert: otca
+    domain: O3
+    competency: Deployment
+tags: [capstone-interview]
+sources:
+  - title: Instrumentation (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/instrumentation/
+    checked: 2026-11-15
+  - title: Semantic conventions (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/semantic-conventions/
+    checked: 2026-11-15
+  - title: Resources (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/resources/
+    checked: 2026-11-15
+  - title: Agent deployment pattern (Collector)
+    url: https://opentelemetry.io/docs/collector/deploy/agent/
+    checked: 2026-11-15
+  - title: Gateway deployment pattern (Collector)
+    url: https://opentelemetry.io/docs/collector/deploy/gateway/
+    checked: 2026-11-15
+  - title: Collector configuration
+    url: https://opentelemetry.io/docs/collector/configuration/
+    checked: 2026-11-15
+  - title: Memory limiter processor README
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md
+    checked: 2026-11-15
+  - title: Batch processor README
+    url: https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/batchprocessor/README.md
+    checked: 2026-11-15
+  - title: Introduction to Grafana Alloy
+    url: https://grafana.com/docs/alloy/latest/introduction/
+    checked: 2026-11-15
+  - title: The convert command (Alloy 1.21)
+    url: https://grafana.com/docs/alloy/v1.21/reference/cli/convert/
+    checked: 2026-11-15
+  - title: Grafana Agent (end of life notice)
+    url: https://grafana.com/docs/agent/latest/
+    checked: 2026-11-15
+  - title: Promtail (end of life notice)
+    url: https://grafana.com/docs/loki/latest/send-data/promtail/
+    checked: 2026-11-15
+---
+
+<Problem>
+"We want OpenTelemetry in forty services by the end of the quarter. Where do you start?" You could talk about the SDK for ten minutes. The interviewer is asking about a plan: what you get for free, what costs code, and where the data goes before it reaches a store.
+</Problem>
+
+OpenTelemetry questions are getting more common in interviews, and they mix the code side with the operations side.
+
+<Idea>
+Instrument with zero-code agents first and add code where they cannot see. Name everything by the semantic conventions so that queries and dashboards work across services. Send it all through Collectors: an agent near each app, a gateway per cluster, with a memory limit first and batching last.
+</Idea>
+
+## Zero-code and code-based instrumentation
+
+Asked: "What is the difference between automatic and manual instrumentation? Which would you use?"
+
+Zero-code instrumentation, an agent or a startup hook, adds telemetry without changing the code. It sees the edges of the application: incoming HTTP requests, database calls, outgoing calls through instrumented libraries. Code-based instrumentation uses the OpenTelemetry API inside your code, so it can add spans for business steps and attributes such as an order's total. OpenTelemetry's own page calls the two complementary, and you can run both at once. For forty services: start with zero-code everywhere, check the traces end to end, then add manual spans where an incident showed a gap.
+
+Follow-up: "What does zero-code miss?" Anything inside your own functions: a slow loop, a cache decision, a business value.
+
+Taught in: [m02 step 12](../../m02/s12/), [m07 step 7](../../m07/s07/), [m07 step 8](../../m07/s08/), [m08 step 11](../../m08/s11/).
+
+## Semantic conventions and resources
+
+Asked: "What are semantic conventions, and why do they matter?"
+
+They are the common names OpenTelemetry defines for operations and data: `http.request.method`, `db.system.name`, `messaging.destination.name`, and many more. When every service uses them, one query or dashboard works for all services, whatever language or library produced the data. A resource describes the entity that produces the telemetry: `service.name`, its version, the pod, the node, the cluster. Resource attributes are set once per process and attached to every span, metric and log it sends. `service.name` is the one you must always set; without it, a service shows up as `unknown_service`.
+
+Follow-up: "What happens when a convention is renamed?" Old and new names exist side by side for a while; schema URLs and the Collector's transform processors bridge them.
+
+Taught in: [m02 step 11](../../m02/s11/), [m07 step 3](../../m07/s03/), [m07 step 12](../../m07/s12/), [m09 step 14](../../m09/s14/).
+
+## Agent and gateway Collectors
+
+Asked: "How would you deploy the Collector on Kubernetes?"
+
+In the agent pattern a Collector runs next to the applications, as a DaemonSet on every node or as a sidecar. It receives the local telemetry and can add Kubernetes attributes cheaply. In the gateway pattern applications or agents send to one OTLP endpoint per cluster or region, served by a Deployment of Collectors behind a load balancer. The gateway centralises credentials and policies such as filtering and sampling. The documentation also names its costs: one more thing to run that can fail, extra latency, more resources. Many teams use both: agents on the nodes, a gateway in front of the backends.
+
+Follow-up: "How do you scale a gateway that does tail sampling?" Two layers: a load-balancing exporter that routes by trace ID, and the sampling Collectors behind it.
+
+Taught in: [m09 step 1](../../m09/s01/), [m09 step 10](../../m09/s10/), [m09 step 11](../../m09/s11/).
+
+## The Collector's pipeline
+
+Asked: "Walk me through a Collector configuration."
+
+Components are declared in their own sections: receivers take data in, processors change it, exporters send it out, connectors join one pipeline to another, and extensions add things such as health checks. Nothing runs until the `service` section puts components into pipelines, one per signal. Order matters inside a pipeline. The memory limiter goes first: above its soft limit it refuses data with an error that the receivers are expected to retry, and they can push back on their own senders. The batch processor goes after the memory limiter and after any sampling, so that it batches only what is kept.
+
+Follow-up: "Data is missing at the backend. Where do you look?" The Collector's own metrics for refused, dropped and failed items, and the debug exporter for what passes a given point.
+
+Taught in: [m09 step 2](../../m09/s02/), [m09 step 5](../../m09/s05/), [m09 step 12](../../m09/s12/), [m09 step 13](../../m09/s13/).
+
+## Alloy, the Collector and what they replaced
+
+Asked: "We still run Promtail and Grafana Agent. What would you do?"
+
+Both are end of life: Grafana Agent since 1 November 2025, Promtail since 2 March 2026. Their successor is Grafana Alloy, which Grafana describes as a distribution of the OpenTelemetry Collector with Prometheus pipelines built in and native support for Loki. Alloy has a command that converts existing configurations, so the move starts with a converted file you review. Whether Alloy or the upstream Collector fits better depends on the team: Alloy for a Grafana-centred stack with Prometheus scraping and log pipelines, the Collector when you want the upstream project and its components only.
+
+Follow-up: "Can they run side by side?" Yes. In your lab the Collector gateway takes the shop's OTLP, Alloy collects pod logs and Kubernetes events, and the Prometheus stack scrapes the cluster's metrics.
+
+Taught in: [m10 step 1](../../m10/s01/), [m10 step 8](../../m10/s08/), [m10 step 12](../../m10/s12/).
+
+<InLab>
+The lab's gateway is a Collector Deployment in `otel` with a pipeline for each signal of the shop, and Alloy runs from the k8s-monitoring chart for pod logs and events. Read the gateway's configuration before an interview: it is a real example you can describe from memory.
+</InLab>
+
+<Trap>
+Do not say "zero-code instrumentation gives you everything". The follow-up is always what it misses, and the honest answer is your own code's logic.
+</Trap>
+
+<Remember>
+Zero-code first, code where it is blind. Semantic names everywhere, `service.name` always. Agents near the apps, a gateway in front of the stores, memory limiter first, batch after sampling.
+</Remember>
+
+<Question id="q-m18-s07" answer="c">
+In a Collector pipeline, where does the memory limiter belong, and why?
+
+- Last, so that it measures the memory after every other processor has run
+
+  At the end it would act only after the other processors had already used the memory.
+
+- After the batch processor, so that it limits whole batches at once
+
+  The batch processor's README puts batching after the memory limiter, not before it.
+
+- First, so that refused data goes back to the receivers to retry
+
+  The README recommends it as the first processor, so that back-pressure reaches the receivers.
+
+- In its own pipeline, joined to the others with a connector
+
+  The memory limiter is a processor inside each pipeline. A connector joins pipelines; it does not limit memory.
+</Question>

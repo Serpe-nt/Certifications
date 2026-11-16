@@ -1,0 +1,141 @@
+---
+id: m18-s02
+title: "The portfolio: your lab on one page"
+kind: concept
+minutes: 25
+order: 2
+outcome: You can write a one-page account of your lab that an interviewer reads in five minutes, with your versions and reasons, three numbers you measured, three incidents you solved, and what you would change.
+exam:
+  - cert: none
+tags: [capstone-portfolio]
+terms:
+  - term: Portfolio
+    def: A short written account of something you built, with evidence, that you show in an interview.
+  - term: Trade-off
+    def: What a choice cost you in exchange for what it gave you.
+sources:
+  - title: "Postmortem culture: learning from failure (Google SRE book)"
+    url: https://sre.google/sre-book/postmortem-culture/
+    checked: 2026-11-15
+  - title: Loki deployment modes
+    url: https://grafana.com/docs/loki/latest/get-started/deployment-modes/
+    checked: 2026-11-15
+  - title: About the ingest storage architecture (Mimir 3.2)
+    url: https://grafana.com/docs/mimir/v3.2.x/get-started/about-grafana-mimir-architecture/about-ingest-storage-architecture/
+    checked: 2026-11-15
+  - title: Tempo architecture
+    url: https://grafana.com/docs/tempo/latest/introduction/architecture/
+    checked: 2026-11-15
+---
+
+<Problem>
+An interviewer asks: "Tell me about something you built." You have spent weeks on a lab with five nodes, four stores and a shop. You start with the VMs, get lost in Helm values, and after ten minutes they still do not know what you can do. They had five minutes for this question.
+</Problem>
+
+A page written before the interview fixes that. You can send it ahead, share it on screen, or use it as your own notes.
+
+<Idea>
+A portfolio page tells an interviewer what you built, why you chose each part, and what you can prove with numbers and incidents. It fits on one page and reads in five minutes. Every number and every incident on it is one you saw yourself, so you can answer the next question about it.
+</Idea>
+
+<Layers caption="One page, top to bottom">
+  <Layer title="What you built">Two or three sentences and a small diagram.</Layer>
+  <Layer title="Versions and reasons">The parts you chose, and why each one.</Layer>
+  <Layer title="Three numbers" hot>Values you measured on your own lab.</Layer>
+  <Layer title="Three incidents">Symptom, how you found the cause, the fix.</Layer>
+  <Layer title="What you would change">The next step if this were for a team.</Layer>
+</Layers>
+
+## Start with what it is and why
+
+Open with two or three sentences: what runs, where, and what it is for. Then give a short list of the parts with their versions and one reason each. The reason matters more than the version. "Loki in microservices mode, because simple scalable mode is removed in Loki 4.0" shows that you read the release notes. "Loki 3.7.9" alone shows only that you copied a number. Name the trade-off where there is one: Kafka in front of Mimir costs memory and disk, and in return a heavy query no longer slows down the writes.
+
+## Numbers you measured yourself
+
+Choose three numbers that you read from your own lab and that say something about it: how full it is, how much traffic it has, how fast it answers. Give the query or the command next to each, so that you can explain where it came from. A number with its source invites a good follow-up question. A number from a vendor page invites a question you cannot answer.
+
+## Incidents told as evidence
+
+Each incident gets four short lines: the symptom, how you found the cause, the cause, and the fix. This is the incident note of module m14 at its smallest. The SRE book's rule for postmortems holds here too: write about the system, not about who made a mistake. The middle line is the one an interviewer reads most closely. "I opened the trace of a failed order and found the span with the error" shows a method. "I restarted things until it worked" does not.
+
+## End with what you would change
+
+Finish with two or three changes you would make if a team depended on this setup: what is missing, what is too small, what you would automate. It shows that you know the limits of what you built. Keep it honest: a home lab without high availability, backups or alert routing is still a good lab, as long as you know what it lacks.
+
+## One filled example
+
+Here is a page written from this lab's own history. Yours will have other numbers and other incidents. Write it in your own words, in a file such as `portfolio.md`, and keep it next to your lab.
+
+```markdown
+# Observability lab: Grafana LGTM with OpenTelemetry
+
+Kubernetes 1.35 on six Hyper-V VMs on one PC: a load balancer, one control-plane
+node and four workers with 8 GB each. A trimmed OpenTelemetry Demo shop sends
+traces, metrics and logs through an OpenTelemetry Collector gateway to Mimir, Loki
+and Tempo. Grafana reads all three. Everything is installed with Helm, one release
+per component, driven by Ansible.
+
+## Parts and reasons
+- Mimir 3.2.4 and Tempo 3.1.1 ingest through Kafka: in Mimir it keeps heavy reads
+  from slowing the writes, and Tempo's microservices mode requires it.
+- Loki 3.7.9 in microservices mode: simple scalable mode is removed in Loki 4.0.
+- Collector contrib 0.165.0 as the gateway for the shop's OTLP; Alloy 1.21.3
+  (k8s-monitoring chart) for pod logs and Kubernetes events.
+- Prometheus 3.13.5 (kube-prometheus-stack) remote-writes to Mimir.
+- Longhorn for volumes, RustFS as the S3-compatible object store.
+
+## Three numbers
+- Memory requested on the workers: 19.2 GiB of 30.6 GiB allocatable (63%).
+- Orders through checkout: about 200 an hour
+  (sum(increase(traces_spanmetrics_calls_total{...PlaceOrder}[1h]))).
+- product-catalog server p95: 6.5 ms on a healthy shop.
+
+## Three incidents
+1. Mimir and Tempo stored nothing for 18 hours. Found: Kafka's three volumes were
+   full. Cause: retention by time only, at about 640 MiB of writes an hour per
+   broker.
+   Fix: 10 GiB volumes, a size limit per partition, an alert at 85% full.
+2. About half the orders failed. Found: TraceQL for checkout spans with errors,
+   then the first failing span: payment, "Invalid token". Fix: the fault flag off;
+   no failed charge after that minute.
+3. The shop was ten times slower after a worker restart. Found: an alert on major
+   page faults for one node; product-catalog sat at its 20Mi memory limit and read
+   its own code back from disk. Fix: a 40Mi limit for it and for checkout.
+
+## What I would change
+- A second control-plane node, so that an upgrade does not stop the API.
+- Alert routing to a real channel; today every route ends at an empty receiver.
+- Scrape the stores themselves (meta-monitoring), to see dropped samples.
+```
+
+<InLab>
+The numbers of the example come from this lab: `lgtm/lab/docs/budget.md` for the memory, module m15 for the orders an hour, and the lab's open items for the latency. Your own numbers come from the queries and commands of the modules where you measured them.
+</InLab>
+
+<Trap>
+Do not list every component and every flag you set. An interviewer reads the first lines and the incidents. A long page reads like a copy of the documentation, and it hides the parts you understood.
+</Trap>
+
+<Remember>
+What you built, why, three numbers you measured, three incidents with the method that found them, and what you would change. One page, every line something you can talk about.
+</Remember>
+
+<Question id="q-m18-s02" answer="b">
+Which line from an incident on a portfolio page tells an interviewer most about your skill?
+
+- "Payment was down for four minutes on 14 November."
+
+  It gives the impact and a time, but nothing about how you worked.
+
+- "Found from a failed order's trace: the first error was in payment's charge."
+
+  It shows the method: from the symptom to one trace to the failing span, with evidence.
+
+- "Fixed by restarting the payment and checkout pods."
+
+  A restart may have hidden the cause. The line says nothing about how the cause was found.
+
+- "The lab runs Tempo 3.1.1 with Kafka between the distributors and the stores."
+
+  It describes the setup, not the incident. It belongs in the part about versions.
+</Question>

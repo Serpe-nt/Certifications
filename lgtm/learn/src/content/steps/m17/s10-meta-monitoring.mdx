@@ -61,7 +61,7 @@ A production setup therefore adds three things to what the lab has: a collector 
 
 ## The lab watches nothing of itself
 
-The lab's Prometheus scrapes Kubernetes and itself, not Mimir, Loki or Tempo, and their metrics reach no tenant. You read them straight from the pods through the API server, as in modules m11 to m13. That is enough to learn, and it shows the gap: on 2026-11-15 Mimir's ingesters had discarded about 160,000 samples, almost all of tenant `prom` since they started, mostly `new-value-for-timestamp`, and no graph or alert showed it. An earlier check traced such discards to the minute the VMs came back from a long pause; a counter cannot tell when it grew unless something scrapes it over time.
+The lab's Prometheus scrapes Kubernetes and itself, not Mimir, Loki or Tempo, and their metrics reach no tenant. You read them straight from the pods through the API server, as in modules m11 to m13. That is enough to learn, and it shows the gap: on 2026-11-15 Mimir's ingesters had discarded about 160,000 samples, almost all of tenant `prom` since they started (these counters begin at zero when an ingester restarts), mostly `new-value-for-timestamp`, and no graph or alert showed it. An earlier check traced such discards to the minute the VMs came back from a long pause; a counter cannot tell when it grew unless something scrapes it over time.
 
 <InLab>
 The Mimir release sets `metaMonitoring.serviceMonitor.enabled: false`; the Prometheus in `prom` has ServiceMonitors only for itself, its Alertmanager, the Kubernetes components, node exporter and kube-state-metrics.

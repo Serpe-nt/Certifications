@@ -18,6 +18,9 @@ terms:
   - term: Taint
     def: A mark on a node that keeps pods off it unless they tolerate the mark.
 sources:
+  - title: Version skew policy (Kubernetes)
+    url: https://kubernetes.io/releases/version-skew-policy/
+    checked: 2026-11-15
   - title: Static Pods (Kubernetes)
     url: https://kubernetes.io/docs/concepts/workloads/pods/static-pods/
     checked: 2026-11-12
@@ -45,7 +48,7 @@ A few read-only kubectl commands answer all of it. They show where kubectl conne
 
 ## Where kubectl connects
 
-`kubectl cluster-info` prints the API address. In this lab it must be `https://cluster-endpoint.k8s.local:6443`, the name that points at `lb`. If it shows master1's own address, you are not testing the load balancer. `kubectl version` prints the client and the server version; both should be 1.35.
+`kubectl cluster-info` prints the API address. In this lab it must be `https://cluster-endpoint.k8s.local:6443`, the name that points at `lb`. If it shows master1's own address, you are not testing the load balancer. `kubectl version` prints the client and the server version. The server's starts with v1.35. The client is whatever kubectl your WSL has, and it may be newer. kubectl is supported within one minor version of the API server, so with a client two or more versions apart kubectl prints a warning that the version difference exceeds the supported skew. Most commands still work; module m01 brings a kubectl pinned to the lab's version.
 
 ## Five nodes, two roles
 
@@ -82,7 +85,7 @@ One endpoint through `lb`, five nodes `Ready`, and one of each control-plane pod
 2. Check the endpoint and the versions:
    <Cmd>{`kubectl cluster-info
 kubectl version`}</Cmd>
-   The control plane runs at `https://cluster-endpoint.k8s.local:6443`, and both versions start with v1.35.
+   The control plane runs at `https://cluster-endpoint.k8s.local:6443`, and the server version starts with v1.35. A newer client may add a warning about version skew.
 3. List the nodes:
    <Cmd>{`kubectl get nodes -o wide`}</Cmd>
 4. See the taint on master1:

@@ -1,0 +1,127 @@
+---
+id: m18-s06
+title: "Interview bank 4: logs and traces"
+kind: concept
+minutes: 20
+order: 6
+outcome: You can answer, aloud and in under two minutes each, five questions on Loki labels, slow log queries, sampling, context propagation and metrics from traces, and handle the follow-up.
+exam:
+  - cert: otca
+    domain: O2
+    competency: Context Propagation
+tags: [capstone-interview]
+sources:
+  - title: Loki label best practices
+    url: https://grafana.com/docs/loki/latest/get-started/labels/bp-labels/
+    checked: 2026-11-15
+  - title: Loki structured metadata
+    url: https://grafana.com/docs/loki/latest/get-started/labels/structured-metadata/
+    checked: 2026-11-15
+  - title: Query best practices (Loki)
+    url: https://grafana.com/docs/loki/latest/query/bp-query/
+    checked: 2026-11-15
+  - title: Sampling (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/sampling/
+    checked: 2026-11-15
+  - title: Context propagation (OpenTelemetry)
+    url: https://opentelemetry.io/docs/concepts/context-propagation/
+    checked: 2026-11-15
+  - title: Trace Context (W3C Recommendation)
+    url: https://www.w3.org/TR/trace-context/
+    checked: 2026-11-15
+  - title: Metrics-generator (Tempo)
+    url: https://grafana.com/docs/tempo/latest/metrics-from-traces/metrics-generator/
+    checked: 2026-11-15
+---
+
+<Problem>
+"Our Loki is slow and expensive. Someone added the request ID as a label last year. What would you do?" You know the label is the problem. The interviewer wants to hear why a label costs more than a field, and what to do with the request ID instead.
+</Problem>
+
+Logs and traces are where most teams have recent pain: a Loki that grew without a plan, traces that stop at one service, sampling that drops the trace you needed.
+
+<Idea>
+Loki indexes only labels, so labels must be few and bounded, and everything else stays in the line or in structured metadata. A trace exists only if every service passes its context on, and you decide how many traces to keep, early or late. From the traces you keep, Tempo can also derive metrics.
+</Idea>
+
+## Labels and structured metadata in Loki
+
+Asked: "What should be a label in Loki, and what should not?"
+
+Loki indexes the labels of a stream and not the text of the lines, so every distinct set of labels is its own stream with its own chunks. Good labels are static and bounded: cluster, namespace, application, environment. The label guide says that too many label values make too many streams, a large index and small chunks, which slows queries down. A value that differs per request, such as a request ID or a trace ID, stays in the log line or goes into structured metadata. Structured metadata is attached to each line without being indexed, and you can still filter on it in a query.
+
+Follow-up: "And the request ID they made a label?" Move it to structured metadata in the collector's pipeline. The old streams expire with the retention.
+
+Taught in: [m12 step 1](../../m12/s01/), [m12 step 2](../../m12/s02/), [m12 step 3](../../m12/s03/), [m12 step 12](../../m12/s12/).
+
+## A slow log query
+
+Asked: "A LogQL query times out. How do you make it faster?"
+
+Loki reads the query from left to right, so throw away as much as possible early. First narrow the time range, because Loki reads every chunk of the selected streams in that range. Then choose the most specific stream selector you can. Next, put line filters such as `|=` and `!=` before any parser, and prefer plain strings to regular expressions; parse with `json` or `logfmt` only the lines that are left. If the query is still too wide, the limits stop it: in your lab Loki refuses a query that would read more than 500 MiB.
+
+Follow-up: "How do you know what a query will read?" Every answer carries statistics with the bytes and lines processed, and Explore shows an estimate from the index before you run the query.
+
+Taught in: [m12 step 4](../../m12/s04/), [m12 step 5](../../m12/s05/), [m12 step 15](../../m12/s15/).
+
+## Head and tail sampling
+
+Asked: "You cannot keep every trace. How do you decide which ones to keep?"
+
+Head sampling decides at the start of a trace, usually from the trace ID and a ratio, so every service makes the same decision and you keep whole traces. It is simple and cheap, and it cannot know whether the trace will contain an error. Tail sampling decides after it has seen all or most of a trace's spans, so it can keep every trace with an error or every slow one. The cost is state: all spans of a trace must reach the same collector, which holds them in memory until it decides. On the Collector that means a load-balancing exporter in front, which routes by trace ID, and a tail sampling processor behind it.
+
+Follow-up: "What do your span metrics count after sampling?" Only what they see. Compute them before the sampler, or scale them by the ratio.
+
+Taught in: [m07 step 10](../../m07/s10/), [m09 step 9](../../m09/s09/), [m13 step 9](../../m13/s09/).
+
+## Context propagation
+
+Asked: "How does a trace follow a request across services?"
+
+Each service holds the current trace context: the trace ID, its own span's ID and the sampling flags. When it calls another service it injects that context into the request, and the receiver extracts it and starts its child span inside the same trace. Over HTTP and gRPC the standard carrier is the W3C `traceparent` header. Baggage is a separate header for key-value pairs that you want to pass along, such as a tenant. Through a queue the context travels in the message headers, so the consumer's span can join or link to the producer's trace.
+
+Follow-up: "A trace stops at one service. Why?" That service does not propagate: an uninstrumented client, a proxy that drops headers, or two services that use different propagators.
+
+Taught in: [m07 step 6](../../m07/s06/), [m07 step 9](../../m07/s09/), [m02 step 4](../../m02/s04/).
+
+## Metrics from traces
+
+Asked: "What are span metrics, and why would you want them?"
+
+A span metrics processor counts spans and records their durations for every combination of chosen dimensions, such as service, span name, span kind and status. That gives RED metrics for every operation without changing any code, and exemplars can point from a latency bucket back to a trace. A service graph processor finds pairs of client and server spans and builds metrics for each edge between two services, which Grafana draws as a map. In your lab, Tempo's metrics-generator writes both into Mimir, and the RED dashboards read `traces_spanmetrics_latency_bucket`.
+
+Follow-up: "What is the risk?" Cardinality. Every dimension you add multiplies the series, so leave out anything with unbounded values.
+
+Taught in: [m09 step 8](../../m09/s08/), [m13 step 8](../../m13/s08/), [m14 step 5](../../m14/s05/).
+
+<InLab>
+Each of these has a place in your lab: Loki's labels and structured metadata in module m12, the 500 MiB query limit, the gateway's pipelines, and the span metrics behind the dashboard Shop / checkout (RED).
+</InLab>
+
+<Trap>
+Do not answer the sampling question with "keep 10% of everything". Interviewers ask next how you would keep the trace of a failed payment, and a fixed ratio at the head cannot promise that.
+</Trap>
+
+<Remember>
+In Loki, labels are for finding streams, not for values that change with every request. A trace holds together only through propagation. Sampling at the head is cheap, at the tail it is smart and stateful.
+</Remember>
+
+<Question id="q-m18-s06" answer="b">
+A team wants to keep every trace that contains an error and 5% of the others. What do they need?
+
+- A parent-based head sampler at 5% in every service's SDK
+
+  A head sampler decides before any error has happened, so it cannot promise to keep every trace with one.
+
+- Tail sampling behind a load-balancing exporter keyed on trace ID
+
+  Tail sampling sees the finished trace, and routing by trace ID brings all its spans to one collector.
+
+- A ratio sampler at 5% in the gateway, plus span metrics on the result
+
+  A ratio in the gateway still decides without looking at the spans' status.
+
+- Baggage that marks a request as failed, read by each service's sampler
+
+  Baggage travels downstream with the request. It cannot reach spans that were already started or report back to the head.
+</Question>
