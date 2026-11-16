@@ -447,12 +447,11 @@ function bdDraw() {
     : { figure: "orbit", width: w, height: h, seed: "overview", at: [0.82, 0.3], scale: 0.62, grid: 64, glow: false });
 }
 addEventListener("resize", () => { clearTimeout(bdT); bdT = setTimeout(bdDraw, 150); });
-// where you are, in the rail: the overview, or the day and its card
+// The views as the nav block's tabs: the overview, and the day (the one on screen, or the one the next step is on)
 function railNav() {
-  const d = view.day && dayOf(view.day);
-  document.getElementById("rl-nav").innerHTML = d
-    ? `<a href="#" data-home-link>Overview</a><span aria-hidden="true">/</span><span aria-current="page">Day ${pad2(d.day)}</span>`
-    : `<span aria-current="page">Overview</span>`;
+  const d = view.day && dayOf(view.day), w = d || (nextStep() || {}).d || DAYS[DAYS.length - 1];
+  setHTML(document.getElementById("rl-nav"), `<a href="#" data-home-link${d ? "" : ' aria-current="page"'}>Overview</a>` +
+    `<a href="#${w.id}"${d ? ' aria-current="page"' : ""}>Day ${pad2(w.day)}</a>`);
 }
 document.getElementById("timer").addEventListener("click", e => { if (e.target.closest("[data-home-link]")) { e.preventDefault(); setView("", "", true); } });
 function route() {
@@ -493,35 +492,49 @@ const lastHTML = new WeakMap();
 const setHTML = (el, h) => { if (lastHTML.get(el) !== h) { lastHTML.set(el, h); el.innerHTML = h; } };
 // Datum numbers: zero-padded counts ("03 / 22")
 const pad2 = n => String(n).padStart(2, "0");
-// A section header: the index chip, a mono title, a rule, and one real value on the right
-const secHead = (idx, title, val = "", id = "") => `<div class="dm-section"${id ? ` id="${id}"` : ""}><span class="dm-section__idx">/${pad2(idx)}</span><h2 class="dm-section__title">${title}</h2><span class="dm-section__rule"></span>${val ? `<span class="dm-data">${val}</span>` : ""}</div>`;
-// The plan as a lattice: one cell per day, filled by its state (done ink, today signal, quiz to pass alert, open outline)
+// Datum icons (16 px, straight segments, square caps) the overview and the header use
+const ICON_OUT = `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 12.5L12 4M5.5 3.5h7v7"/></svg>`;
+const ICON_CHECK = `<svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8.5l4 4 8-9"/></svg>`;
+const shortDate = d => `${d.getDate()} ${MON[d.getMonth()]}`;
+// The days as a mosaic: a row per week (its name, its theme, a train of its days), then one cell per day. Today's cell
+// holds the view's one signal field. A row that is short of a full width is closed by hatched cells (empty, Datum).
 function renderMap(ti) {
-  // a week is a row of eight cells: a shorter week is padded with empty cells, so the lattice has no ragged edge
-  const pad = n => "<span class=\"dm-cell dm-cell--empty\" aria-hidden=\"true\">+</span>".repeat((8 - n % 8) % 8);
-  let h = "", open = false, wk = 0, n = 0;
+  const hatch = n => `<span class="dm-cell dm-hatch dt-x" aria-hidden="true"></span>`.repeat((8 - n % 8) % 8);
+  let h = "", days = [], wk = null;
+  const flush = () => {
+    if (!wk) return;
+    const m = /^(Week \d+)\s*[—–-]\s*(.+)$/.exec(wk), done = days.filter(dayDone).length;
+    h += `<div class="dm-cell dt-wk"><h3 class="dm-label dm-label--br">${esc(m ? m[1] : wk)}</h3><span class="dt-wt">${m ? esc(m[2]) : ""}</span>` +
+      `<span class="dt-wn dm-data">${done} of ${days.length} days done</span>` +
+      `<span class="dm-train" role="img" aria-label="${done} of ${days.length} days done">${days.map(d => `<i class="${dayDone(d) ? "is-done" : d.day === ti ? "is-now" : ""}"></i>`).join("")}</span></div>`;
+    for (const d of days) h += tileHTML(d, ti);
+    h += hatch(days.length);
+  };
   for (const d of PLAN) {
-    if (d.week) {
-      const m = /^(Week \d+)\s*[—–-]\s*(.+)$/.exec(d.week);
-      h += `${open ? pad(n) + "</div>" : ""}<div class="week">${secHead(++wk, esc(m ? m[1] : d.week), m ? esc(m[2]) : "")}</div><div class="tiles">`;
-      open = true; n = 0; continue;
-    }
-    n++;
-    const ids = dIds(d), k = ids.filter(done).length, complete = dayDone(d), quizDue = k === ids.length && !complete;
-    const st = complete ? "✓ Done" : quizDue ? "Quiz to pass" : k ? `${k} of ${ids.length} steps, ~${fmtH(dayLeft(d))} left` : `${plural(ids.length, "step")}, ~${fmtH(dayPlanned(d))}`;
-    const cls = complete ? " is-done" : d.day === ti ? " is-now" : quizDue ? " is-alert" : "";
-    h += `<a class="dt dm-cell${cls}" href="#${d.id}" data-day="${d.id}" data-done="${complete ? 1 : 0}" data-quiz="${quizDue ? 1 : 0}" data-today="${d.day === ti ? 1 : 0}"${d.day === ti ? ' aria-current="date"' : ""}>` +
-      `<span class="dt-top"><span class="dt-n dm-cell__code"><small>Day</small>${pad2(d.day)}</span>${d.day === ti ? `<span class="today-badge">Today</span>` : ""}</span>` +
-      `<span><span class="dt-t dm-cell__name">${d.title}</span><span class="dt-d dm-cell__val">${fmtD(dayDate(d.day))}</span><span class="dt-s dm-cell__val">${st}</span>` +
-      `<span class="pbar"><span style="width:${pct(k + (hasQuiz(d) && quizOk(d) ? 1 : 0), stepIds(d).length)}%"></span></span></span></a>`;
+    if (d.week) { flush(); wk = d.week; days = []; continue; }
+    if (wk === null) wk = "";
+    days.push(d);
   }
-  setHTML(document.getElementById("map"), h + (open ? pad(n) + "</div>" : ""));
+  flush();
+  setHTML(document.getElementById("map"), h);
+}
+function tileHTML(d, ti) {
+  const ids = dIds(d), k = ids.filter(done).length, complete = dayDone(d), quizDue = k === ids.length && !complete, now = d.day === ti;
+  const st = complete ? `Done${S.dayDone[d.id] ? " " + esc(shortDate(parseDate(S.dayDone[d.id]))) : ""}` : quizDue ? "Quiz to pass" : k ? `${k} of ${ids.length} steps, ~${fmtH(dayLeft(d))} left` : `${plural(ids.length, "step")}, ~${fmtH(dayPlanned(d))}`;
+  const p = pct(k + (hasQuiz(d) && quizOk(d) ? 1 : 0), stepIds(d).length);
+  const body = `<span class="dt-top"><span class="dt-n">${pad2(d.day)}</span>` +
+    (now ? `<span class="dt-k">Today</span>` : complete ? `<span class="dt-ok">${ICON_CHECK}</span>` : quizDue ? `<span class="dm-lamp dm-lamp--s" aria-hidden="true"></span>` : "") + `</span>` +
+    `<span class="dt-t">${d.title}</span><span class="dt-d">${esc(shortDate(dayDate(d.day)))}</span><span class="dt-s">${st}</span>` +
+    (complete ? "" : `<span class="dm-bar dm-bar--thin dt-b" aria-hidden="true"><span class="dm-bar__fill" style="--value:${p}"></span></span>`);
+  const attrs = `href="#${d.id}" data-day="${d.id}" data-done="${complete ? 1 : 0}" data-quiz="${quizDue ? 1 : 0}" data-today="${now ? 1 : 0}" aria-label="Day ${d.day}, ${esc(strip(d.title))}: ${st}"${now ? ' aria-current="date"' : ""}`;
+  return now ? `<a class="dt dm-cell dm-cell--flush is-now" ${attrs}><span class="dm-field-signal dt-f">${body}</span></a>`
+    : `<a class="dt dm-cell${complete ? " is-done" : quizDue ? " is-quiz" : ""}" ${attrs}>${body}</a>`;
 }
 function renderLinks() {
   const nav = document.getElementById("links");
   // every link of the plan that is not marked hidden, in the plan's order; the console link becomes your own sign-in page once you set it
   const items = Object.keys(LINKS).filter(k => !LINKS[k].hidden).map(k => (k === "console" && S.settings.portal ? ["AWS sign-in", S.settings.portal] : [LINKS[k].label, LINKS[k].url]));
-  nav.innerHTML = items.map(([l, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(l)} ↗</a>`).join("");
+  nav.innerHTML = `<ul class="dm-list">${items.filter(([, u]) => /^https?:\/\//i.test(u)).map(([l, u]) => `<li><a class="dm-row lk" href="${esc(u)}" target="_blank" rel="noopener"><span class="dm-row__name">${esc(l)}</span><span class="dm-row__val">${esc(u.replace(/^https?:\/\/(www\.)?/i, "").split("/")[0])}</span><span class="dm-row__state">${ICON_OUT}</span></a></li>`).join("")}</ul>`;
 }
 
 // ---------- status / refresh ----------
@@ -533,22 +546,39 @@ function streak() {
   while (dates.has(iso(d))) { n++; d.setDate(d.getDate() - 1); }
   return n;
 }
+// The numbers: six quiet figures in the plate face, each over what it counts; the level opens the badges
 function renderStats(dn, total) {
   const mins = Object.values(S.log).reduce((a, b) => a + b, 0), sk = streak();
   let seen = 0, right = 0;
   for (const id in S.qs) if (QBY[id]) { seen += S.qs[id].seen; right += S.qs[id].right; }
-  // label, value, its reference point; the lead tile carries an ink bar, the rest are quiet
   const cells = [
-    ["Steps", `${pad2(dn)}<small>/ ${total}</small>`, "Steps complete in the plan"],
-    ["Days", `${pad2(DAYS.filter(dayDone).length)}<small>/ ${DAYS.length}</small>`, "Days done, quiz passed"],
-    ["Focus time", mins >= 1 ? fmtH(mins) : "—", mins >= 1 ? "Logged by the focus timer" : "No focus block logged yet"],
-    ["Answers right", seen ? `${pct(right, seen)}<small>% of ${seen}</small>` : "—", seen ? "Every quiz answer so far" : "No quiz answered yet"],
-    ["Streak", sk ? `${pad2(sk)}<small>${sk === 1 ? "day" : "days"}</small>` : "—", sk ? "Days done in a row" : "Finish a day to start one"]
+    ["Steps", `${pad2(dn)}<small>/ ${total}</small>`, "Complete in the plan"],
+    ["Days", `${pad2(DAYS.filter(dayDone).length)}<small>/ ${DAYS.length}</small>`, "Done, quiz passed"],
+    ["Focus time", mins >= 1 ? fmtH(mins) : "–", mins >= 1 ? "Logged by the timer" : "No block logged yet"],
+    ["Answers right", seen ? `${pct(right, seen)}<small>% of ${seen}</small>` : "–", seen ? "Every quiz answer" : "No answer yet"],
+    ["Streak", sk ? `${pad2(sk)}<small>${sk === 1 ? "day" : "days"}</small>` : "–", sk ? "Days done in a row" : "Finish a day to start"]
   ];
   const L = levelOf(xpTotal());
-  setHTML(document.getElementById("stats"), cells.map(([k, v, c], i) => `<div class="st dm-stat${i ? " dm-stat--quiet" : ""}"><span class="tb-k">${k}</span><b class="dm-stat__num">${v}</b><span class="dm-stat__cap">${c}</span></div>`).join("") +
-    `<button type="button" class="st st-lv dm-stat dm-stat--quiet" data-sheet="badges" title="${L.x} XP, ${L.to - L.x} to level ${L.n + 1}. Open badges and level."><span class="tb-k">Level</span>` +
-    `<b class="dm-stat__num">${L.n} <small>${rankOf(L.n)}</small></b><span class="xpbar"><span style="width:${L.pct}%"></span></span><span class="dm-stat__cap">${L.to - L.x} XP to level ${L.n + 1}</span></button>`);
+  setHTML(document.getElementById("stats"), cells.map(([k, v, c]) => `<div class="st"><span class="st-k">${k}</span><b class="st-n">${v}</b><span class="st-c">${c}</span></div>`).join("") +
+    `<button type="button" class="st st-lv" data-sheet="badges" title="${L.x} XP, ${L.to - L.x} to level ${L.n + 1}. Open badges and level."><span class="st-k">Level</span>` +
+    `<b class="st-n">${pad2(L.n)}<small>${rankOf(L.n)}</small></b><span class="dm-bar dm-bar--thin" aria-hidden="true"><span class="dm-bar__fill" style="--value:${L.pct}"></span></span><span class="st-c">${L.to - L.x} XP to level ${L.n + 1}</span></button>`);
+}
+// Where you stand: the share of the plan done as the cell's one big figure, the calendar and the exam beside it, the
+// plan as a gauge of slanted cells, and the days as a train. Also the strips: under the header (where you are) and
+// between the hero and the mosaic (the sheet's line).
+function renderStand(p, ti) {
+  const examD = examDate(), dd = DAYS.filter(dayDone).length;
+  const cal = ti < 1 ? "Before Day 1" : ti > LAST ? `Past Day ${LAST}` : `Day ${ti} of ${LAST}`;
+  setHTML(document.getElementById("stand"), `<div class="dm-stat"><div class="dm-stat__row"><span class="dm-stat__num">${p}</span><span class="dm-stat__unit">%</span>` +
+    `<span class="dm-stat__side">Done<br>${esc(cal)}<br>${S.settings.exam ? "Exam booked" : "Exam"} ${esc(shortDate(examD))}</span></div></div>` +
+    `<div class="dm-gauge"><div class="dm-gauge__head"><span class="dm-label">The plan</span><span class="dm-gauge__val">${p}<small>%</small></span></div>` +
+    `<div class="dm-bar" role="progressbar" aria-label="The plan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><div class="dm-bar__fill" style="--value:${p}"></div></div>` +
+    `<div class="dm-bar__scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div>` +
+    `<div class="st-days"><span class="dm-label dm-quiet">Days</span><span class="dm-train" role="img" aria-label="${dd} of ${DAYS.length} days done${ti >= 1 && ti <= LAST ? `, today is Day ${ti}` : ""}">` +
+    DAYS.map(d => `<i class="${dayDone(d) ? "is-done" : d.day === ti ? "is-now" : ""}"></i>`).join("") + `</span></div>`);
+  const pos = ti < 1 ? `Starts ${shortDate(dayDate(1))}` : ti > LAST ? "Plan period ended" : `Day ${pad2(ti)} of ${LAST}`;
+  setHTML(document.getElementById("rl-pos"), `<span>SAA-C03 / ${esc(pos)} / ${p}% done</span>`);
+  setHTML(document.getElementById("ov-strip"), `<span>SAA-C03 / Overview / Sheet 2 of 2</span><span>${dd} of ${DAYS.length} days done / Exam ${esc(shortDate(examD))}</span>`);
 }
 function refresh() {
   const ti = todayIdx();
@@ -558,16 +588,8 @@ function refresh() {
     total += ids.length + q; dn += ids.filter(done).length + (q && quizOk(d) ? 1 : 0);
   }
   const p = pct(dn, total);
-  document.getElementById("bar").style.width = p + "%";
-  document.getElementById("tb-pct").textContent = p + "%";
-  document.getElementById("tb-sheet").textContent = ti < 1 ? "Before Day 1" : ti > LAST ? `Past Day ${LAST}` : `Day ${ti} of ${LAST}`;
-  // the rail: the calendar day against the plan, one segment per day
-  const dayCls = d => (dayDone(d) ? "is-done" : d.day === ti ? "is-now" : "");
-  document.getElementById("rl-pos").innerHTML = `<span class="dm-data">${ti < 1 ? "Day 00" : ti > LAST ? "Done" : "Day " + pad2(ti)} / ${LAST}</span>` +
-    `<span class="dm-seg dm-seg--mini" role="progressbar" aria-label="Days done" aria-valuenow="${DAYS.filter(dayDone).length}" aria-valuemax="${DAYS.length}">${DAYS.map(d => `<i class="${dayCls(d)}"></i>`).join("")}</span>`;
+  renderStand(p, ti);
   const examD = examDate();
-  document.getElementById("tb-exam").textContent = fmtD(examD);
-  document.getElementById("tb-exam-k").textContent = S.settings.exam ? "Exam (booked)" : "Exam";
 
   // where the plan stands: in the head of the card at the top, next to today's date
   const st = [];
@@ -596,6 +618,7 @@ function refresh() {
   renderMap(ti);
   renderScores();
   renderPractice();
+  railNav();
   if (view.day) setView(view.day, view.at, false);
 }
 
@@ -1285,15 +1308,14 @@ function renderToday() {
   const c = counters(), sun = parseDate(S.week.key); sun.setDate(sun.getDate() + 6);
   const rows = S.week.ids.map(id => {
     const ch = CHAL_BY[id], n = Math.min(ch.n, chalDone(id) ? ch.n : chalProg(id, c)), done = n >= ch.n, f = ch.fmt || (v => v.toLocaleString("en-GB"));
-    return `<li class="${done ? "done" : ""}"><span class="ch-i" aria-hidden="true">${ch.i}</span><span class="ch-t">${ch.t(ch.n)}</span>` +
-      `<span class="ch-m"><span class="mt" role="meter" aria-valuemin="0" aria-valuemax="${ch.n}" aria-valuenow="${n}" aria-label="${esc(ch.t(ch.n))}"><span style="width:${pct(n, ch.n)}%"></span></span>` +
-      `<span class="ch-n">${done ? "✓ Done" : `${f(n)} / ${f(ch.n)}`}</span></span></li>`;
+    return `<li class="dm-row tc${done ? " done" : ""}"><span class="dm-row__name ch-t">${ch.t(ch.n)}</span><span class="dm-row__val ch-n">${done ? "Done" : `${f(n)} / ${f(ch.n)}`}</span>` +
+      `<span class="dm-bar dm-bar--thin tc-b" role="meter" aria-valuemin="0" aria-valuemax="${ch.n}" aria-valuenow="${n}" aria-label="${esc(ch.t(ch.n))}"><span class="dm-bar__fill" style="--value:${pct(n, ch.n)}"></span></span></li>`;
   }).join("");
-  el.innerHTML = `<div class="td-goal${hit ? " hit" : ""}" role="group" aria-label="Today's goal: ${x} of ${goal} XP">${ring}` +
+  el.innerHTML = `<div class="cl-h"><h2 class="dm-label dm-label--br dm-quiet">Today's goal</h2><span class="dm-data">${hit ? "Reached" : `${goal - x} XP to go`}</span></div>` +
+    `<div class="td-goal${hit ? " hit" : ""}" role="group" aria-label="Today's goal: ${x} of ${goal} XP">${ring}` +
     `<div class="ring-v" aria-hidden="true"><b>${x.toLocaleString("en-GB")}</b><small>of ${goal} XP</small></div>` +
-    `<div class="td-x"><h3>Today's goal</h3><p>${hit ? "[ Reached ]" : `${goal - x} XP to go`}</p>` +
-    `<p class="muted">${gs > 1 ? `Reached ${gs} days in a row.` : hit ? "Reached today. Keep it up tomorrow for a run of days." : "Right answers, steps, passed quizzes and challenges count."} <button type="button" class="link" data-goal-set>Change</button></p></div></div>` +
-    `<div class="td-ch"><h3>This week's challenges <span class="muted">+${CHAL_XP} XP each, until ${fmtD(sun)}</span></h3><ul>${rows || `<li class="muted">None this week.</li>`}</ul></div>`;
+    `<div class="td-x"><p>${gs > 1 ? `Reached ${gs} days in a row.` : hit ? "Reached today. Reach it tomorrow too for a run of days." : "Right answers, steps, passed quizzes and challenges count."}</p><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-goal-set>Change the goal</button></div></div>` +
+    `<div class="td-ch"><h3 class="dm-label dm-quiet td-chh">This week's challenges <span class="dm-data">+${CHAL_XP} XP each, until ${esc(shortDate(sun))}</span></h3><ul class="dm-list">${rows || `<li class="dm-row tc"><span class="dm-row__name">None this week.</span></li>`}</ul></div>`;
 }
 
 // ---------- readiness and trends (overview) ----------
@@ -1331,31 +1353,31 @@ function whyPatternHTML() {
   const wc = whyCounts();
   if (!wc.length) return `<p class="muted">Mark why you missed a question (the buttons under a wrong answer, or in the notebook) and the pattern shows here.</p>`;
   const max = wc[0][1], all = wc.reduce((a, x) => a + x[1], 0);
-  return `<ul class="why-bars">${wc.map(([w, n]) => `<li><span class="wb-l">${esc(w[2])}</span><span class="wb-t"><span style="width:${(n / max * 100).toFixed(1)}%"></span></span><span class="wb-n">${n}</span></li>`).join("")}</ul>` +
+  return `<ul class="why-bars">${wc.map(([w, n]) => `<li><span class="wb-l">${esc(w[2])}</span><span class="dm-bar dm-bar--thin wb-t" aria-hidden="true"><span class="dm-bar__fill" style="--value:${(n / max * 100).toFixed(1)}"></span></span><span class="wb-n">${n}</span></li>`).join("")}</ul>` +
     `<p class="why-tip"><b>Most often: ${esc(wc[0][0][2].toLowerCase())}</b> (${wc[0][1]} of ${all}). ${WHY_TIP[wc[0][0][0]]()}</p>`;
 }
 function renderReady() {
   const rd = readiness(), el = document.getElementById("ready");
   const total = rd.reduce((a, d) => a + d.met, 0);
-  if (total < 10) { el.innerHTML = `<p class="muted">Fills in as you answer quiz questions: how many of each exam domain's questions you would get right now.</p>`; return; }
+  if (total < 10) { el.innerHTML = `<p class="cl-p">Fills in as you answer quiz questions: how many of each exam domain's questions you would get right now.</p>`; return; }
   const full = rd.every(d => d.met >= MIN_MET), all = full ? Math.round(rd.reduce((a, d, i) => a + d.acc * DOM_W[i], 0) / 100) : 0;
-  let h = `<div class="rd-head">${full ? `<div class="rd-all"><b>${all}%</b><span class="muted">weighted like the exam (30 / 26 / 24 / 20)</span></div>` : `<p class="muted">An overall figure needs ${MIN_MET} answers in each domain.</p>`}` +
-    `<p class="muted rd-how">Of the questions you have met in a domain, the share you got right at your last answer. Ready from ${READY}%.</p></div><ul class="rd-list">`;
+  // the weighted figure leads; each domain is a gauge of slanted cells with its value and band; the pass line is in words
+  let h = `<div class="rd-head">${full ? `<div class="rd-all dm-stat__row"><span class="dm-stat__num">${all}</span><span class="dm-stat__unit">%</span><span class="dm-stat__side">Weighted<br>like the exam<br>30 / 26 / 24 / 20</span></div>` : `<p class="cl-p">An overall figure needs ${MIN_MET} answers in each domain.</p>`}` +
+    `<p class="cl-p rd-how">Of the questions you have met in a domain, the share you got right at your last answer. Ready from ${READY}%.</p></div><ul class="rd-list">`;
   rd.forEach((d, i) => {
-    const few = d.met < MIN_MET, [cls, ic, lb] = band(d.acc);
-    h += `<li class="${few ? "few" : cls}"><span class="rd-n">D${i + 1} ${DOMAINS[i]}</span>` +
-      `<span class="mt" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${d.acc}" aria-label="Domain ${i + 1} ${DOMAINS[i]}"><span style="width:${d.acc}%"></span><i style="left:${READY}%"></i></span>` +
-      `<span class="rd-v">${d.met ? `${d.acc}%` : "–"}</span><span class="rd-s">${few ? `${d.met} of ${MIN_MET} answers` : `${ic} ${lb}`}</span>` +
-      `<span class="rd-c muted">${d.met} of ${d.all} questions met</span></li>`;
+    const few = d.met < MIN_MET, [cls, , lb] = band(d.acc);
+    h += `<li class="${few ? "few" : cls}"><div class="dm-gauge"><div class="dm-gauge__head"><span class="rd-n">D${i + 1} ${DOMAINS[i]}</span><span class="rd-s">${few ? `${d.met} of ${MIN_MET} answers` : lb}</span><span class="dm-gauge__val rd-v">${d.met ? `${d.acc}%` : "–"}</span></div>` +
+      `<div class="dm-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${d.acc}" aria-label="Domain ${i + 1} ${DOMAINS[i]}"><div class="dm-bar__fill" style="--value:${d.acc}"></div></div>` +
+      `<span class="rd-c">${d.met} of ${d.all} questions met</span></div></li>`;
   });
   h += `</ul>`;
   const nx = studyNext(rd);
   if (nx) {
     const { d, it } = itemIndex[nx.step];
-    h += `<div class="rd-next"><span class="rd-nk">Study this next</span><p><b>${esc(nx.tag)}</b> in D${nx.dom} ${DOMAINS[nx.dom - 1]}: ${nx.right} of ${nx.seen} answers right. Day ${d.day} teaches it: ${it[1]}</p>` +
-      `<div class="row"><button type="button" data-jump="${nx.step}">Open the step</button><button type="button" data-step-quiz="${nx.step}">Try 3 questions on it</button>${laTag(nx.tag).length ? `<button type="button" data-look="${esc(laTag(nx.tag)[0].id)}">${esc(laTag(nx.tag)[0].title)}</button>` : ""}</div></div>`;
+    h += `<div class="rd-next dm-notice"><div class="dm-notice__body"><strong class="dm-notice__title">Study this next</strong><p><b>${esc(nx.tag)}</b> in D${nx.dom} ${DOMAINS[nx.dom - 1]}: ${nx.right} of ${nx.seen} answers right. Day ${d.day} teaches it: ${it[1]}</p>` +
+      `<div class="row"><button type="button" class="dm-btn dm-btn--s" data-jump="${nx.step}">Open the step</button><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-step-quiz="${nx.step}">Try 3 questions on it</button>${laTag(nx.tag).length ? `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-look="${esc(laTag(nx.tag)[0].id)}">${esc(laTag(nx.tag)[0].title)}</button>` : ""}</div></div></div>`;
   }
-  h += `<h3 class="sub-h">Why you miss</h3>${whyPatternHTML()}`;
+  h += `<h3 class="dm-label dm-quiet rd-wh">Why you miss</h3>${whyPatternHTML()}`;
   el.innerHTML = h;
 }
 
@@ -1433,9 +1455,9 @@ function renderTrends() {
   const n = ui.trend === 30 ? 30 : 14, data = trendCache = trendData(n), el = document.getElementById("trends");
   TRENDS[2].o.ref = S.settings.goal; TRENDS[2].o.refLabel = `goal ${S.settings.goal}`;
   const empty = !data.some(d => d.a || d.f || d.x);
-  const ctl = `<div class="tr-ctl" role="group" aria-label="Range">${[14, 30].map(k => `<button type="button" class="sm" data-trend="${k}" aria-pressed="${n === k}">Last ${k} days</button>`).join("")}` +
-    `<button type="button" class="sm" data-trend-table aria-pressed="${!!ui.trendTable}">${ui.trendTable ? "Show charts" : "Show as table"}</button></div>`;
-  if (empty) { el.innerHTML = ctl + `<p class="muted">Nothing in these days yet. Answers, focus time and XP show here per day.</p>`; return; }
+  const ctl = `<div class="tr-ctl"><div class="dm-seg" role="group" aria-label="Range">${[14, 30].map(k => `<button type="button" data-trend="${k}" aria-pressed="${n === k}">Last ${k} days</button>`).join("")}</div>` +
+    `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-trend-table aria-pressed="${!!ui.trendTable}">${ui.trendTable ? "Show charts" : "Show as table"}</button></div>`;
+  if (empty) { el.innerHTML = ctl + `<p class="cl-p">Nothing in these days yet. Answers, focus time and XP show here per day.</p>`; return; }
   if (ui.trendTable) {
     el.innerHTML = ctl + `<div class="tr-tw"><table class="tr-tab"><thead><tr><th scope="col">Day</th><th scope="col">Answers</th><th scope="col">Right</th><th scope="col">Focus</th><th scope="col">XP</th></tr></thead><tbody>` +
       data.slice().reverse().map(d => `<tr><th scope="row">${esc(fmtD(parseDate(d.k)))}</th><td>${d.a || "–"}</td><td>${d.a ? `${Math.round(d.r / d.a * 100)}%` : "–"}</td><td>${d.f ? fmtH(d.f) : "–"}</td><td>${d.x == null ? "–" : d.x}</td></tr>`).join("") + `</tbody></table></div>`;
@@ -1487,6 +1509,8 @@ function weakestDomain() {
   return w;
 }
 const bar = (label, value, text, cls = "") => `<div class="db ${cls}"><span>${label}</span><span class="tr"><span class="fi" style="width:${Math.max(0, Math.min(100, value))}%;display:block"></span></span><span>${text}</span></div>`;
+// The overview's scores: a thin bar of cells per figure, its name and value over it
+const gauge = (label, value, text, cls = "") => `<div class="sc-g${cls ? " " + cls : ""}"><div class="sc-gh"><span>${label}</span><span class="sc-gv">${text}</span></div><span class="dm-bar dm-bar--thin" aria-hidden="true"><span class="dm-bar__fill" style="--value:${Math.max(0, Math.min(100, value))}"></span></span></div>`;
 function renderScores() {
   const [cls, html] = verdictHTML();
   document.querySelectorAll("[data-verdict]").forEach(el => { el.className = "verdict " + cls; el.innerHTML = html; });
@@ -1495,13 +1519,13 @@ function renderScores() {
   for (let i = 0; i < 4; i++) {
     const v = num("b" + (i + 1));
     if (v == null) continue;
-    bars.push(bar(`D${i + 1} ${DOMAINS[i]}`, v, `${v}%`, weak && weak.i === i ? "weak" : ""));
+    bars.push(gauge(`D${i + 1} ${DOMAINS[i]}`, v, `${v}%`, weak && weak.i === i ? "weak" : ""));
   }
   document.getElementById("dom-bars").innerHTML = bars.join("");
   const logged = DAYS.filter(d => (S.log[d.id] || 0) >= 1);
   document.getElementById("time-log").innerHTML = logged.length
-    ? `<h3 class="sub-h">Study time</h3><p class="muted">Logged by the focus timer against the day you were working on.</p>` +
-      logged.map(d => bar(`Day ${d.day}`, pct(S.log[d.id], dayPlanned(d)), `${fmtH(S.log[d.id])} of ~${fmtH(dayPlanned(d))}`, "tl")).join("")
+    ? `<h3 class="dm-label dm-quiet sc-h">Study time</h3><p class="cl-p">Logged by the focus timer against the day you were working on.</p>` +
+      logged.map(d => gauge(`Day ${d.day}`, pct(S.log[d.id], dayPlanned(d)), `${fmtH(S.log[d.id])} of ~${fmtH(dayPlanned(d))}`, "tl")).join("")
     : "";
   const sum = [];
   const q7 = num("qs7"), q13 = num("qs13"), pe = num("pe");
@@ -1530,27 +1554,27 @@ function renderPractice() {
   const left = mockDays.filter(d => !dayDone(d)).length;
   const liveMock = S.run && S.run.kind === "mock" && !S.run.done;
   const cards = [
-    ["Review", due ? `${plural(due, "missed question")} due today.` : `Nothing due. Questions you miss come back after ${QZ.SRS_DAYS.join(", ").replace(/, (\d+)$/, " and $1")} days until you get them right three times.`,
-      `<button type="button" data-review${due ? ' class="primary"' : " disabled"}>Start review</button>`],
-    ["Mock exam", mockOpen() || liveMock
+    [due ? `${due} due` : "0 due", "Review", due ? `${plural(due, "missed question")} due today.` : `Nothing due. Questions you miss come back after ${QZ.SRS_DAYS.join(", ").replace(/, (\d+)$/, " and $1")} days until you get them right three times.`,
+      `<button type="button" class="dm-btn dm-btn--s${due ? "" : " dm-btn--line"}" data-review${due ? "" : " disabled"}>Start review</button>`],
+    [liveMock ? "Running" : mockOpen() ? "Open" : "Locked", "Mock exam", mockOpen() || liveMock
       ? `${QZ.MOCK.n} questions in ${QZ.MOCK.minutes} minutes, results at the end like the real exam. Each attempt draws different questions.${last ? ` Last: ${last.pct}% on ${fmtD(parseDate(last.at))}.` : ""}`
       : `Unlocks when Days 1–${MOCK_AFTER} are complete (${left} to go): the lectures and labs.`,
-      `<button type="button" data-mock${mockOpen() || liveMock ? ' class="primary"' : " disabled"}>${liveMock ? `Resume (${clock(S.run.end - Date.now())} left)` : "Start mock exam"}</button>`],
-    ["Which service?", `Quick picks between services, four ways.${S.drill.day[t] != null ? ` Today's five: ${S.drill.day[t]} of 5.` : ""}`,
+      `<button type="button" class="dm-btn dm-btn--s${mockOpen() || liveMock ? "" : " dm-btn--line"}" data-mock${mockOpen() || liveMock ? "" : " disabled"}>${liveMock ? `Resume (${clock(S.run.end - Date.now())} left)` : "Start mock exam"}</button>`],
+    [S.drill.best ? `Best ${S.drill.best}` : "–", "Which service?", `Quick picks between services, four ways.${S.drill.day[t] != null ? ` Today's five: ${S.drill.day[t]} of 5.` : ""}`,
       `<div class="dr-modes">${Object.entries(DRILL_MODES).map(([k, m]) => { const b = { go: S.drill.best, rev: S.drill.rev, lives: S.drill.lives }[k];
-        return `<button type="button"${k === "go" ? " data-drill" : ` data-drill-mode="${k}"`}${DRILL.length ? "" : " disabled"} title="${esc(m.t)}: ${esc(m.d)}">${m.b}${b ? ` <small>best ${b}</small>` : k === "day" && S.drill.day[t] != null ? ` <small>✓ ${S.drill.day[t]}/5</small>` : ""}</button>`; }).join("")}</div>`],
-    ["Wrong-answer notebook", book.length ? `${open} open, ${book.length - open} fixed.` : "Every question you miss lands here with your one-line note.",
-      `<button type="button" data-sheet="notebook">Open notebook</button>`],
-    ["Weak spots", weak ? `Weakest topic so far: ${esc(weak.tag)} (${pct(weak.right, weak.seen)}% right).` : "Fills in as you answer questions.",
-      `<button type="button" data-sheet="weak">Show weak spots</button>`],
-    ["Exam wording", "What phrases like “least operational overhead” usually point to.",
-      `<button type="button" data-sheet="cues"${CUES.length ? "" : " disabled"}>Open cheat sheet</button>`],
-    ["Look-alikes", `${plural(LA.length, "table")} of services that sound alike, side by side: SQS or SNS, ALB or NLB, EBS, EFS or S3…`,
-      `<button type="button" data-look${LA.length ? "" : " disabled"}>Compare them</button>`],
-    ["Badges and level", (L => `Level ${L.n}, ${rankOf(L.n)}: ${L.to - L.x} XP to level ${L.n + 1}. ${Object.keys(S.ach).filter(id => ACH_BY[id]).length} of ${ACH.length} badges earned.`)(levelOf(xpTotal())),
-      `<button type="button" data-sheet="badges">Show badges</button>`]
+        return `<button type="button" class="dm-btn dm-btn--s dm-btn--line"${k === "go" ? " data-drill" : ` data-drill-mode="${k}"`}${DRILL.length ? "" : " disabled"} title="${esc(m.t)}: ${esc(m.d)}">${m.b}${b ? ` <small>best ${b}</small>` : k === "day" && S.drill.day[t] != null ? ` <small>today ${S.drill.day[t]}/5</small>` : ""}</button>`; }).join("")}</div>`],
+    [`${open} open`, "Wrong-answer notebook", book.length ? `${open} open, ${book.length - open} fixed.` : "Every question you miss lands here with your one-line note.",
+      `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-sheet="notebook">Open notebook</button>`],
+    [weak ? `${pct(weak.right, weak.seen)}%` : "–", "Weak spots", weak ? `Weakest topic so far: ${esc(weak.tag)} (${pct(weak.right, weak.seen)}% right).` : "Fills in as you answer questions.",
+      `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-sheet="weak">Show weak spots</button>`],
+    [`${CUES.length} cues`, "Exam wording", "What phrases like “least operational overhead” usually point to.",
+      `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-sheet="cues"${CUES.length ? "" : " disabled"}>Open cheat sheet</button>`],
+    [`${LA.length} tables`, "Look-alikes", `${plural(LA.length, "table")} of services that sound alike, side by side: SQS or SNS, ALB or NLB, EBS, EFS or S3…`,
+      `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-look${LA.length ? "" : " disabled"}>Compare them</button>`],
+    [`Level ${levelOf(xpTotal()).n}`, "Badges and level", (L => `Level ${L.n}, ${rankOf(L.n)}: ${L.to - L.x} XP to level ${L.n + 1}. ${Object.keys(S.ach).filter(id => ACH_BY[id]).length} of ${ACH.length} badges earned.`)(levelOf(xpTotal())),
+      `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-sheet="badges">Show badges</button>`]
   ];
-  document.getElementById("pr-grid").innerHTML = cards.map(([h, p, b]) => `<div class="place pr"><h3>${h}</h3><p>${p}</p>${b}</div>`).join("");
+  document.getElementById("pr-grid").innerHTML = cards.map(([k, h, p, b]) => `<li class="dm-row pr"><span class="dm-row__key">${k}</span><span class="pr-b"><span class="dm-row__name">${h}</span><span class="pr-p">${p}</span></span><span class="pr-a">${b}</span></li>`).join("");
   const sum = [];
   if (due) sum.push(`${due} due for review`);
   if (liveMock) sum.push("mock exam in progress");
@@ -2668,10 +2692,10 @@ function renderRunning() {
   const el = document.getElementById("running"), run = costRunning();
   el.hidden = !run.length;
   if (!run.length) { el.innerHTML = ""; return; }
-  el.innerHTML = `<h3>Still running in your AWS account <span class="muted">${plural(run.length, "thing")}</span></h3>` +
-    `<p class="muted">Delete them when you're done with them: they cost money while they exist. Mark each one when it's gone.</p>` +
+  el.innerHTML = `<div class="run-h"><span class="dm-notice__icon"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5l7 13H1zM8 6v4M8 11.5v1.5"/></svg></span>` +
+    `<div><h2 class="dm-notice__title">Still running in your AWS account</h2><p>${plural(run.length, "thing")} ${run.length === 1 ? "costs" : "cost"} money while they exist. Delete each one when you are done with it, then mark it here.</p></div></div>` +
     `<ul class="cost-l">${run.map(x => costItemHTML(x)).join("")}</ul>` +
-    `<div class="row"><a class="btn" href="${esc(linkFor("own"))}" target="_blank" rel="noopener">Open AWS ↗</a><details class="cost-more"><summary class="btn">+ Something else</summary>${costAddHTML("")}</details></div>`;
+    `<div class="row"><a class="dm-btn dm-btn--s dm-btn--line" href="${esc(linkFor("own"))}" target="_blank" rel="noopener">Open AWS ${ICON_OUT}</a><details class="cost-more"><summary class="dm-btn dm-btn--s dm-btn--line">Something else</summary>${costAddHTML("")}</details></div>`;
 }
 // On a Build card: what this day put in your account, and a way to add what the steps don't know about.
 function costBoxHTML(d) {
@@ -3028,6 +3052,9 @@ function logFocus() {
 }
 // The device the block runs on: the one that started it or was used last while it ran (a block from before has none).
 const holds = () => !S.timer.dev || S.timer.dev === DEV;
+// Datum's play icon and a pause drawn the same way: solid, straight segments
+const ICON_PLAY = `<svg class="dm-icon dm-icon--solid" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2l10 6-10 6z"/></svg>`;
+const ICON_PAUSE = `<svg class="dm-icon dm-icon--solid" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2h3v12h-3zM9.5 2h3v12h-3z"/></svg>`;
 function tmRender() {
   const t = S.timer, rest = t.mode === "rest", s = rest ? restUp() : tmLeft(), over = rest && t.running && s >= REST_NAG, away = !rest && t.running && t.away > 0;
   tm.classList.toggle("running", t.running);
@@ -3040,7 +3067,7 @@ function tmRender() {
     : over ? "Break is over" : !t.running && s ? "Break, paused" : t.ask ? "Focus block done" : "Break";
   tm.querySelector(".tm-time").textContent = mmss(s);
   const go = tm.querySelector('[data-tm="toggle"]'), what = t.running ? "Pause" : rest ? (s ? "Resume the break" : "Start the break") : s === FOCUS ? "Start a 50-minute focus block" : "Resume focus";
-  go.textContent = t.running ? "■" : "▶";
+  go.innerHTML = t.running ? ICON_PAUSE : ICON_PLAY;
   go.title = what; go.setAttribute("aria-label", what);
   tm.querySelector('[data-tm="switch"]').textContent = rest ? "Focus now" : "Break now";
   const day = dayOf(t.day) || workDay();
@@ -3444,7 +3471,6 @@ setInterval(() => { if (todayIdx() !== lastIdx || today() !== lastDate) { lastId
 // Days ticked off before quizzes existed count as done once their quiz is passed.
 DAYS.forEach(markDayDone);
 award(0, false);   // saved with the next change, or after the first sync (applyState)
-document.querySelector(".tb .tb-k").textContent = `SAA-C03 / ${DAYS.length}-day study plan`;
 restoreScores();
 rebuild();
 route();
