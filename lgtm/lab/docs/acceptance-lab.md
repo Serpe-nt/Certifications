@@ -959,3 +959,89 @@ limit and product-catalog at 32%.
 
 `make lab` from the card's branch, every release, 22:54:35 to 22:55:46: `ok=29 changed=0
 unreachable=0 failed=0`.
+
+## A start of the lab leaves no failed kafka-trim Job (2026-11-16, card L12)
+
+Why and what changed: `lgtm/docs/adr/l12-kafka-trim-after-start.md`. Applied with the owner's
+go-ahead, said in the card's session.
+
+### Before
+
+The owner started the VMs after a night switched off. The nodes booted at 13:21:21 to 13:21:31
+UTC (`node_boot_time_seconds`), `kube-controller-manager` started at 13:21:36, the first pod was
+Ready at 13:21:39 and the last at 13:27:02 (`loki-compactor-0`), with nothing done by hand.
+
+- The trim had last succeeded at 00:07:19. At 13:22:01 the CronJob created
+  `kafka-trim-29913907`, the missed run of 13:07. It got `502 Bad Gateway` and then `500 ...
+  failed to find valid mountpoint` from Longhorn's API (events `FailedFilesystemTrim`) and failed
+  with `BackoffLimitExceeded` at 13:23:22. The CronJob kept it (`failedJobsHistoryLimit: 1`).
+- Firing alerts from 13:25 (Prometheus `ALERTS`, one-minute steps): `Watchdog`, and
+  `KubeJobFailed` for `kafka-trim-29913907` from 13:40 to 13:46. The Job was deleted by hand at
+  about 13:46, before this card changed anything; the card did not delete it.
+
+### Change
+
+1. `make platform TAGS=longhorn`, 14:07:17 to 14:09:20: `ok=10 changed=4 failed=0` (three tool
+   downloads into `.bin` and the Longhorn release). The rendered chart differs from `main` in one
+   line of the ConfigMap `longhorn-default-setting`, `recurring-failed-jobs-history-limit: "0"`.
+   No pod restarted: every container in `longhorn-system` had started between 13:22:28 and
+   13:23:05.
+2. Longhorn applied it: setting `recurring-failed-jobs-history-limit` is `0`, `APPLIED true`, and
+   the CronJob `kafka-trim` has `failedJobsHistoryLimit: 0`, `successfulJobsHistoryLimit: 1`.
+3. `make lab TAGS=glue`, to 14:10:14: `ok=9 changed=1 failed=0`, lab-glue 0.4.0 with the
+   first version of the rule (at least three changes of the schedule time in four hours).
+4. The independent check found two faults in that version (ADR, last paragraph of "A trim that
+   has stopped is still seen"). The rule now asks that Prometheus watched the CronJob for the
+   whole three hours, with `for: 10m`. The chart's version stayed 0.4.0, so the Ansible helm
+   module saw nothing to upgrade (`make lab TAGS=glue` at 14:24:39, `changed=0`); the new template
+   went in with `.bin/helm upgrade lab-glue charts/lab-glue -n lab-tools --reuse-values --wait`
+   at 14:27:55 (revision 3), and `make lab TAGS=glue` after it reported `changed=0`, so the
+   values are the role's. Prometheus evaluated the new `LabKafkaTrimNotSucceeding` at 14:28:47:
+   query with `count_over_time(...[3h:10m])) >= 18`, `duration` 600, state `inactive`, health
+   `ok`.
+
+### A failed run leaves nothing
+
+The run of 14:07 succeeded (`kafka-trim-29913967`, 20 s, `lastSuccessfulTime` 14:07:20). To see a
+failed run without a cold start, a Job `kafka-trim-l12-test` was created at 14:12:31 in
+`longhorn-system`, owned by the CronJob `kafka-trim` (controller reference), `backoffLimit: 0`,
+its container `exit 1`. Events: `BackoffLimitExceeded` at 14:12:35, and from the CronJob at
+14:12:35 `UnexpectedJob` (it did not create the Job itself) and `SuccessfulDelete`: `Deleted job
+kafka-trim-l12-test`. Afterwards `kubectl -n longhorn-system get jobs` listed only
+`kafka-trim-29913967`, `Complete`. `KubeJobFailed` needs the Job for 15 minutes; it never fired.
+
+### The rule and the check
+
+- `promtool test rules tests/lab/kafka-trim-rule.test.yml` (prom/prometheus:v3.13.5, the lab's
+  Prometheus version, run in Docker on the PC): `SUCCESS`. Four cases: a trim that never succeeds
+  again while the lab runs is quiet at 179 and 185 minutes and fires at 192; a night off whose
+  first run after the start succeeds stays quiet; a night off after which the trim keeps failing
+  is quiet at 960 minutes and fires at 1000, about 3 hours 26 minutes after the start; a stop of
+  two and a half hours, with samples from before it and two failed runs after it, stays quiet.
+- Check 11 alone, 14:25: `PASS  kafka-trim last succeeded 0.3 hours ago (threshold 3 hours)`.
+  With `LAB_KAFKA_TRIM_MAX_HOURS=0.5` at 14:38:01, more than half an hour after the trim of 14:07:
+  `FAIL  kafka-trim last succeeded 0.5 hours ago while Prometheus watched it (threshold 0.5 hours;
+  ...)`, exit 1.
+
+### Afterwards
+
+- `make lab-check` 14:38:02: `LAB CHECK PASSED`, check 11 `PASS  kafka-trim last succeeded 0.5
+  hours ago (threshold 3 hours)`.
+- `make lab` from the card's branch, every release, 14:38:11 to 14:39:18: `ok=29 changed=0
+  unreachable=0 failed=0`.
+- Alerts at 14:39:18: `Watchdog` only.
+- Step 13's action 5 of m17, `kubectl get jobs -A | grep -v Complete`, at 14:39:18: the header
+  line only.
+
+### Not proven: the cold case
+
+Stopping and starting the VMs is the owner's own action, and the lab was not started cold again
+after the change. Whether the next cold start ends with no failed Job and no alert is therefore
+not proven on the lab; the test Job above shows the mechanism. To read it at the next start, after
+every pod is Ready:
+
+```bash
+kubectl -n longhorn-system get events --field-selector involvedObject.kind=CronJob   # SuccessfulDelete of the run at boot
+kubectl -n longhorn-system get jobs                                                 # no Failed Job
+make lab-check                                                                      # LAB CHECK PASSED
+```

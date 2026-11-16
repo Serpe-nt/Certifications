@@ -22,8 +22,8 @@ LAB_VOLUME_FULL_RATIO ?= 0.85
 # lab-check fails when a Longhorn disk has less than this ratio free (Longhorn itself stops
 # scheduling replicas at 15%). Raise it to see the check fail.
 LAB_LONGHORN_FREE_RATIO ?= 0.25
-# lab-check fails when Longhorn's kafka-trim has not succeeded for this many hours and at
-# least three of its runs started in one hour more (the alert LabKafkaTrimNotSucceeding of lab-glue uses
+# lab-check fails when Longhorn's kafka-trim has not succeeded for this many hours while
+# Prometheus watched it the whole time (the alert LabKafkaTrimNotSucceeding of lab-glue uses
 # the same number, alerts.kafkaTrimMaxHours).
 LAB_KAFKA_TRIM_MAX_HOURS ?= 3
 

@@ -23,7 +23,8 @@
 #   9. every Longhorn disk has at least 25% free (tests/lab/longhorn-disks.sh)
 #  10. no container of the shop is at its memory limit and reading its pages
 #      back from disk (tests/lab/memory.sh)
-#  11. Longhorn's kafka-trim has not been failing for 3 hours (tests/lab/kafka-trim.sh)
+#  11. Longhorn's kafka-trim has not been failing for 3 hours while Prometheus watched
+#      (tests/lab/kafka-trim.sh)
 #
 # Environment: LAB_KUBECONFIG (to read the Grafana password), LAB_GATEWAY_URL
 # (http://127.0.0.1:28080 on kind, http://10.10.0.5 on the real cluster),

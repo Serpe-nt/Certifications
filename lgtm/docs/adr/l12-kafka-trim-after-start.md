@@ -17,7 +17,8 @@ What the lab showed on 2026-11-16 (events in `longhorn-system`, the CronJob's st
 
 - The trim last succeeded at 00:07:19 UTC (`status.lastSuccessfulTime`). The PC was shut down at
   about 00:24.
-- The VMs started at about 13:20. `kube-controller-manager` started at 13:21:36 and created
+- The nodes booted at 13:21:21 to 13:21:31 (`node_boot_time_seconds`). `kube-controller-manager`
+  started at 13:21:36 and created
   `kafka-trim-29913907` at 13:22:01. The number is the scheduled time in minutes since 1970:
   13:07, the run the lab had missed while it was off.
 - The trim got `502 Bad Gateway` from `http://longhorn-backend:9500/v1/volumes/...?action=trimFilesystem`
@@ -30,18 +31,25 @@ What the lab showed on 2026-11-16 (events in `longhorn-system`, the CronJob's st
 Why the run starts at boot. The CronJob has no `startingDeadlineSeconds`. Kubernetes: "If you
 don't specify startingDeadlineSeconds for a CronJob, the Job occurrences have no deadline", and
 the controller "checks how many schedules it missed in the duration from its last scheduled time
-until now" and "still starts a Job for the most recent missed schedule"
-(https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/). So when the controller
-starts after a night off, it runs the missed hour within seconds, before Longhorn and Kafka are
-up. That happens at every cold start that misses at least one minute 7, which is every night.
+until now". The page's example has the controller down for about two hours: "When the controller
+is back, it ... starts one Job, for the most recent schedule"
+(https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/). The lab did the same: the
+Job's name, 29913907, is 13:07 in minutes since 1970, the latest of the 13 hours it missed. So
+when the controller starts after a night off, it runs the missed hour within seconds, before
+Longhorn and Kafka are up. That happens at every start that missed at least one minute 7, which is
+every night.
 
 Why the Job stays. A CronJob keeps `failedJobsHistoryLimit` failed Jobs, "the default value is 1"
-(same page). Longhorn writes both history limits from its settings `Cronjob Failed Jobs History
-Limit` and `Cronjob Successful Jobs History Limit`, default 1
-(https://longhorn.io/docs/1.13.0/references/settings/). A successful run later does not remove
-a failed Job, because the two histories are counted apart. `KubeJobFailed` is
-`kube_job_failed{job="kube-state-metrics"} > 0` for 15 minutes in the lab's Prometheus, so it
-fires as long as the Job object exists
+(same page). Longhorn writes both history limits into the CronJob from its settings `Cronjob
+Failed Jobs History Limit` and `Cronjob Successful Jobs History Limit`, default 1
+(https://longhorn.io/docs/1.13.0/references/settings/). The page describes them for "backup or
+snapshot job histories"; on the lab they also set the limits of the `filesystem-trim` job (the
+CronJob showed `failedJobsHistoryLimit: 1`, and `0` after the change). A successful run later
+does not remove a failed Job, because the two histories are counted apart. `KubeJobFailed` in the
+lab's Prometheus (kube-prometheus-stack, read from Prometheus's `/api/v1/rules`) is
+`kube_job_failed{job="kube-state-metrics",namespace=~".*"} > 0` with `for: 15m`, so it fires from
+15 minutes after the failure for as long as the failed Job object exists. Its runbook says what
+it means: "Job failed complete"
 (https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubejobfailed/).
 
 A worker's outage ends the same way when the trim runs while the worker is away: on 2026-11-15
@@ -77,52 +85,69 @@ at 19:08 and was kept (`lgtm/docs/verification/m17.md`).
 With option 1, `KubeJobFailed` no longer reports the trim at all, and a trim that fails for hours
 lets a Kafka replica grow towards its whole volume (`l5-kafka-disk.md`). The lab therefore gets
 its own alert, `LabKafkaTrimNotSucceeding` in lab-glue 0.4.0, and `make lab-check` gets check 11
-(`tests/lab/kafka-trim.sh`) on the same expression. Both read two series of kube-state-metrics,
-`kube_cronjob_status_last_successful_time` and `kube_cronjob_status_last_schedule_time`
+(`tests/lab/kafka-trim.sh`) on the same expression. Both read one series of kube-state-metrics,
+`kube_cronjob_status_last_successful_time`
 (https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/workload/cronjob-metrics.md):
 
 ```promql
 (time() - max by (namespace, cronjob) (kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}) > 3 * 3600)
 and
-(max by (namespace, cronjob) (changes(kube_cronjob_status_last_schedule_time{namespace="longhorn-system", cronjob="kafka-trim"}[4h])) >= 3)
+(max by (namespace, cronjob) (count_over_time(kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}[3h:10m])) >= 18)
 ```
 
-The trim has not succeeded for three hours, and Prometheus has seen at least three runs start in
-the last four hours. The age alone would fire after every cold start: the last success is then
-from before the shutdown, 13 hours old on 2026-11-16, until the first run after the start
-succeeds. The second condition waits until Prometheus has watched three runs come and go without
-a success. Prometheus has no samples from while the lab was off, so the run at boot is its first
-sample and does not count as a change; after a short stop the samples from before it do count,
-which is why the window is one hour longer than the age and the count is three.
+The trim has not succeeded for three hours, and Prometheus had the series at each of the 18
+ten-minute steps of those three hours, so the lab was running the whole time. The age alone would
+fire after every start of the lab: the last success is then from before the stop, 13 hours old on
+2026-11-16, until the first run after the start succeeds. The subquery
+`count_over_time(...[3h:10m])` counts the steps at which the series had a sample within
+Prometheus's lookback of five minutes, so it gives the same count for any scrape interval up to
+five minutes.
+
+The alert has `for: 10m`. The age passes three hours a few seconds before the third run after the
+last success finishes, so without the wait a run that succeeds 20 seconds late could fire the
+alert for an instant. `make lab-check` evaluates the expression without the wait, so it fails up
+to ten minutes before the alert fires.
 
 | Case | What happens |
 |---|---|
-| The trim stops working while the lab runs | Fires about three hours after the last success, with the third failed run |
-| Cold start, the run at boot fails, the next succeeds (2026-11-16) | Quiet |
-| Cold start, the trim keeps failing | Fires with the fourth failed run after the start, about three hours after it |
-| Stop of two to three hours, two runs fail while Longhorn starts | Quiet |
+| The trim fails every hour while the lab runs | Fires about 3 hours 10 minutes after the last success |
+| The trim stops running: a Job hangs (`concurrencyPolicy: Forbid` then skips the next schedules) or the CronJob is suspended | The same: only the last success counts |
+| A night off, the run at boot fails, the next succeeds (2026-11-16) | Quiet |
+| A night off, the trim keeps failing | Fires about 3 hours 10 minutes after the start |
+| A stop of two to three hours, the run at boot and the next fail | Quiet: Prometheus has not watched the last three hours |
 | A worker is down for one run | Quiet: the last success is two hours old at most |
+| The CronJob or the RecurringJob is deleted | Quiet: the series is gone. `make lab-check` fails with `Prometheus reports no successful run of kafka-trim`; this is the one case where the check and the alert differ |
 
-The rule has no `for`, so the alert and `make lab-check` agree at every moment.
-`tests/lab/kafka-trim-rule.test.yml` checks the first four cases with `promtool test rules`.
+`tests/lab/kafka-trim-rule.test.yml` tests the first, third, fourth and fifth cases with
+`promtool test rules`, the fifth with samples from before the stop.
+
+A first version of the rule asked instead for at least three changes of
+`kube_cronjob_status_last_schedule_time` in four hours. This card's independent check found that
+it fires after a stop of about two and a half hours, because the change to the last successful
+run, from before the stop, still counts, and that it never fires for a trim that stops running.
+The version above has neither fault.
 
 ## Decision
 
 - `helm/platform/longhorn/values.yaml`: `defaultSettings.recurringFailedJobsHistoryLimit: 0`
   (chart value of Longhorn 1.13.0, setting `recurring-failed-jobs-history-limit`). Successful
   runs are still kept (1).
-- lab-glue 0.4.0: alert `LabKafkaTrimNotSucceeding`, threshold `alerts.kafkaTrimMaxHours: 3`.
+- lab-glue 0.4.0: alert `LabKafkaTrimNotSucceeding`, threshold `alerts.kafkaTrimMaxHours: 3`,
+  `for: 10m`.
 - `make lab-check` check 11, `LAB_KAFKA_TRIM_MAX_HOURS ?= 3`.
 - `KubeJobFailed` stays as it is for every other Job of the lab.
 
 ## Consequences
 
 - After a cold start and after a worker's outage nothing is left to delete. The Job of a failed
-  run disappears; the next hour's run does the trim.
+  run disappears; the next hour's run does the trim. On the running lab a failed Job owned by the
+  CronJob was deleted the second it failed; the next cold start is the first real proof
+  (`lgtm/lab/docs/acceptance-lab.md`, card L12).
 - A failed run can be read only from its events (one hour), from Loki, and from the CronJob's
   `lastSuccessfulTime`. `kubectl get jobs` no longer shows it.
-- A trim that has really stopped is reported three to four hours late, and again on every
-  `make lab-check`. At the rates of `l5-kafka-disk.md` a replica gains about 0.7 GiB an hour
+- A trim that has really stopped is reported about three hours late by `make lab-check` and
+  ten minutes after that by the alert; after a start of the lab, not before three hours have
+  passed. At the rates of `l5-kafka-disk.md` a replica gains about 0.7 GiB an hour
   without a trim, so three hours cost about 2 GiB of Longhorn disk; the disk check of
   `make lab-check` (25% free) is still the last guard.
 - Should the lab get a second RecurringJob, its failed Jobs are not kept either, and it needs a

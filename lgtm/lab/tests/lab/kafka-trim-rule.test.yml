@@ -3,28 +3,31 @@
 # promtool. It needs the rule group as a plain Prometheus rule file; from lgtm/lab in WSL:
 #
 #   .bin/helm template lab-glue charts/lab-glue -n lab-tools -s templates/alerts.yaml \
-#     | python3 -c 'import sys, yaml; print(yaml.safe_dump({"groups": yaml.safe_load(sys.stdin)["spec"]["groups"]}))' \
+#     | .venv/bin/python -c 'import sys, yaml; print(yaml.safe_dump({"groups": yaml.safe_load(sys.stdin)["spec"]["groups"]}))' \
 #     > .bin/lab-glue-rules.yml
 #   docker run --rm -v "$PWD:/lab" -w /lab/tests/lab --entrypoint promtool \
 #     prom/prometheus:v3.13.5 test rules kafka-trim-rule.test.yml
 #
-# Time 0 is a point in the test, one sample a minute. The values are Unix seconds relative to it.
+# One sample a minute. A value is the time of the last success in seconds, on the same clock as
+# the test's minutes (minute 60 is 3600). `_` is a minute without a sample: the lab was off.
 rule_files:
   - ../../.bin/lab-glue-rules.yml
 evaluation_interval: 1m
 tests:
-  # The trim succeeded at 0 and then fails every hour: the alert fires after three failed runs.
+  # The trim succeeded at 0 and never again, with the lab running: the condition holds from
+  # 181m, and the alert fires 10 minutes later.
   - interval: 1m
     input_series:
       - series: 'kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}'
         values: '0x299'
-      - series: 'kube_cronjob_status_last_schedule_time{namespace="longhorn-system", cronjob="kafka-trim"}'
-        values: '0x59 3600x59 7200x59 10800x59 14400x59'
     alert_rule_test:
       - eval_time: 179m
         alertname: LabKafkaTrimNotSucceeding
         exp_alerts: []
-      - eval_time: 181m
+      - eval_time: 185m
+        alertname: LabKafkaTrimNotSucceeding
+        exp_alerts: []
+      - eval_time: 192m
         alertname: LabKafkaTrimNotSucceeding
         exp_alerts:
           - exp_labels:
@@ -32,45 +35,40 @@ tests:
               namespace: longhorn-system
               cronjob: kafka-trim
             exp_annotations:
-              summary: "Longhorn's kafka-trim has not succeeded for 3h 1m 0s."
+              summary: "Longhorn's kafka-trim has not succeeded for 3h 12m 0s."
               description: >-
-                The hourly filesystem trim of the Kafka volumes has failed or not run for
+                The hourly filesystem trim of the Kafka volumes has not succeeded for
                 more than 3 hours. Without it a Kafka replica grows towards its whole volume.
                 Find out why (lgtm/lab/docs/runbook.md, "The Kafka trim keeps failing").
 
-  # A cold start at 0 (13:20): the last success is from before the shutdown, 13 hours earlier
-  # (00:07), the missed run of 13:07 fails while Longhorn starts, the run of 14:07 (47m) succeeds.
+  # A night off, as on 2026-11-16: success at 00:07 (0), stop at 00:30, start at about 13:21,
+  # the missed run fails while Longhorn starts, the run of 14:07 (840m) succeeds.
   - interval: 1m
     input_series:
       - series: 'kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}'
-        values: '-46380x46 2820x60'
-      - series: 'kube_cronjob_status_last_schedule_time{namespace="longhorn-system", cronjob="kafka-trim"}'
-        values: '-780x46 2820x60'
+        values: '0x23 _x770 0x45 50400x60'
     alert_rule_test:
-      - eval_time: 10m
+      - eval_time: 800m
         alertname: LabKafkaTrimNotSucceeding
         exp_alerts: []
-      - eval_time: 46m
+      - eval_time: 839m
         alertname: LabKafkaTrimNotSucceeding
         exp_alerts: []
-      - eval_time: 100m
+      - eval_time: 900m
         alertname: LabKafkaTrimNotSucceeding
         exp_alerts: []
 
-  # A cold start after which the trim keeps failing: the run at boot and the runs of 14:07 (47m),
-  # 15:07 (107m) and 16:07 (167m) fail. Prometheus sees the last three start, and the alert
-  # fires with the fourth failure.
+  # The same night, but the trim keeps failing after the start: the alert fires about three
+  # hours and ten minutes after the start.
   - interval: 1m
     input_series:
       - series: 'kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}'
-        values: '-46380x200'
-      - series: 'kube_cronjob_status_last_schedule_time{namespace="longhorn-system", cronjob="kafka-trim"}'
-        values: '-780x46 2820x59 6420x59 10020x33'
+        values: '0x23 _x770 0x300'
     alert_rule_test:
-      - eval_time: 160m
+      - eval_time: 960m
         alertname: LabKafkaTrimNotSucceeding
         exp_alerts: []
-      - eval_time: 170m
+      - eval_time: 1000m
         alertname: LabKafkaTrimNotSucceeding
         exp_alerts:
           - exp_labels:
@@ -78,25 +76,24 @@ tests:
               namespace: longhorn-system
               cronjob: kafka-trim
             exp_annotations:
-              summary: "Longhorn's kafka-trim has not succeeded for 15h 43m 0s."
+              summary: "Longhorn's kafka-trim has not succeeded for 16h 40m 0s."
               description: >-
-                The hourly filesystem trim of the Kafka volumes has failed or not run for
+                The hourly filesystem trim of the Kafka volumes has not succeeded for
                 more than 3 hours. Without it a Kafka replica grows towards its whole volume.
                 Find out why (lgtm/lab/docs/runbook.md, "The Kafka trim keeps failing").
 
-  # A short shutdown: the trim succeeded at 12:07 (0), the lab stopped at 12:30 and started at
-  # 15:00 (173m). The missed run of 14:07 fails at boot, 15:07 (180m) fails while Longhorn
-  # starts, 16:07 (240m) succeeds. Prometheus has samples from before the stop.
+  # A short stop: successes at 11:07 (0) and 12:07 (60m), stop at 12:30, start at about 14:53.
+  # The runs of 14:07 (at boot) and 15:07 fail while Longhorn starts, 16:07 (300m) succeeds.
+  # The last success is more than three hours old from 15:07 on, but Prometheus has not watched
+  # all of those hours.
   - interval: 1m
     input_series:
       - series: 'kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="kafka-trim"}'
-        values: '0x22 _x150 0x66 14400x30'
-      - series: 'kube_cronjob_status_last_schedule_time{namespace="longhorn-system", cronjob="kafka-trim"}'
-        values: '0x22 _x150 7200x6 10800x59 14400x30'
+        values: '0x59 3600x23 _x149 3600x66 18000x30'
     alert_rule_test:
-      - eval_time: 200m
+      - eval_time: 250m
         alertname: LabKafkaTrimNotSucceeding
         exp_alerts: []
-      - eval_time: 239m
+      - eval_time: 299m
         alertname: LabKafkaTrimNotSucceeding
         exp_alerts: []

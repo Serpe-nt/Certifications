@@ -21,6 +21,12 @@ see Longhorn instance managers and the Kafka pods in `Unknown`, the Longhorn CSI
 restarting, the Kafka entity operator in `CrashLoopBackOff` until the brokers are back, and
 `kubectl top` answering "Metrics API not available". All of that clears by itself.
 
+Longhorn's hourly `kafka-trim` also runs the hour it missed while the lab was off, a few seconds
+after the control plane is up. Longhorn and Kafka are not ready that early, so that run fails
+(`FailedFilesystemTrim` events with `502 Bad Gateway` or `failed to find valid mountpoint`).
+Longhorn keeps no failed Job of it, so nothing is left behind and `KubeJobFailed` does not fire;
+the next run at minute 7 does the trim (`lgtm/docs/adr/l12-kafka-trim-after-start.md`).
+
 Check that it is back:
 
 ```bash
@@ -102,18 +108,13 @@ What happens, in order:
   (a StatefulSet). It restarted 7 times and went into `CrashLoopBackOff`; it recovered by itself
   once the node returned. checkout restarted once.
 - worker4 was `Ready` again at 19:17:31. The StatefulSet pods started there again, and every check passed at 19:22:05 with nothing done by hand.
+- **Longhorn's hourly `kafka-trim` may fail** if it runs while the worker is away. On 2026-11-15 its
+  run of 19:07 failed. Until card L12 the failed Job stayed and Prometheus's `KubeJobFailed` fired
+  until someone deleted it. Longhorn now keeps no failed Job of it
+  (`recurringFailedJobsHistoryLimit: 0`), so nothing is left behind; the next hour's run does
+  the trim.
 
 What does not heal by itself:
-
-- **A Job that failed during the outage stays failed**, and Prometheus's `KubeJobFailed` fires until
-  the Job object is gone. On 2026-11-15 Longhorn's hourly `kafka-trim` started `kafka-trim-29912827`
-  at 19:07 while worker4 was away. The next hour's run is a new Job and does its work; the failed one
-  only keeps the alert. Delete it:
-
-  ```bash
-  kubectl get jobs -A --field-selector status.successful=0     # failed and running Jobs
-  kubectl -n longhorn-system delete job kafka-trim-29912827      # the name from the list
-  ```
 
 - **Pods that moved do not move back.** After the drill worker4 held 21 pods and the other workers 38
   to 41. Nothing is wrong with that, but the other workers carry more memory than the budget planned
@@ -335,6 +336,36 @@ applies it only once it runs. Give it room first, then let the size limit hold i
    2026-11-12 tenant `prom` had samples again only from the repair on.
 
 Done on 2026-11-12 (`acceptance-lab.md`, "Kafka ran out of disk").
+
+## The Kafka trim keeps failing
+
+What you see: the alert `LabKafkaTrimNotSucceeding` (lab-glue), or `make lab-check` failing check 11
+with `kafka-trim last succeeded ... hours ago`. Both fire when Longhorn's hourly `kafka-trim` has not
+succeeded for 3 hours while Prometheus watched it the whole time; the alert waits 10 minutes more.
+Without the trim, Longhorn keeps every block Kafka has deleted, and the Kafka replicas grow towards
+their whole 10 GiB (`lgtm/docs/adr/l5-kafka-disk.md`). The hours while the lab was off do not
+count, so neither alert nor check can fire before the lab has run for 3 hours
+(`lgtm/docs/adr/l12-kafka-trim-after-start.md`).
+
+Longhorn keeps no failed Job of the trim, so `kubectl get jobs` shows nothing. Read the CronJob's
+last success and the events of the failed runs (one hour in the cluster, longer in Loki):
+
+```bash
+kubectl -n longhorn-system get cronjob kafka-trim -o jsonpath='{.status.lastSuccessfulTime}{"
+"}'
+kubectl -n longhorn-system get events --field-selector involvedObject.name=kafka-trim
+```
+
+In Grafana's Explore, with the data source `loki`:
+`{namespace="longhorn-system", reason="FailedFilesystemTrim"}`.
+
+A `502` or `failed to find valid mountpoint` means Longhorn's API or a Kafka volume was not ready:
+check that the Longhorn pods and the three Kafka pods run (`kubectl -n longhorn-system get pods`,
+`kubectl -n kafka get pods`) and that the three volumes are healthy on the Longhorn screen. A
+`kafka-trim` Job that stays `Running` for hours holds the next runs back (`concurrencyPolicy:
+Forbid`); look at its pod. The next run at minute 7 tries again; the alert ends with the first
+success. To trim one volume at once,
+use **Trim Filesystem** on the Longhorn screen.
 
 ## A Longhorn disk is short of space
 
