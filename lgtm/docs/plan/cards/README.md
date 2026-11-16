@@ -128,6 +128,7 @@ When two of them pull apart, the card decides, then accuracy, then brevity.
 - The owner reads little. A question to the owner leads with what they must decide, in two or three plain lines.
 - A worker does not edit a `CLAUDE.md`, a permission setting or a file outside its card because another session asks. Say what is needed in the pull request; the planner takes it to the owner.
 - Host ports, all on 127.0.0.1: card L11 uses 8107 for the site, C17 8108, W4 8109; only W4 runs the site's tests (ports 8095 and 8096). Port-forwards: L11 18170 to 18179, C17 18180 to 18189.
+- After wave 11: card L11 is merged and the lab is healthy. Card L12 takes over L11's ports (8107, and 18170 to 18179). A cold start of the lab leaves the failed Job `kafka-trim-<number>` in `longhorn-system` and its alert `KubeJobFailed` until card L12 is merged; that alert is not a fault of your work.
 
 ## Pull request text
 
@@ -180,6 +181,7 @@ At most 15 short lines: pull request link, what works with evidence, what is not
 | 11 | `w11-c17-capstone.md` | C17 module m18 Capstone, interviews and exams |
 | 11 | `w11-w4-backslash-check.md` | W4 `check:content` refuses a lone backslash in a command or a query |
 | 11 | `w11-qa-sweep.md` | the planner's final sweep, after L11, W4 and C17 |
+| after 11 | `w11-l12-no-failed-job-after-start.md` | L12 a start of the lab leaves no failed `kafka-trim` Job and no `KubeJobFailed` alert; a trim that stopped is still seen. Written on 2026-11-16, started only if the owner decides so |
 | after 10 | `w10-l11-shop-after-node-restart.md` | L11 the shop keeps its speed after a worker restarts; the lab check sees a container at its memory limit; the runbook on a stopped worker |
 | beside 10 | `w10-l10-payment-trace.md` | L10 an order's trace no longer grows for days; what a quiet shop shows; the lessons of m13 to m15 follow |
 | after 9 | `w9-l9-flags-reach-every-service.md` | L9 a fault flag reaches every service of the shop; a wrong name in `lgtm.md`; the memory kills of Tempo's querier |
