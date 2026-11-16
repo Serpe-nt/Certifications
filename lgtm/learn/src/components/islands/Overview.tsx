@@ -275,7 +275,7 @@ export default function Overview({ modules, art, ...slots }: Props) {
                     />
                     <p className="ov-mod-meta">
                       <span data-progress>
-                        {doneCount} of {total} steps done
+                        {doneCount} of {total} {total === 1 ? 'step' : 'steps'} done
                       </span>
                       <span>about {minutes} min</span>
                     </p>

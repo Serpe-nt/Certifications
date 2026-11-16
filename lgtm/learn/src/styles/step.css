@@ -65,6 +65,11 @@
   margin: 0 0 1.375rem;
   max-width: 70ch;
 }
+.prose code,
+.labcheck-prompt code,
+.term dd code {
+  overflow-wrap: anywhere;
+}
 .prose code {
   font-size: 0.86em;
   background: var(--lg-screen-2);
@@ -311,13 +316,17 @@
   color: var(--lg-ink);
 }
 .part-done {
-  padding: 18px 24px;
+  padding: 18px 56px 18px 24px;
   background: var(--lg-ink);
 }
 .part-done p {
   color: var(--lg-ink-on-dark);
 }
 .part-done .part-label {
+  color: var(--lg-signal);
+}
+.part-done code {
+  background: var(--lg-bezel-2);
   color: var(--lg-signal);
 }
 
@@ -430,6 +439,7 @@
 }
 .stage-title {
   display: block;
+  overflow-wrap: anywhere;
   margin: 6px 0 4px;
   font-family: var(--lg-font-display);
   font-size: var(--lg-text-lead);
@@ -483,6 +493,7 @@
 }
 .col-title {
   display: block;
+  overflow-wrap: anywhere;
   margin-bottom: 8px;
   font-family: var(--lg-font-display);
   font-size: var(--lg-text-lead);
@@ -615,9 +626,14 @@
   margin: 0 0 12px;
   color: var(--lg-ink-3);
 }
+/* The contents list stays in view; the boxes under it scroll up behind its paper backing. */
 .toc {
   position: sticky;
   top: 20px;
+  z-index: 1;
+  padding: 12px 14px 6px;
+  background: var(--lg-paper);
+  border: 1px solid var(--lg-rule);
 }
 .toc ol {
   list-style: none;
@@ -945,6 +961,9 @@
   border: 2px solid var(--lg-rule);
   margin-bottom: 8px;
   font-size: var(--lg-text-ui);
+  cursor: pointer;
+}
+.labcheck-option input {
   cursor: pointer;
 }
 .labcheck-option:has(input:checked) {
@@ -2473,7 +2492,7 @@
   bottom: 0;
   z-index: 20;
   margin: 0;
-  padding: 10px max(var(--lg-space-4), calc((100% - 64rem) / 2));
+  padding: 10px max(var(--lg-space-4), calc((100% - 74.5rem) / 2));
   border-top: 2px solid var(--lg-ink);
   background: var(--lg-paper);
   box-shadow: 0 -5px 0 var(--lg-signal);
@@ -2486,6 +2505,12 @@
 }
 body:has(.stepend .stepnav) {
   padding-bottom: 96px;
+}
+html:has(.stepend .stepnav) {
+  scroll-padding-bottom: 112px;
+}
+html:has(.stepend .stepnav[data-blocked]) {
+  scroll-padding-bottom: 140px;
 }
 body:has(.stepend .stepnav[data-blocked]) {
   padding-bottom: 124px;
@@ -2513,6 +2538,11 @@ body:has(.stepend .stepnav[data-blocked]) .toasts {
   .stepend .stepnav-mid .btn {
     width: 100%;
     padding-inline: 8px;
+  }
+  .stepend .stepnav-hint {
+    grid-column: 1 / -1;
+    text-align: center;
+    line-height: 1.35;
   }
   body:has(.stepend .stepnav) {
     padding-bottom: 80px;

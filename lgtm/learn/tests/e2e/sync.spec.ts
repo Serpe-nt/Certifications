@@ -36,7 +36,7 @@ test('two browser contexts converge within one sync cycle', async ({ browser }) 
   await b.goto('/');
   for (const p of [a, b]) {
     await expect(p.locator('[data-module="m90"] [data-progress]')).toHaveText('2 of 7 steps done');
-    await expect(p.locator('[data-module="m91"] [data-progress]')).toHaveText('1 of 1 steps done');
+    await expect(p.locator('[data-module="m91"] [data-progress]')).toHaveText('1 of 1 step done');
   }
   await a.context().close();
   await b.context().close();

@@ -72,6 +72,6 @@ test('three browser contexts changed offline in different ways converge', async 
   expect(Object.keys(s.srs as object)).toHaveLength(1);
   await a.goto('/');
   await expect(a.locator('[data-module="m90"] [data-progress]')).toHaveText('1 of 7 steps done');
-  await expect(a.locator('[data-module="m91"] [data-progress]')).toHaveText('1 of 1 steps done');
+  await expect(a.locator('[data-module="m91"] [data-progress]')).toHaveText('1 of 1 step done');
   for (const p of [a, b, c]) await p.context().close();
 });

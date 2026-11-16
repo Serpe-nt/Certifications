@@ -329,6 +329,21 @@
 }
 
 /* ================================================================ focus */
+/* Cut-corner controls would clip their own focus ring; the corner opens while one is focused. Kept
+   outside the layers so it beats the controls' own clip-path in the components layer. */
+.btn:focus-visible,
+.navbtn:focus-visible,
+.tab:focus-visible,
+.toggle:focus-visible,
+.crumb a:focus-visible {
+  clip-path: none;
+}
+/* The file input is visually hidden; its label button shows the focus instead. */
+.btn:has(+ input[type="file"]:focus-visible) {
+  clip-path: none;
+  outline: 3px solid var(--lg-signal);
+  outline-offset: 2px;
+}
 /* The focus ring snaps in from further out. */
 @media (prefers-reduced-motion: no-preference) {
   :is(a, button, input, select, textarea, summary):focus-visible {

@@ -48,6 +48,7 @@
   font-size: var(--lg-text-small);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .tag-tail {
   flex: 0 1 120px;
@@ -508,12 +509,15 @@
   animation-delay: 0s !important;
   transition-delay: 0s !important;
 }
-/* The running mock exam has no motion at all, the header's included. */
+/* The running mock exam has no motion at all, the header's included. The animations end at once
+   (rather than being removed), so each part stands at its end state and nothing replays after Submit. */
 body:has([data-exam-running]) .pagehead,
 body:has([data-exam-running]) .pagehead *,
 body:has([data-exam-running]) .pagehead *::before,
 body:has([data-exam-running]) .pagehead *::after {
-  animation: none !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0s !important;
 }
 
 @keyframes hd-stamp {
@@ -713,6 +717,7 @@ body:has([data-exam-running]) .pagehead *::after {
    screen it stays on top, shorter. */
 .pagehead-aside .pagetitle {
   font-size: var(--lg-text-h2);
+  overflow-wrap: break-word;
 }
 .pagehead-aside .tagrow {
   margin-bottom: var(--lg-space-3);

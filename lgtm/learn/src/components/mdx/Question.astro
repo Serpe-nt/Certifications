@@ -26,7 +26,7 @@ const answerIndex = 'abcde'.indexOf(answer);
     </span>
   </div>
   <div class="sticker-body">
-    <CardQuestion client:visible id={id} stemHtml={stem} options={options} answer={answerIndex} />
+    <CardQuestion client:load id={id} stemHtml={stem} options={options} answer={answerIndex} />
     <div class="sticker-foot mono" aria-hidden="true">
       <span class="barcode"></span>
       <p class="sticker-code"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5 15 14H1z"/><path d="M8 6v4M8 11.5v1"/></svg>{id}</p>

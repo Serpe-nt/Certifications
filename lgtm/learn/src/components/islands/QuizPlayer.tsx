@@ -83,6 +83,8 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
   const by = byId(bank);
   // Picks not yet checked, per question, in memory only.
   const [picks, setPicks] = useState<Map<string, number[]>>(new Map());
+  // The question whose right answer set a new best streak (in memory only).
+  const [record, setRecord] = useState('');
   const qs = run.ids.map((id) => by.get(id));
   const known = qs.filter((q) => !!q).length;
 
@@ -130,9 +132,14 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
   const check = () => {
     if (!q || !canCheck) return;
     let result: { right: boolean } | null = null;
+    let raised = false;
     updateState((s) => {
-      if (s.run && s.run.t0 === run.t0) result = answerRun(s, q, picked, Date.now());
+      if (!s.run || s.run.t0 !== run.t0) return;
+      const before = Math.max(s.run.rowMax, s.run.best0);
+      result = answerRun(s, q, picked, Date.now());
+      raised = s.run.row > before;
     });
+    setRecord(raised ? q.id : '');
     const r = result as { right: boolean } | null;
     if (r) {
       const s = getStore().get();
@@ -192,7 +199,7 @@ export default function QuizPlayer({ run, bank, title, onRetake }: Props) {
                 <>
                   <Mark right={answerRight} />
                   {answerRight ? 'Correct' : 'Wrong'}
-                  {run.row >= 3 && <span className="qz-verdict-row">{run.row} in a row{run.row > run.best0 && run.row === run.rowMax ? ', a new record' : ''}</span>}
+                  {run.row >= 3 && <span className="qz-verdict-row">{run.row} in a row{record === id ? ', a new record' : ''}</span>}
                 </>
               )}
             </p>
