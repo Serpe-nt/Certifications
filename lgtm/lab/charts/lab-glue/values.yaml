@@ -102,6 +102,11 @@ beacon:
 # The lab's own alert rules (templates/alerts.yaml), loaded by the lab's
 # Prometheus. LabVolumeFillingUp fires when a volume is fuller than this ratio
 # for five minutes; `make lab-check` uses the same threshold.
+# LabKafkaTrimNotSucceeding fires when Longhorn's kafka-trim has not succeeded
+# for this many hours (a whole number; from the CronJob's creation if it never
+# succeeded) while Prometheus watched it the whole time; `make lab-check` uses
+# the same number (LAB_KAFKA_TRIM_MAX_HOURS).
 alerts:
   enabled: true
   volumeFullRatio: 0.85
+  kafkaTrimMaxHours: 3

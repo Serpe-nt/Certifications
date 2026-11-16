@@ -22,6 +22,10 @@ LAB_VOLUME_FULL_RATIO ?= 0.85
 # lab-check fails when a Longhorn disk has less than this ratio free (Longhorn itself stops
 # scheduling replicas at 15%). Raise it to see the check fail.
 LAB_LONGHORN_FREE_RATIO ?= 0.25
+# lab-check fails when Longhorn's kafka-trim has not succeeded for this many hours (from the
+# CronJob's creation if it never succeeded) while Prometheus watched it the whole time (the alert LabKafkaTrimNotSucceeding of lab-glue uses
+# the same number, alerts.kafkaTrimMaxHours).
+LAB_KAFKA_TRIM_MAX_HOURS ?= 3
 
 # The playbook lives in ansible/playbooks/, the roles in ansible/roles/.
 LAB_ROLES_PATH = ANSIBLE_ROLES_PATH=$(ANSIBLE_DIR)/roles
@@ -29,7 +33,7 @@ LAB_PLAYBOOK = cd $(ANSIBLE_DIR) && $(LAB_ROLES_PATH) $(ANSIBLE_PLAYBOOK) -i loc
 	-e lab_profile=$(LAB_PROFILE) -e lab_kubeconfig=$(LAB_KUBECONFIG)
 LAB_RENDER_DIR = $(CURDIR)/.bin/lab-render
 
-.PHONY: lab lab-tools status reset lab-check calico-renew lab-kind-up lab-kind-down lab-lint lab-lint-ansible
+.PHONY: lab lab-tools status reset lab-check lab-rule-test calico-renew lab-kind-up lab-kind-down lab-lint lab-lint-ansible
 
 lab: collections lab-tools ## Install the LGTM stack and the shop (LAB_PROFILE=full|kind, TAGS=<release>)
 	$(LAB_PLAYBOOK) $(if $(TAGS),--tags $(TAGS),) $(ANSIBLE_ARGS)
@@ -50,7 +54,18 @@ reset: ## Remove the lab releases, their volumes and bucket objects; keep the cl
 lab-check: ## Smoke test: every signal arrives and the shop can be followed metric -> trace -> log
 	LAB_KUBECONFIG=$(LAB_KUBECONFIG) LAB_GATEWAY_URL=$(LAB_GATEWAY_URL) LAB_CHECK_WARMUP=$(LAB_CHECK_WARMUP) \
 	LAB_VOLUME_FULL_RATIO=$(LAB_VOLUME_FULL_RATIO) LAB_LONGHORN_FREE_RATIO=$(LAB_LONGHORN_FREE_RATIO) \
+	LAB_KAFKA_TRIM_MAX_HOURS=$(LAB_KAFKA_TRIM_MAX_HOURS) \
 	bash $(CURDIR)/tests/lab/smoke.sh
+
+# The image of the lab's Prometheus version (kube-prometheus-stack), for promtool.
+LAB_PROMTOOL_IMAGE ?= prom/prometheus:v3.13.5
+
+lab-rule-test: lab-tools ## Unit test of the lab's alert LabKafkaTrimNotSucceeding with promtool (needs Docker)
+	$(CURDIR)/.bin/helm template lab-glue $(CURDIR)/charts/lab-glue -n lab-tools -s templates/alerts.yaml \
+	| $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,$(PYTHON)) -c 'import sys, yaml; print(yaml.safe_dump({"groups": yaml.safe_load(sys.stdin)["spec"]["groups"]}))' \
+	> $(CURDIR)/.bin/lab-glue-rules.yml
+	docker run --rm -v "$(CURDIR):/lab" -w /lab/tests/lab --entrypoint promtool $(LAB_PROMTOOL_IMAGE) \
+		test rules kafka-trim-rule.test.yml
 
 calico-renew: lab-tools ## After a long sleep of the PC: restart calico-node node by node (new CNI token), wait, check
 	KUBECONFIG=$(LAB_KUBECONFIG) $(CURDIR)/.bin/kubectl -n calico-system rollout restart daemonset/calico-node
