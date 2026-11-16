@@ -1,450 +1,477 @@
-/* Celebrations (fx.js) and everything inside the quiz, mock exam, drill, results and sheet dialogs, in Datum's
-   Excimer colours: square corners or one 45-degree cut, hairlines instead of shadows, paper and ink with the poster's
-   yellow for what is live or right and alert for what is wrong; big words in bold Saira, sentence case. Motion is
-   eased (Datum: cubic-bezier(.16,1,.3,1) for what travels, linear for what switches): response animations play unless
-   data-dm-motion="off" or the system asks for reduced motion; loops also stop with the effects switch (.fx-off) and
-   data-dm-motion="calm". Every celebration of the ladder is kept, recoloured. */
+/* The quiz, the mock exam, the drill, results, badges and the celebrations, on Datum 6 (dm/bundle.css), Night palette.
+   Every screen in the quiz dialog is Datum's App view: a sheet, a plate header that names where you are with the datum
+   line under it, the task as a title at 40px, the answers as dm-choices (correct drawn in ink, wrong in signal), progress
+   as the train and the cell bar, explanations and verdicts as notices, the facts in the aside, one signal button.
+   The celebrations are drawn in Datum's language too (fx.js): light on the ground, the datum line, arcs and bearing
+   rings about a key point, contours, slanted cells, lamps. Only Datum 6 tokens (dm/tokens.css) are used here; none of
+   the Datum 4 aliases. Motion is Datum's (dm-ease, 620 ms arrival); response animations stop with data-dm-motion="off"
+   and reduced motion, loops also with the effects switch (.fx-off) and data-dm-motion="calm". */
 
-/* ================= celebrations ================= */
+/* ================= the quiz dialog: a sheet in the App view ================= */
+dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;padding:0;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;
+  color:var(--ink);background:var(--dm-sheet-fill),var(--sheet);border:0;border-radius:0;box-shadow:var(--dm-rim)}
+#quiz{width:min(1240px,calc(100vw - 2 * var(--plate-margin)));max-height:calc(100dvh - 2 * var(--plate-margin))}
+/* the header: where the run is, its live facts (the combo meter, the clock), and Close */
+.qz-h{position:sticky;top:0;z-index:3;display:flex;gap:var(--space-1) var(--space-6);align-items:center;flex-wrap:wrap;min-height:56px;padding:var(--space-2) 64px var(--space-2) var(--space-8);
+  background:var(--sheet);border-bottom:var(--stroke-hair) solid var(--line)}
+.qz-h h2{margin:0;font:600 18px/24px var(--font-sans);letter-spacing:-.01em;color:var(--ink)}
+.qz-meta{display:flex;gap:var(--space-1) var(--space-4);flex-wrap:wrap;align-items:center;font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.qz-h .qz-x{position:absolute;top:8px;right:var(--space-3);display:grid;place-items:center;width:var(--control-s);height:var(--control-s);min-height:0;margin:0;padding:0;font-size:0;color:var(--ink);
+  background:transparent;border:var(--stroke-line) solid var(--off);border-radius:0;clip-path:polygon(0 0,100% 0,100% calc(100% - var(--cut-s)),calc(100% - var(--cut-s)) 100%,0 100%);transition:border-color var(--dm-fast),background var(--dm-fast)}
+.qz-h .qz-x::before{content:"";width:16px;height:16px;background:currentColor;-webkit-mask:var(--qz-cross) center/16px no-repeat;mask:var(--qz-cross) center/16px no-repeat}
+.qz-h{--qz-cross:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3 3l10 10M13 3L3 13' stroke='black' stroke-width='1.75' stroke-linecap='square' fill='none'/></svg>")}
+@media (hover:hover){.qz-h .qz-x:hover{border-color:var(--ink);background:var(--mist);color:var(--ink)}}
+.qz-h .qz-x:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:-5px}
+/* the progress line under the header: Datum's thin bar, sticky (the header wraps to more lines on a phone; app.js sets --qzh) */
+.qz-bar.dm-bar{position:sticky;top:var(--qzh,56px);z-index:2;width:auto;margin:0}
+.qz-body{padding:var(--space-8) var(--space-8) var(--space-12)}
+.qz-body>*{scroll-margin-top:76px}
+.qz-body .sub-h{display:flex;gap:var(--space-2);align-items:center;margin:var(--space-6) 0 var(--space-2);font:700 11px/14px var(--font-sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.qz-body .sub-h::after{content:"";flex:1;height:var(--stroke-hair);background:var(--line)}
+
+/* the buttons of the quiz screens are Datum's; the page's own button rules (style.css) must not reach into them */
+:is(#quiz,#sheet) :is(button,a).dm-btn{min-height:0;text-decoration:none}
+:is(#quiz,#sheet) button.dm-btn:disabled{padding-right:var(--space-6);background:transparent}
+:is(#quiz,#sheet) button.dm-btn:disabled:has(>.dm-end){padding-right:4.5px}
+:is(#quiz,#sheet) button.dm-btn--s:disabled{padding-right:var(--space-4)}
+:is(#quiz,#sheet) button.dm-btn--icon:disabled{padding:0}
+:is(#quiz,#sheet) button.dm-btn:not(:disabled):active{transform:translateY(1px) scale(.985)}
+@media (hover:hover){
+  :is(#quiz,#sheet) button.dm-btn:not(:disabled):hover{color:var(--on-ink);border-color:var(--edge)}
+  :is(#quiz,#sheet) :is(button,a).dm-btn--line:not(:disabled):hover{color:var(--ink);background:var(--mist)}
+  :is(#quiz,#sheet) button.dm-btn--signal:not(:disabled):hover{color:var(--on-signal)}
+}
+:is(#quiz,#sheet) :is(.dm-btn,.dm-choice,.dm-seg button):focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:-5px}
+:is(#quiz,#sheet) .dm-btn--signal:focus-visible{outline-color:var(--on-signal)}
+#quiz button.dm-choice{justify-content:flex-start;min-height:var(--control);letter-spacing:normal;text-transform:none;font:400 16px/22px var(--font-sans)}
+@media (hover:hover){#quiz button.dm-choice:not(:disabled):hover{color:var(--ink);border-color:var(--edge)}#quiz button.dm-choice.is-selected:hover{color:var(--on-ink)}}
+#quiz button.dm-choice:not(:disabled):active{transform:none}
+/* a pressed toggle among Datum buttons (why missed, flagged): filled ink */
+:is(#quiz,#sheet) .dm-btn--line[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);--edge:var(--ink)}
+#quiz .dm-seg{flex-wrap:wrap}
+#quiz .dm-seg button{min-height:0;letter-spacing:.08em}
+@media (hover:hover){#quiz .dm-seg button:not([aria-pressed="true"]):hover{background:var(--sheet);color:var(--ink);border-color:transparent}}
+#quiz .dm-seg button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+
+/* ---------- the App view: plate, datum line, main column, aside ---------- */
+.qz-app{--aside:320px;--gap:var(--space-12);align-items:start}
+.qz-app.is-solo{grid-template-columns:minmax(0,1fr)}
+.qz-main{min-width:0}
+.qz-aside{display:grid;gap:var(--space-6);align-content:start;min-width:0;padding-top:calc(76px + var(--space-8))}
+.qz-app>.dm-datum .dm-datum__key{--dm-key:100%;margin-left:-20px}   /* the key at the line's right end, as in Datum's App view */
+.qz-plate .dm-plate__id{max-width:60%}
+.qz-plate .dm-plate__id>span{overflow-wrap:anywhere}
+/* the task: Datum's title at 40px; the second half of a result's title is quieter (em, ink-2) */
+.qz-q.dm-title{margin:var(--space-8) 0 var(--space-6);max-width:none;font-size:40px;line-height:44px;letter-spacing:-.025em;text-wrap:pretty;overflow-wrap:break-word}
+.qz-q.dm-title.is-long{font-size:32px;line-height:38px}
+.qz-q code{font-size:.82em}
+.qz-hint{margin:var(--space-3) 0 0;font:400 13px/20px var(--font-sans);color:var(--ink-2)}
+.qz-a{display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap;margin-top:var(--space-6)}
+.qz-a .qz-go{margin-left:auto}
+.qz-msg{margin:var(--space-4) 0 0;max-width:62ch;font:400 16px/26px var(--font-sans);color:var(--ink-2)}
+.qz-facts{margin:0;padding:0;list-style:none;max-width:68ch;border-top:var(--stroke-hair) solid var(--line)}
+.qz-facts li{position:relative;padding:var(--space-3) 0 var(--space-3) var(--space-6);border-bottom:var(--stroke-hair) solid var(--line);font-size:15px;line-height:24px}
+.qz-facts li::before{content:"";position:absolute;left:2px;top:20px;width:7px;height:7px;background:var(--ink)}
+.qz-sub{justify-content:space-between}
+.qz-sub>span:last-child{font:400 11px/14px var(--font-mono);color:var(--ink-2)}
+.qz-sub::after{display:none}
+
+/* ---------- the answers ---------- */
+.qz-opts{margin:0}
+.qz-t{flex:1 1 0;min-width:0;overflow-wrap:break-word}   /* the key and the text share a row on a phone too; only the state word wraps under */
+.qz-t code,.qz-why code{font-size:.86em}
+/* after checking: each choice with its explanation under it, in the same row of the list */
+.qz-fb>li{display:grid;gap:var(--space-2)}
+.qz-fb .dm-choice{cursor:default}
+.qz-fb .dm-choice:not(.is-correct,.is-wrong){--edge:var(--off);color:var(--ink-2)}
+.qz-fb .dm-choice:not(.is-correct,.is-wrong) .dm-choice__key{color:var(--ink-2)}
+.qz-why{padding:0 var(--space-6) var(--space-2) calc(var(--control-s) + var(--space-4) + 4.5px);font:400 14px/22px var(--font-sans);color:var(--ink-2)}
+.qz-fb>li.right .qz-why,.qz-fb>li.wrong .qz-why{color:var(--ink)}
+/* the verdict: a done notice (solid ink) when right, a note with brackets when not; never colour alone */
+.qz-verdict{margin:0 0 var(--space-4)}
+.qz-verdict .xp-up{flex:none;align-self:center;margin-left:auto}
+.dm-notice--done .dm-tag--solid{background:var(--on-ink);color:var(--ink);--edge:var(--on-ink)}
+.qz-verdict.bad .dm-notice__icon{border-color:var(--signal);color:var(--signal-text)}
+/* why a question was missed, one click; and a line for the notebook */
+.why-r{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin:var(--space-6) 0 var(--space-1)}
+.why-k{flex-basis:100%;margin-bottom:var(--space-1);color:var(--ink-2)}
+.qz-note{display:grid;gap:var(--space-2);margin-top:var(--space-4);font:400 14px/20px var(--font-sans);color:var(--ink-2)}
+.qz-note .dm-label{color:var(--ink-2)}
+.qz-note input{display:block;width:100%;height:var(--control-s);padding:0 var(--space-3);font:400 15px var(--font-sans);color:var(--ink);background:var(--ground);border:var(--stroke-line) solid var(--off);border-radius:0}
+.qz-note input:is(:hover,:focus){border-color:var(--ink)}
+.qz-note input:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:0}
+
+/* ---------- the aside: score, train, where to study ---------- */
+.qz-stat .dm-stat__num{font-variant-numeric:tabular-nums}
+.qz-trainb{display:grid;gap:var(--space-3)}
+/* the train of questions: Datum's squares, as buttons (go to that question) */
+.qz-map.dm-train>button[data-go]{display:grid;place-items:center;box-sizing:border-box;width:18px;height:18px;min-width:0;min-height:0;margin:0;padding:0;
+  font-size:0;background:transparent;border:var(--stroke-line) solid var(--off);border-radius:0;cursor:pointer;transition:border-color var(--dm-fast),background var(--dm-fast)}
+@media (hover:hover){.qz-map.dm-train>button[data-go]:hover{border-color:var(--ink);background:var(--mist)}}
+.qz-map.dm-train>button[data-go].ok{background:var(--ink);border-color:var(--ink)}
+.qz-map.dm-train>button[data-go].bad{border-color:var(--signal);background:linear-gradient(45deg,transparent calc(50% - 1px),var(--signal) calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px))}
+.qz-map.dm-train>button[data-go].cur{border-color:var(--ink)}
+.qz-map.dm-train>button[data-go].cur::after{content:"";width:7px;height:7px;background:var(--signal);box-shadow:var(--dm-lamp-glow)}
+.qz-map.dm-train>button[data-go].cur.bad{background:none;border-color:var(--signal)}
+.qz-map.dm-train>button[data-go]:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:2px}
+/* where to study this (and, on results, where to go back to): the label, then rows of steps */
+.qz-study{display:grid;gap:var(--space-3)}
+.qz-sh{color:var(--ink-2)}
+.qz-refs{list-style:none;padding:0;margin:0;display:grid;border-top:var(--stroke-hair) solid var(--line)}
+.qz-refs>li{display:grid;gap:var(--space-2);padding:var(--space-3) 0;border-bottom:var(--stroke-hair) solid var(--line)}
+.ref-h{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.ref-h .dm-tag{height:24px;padding:0 10px 0 8px}
+.ref-t{margin:0;font:600 15px/22px var(--font-sans);color:var(--ink)}
+.qz-refs .where{font:400 13px/20px var(--font-sans);color:var(--ink-2)}
+.ref-a{display:flex;gap:var(--space-2);flex-wrap:wrap}
+.qz-doc{font:400 14px/22px var(--font-sans);color:var(--ink-2)}
+.qz-doc a,.qz-la .link{color:var(--ink)}
+.qz-la{display:flex;flex-wrap:wrap;gap:var(--space-1) var(--space-3);align-items:baseline;font:400 14px/22px var(--font-sans);color:var(--ink-2)}
+
+/* ---------- the combo meter in the header (not in the mock exam) ----------
+   Four heat squares that light one by one (lamps from h3), the run, a row of slanted cells to the next streak badge
+   (Datum's bar cells, one per answer between the marks), the mark. The meter inverts to ink at h3; at h4 its cells and
+   heat squares glow in signal. It flashes at each mark (boom), shakes once on a miss and says so when a run is lost. */
+.qz-cb{--qz-cells:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='24' viewBox='0 0 12 24' preserveAspectRatio='none'><path d='M0 24h8L18 0h-8zM-12 24h8L6 0h-8z'/></svg>");
+  display:inline-flex;align-items:center;gap:var(--space-3);height:30px;padding:0 var(--space-3) 0 var(--space-2);--cut:var(--cut-s);
+  font:700 11px/14px var(--font-sans);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;color:var(--ink);
+  background:var(--mist);clip-path:polygon(0 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%)}
+.qz-cb>span{display:flex;align-items:center}
+.qz-cb .cb-f{gap:3px}
+.qz-cb .cb-f i{display:block;width:7px;height:7px;border:var(--stroke-line) solid var(--off)}
+.qz-cb .cb-f .dm-icon{width:14px;height:14px;color:var(--signal-text)}
+.qz-cb .cb-n{gap:var(--space-1)}
+.qz-cb .cb-n b{font:800 16px/1 var(--font-plate);font-stretch:75%;font-variant-numeric:tabular-nums}
+.qz-cb .cb-n small{font-size:11px}
+.qz-cb .cb-m{position:relative;display:block;width:88px;height:14px;background:var(--off);-webkit-mask:var(--qz-cells) 0 0/8px 100% repeat-x;mask:var(--qz-cells) 0 0/8px 100% repeat-x}
+.qz-cb .cb-m i{display:block;height:100%;background:var(--ink)}
+.qz-cb .cb-to{font:800 14px/1 var(--font-plate);font-stretch:75%}
+.qz-cb .cb-to .dm-icon{width:14px;height:14px}
+.qz-cb.h0{color:var(--ink-2)}
+.qz-cb.h1 .cb-f i:nth-child(-n+1),.qz-cb.h2 .cb-f i:nth-child(-n+2){background:var(--ink);border-color:var(--ink)}
+.qz-cb.h3,.qz-cb.h4{background:var(--ink);color:var(--on-ink)}
+.qz-cb:is(.h3,.h4) .cb-m{background:color-mix(in srgb,var(--on-ink) 30%,var(--ink))}
+.qz-cb:is(.h3,.h4) .cb-m i{background:var(--on-ink)}
+.qz-cb.h3 .cb-f i:nth-child(-n+3),.qz-cb.h4 .cb-f i{background:var(--signal);border-color:var(--signal);box-shadow:var(--dm-lamp-glow)}
+.qz-cb.h4 .cb-m i{background:var(--signal)}
+.qz-cb.broke{color:var(--signal-text);background:var(--mist)}
+.qz-cb.broke .cb-m i{background:var(--signal)}
+
+/* ---------- results: the verdict as the title, the score as the view's one big stat, a gauge against the bar ---------- */
+.qz-vd.dm-title{margin-bottom:var(--space-8)}
+.qz-score .dm-stat__side{font-variant-numeric:tabular-nums}
+.qz-gauge{position:relative;display:grid;gap:var(--space-2);margin-top:var(--space-6);padding-bottom:22px}
+.qz-gauge .dm-bar{--cell:16px}
+.qz-target{position:absolute;left:calc(var(--at) * 1%);bottom:0;transform:translateX(-50%);padding-top:var(--space-1);font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;color:var(--ink)}
+.qz-target::before{content:"";position:absolute;left:50%;bottom:16px;width:var(--stroke-datum);height:30px;margin-left:-1px;background:var(--ink)}
+/* the reward: three star cells, the level gauge, the line under it */
+.qz-rw{display:grid;gap:var(--space-3)}
+.stars{display:flex;gap:5px}
+.stars span{display:block;box-sizing:border-box;width:28px;height:28px;border:var(--stroke-line) solid var(--off)}
+.stars span.on{background:var(--ink);border-color:var(--ink)}
+.qz-xp{margin-top:var(--space-2)}
+.qz-xp .dm-bar__fill{--value:var(--qz-v)}
+.qz-xp .xp-up,.qz-verdict .xp-up{height:24px;padding:0 10px 0 8px}
+.rw-x{margin:0;font:400 13px/20px var(--font-sans);color:var(--ink-2)}
+/* the GIF: plain, held in a hairline frame; the source in micro under it */
+.qz-gif{margin:0;display:grid;gap:var(--space-2)}
+.qz-gif img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;background:var(--ground);box-shadow:inset 0 0 0 1px var(--line)}
+.qz-gif figcaption{font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+/* the misses, folded: the question's number in a key cell, the question, the answer under it */
+.qz-missed{list-style:none;margin:0;padding:0;border-top:var(--stroke-hair) solid var(--line)}
+.qz-missed>li{border-bottom:var(--stroke-hair) solid var(--line)}
+.qz-missed summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:var(--space-4);align-items:start;padding:var(--space-3) var(--space-1);cursor:pointer;list-style:none;font:400 15px/22px var(--font-sans);color:var(--ink)}
+.qz-missed summary::-webkit-details-marker{display:none}
+@media (hover:hover){.qz-missed summary:hover{background:var(--mist)}}
+.qz-missed summary:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:-2px}
+.qz-no{padding:4px 9px 4px 7px;--cut:6px;background:var(--mist);clip-path:polygon(0 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%);font:400 11px/14px var(--font-mono);letter-spacing:.08em}
+.qz-missed li.wrong .qz-no{background:none;box-shadow:inset 0 0 0 var(--stroke-line) var(--signal);color:var(--signal-text)}   /* the solid signal is the button's alone */
+.qz-missed li.right .qz-no{background:var(--ink);color:var(--on-ink)}
+.qz-missed details[open]>summary .qz-sq{font-weight:600}
+.qz-missed details>:not(summary){margin-left:calc(var(--space-4) + 44px)}
+.qz-missed details>.qz-fb,.qz-missed details>.qz-ans{margin-bottom:var(--space-4)}
+.qz-mark{display:flex;align-items:center;padding-top:3px}
+.qz-missed li.wrong .qz-mark{color:var(--signal-text)}
+.qz-none{padding:var(--space-3) var(--space-1);color:var(--ink-2)}
+.qz-ans{list-style:none;padding:0;margin:var(--space-1) 0}
+.qz-ans li{margin:var(--space-2) 0}
+.qz-ans b{display:flex;gap:var(--space-2);align-items:flex-start;font-weight:600}
+.qz-ans b .dm-icon{margin-top:3px}
+.qz-ans .qz-why{padding:var(--space-1) 0 0 24px}
+.qz-back{margin-top:var(--space-2)}
+.qz-doms{display:grid;gap:var(--space-6)}
+.qz-doms .dm-gauge__val small{margin-left:var(--space-1)}
+
+/* ---------- the mock exam: highlights, strike-outs, flag, the clock, the review grid ---------- */
+.mk-tools{display:grid;gap:var(--space-3);justify-items:start}
+.mk-hint{margin:0;font:400 13px/20px var(--font-sans);color:var(--ink-2)}
+.mk-q{user-select:text;cursor:text}
+.mk-q .w{cursor:pointer}
+.mk-q .w.hl{background:var(--ink);color:var(--on-ink);box-shadow:0 0 0 .08em var(--ink)}
+.mk-opts>li.mk-row{display:grid;grid-template-columns:minmax(0,1fr) var(--control);gap:var(--space-2);align-items:stretch}
+.mk-row .mk-x{height:auto;min-height:var(--control);width:var(--control)}
+.mk-row.x .qz-t{text-decoration:line-through;text-decoration-thickness:var(--stroke-line);text-decoration-color:var(--ink-2);color:var(--ink-2)}
+.mk-row.x .dm-choice{--edge:var(--off)}
+.mk-row.x .dm-choice__key{background:none;color:var(--ink-2)}
+.mk-row.x .dm-choice__key{background-image:repeating-linear-gradient(-45deg,color-mix(in srgb,var(--ink) 18%,transparent) 0 1px,transparent 1px 7px)}
+.mk-time{font-variant-numeric:tabular-nums;color:var(--ink)}
+.mk-time.low{color:var(--signal-text)}
+.mk-f{margin:var(--space-4) 0 var(--space-3)}
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:5px;margin:var(--space-3) 0}
+.mk-grid>button[data-go]{position:relative;display:grid;place-items:center;min-width:0;height:44px;min-height:0;margin:0;padding:0;
+  font:800 18px/1 var(--font-plate);font-stretch:75%;letter-spacing:0;text-transform:none;font-variant-numeric:tabular-nums;color:var(--ink);
+  background:transparent;border:var(--stroke-line) solid var(--off);border-radius:0;transition:background var(--dm-fast),border-color var(--dm-fast)}
+@media (hover:hover){.mk-grid>button[data-go]:hover{border-color:var(--ink);background:var(--mist);color:var(--ink)}.mk-grid>button[data-go].ans:hover{background:var(--ink-2);color:var(--on-ink)}}
+.mk-grid>button[data-go].ans{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.mk-grid>button[data-go].flag::after{content:"";position:absolute;top:4px;right:4px;width:7px;height:7px;background:var(--signal);box-shadow:var(--dm-lamp-glow)}
+.mk-grid>button[data-go]:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:2px}
+.mk-key{display:grid;gap:var(--space-2);font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.mk-key span{display:flex;gap:var(--space-2);align-items:center}
+.mk-key span::before{content:"";box-sizing:border-box;width:18px;height:18px;border:var(--stroke-line) solid var(--off)}
+.mk-key .ans::before{background:var(--ink);border-color:var(--ink)}
+.mk-key .flag::before{border-color:var(--ink);background:linear-gradient(var(--signal),var(--signal)) center/7px 7px no-repeat}
+.mk-rev-h{display:flex;gap:var(--space-4);align-items:center;justify-content:space-between;flex-wrap:wrap}
+.mk-rev-h .sub-h{flex:1}
+.mk-rev-h .chk{margin:var(--space-6) 0 var(--space-2);font-size:14px}
+
+/* ---------- the "Which service?" drill ---------- */
+.dr-svc{display:grid;gap:var(--space-3)}
+.dr-svc .dm-label{font-size:11px;letter-spacing:.08em;color:var(--ink-2)}
+.dr-long .qz-t{font-size:15px;line-height:21px}
+.dr-lives{display:inline-flex;gap:4px;align-items:center}
+.dr-lives span:not(.sr){display:block;width:9px;height:9px;border:var(--stroke-line) solid var(--off)}
+.dr-lives span.on{background:var(--signal);border-color:var(--signal);box-shadow:var(--dm-lamp-glow)}
+.dr-missed{list-style:none;margin:0;padding:0;border-top:var(--stroke-hair) solid var(--line)}
+.dr-missed li{display:grid;gap:var(--space-1);padding:var(--space-3) 0;border-bottom:var(--stroke-hair) solid var(--line);font:400 14px/22px var(--font-sans);color:var(--ink-2)}
+.dr-missed .dr-m-q{font-weight:600;color:var(--ink)}
+.dr-modes{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.dr-modes button{margin:0 calc(var(--stroke-hair) * -1) calc(var(--stroke-hair) * -1) 0}
+.dr-modes small{color:var(--steel);font-weight:400;letter-spacing:normal;text-transform:none}
+
+/* ---------- the knowledge check on a step card (the day view's): unanswered options still use .qz-o ---------- */
+button.qz-o:not(.dm-choice){position:relative;display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:stretch;gap:0;width:100%;min-height:44px;margin:0;padding:0;
+  text-align:left;font:400 15.5px/1.45 var(--font-sans);letter-spacing:normal;text-transform:none;color:var(--ink);background:var(--sheet);border:var(--stroke-line) solid var(--ink-2);border-radius:0;cursor:pointer}
+.qz-opts:not(.dm-choices){display:grid;gap:var(--space-2)}
+button.qz-o:not(.dm-choice) .qz-l{display:grid;place-items:center;font:700 18px/1 var(--font-plate);font-stretch:75%;background:var(--mist);color:var(--ink)}
+button.qz-o:not(.dm-choice) .qz-t{display:flex;align-items:center;padding:var(--space-2) var(--space-3)}
+button.qz-o:not(.dm-choice).on{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
+button.qz-o:not(.dm-choice).on .qz-l{background:var(--on-ink);color:var(--ink)}
+@media (hover:hover){button.qz-o:not(.dm-choice):not(.on):hover{background:var(--sheet);color:var(--ink);border-color:var(--ink)}}
+
+/* ---------- model answers on self-check cards (the day view's) ---------- */
+.card-a{max-width:74ch;margin:10px 0 0;padding:var(--space-3) var(--space-4);font-size:15px;background:var(--ground);box-shadow:inset 0 0 0 1px var(--line)}
+.card-b{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;margin-top:10px}
+.card-b .muted{font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.flip.shaky{color:var(--signal-text);border-color:var(--signal)}
+
+/* ---------- the sheet dialog: notebook filters, notes; badges and level ---------- */
+.seg{display:flex;gap:0;flex-wrap:wrap;margin-bottom:var(--space-2)}
+.seg button{margin:0 calc(var(--stroke-hair) * -1) 0 0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
+.seg .nb-exp{margin-left:auto}
+.nb-m{display:block;margin-top:2px;font:400 11px/16px var(--font-mono);color:var(--ink-2)}
+.qz-lead{margin-top:0;font-size:17px}
+.lv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-6) var(--space-8);align-items:end;padding-bottom:var(--space-6);border-bottom:var(--stroke-hair) solid var(--line)}
+.lv-n .dm-stat__num{font-size:104px}
+.lv-x{gap:var(--space-2)}
+.lv-t{margin:var(--space-1) 0 0;font:400 13px/20px var(--font-sans);color:var(--ink-2)}
+.lv-p{margin:var(--space-4) 0;font:400 14px/22px var(--font-sans);color:var(--ink-2)}
+.ach.dm-list{margin-top:var(--space-2)}
+.ach .dm-row{grid-template-columns:84px minmax(0,1fr) auto auto;padding:var(--space-2) var(--space-1)}
+.ach-x{display:grid;gap:2px;min-width:0;font:400 13px/20px var(--font-sans);color:var(--ink-2)}
+.ach-x b{font:600 15px/20px var(--font-sans);color:var(--ink)}
+.ach .dm-row.on .dm-row__key{background:var(--ink);color:var(--on-ink)}
+.ach .dm-row__state .dm-icon{width:14px;height:14px}
+.ach .dm-row.is-off .dm-row__state{color:var(--steel)}
+
+/* ================= celebrations (fx.js) ================= */
 .fx-canvas{position:fixed;inset:0;pointer-events:none;z-index:50}
+/* the page dims round a top rung (only with effects and motion), under the pieces: the ground, flat */
+.fx-veil{position:fixed;inset:0;z-index:49;pointer-events:none;visibility:hidden;opacity:0;background:var(--ground)}
+.fx-veil.show{visibility:visible;opacity:.7}
+.fx-veil.k-week.show{opacity:.78}
+.fx-veil.k-all.show{opacity:.86}
 
-/* The banner: a cut panel in the middle of the screen. A mono label line with the time, the title as a bracketed display
-   word, the facts as a terminal line. Ladder: block and info small; day a raised panel with a live triangle in its cut;
-   week the panel in the other theme (dm-invert, set by fx.js) with an echo; all the one signal block, the biggest. */
-.fx-banner{--cut:var(--chamfer-l);--b-line:var(--ink);--b-fill:var(--paper-raised);--b-size:26px;
-  position:fixed;left:50%;top:38%;z-index:60;isolation:isolate;pointer-events:none;width:max-content;max-width:min(92vw,960px);
-  transform:translate(-50%,-50%);visibility:hidden;padding:var(--space-3) var(--space-8) var(--space-4) var(--space-4);
-  color:var(--ink);text-align:left}
-.fx-banner::before,.fx-banner::after{content:"";position:absolute;z-index:-1;pointer-events:none}
-.fx-banner::before{inset:0;background:var(--b-line);clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%)}
-.fx-banner::after{inset:var(--stroke-hair);background:var(--b-fill);clip-path:polygon(0 0,calc(100% - var(--cut) + .586px) 0,100% calc(var(--cut) - .586px),100% 100%,0 100%)}
+/* The banner is a plate: its number (the dot-matrix code of the day, the week or the plan, or the kind) beside the log
+   line and the time, the datum line under it, glowing, then the title and the facts. Ladder: info and block a small
+   sheet; day a larger sheet with the title in display-light; week a solid ink block (Datum's done notice) with the
+   title heavy; all the one signal field of the view, the biggest. */
+.fx-banner{--b-size:26px;--b-cut:var(--cut-l);position:fixed;left:50%;top:38%;z-index:60;pointer-events:none;width:max-content;min-width:min(360px,92vw);max-width:min(92vw,980px);
+  transform:translate(-50%,-50%);visibility:hidden;padding:var(--space-4) var(--space-8) var(--space-6) var(--space-6);color:var(--ink);text-align:left;
+  background:var(--dm-sheet-fill),var(--sheet);box-shadow:var(--dm-rim);clip-path:polygon(0 0,100% 0,100% calc(100% - var(--b-cut)),calc(100% - var(--b-cut)) 100%,0 100%)}
 .fx-banner.show{visibility:visible}
-.fx-banner .b-l{display:flex;justify-content:space-between;gap:var(--space-8);padding-bottom:var(--space-1);margin-bottom:var(--space-3);border-bottom:var(--stroke-hair) solid var(--rule);
-  font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.fx-banner .b-tm{font-variant-numeric:tabular-nums}
-.fx-banner .b-i{width:fit-content;max-width:100%;margin:0 0 var(--space-3);padding:var(--space-3);background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule);
-  font:600 40px/1 var(--font-mono);color:var(--ink)}
-.fx-banner .b-i svg{display:block;width:auto;height:var(--bi-h,64px);max-width:100%}
-.fx-banner .b-t{font:600 var(--b-size)/1 var(--font-display);letter-spacing:-.025em;color:var(--b-title,var(--ink))}
-.fx-banner .b-s{margin-top:var(--space-2);max-width:68ch;font:400 13px/20px var(--font-mono);color:var(--ink-2)}
-.fx-banner .b-s::before{content:"> ";color:var(--ink-3)}
-.fx-banner .b-s::after{content:"_";color:var(--ink)}
-.fx-banner.k-info{--b-size:24px}
+.fx-banner .b-p{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-8);padding-bottom:var(--space-3)}
+.fx-banner .b-no{font:800 42px/.84 var(--font-plate);font-stretch:75%;text-transform:uppercase;letter-spacing:-.02em;color:var(--ink)}
+.fx-banner .b-no svg{display:block;width:auto;height:var(--bi-h,44px);max-width:100%}
+.fx-banner .b-id{display:grid;justify-items:end;gap:2px;font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.fx-banner .b-d{display:block;height:var(--stroke-datum);margin:0 calc(var(--space-8) * -1) var(--space-4) calc(var(--space-6) * -1);background:var(--signal);box-shadow:var(--dm-line-glow);transform-origin:0 50%}
+.fx-banner .b-t{font:600 var(--b-size)/1.05 var(--font-sans);letter-spacing:-.025em;text-wrap:balance;color:var(--ink)}
+.fx-banner .b-s{margin-top:var(--space-2);max-width:60ch;font:400 15px/22px var(--font-sans);color:var(--ink-2)}
+.fx-banner.k-info .b-no,.fx-banner.k-block .b-no{font-size:24px}
 .fx-banner.k-block{--b-size:32px}
-.fx-banner.k-day{--b-size:clamp(44px,8vw,76px);--bi-h:72px;padding:var(--space-4) var(--space-12) var(--space-6) var(--space-6);
-  background:linear-gradient(to bottom left,var(--signal-edge) calc(50% - 2px),transparent calc(50% - 2px)) top right/var(--cut) var(--cut) no-repeat}
-.fx-banner.k-week{--b-title:var(--ink);--cut:var(--chamfer-xl);--b-size:clamp(52px,10vw,100px);--bi-h:96px;padding:var(--space-6) var(--space-16) var(--space-8) var(--space-8);
-  background:linear-gradient(to bottom left,var(--signal-edge) calc(50% - 2px),transparent calc(50% - 2px)) top right/var(--cut) var(--cut) no-repeat;
-  outline:var(--stroke-hair) solid var(--ink-3);outline-offset:var(--space-2)}   /* an echo: an offset outline round the panel */
-.fx-banner.k-all{--b-title:var(--on-signal);--cut:var(--chamfer-xl);--b-size:clamp(60px,12vw,132px);--bi-h:120px;padding:var(--space-8) var(--space-16) var(--space-8) var(--space-8);
-  --b-fill:var(--signal);--b-line:var(--on-signal);--ink:var(--on-signal);--ink-2:var(--on-signal);--ink-3:var(--on-signal);--rule:var(--on-signal);color:var(--on-signal);
-  outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:var(--space-2)}
-.fx-banner.k-all .b-i{--rule:color-mix(in srgb,var(--signal) 22%,var(--on-signal));--ink:var(--signal);background:var(--on-signal);border-color:var(--on-signal)}
-.fx-banner.k-day .b-s,.fx-banner.k-week .b-s,.fx-banner.k-all .b-s{font-size:15px;line-height:22px}
-/* the page dims round a top rung's banner (only with effects and motion), under the pieces: one flat ink, no gradient */
-.fx-veil{position:fixed;inset:0;z-index:49;pointer-events:none;visibility:hidden;opacity:0;background:var(--paper-sunk)}
-.fx-veil.show{visibility:visible;opacity:.72}
-.fx-veil.k-week.show{opacity:.8}
-.fx-veil.k-all.show{opacity:.88}
-/* a long run of right answers: the quiz's edge steps out twice (fx.js glow(); an outline, so nothing inside it moves) */
-dialog.fx-glow{outline:var(--stroke-bold) solid var(--fx-glow,var(--signal-edge));outline-offset:2px}
+.fx-banner.k-day{--b-size:clamp(44px,7vw,72px);--bi-h:64px;--b-cut:var(--cut-xl);padding:var(--space-6) var(--space-16) var(--space-8) var(--space-8)}
+.fx-banner.k-day .b-t{font-weight:300;letter-spacing:-.035em}
+.fx-banner.k-day .b-d{margin-left:calc(var(--space-8) * -1);margin-right:calc(var(--space-16) * -1)}
+.fx-banner.k-week{--b-size:clamp(52px,9vw,96px);--bi-h:84px;--b-cut:var(--cut-xl);padding:var(--space-8) var(--space-16) var(--space-8) var(--space-8);background:var(--ink);box-shadow:none;color:var(--on-ink)}
+.fx-banner.k-week :is(.b-t,.b-no){color:var(--on-ink);font-weight:800}
+.fx-banner.k-week :is(.b-id,.b-s){color:color-mix(in srgb,var(--on-ink) 78%,var(--ink))}
+.fx-banner.k-week .b-no .dm-dot-on{fill:var(--on-ink)}
+.fx-banner.k-week .b-no .dm-dot-off{fill:color-mix(in srgb,var(--on-ink) 12%,transparent)}
+.fx-banner.k-week .b-d{margin-left:calc(var(--space-8) * -1);margin-right:calc(var(--space-16) * -1)}
+.fx-banner.k-all{--b-size:clamp(60px,11vw,128px);--bi-h:104px;--b-cut:var(--cut-xl);padding:var(--space-8) var(--space-16) var(--space-12) var(--space-8);background:var(--signal);box-shadow:none;color:var(--on-signal)}
+.fx-banner.k-all :is(.b-t,.b-no,.b-id,.b-s){color:var(--on-signal)}
+.fx-banner.k-all .b-t{font-weight:800;letter-spacing:-.045em}
+.fx-banner.k-all .b-no .dm-dot-on{fill:var(--on-signal)}
+.fx-banner.k-all .b-no .dm-dot-off{fill:color-mix(in srgb,var(--on-signal) 14%,transparent)}
+.fx-banner.k-all .b-d{background:var(--on-signal);box-shadow:none;margin-left:calc(var(--space-8) * -1);margin-right:calc(var(--space-16) * -1)}
+/* a long run of right answers: the quiz sheet's edge lights in signal twice (an outline, so nothing inside it moves) */
+dialog.fx-glow{outline:var(--stroke-datum) solid var(--fx-glow,var(--signal));outline-offset:2px}
 
-/* a short system line above the buttons: what was just finished and what is left (a Notice) */
-.fx-toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);z-index:61;pointer-events:none;visibility:hidden;display:flex;align-items:stretch;
-  width:max-content;max-width:min(94vw,760px);background:var(--paper-raised);color:var(--ink);border:var(--stroke-hair) solid var(--ink-3);font:400 13px/20px var(--font-mono)}
+/* the toast: one line above the buttons, a sheet with a square cell at its start (a lamp when live, the hazard band for a warning) */
+.fx-toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);z-index:61;pointer-events:none;visibility:hidden;display:flex;align-items:center;gap:var(--space-3);
+  width:max-content;max-width:min(94vw,760px);padding:var(--space-3) var(--space-6) var(--space-3) var(--space-3);--cut:var(--cut-m);
+  background:var(--mist);color:var(--ink);box-shadow:var(--dm-rim);font:400 14px/20px var(--font-sans);clip-path:polygon(0 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%)}
 .fx-toast.show{visibility:visible}
-.fx-toast .t-cap{flex:none;width:var(--space-3);background:var(--ink)}
-.fx-toast .t-b{padding:var(--space-2) var(--space-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fx-toast .t-b::before{content:"> ";color:var(--ink-3)}
-.fx-toast .t-b::after{content:"_"}
+.fx-toast .t-cap{flex:none;width:9px;height:9px;background:var(--ink)}
+.fx-toast .t-b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fx-toast b{font-weight:600}
-.fx-toast.k-combo .t-cap,.fx-toast.k-half .t-cap{background:var(--signal);border-right:var(--stroke-hair) solid var(--signal-edge)}
-.fx-toast.k-warn{border-color:var(--alert)}
-.fx-toast.k-warn .t-cap{background:repeating-linear-gradient(135deg,var(--alert) 0 var(--stroke-bar),transparent var(--stroke-bar) calc(var(--stroke-bar) * 2))}
+.fx-toast:is(.k-combo,.k-half) .t-cap{background:var(--signal);box-shadow:var(--dm-lamp-glow)}
+.fx-toast.k-warn{padding-top:calc(var(--space-3) + 6px)}
+.fx-toast.k-warn::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:repeating-linear-gradient(-45deg,var(--signal) 0 6px,var(--on-signal) 6px 12px)}
+.fx-toast.k-warn .t-cap{background:var(--signal)}
 dialog .fx-toast{bottom:26px}
 
-/* Badges drop in at the top of the screen: a cut panel with a code cell whose fill is the tier.
-   bronze outline, silver ink, gold signal, level signal with the live triangle, epic the panel in the other theme. */
+/* Badges drop in at the top of the screen: a cut sheet with the badge's code as a plate number in a cell.
+   bronze the cell outlined, silver filled ink, gold ink with a lamp, level and epic the whole badge a solid ink block
+   with a signal lamp; epic also glows in signal along its foot (the key light). */
 .fx-badges{position:fixed;top:42px;left:50%;transform:translateX(-50%);z-index:62;display:flex;flex-direction:column;align-items:center;gap:var(--space-2);pointer-events:none;width:max-content;max-width:94vw}
-dialog .fx-badges{top:auto;bottom:80px;flex-direction:column-reverse}   /* a modal covers the rail; at the top they hid the quiz header */
-.fx-badge{--cut:var(--chamfer-l);position:relative;isolation:isolate;display:flex;align-items:stretch;min-width:280px;max-width:94vw;color:var(--ink)}
-.fx-badge::before,.fx-badge::after{content:"";position:absolute;z-index:-1;pointer-events:none}
-.fx-badge::before{inset:0;background:var(--ink);clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%)}
-.fx-badge::after{inset:var(--stroke-hair);background:var(--paper-raised);clip-path:polygon(0 0,calc(100% - var(--cut) + .586px) 0,100% calc(var(--cut) - .586px),100% 100%,0 100%)}
-.bd-i{flex:none;display:grid;place-items:center;min-width:56px;margin:var(--stroke-hair) 0 var(--stroke-hair) var(--stroke-hair);padding:0 var(--space-2);
-  border-right:var(--stroke-hair) solid var(--ink);font:600 14px/1 var(--font-mono);letter-spacing:.04em;font-variant-numeric:tabular-nums;color:var(--ink)}
-.bd-x{display:grid;align-content:center;gap:2px;min-width:0;padding:var(--space-2) var(--space-8) var(--space-2) var(--space-3)}
-.bd-t{font:600 22px/1.05 var(--font-display);letter-spacing:-.025em}
-.bd-s{font:400 12px/16px var(--font-mono);color:var(--ink-2)}
-.fx-badge.k-silver .bd-i{background:var(--ink);color:var(--on-ink)}
-.fx-badge.k-gold .bd-i,.fx-badge.k-level .bd-i,.fx-badge.k-epic .bd-i{background:var(--signal);color:var(--on-signal);border-right-color:var(--signal-edge)}
-.fx-badge.k-level,.fx-badge.k-epic{background:linear-gradient(to bottom left,var(--signal-edge) calc(50% - 2px),transparent calc(50% - 2px)) top right/var(--cut) var(--cut) no-repeat}
-.fx-badge.k-epic .bd-i{color:var(--on-signal)}
+dialog .fx-badges{top:12px}
+.fx-badge{--cut:var(--cut-l);position:relative;display:flex;align-items:stretch;gap:var(--space-4);min-width:300px;max-width:94vw;padding:6px var(--space-8) 6px 6px;
+  color:var(--ink);background:var(--dm-sheet-fill),var(--mist);box-shadow:var(--dm-rim);clip-path:polygon(0 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%)}
+.bd-i{position:relative;flex:none;display:grid;place-items:center;min-width:64px;padding:0 var(--space-3);font:800 26px/1 var(--font-plate);font-stretch:75%;letter-spacing:-.01em;text-transform:uppercase;font-variant-numeric:tabular-nums;
+  color:var(--ink);box-shadow:inset 0 0 0 var(--stroke-line) var(--ink)}
+.bd-x{display:grid;align-content:center;gap:2px;min-width:0;padding:var(--space-2) 0}
+.bd-t{font:600 20px/1.1 var(--font-sans);letter-spacing:-.015em}
+.bd-s{font:400 13px/18px var(--font-sans);color:var(--ink-2)}
+.fx-badge:is(.k-silver,.k-gold) .bd-i{background:var(--ink);color:var(--on-ink);box-shadow:none}
+.fx-badge:is(.k-gold,.k-level,.k-epic) .bd-i::after{content:"";position:absolute;top:5px;right:5px;width:7px;height:7px;background:var(--signal);box-shadow:var(--dm-lamp-glow)}
+.fx-badge:is(.k-level,.k-epic){background:var(--ink);box-shadow:none;color:var(--on-ink)}
+.fx-badge:is(.k-level,.k-epic) .bd-i{background:var(--on-ink);color:var(--ink);box-shadow:none}
+.fx-badge:is(.k-level,.k-epic) .bd-s{color:color-mix(in srgb,var(--on-ink) 78%,var(--ink))}
+.fx-badge.k-epic::after{content:"";position:absolute;left:0;right:var(--cut);bottom:0;height:var(--stroke-datum);background:var(--signal);box-shadow:var(--dm-line-glow)}
 
-/* the strip: the dot of the step just finished pops, the dots of a finished block step up one after another */
-:root:not([data-dm-motion="off"]) .dot.pop::before{animation:fx-dot-pop 480ms steps(1) both}
-:root:not([data-dm-motion="off"]) .fl-g.wave .dot::before{animation:fx-dot-wave 320ms steps(1) both}
+/* the day view's step strip: the dot of the step just finished pops, the dots of a finished block light one after another */
+:root:not([data-dm-motion="off"]) .dot.pop::before{animation:fx-dot-pop 480ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .fl-g.wave .dot::before{animation:fx-dot-wave 420ms var(--dm-ease) both}
 .fl-g.wave .dot:nth-child(2)::before{animation-delay:70ms}
 .fl-g.wave .dot:nth-child(3)::before{animation-delay:140ms}
 .fl-g.wave .dot:nth-child(4)::before{animation-delay:210ms}
 .fl-g.wave .dot:nth-child(5)::before{animation-delay:280ms}
 .fl-g.wave .dot:nth-child(n+6)::before{animation-delay:350ms}
 
-/* ================= the quiz, sheet and search dialogs: one shell ================= */
-dialog.qz{width:min(780px,96vw);max-width:none;max-height:92vh;max-height:92dvh;padding:0;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;   /* overflow-x: a row's one-off jitter never brings up a sideways scroll bar */   /* dvh: the part of a phone's screen not under its address bar */
-  background:var(--paper);color:var(--ink);border:var(--stroke-hair) solid var(--rule);border-top:var(--stroke-hair) solid var(--rule);border-radius:0;box-shadow:none}
-.qz-h{position:sticky;top:0;z-index:3;display:flex;gap:var(--space-1) var(--space-4);align-items:center;flex-wrap:wrap;padding:var(--space-3) 56px var(--space-3) var(--space-6);
-  background:var(--paper-raised);border-bottom:var(--stroke-hair) solid var(--rule)}
-.qz-h h2{margin:0;font:600 26px/1.1 var(--font-display);letter-spacing:-.03em;color:var(--ink)}
-.qz-meta{display:flex;gap:var(--space-1) var(--space-4);flex-wrap:wrap;align-items:center;font:400 12px/20px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-2)}
-.qz-meta .ok{color:var(--ink);font-weight:600}
-.qz-meta .bad{color:var(--alert-text);font-weight:600}
-.qz-meta .bump{display:inline-block;padding:0 2px}
-.qz-h .qz-x{position:absolute;top:var(--space-2);right:var(--space-2);display:grid;place-items:center;width:36px;height:36px;min-height:0;padding:0;margin:0;
-  font:500 16px/1 var(--font-mono);letter-spacing:0;text-transform:none;color:var(--ink-2);background:none;border:var(--stroke-hair) solid transparent;border-radius:0}
-.qz-h .qz-x:hover{border-color:var(--ink);color:var(--ink)}
-.qz-h .qz-x:focus-visible{outline:var(--stroke-bold) solid var(--ink);outline-offset:-2px}
-/* the progress bar sticks under the header, which wraps to more lines on a phone (app.js sets --qzh) */
-.qz-bar{position:sticky;top:var(--qzh,58px);z-index:2;height:var(--space-1);background:var(--rule)}
-.qz-bar>div{position:relative;height:100%;width:0;background:var(--ink)}
-.qz-bar>div::after{content:"";position:absolute;right:-3px;top:-2px;bottom:-2px;width:3px;background:var(--signal-edge)}
-.qz-body{padding:var(--space-4) var(--space-6) var(--space-6)}
-.qz-body>*{scroll-margin-top:76px}
-.qz-body .sub-h{display:flex;gap:var(--space-2);align-items:center;margin:var(--space-6) 0 var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.qz-body .sub-h::after{content:"";flex:1;height:var(--stroke-hair);background:var(--rule)}
-
-/* ---------- a question and its options (QuizOption: a lettered mono key, rows that share borders) ---------- */
-.qz-q{margin:0 0 var(--space-4);max-width:70ch;font:500 18px/1.5 var(--font-sans);color:var(--ink)}
-.qz-opts{display:grid;gap:0}
-.qz-opts>.qz-o+.qz-o{margin-top:calc(var(--stroke-hair) * -1)}
-button.qz-o.qz-o{position:relative;display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:stretch;gap:0;width:100%;min-height:44px;margin:0;padding:0;
-  text-align:left;font:400 15.5px/1.45 var(--font-sans);letter-spacing:normal;text-transform:none;color:var(--ink);background:var(--paper-raised);
-  border:var(--stroke-hair) solid var(--ink-3);border-radius:0;box-shadow:none;cursor:pointer}
-button.qz-o.qz-o:focus-visible{z-index:1;outline:var(--stroke-bold) solid var(--ink);outline-offset:var(--stroke-bold)}
-.qz-l{display:grid;place-items:center;font:600 13px/1 var(--font-mono);color:var(--ink);border-right:var(--stroke-hair) solid var(--ink-3)}
-.qz-o .qz-t{display:flex;align-items:center;min-width:0;padding:var(--space-2) var(--space-3)}
-.qz-s{display:flex;align-items:center;padding-right:var(--space-3);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
-.qz-s:empty{padding:0}
-@media (hover:hover){button.qz-o.qz-o:not([disabled]):not(.on):hover .qz-l{background:var(--paper-sunk);color:var(--signal);box-shadow:inset 0 0 0 var(--stroke-bold) var(--signal-edge)}}   /* a touch screen keeps "hover" where the finger was: the next question's option there would look picked */
-button.qz-o.qz-o.on{box-shadow:inset 0 0 0 var(--stroke-hair) var(--ink)}
-.qz-o.on .qz-l{background:var(--ink);color:var(--on-ink)}
-/* the drill marks its answer in place: the right one wipes in signal, a wrong pick jitters once */
-.dr-opts button.qz-o.right{background:linear-gradient(var(--signal),var(--signal)) left/100% 100% no-repeat var(--paper-raised);color:var(--on-signal)}
-.dr-opts button.qz-o.qz-o.right .qz-l{background:var(--on-signal);color:var(--signal);border-right-color:var(--on-signal)}
-.dr-opts button.qz-o.qz-o.wrong .qz-l{background:var(--alert);color:var(--on-alert)}
-.dr-opts .qz-o.wrong .qz-t{text-decoration:line-through;color:var(--ink-2)}
-.dr-opts .qz-o.right::after,.dr-opts .qz-o.wrong::after{display:flex;align-items:center;padding-right:var(--space-3);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
-.dr-opts .qz-o.right::after{content:"\2713  Correct"}
-.dr-opts .qz-o.wrong::after{content:"\2715  Your answer";color:var(--alert-text)}
-
-/* the verdict: one system line with a cap; signal when right, hazard stripes when wrong */
-.qz-verdict{position:relative;display:flex;align-items:stretch;flex-wrap:wrap;margin:0 0 var(--space-3);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);font:400 13px/20px var(--font-mono);color:var(--ink)}
-.qz-verdict::before{content:"";flex:none;width:var(--space-6);background:var(--ink)}
-.qz-verdict .v-s{padding:var(--space-2) var(--space-3);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
-.qz-verdict .v-l{padding:var(--space-2) var(--space-3) var(--space-2) 0}
-.qz-verdict .xp-up{align-self:center;margin:0 var(--space-2) 0 auto}
-.qz-verdict.ok::before{background:var(--signal);border-right:var(--stroke-hair) solid var(--signal-edge)}
-.qz-verdict.bad{border-color:var(--alert)}
-.qz-verdict.bad::before{background:repeating-linear-gradient(135deg,var(--alert) 0 var(--stroke-bar),transparent var(--stroke-bar) calc(var(--stroke-bar) * 2));border-right:var(--stroke-hair) solid var(--alert)}
-.qz-verdict.bad .v-s{color:var(--alert-text)}
-/* what each option says and why: the right row filled signal, your wrong pick with an alert key and struck through */
-.qz-fb{list-style:none;padding:0;margin:0;display:grid;gap:0}
-.qz-fb>li+li{margin-top:calc(var(--stroke-hair) * -1)}
-.qz-fb>li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:stretch;background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);font-size:15px;line-height:1.45;color:var(--ink)}
-.qz-fb>li>.qz-c{min-width:0;padding:var(--space-2) var(--space-3)}
-.qz-fb .qz-why{margin-top:var(--space-1);font-size:14px;color:var(--ink-2)}
-.qz-fb>li.right{background:linear-gradient(var(--signal),var(--signal)) left/100% 100% no-repeat var(--paper-raised);color:var(--on-signal)}
-.qz-fb>li.right .qz-l{background:var(--on-signal);color:var(--signal);border-right-color:var(--on-signal)}
-.qz-fb>li.right .qz-why{color:var(--on-signal)}
-.qz-fb>li.wrong .qz-l{background:var(--alert);color:var(--on-alert)}
-.qz-fb>li.wrong .qz-t{text-decoration:line-through;text-decoration-color:var(--alert);color:var(--ink-2)}
-.qz-fb>li.wrong .qz-s{color:var(--alert-text)}
-.xp-up{display:inline-flex;align-items:center;height:20px;padding:0 var(--space-2);font:600 11px/1 var(--font-mono);letter-spacing:.08em;white-space:nowrap;background:var(--signal);color:var(--on-signal);border:var(--stroke-hair) solid var(--signal-edge)}
-
-/* where to study this: a raised panel of rows; on wide screens it leaves the card for the free space to its left,
-   top edge level with the card's (--qzdh = the card's height, set in app.js), so the answers and Next fit without
-   scrolling. The card is 780px wide and centred; the panel keeps a 16px gap to it and to the screen edge. */
-.qz-study{margin-top:var(--space-4);padding:var(--space-3) var(--space-4) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
-.qz-sh{margin-bottom:var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.qz-refs{list-style:none;padding:0;margin:0;display:grid;gap:0}
-.qz-refs>li{padding:var(--space-2) 0;border-top:var(--stroke-hair) solid var(--rule)}
-.qz-refs>li:first-child{border-top:0;padding-top:0}
-.ref-h{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;font:400 12px/16px var(--font-mono);color:var(--ink-3)}
-.ref-t{margin:var(--space-1) 0 0;font-size:15px;color:var(--ink)}
-.ref-a{display:flex;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap}
-.qz-doc{margin-top:var(--space-3);font-size:14px}
-@media (min-width:1360px){
-  #quiz .qz-side{position:fixed;top:max(4vh,calc(50vh - var(--qzdh,92vh) / 2));right:calc(50% + 406px);width:min(380px,calc(50% - 422px));max-height:calc(96vh - max(4vh,calc(50vh - var(--qzdh,92vh) / 2)));overflow:auto;margin:0;
-    padding:var(--space-3) var(--space-4) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
-}
-
-/* why a question was missed: one click, the pressed reason filled ink */
-.why-r{display:flex;flex-wrap:wrap;gap:0;align-items:center;margin:var(--space-3) 0 var(--space-1)}
-.why-k{flex-basis:100%;margin-bottom:var(--space-2);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.why-r button{margin:0 calc(var(--stroke-hair) * -1) calc(var(--stroke-hair) * -1) 0}
-.why-r button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
-.qz-note{display:block;margin-top:var(--space-3);font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.qz-note input{display:block;width:100%;margin-top:var(--space-1);letter-spacing:normal;text-transform:none}   /* the field itself: style.css's shared field rule */
-.qz-note input:focus-visible{outline:var(--stroke-bold) solid var(--ink);outline-offset:var(--stroke-hair)}
-
-/* the question squares (a Trace of the run): done ink, wrong alert, the one on screen signal; the number is the label */
-.qz-map{display:flex;flex-wrap:wrap;gap:2px;margin:0 0 var(--space-4)}
-.qz-map>button[data-go]{flex:none;display:grid;place-items:center;width:22px;height:22px;min-width:0;min-height:0;padding:0;margin:0;
-  font:500 10px/1 var(--font-mono);letter-spacing:0;text-transform:none;color:var(--ink-3);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);border-radius:0;box-shadow:none}
-@media (hover:hover){.qz-map>button[data-go]:hover{border-color:var(--ink);color:var(--ink)}}
-.qz-map>button[data-go].ok{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
-.qz-map>button[data-go].bad{background:var(--alert);border-color:var(--alert);color:var(--on-alert)}
-.qz-map>button[data-go].cur{outline:var(--stroke-bold) solid var(--ink);outline-offset:var(--stroke-hair);font-weight:600}
-.qz-map>button[data-go].cur:not(.bad){background:var(--signal);border-color:var(--signal-edge);color:var(--on-signal)}
-.qz-hint{margin:var(--space-3) 0 0;font:400 12px/18px var(--font-mono);color:var(--ink-3)}
-.qz-a{display:flex;gap:var(--space-2);align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-top:var(--space-4)}
-.qz-a .muted{margin-right:auto;font-size:13.5px}
-.qz-nav{justify-content:flex-start}
-.qz-nav .primary{margin-left:auto}
-
-/* The combo meter (app.js comboHTML): right answers in a row and a segmented bar to the next streak badge, one segment
-   per answer between the marks. Heat (h0-h4) is fill: four heat cells light one by one, the meter inverts to ink at h3
-   and to signal at h4. It flickers on at each mark (boom), jitters on a miss, and turns alert when a run is lost
-   (broke). Not in the mock exam. */
-.qz-cb{display:inline-flex;align-items:stretch;height:24px;font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
-  color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3)}
-.qz-cb>span{display:flex;align-items:center}
-.qz-cb .cb-f{gap:2px;padding:0 var(--space-2);border-right:var(--stroke-hair) solid currentColor}
-.qz-cb .cb-f i{display:block;width:5px;height:10px;border:var(--stroke-hair) solid var(--ink-3)}
-.qz-cb .cb-n{gap:var(--space-1);padding:0 var(--space-2)}
-.qz-cb .cb-n b{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
-.qz-cb .cb-n small{font-size:11px}
-.qz-cb .cb-m{position:relative;display:block;width:72px;margin:6px 0;background:var(--rule)}
-.qz-cb .cb-m i{display:block;height:100%;background:var(--ink)}
-.qz-cb .cb-m::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(100% / var(--u,3) - 2px),var(--paper-raised) 0 calc(100% / var(--u,3)))}
-.qz-cb .cb-to{margin-left:var(--space-2);padding:0 var(--space-2);border-left:var(--stroke-hair) solid currentColor;font-weight:600}
-.qz-cb.h0{color:var(--ink-2);border-color:var(--ink-3)}
-.qz-cb.h0 .cb-m i{background:var(--ink-3)}
-.qz-cb.h1 .cb-f i:nth-child(-n+1),.qz-cb.h2 .cb-f i:nth-child(-n+2){background:var(--ink);border-color:var(--ink)}
-.qz-cb.h3{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
-.qz-cb.h3 .cb-m{background:var(--ink-3)}
-.qz-cb.h3 .cb-m i{background:var(--signal)}
-.qz-cb.h3 .cb-m::after{background:repeating-linear-gradient(90deg,transparent 0 calc(100% / var(--u,3) - 2px),var(--ink) 0 calc(100% / var(--u,3)))}
-.qz-cb.h3 .cb-f i{border-color:var(--ink-3)}
-.qz-cb.h3 .cb-f i:nth-child(-n+3){background:var(--signal);border-color:var(--signal)}
-.qz-cb.h4{background:var(--signal);color:var(--on-signal);border-color:var(--signal-edge)}
-.qz-cb.h4 .cb-m{background:color-mix(in srgb,var(--on-signal) 25%,var(--signal))}
-.qz-cb.h4 .cb-m i{background:var(--on-signal)}
-.qz-cb.h4 .cb-m::after{background:repeating-linear-gradient(90deg,transparent 0 calc(100% / var(--u,3) - 2px),var(--signal) 0 calc(100% / var(--u,3)))}
-.qz-cb.h4 .cb-f i{background:var(--on-signal);border-color:var(--on-signal)}
-.qz-cb.broke{color:var(--alert-text);border-color:var(--alert);background:var(--paper-raised)}
-.qz-cb.broke .cb-f{font-size:12px;font-weight:600}
-.qz-cb.broke .cb-m i{background:var(--alert)}
-
-/* ---------- intro, results, the missed list ---------- */
-.qz-lead{margin-top:0;font-size:17px}
-.qz-facts{padding-left:20px;font-size:15.5px;list-style:square}
-.qz-facts li{margin:6px 0}
-.qz-facts li::marker{color:var(--ink-3)}
-/* the result (Result: a frame with a bracketed verdict, the score on a dial and a ruler, the quiz's id as a barcode in
-   its foot), with the GIF beside it */
-.qz-res{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-4) var(--space-6);align-items:start;margin-bottom:var(--space-2);color:var(--ink)}
-.qz-res.dm-frame{--tab:150px;--foot:300px}
-.qz-res.has-gif{grid-template-columns:minmax(0,1fr) auto}
-.qz-res-t{display:grid;gap:var(--space-3);min-width:0}
-.qz-vd{margin:0;font:500 48px/1 var(--font-display);letter-spacing:-.02em;color:var(--ink)}
-.qz-vd.is-alert{color:var(--alert)}
-.qz-res-m{display:flex;gap:var(--space-4) var(--space-6);align-items:center;flex-wrap:wrap}
-.qz-res-x{flex:1 1 200px;display:grid;gap:var(--space-1);min-width:0}
-.qz-score{font:600 40px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--ink)}
-.qz-score small{font:400 13px/20px var(--font-mono);color:var(--ink-3)}
-.qz-msg{font-size:15px;color:var(--ink-2)}
-.qz-res .dm-ruler{padding-top:var(--space-8)}
-.qz-res .dm-frame__foot svg{display:block;width:auto;height:10px}
-.qz-gif{margin:0;display:grid;gap:var(--space-1);justify-items:start}
-.qz-gif img{display:block;height:170px;width:min(260px,80vw);object-fit:cover;border:var(--stroke-hair) solid var(--rule);border-radius:0;background:var(--paper-sunk)}
-.qz-gif figcaption{font:500 10px/12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-/* stars as three squares: lit signal, unlit an outline */
-.qz-rw{display:flex;gap:var(--space-3) var(--space-6);align-items:center;flex-wrap:wrap;margin:var(--space-3) 0 var(--space-1);padding:var(--space-3) var(--space-4);
-  background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
-.stars{display:flex;gap:var(--space-1)}
-.stars span{display:block;width:20px;height:20px;border:var(--stroke-hair) solid var(--ink-3)}
-.stars span.on{background:var(--signal);border-color:var(--signal-edge)}
-.rw-x{flex:1 1 220px;display:grid;gap:var(--space-1);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
-.rw-l{display:flex;gap:var(--space-2);align-items:baseline;flex-wrap:wrap}
-.rw-l b{font:600 22px/1 var(--font-display);letter-spacing:-.025em;color:var(--ink)}
-.rw-l .xp-up{margin-left:auto}
-.qz-rw .xpbar,.lv-x .xpbar{display:block;height:var(--space-2);margin:0;background:var(--rule);border-radius:0;overflow:hidden}
-.qz-rw .xpbar>span,.lv-x .xpbar>span{display:block;height:100%;background:var(--ink);border-radius:0}
-.qz-missed{margin:var(--space-2) 0 0;padding-left:36px;list-style:decimal-leading-zero}
-.qz-missed>li{margin:0;padding:var(--space-2) 0;border-top:var(--stroke-hair) solid var(--rule);font-size:15px}
-.qz-missed>li::marker{font:500 12px var(--font-mono);color:var(--ink-3)}
-.qz-missed>li.wrong::marker{color:var(--alert-text)}
-.qz-missed>li.right::marker{color:var(--ink)}
-.qz-missed summary{cursor:pointer}
-.qz-missed details[open]>summary{margin-bottom:var(--space-2)}
-.qz-ans{list-style:none;padding:0;margin:var(--space-1) 0}
-.qz-ans li{margin:var(--space-2) 0}
-.nb-m{display:block;margin-top:2px;font:400 12px/16px var(--font-mono);color:var(--ink-3)}
-/* a row of filters that share borders; the one on is filled ink */
-.seg{display:flex;gap:0;flex-wrap:wrap;margin-bottom:var(--space-2)}
-.seg button{margin:0 calc(var(--stroke-hair) * -1) 0 0}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
-.seg .nb-exp{margin-left:auto}
-
-/* ---------- the mock exam screen: flags, highlights, strike-outs, the clock ---------- */
-.mk-tools{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4);align-items:center;margin:0 0 var(--space-3)}
-.mk-hint{font:400 12px/18px var(--font-mono);color:var(--ink-3)}
-.flagb[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
-.mk-q{user-select:text;cursor:text}
-.mk-q .w{cursor:pointer}
-.mk-q .w.hl{background:var(--signal);color:var(--on-signal);padding:0 .14em;margin:0 -.14em}
-.mk-opts{display:grid;gap:0}
-.mk-row{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:0;align-items:stretch}
-.mk-row+.mk-row{margin-top:calc(var(--stroke-hair) * -1)}
-.mk-row .qz-o{margin:0}
-button.mk-x.mk-x{display:grid;place-items:center;min-width:0;min-height:0;margin:0 0 0 calc(var(--stroke-hair) * -1);padding:0;font:500 16px/1 var(--font-mono);letter-spacing:0;text-transform:none;
-  color:var(--ink-3);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);border-radius:0}
-button.mk-x.mk-x[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
-@media (hover:hover){:is(.mk-grid>button[data-go],button.mk-x.mk-x):not(:disabled):hover{outline:var(--stroke-hair) solid var(--signal-edge);outline-offset:-4px}}
-.mk-row.x .qz-t{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--ink-3);color:var(--ink-3)}
-.mk-row.x .qz-l{background-image:repeating-linear-gradient(135deg,var(--ink-3) 0 var(--stroke-hair),transparent var(--stroke-hair) 6px);color:var(--ink-3)}
-.mk-time{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
-.mk-time.low{color:var(--alert-text);font-weight:600}
-.mk-f{margin:var(--space-2) 0 var(--space-1)}
-.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:0;margin:var(--space-3) 0}
-.mk-grid>button[data-go]{position:relative;justify-content:center;min-width:0;margin:0 calc(var(--stroke-hair) * -1) calc(var(--stroke-hair) * -1) 0;padding:10px 0;
-  font:500 13px/1 var(--font-mono);letter-spacing:0;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--paper-raised);border:var(--stroke-hair) solid var(--ink-3);border-radius:0}
-.mk-grid>button[data-go].ans{background:var(--ink);color:var(--on-ink)}
-.mk-grid>button[data-go].ans.flag::after{background:var(--on-ink)}   /* an answered cell is light: its flag is dark */
-.mk-grid>button[data-go].flag::after{content:"";position:absolute;top:0;right:0;width:14px;height:14px;background:var(--signal-edge);clip-path:polygon(0 0,100% 0,100% 100%)}
-.mk-key{display:flex;gap:var(--space-4);flex-wrap:wrap;font:400 12px/16px var(--font-mono);color:var(--ink-3)}
-.mk-key span::before{content:"";display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-2px;border:var(--stroke-hair) solid var(--ink)}
-.mk-key .ans::before{background:var(--ink)}
-.mk-key .flag::before{background:linear-gradient(to bottom left,var(--signal-edge) 50%,transparent 50%)}
-.mk-rev-h{display:flex;gap:10px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
-.mk-a{justify-content:space-between}
-
-/* ---------- the "Which service?" drill ---------- */
-.dr-req{margin:6px 0 var(--space-4);font:500 22px/1.3 var(--font-sans);color:var(--ink)}
-.dr-svc{display:grid;gap:var(--space-1);font:600 34px/1.05 var(--font-display);letter-spacing:-.03em}
-.dr-svc .muted{font:500 11px/16px var(--font-mono);letter-spacing:.08em;color:var(--ink-3)}
-.dr-long .qz-t{font-size:15px;line-height:1.35}
-.dr-modes{display:grid;grid-template-columns:1fr 1fr;gap:0}
-.dr-modes button{margin:0 calc(var(--stroke-hair) * -1) calc(var(--stroke-hair) * -1) 0}
-.dr-modes small{color:var(--ink-3);font-weight:400;letter-spacing:normal;text-transform:none}
-.dr-lives{font:600 15px/1 var(--font-mono);letter-spacing:2px}
-.dr-lives span.on{color:var(--ink)}
-.dr-lives span:not(.on){color:var(--alert-text)}
-.dr-missed{padding-left:20px;font-size:14.5px}
-.dr-missed li{margin:var(--space-2) 0}
-
-/* ---------- model answers on self-check cards ---------- */
-.card-a{max-width:74ch;margin:10px 0 0;padding:var(--space-3) var(--space-4);font-size:15px;background:var(--paper-sunk);border:var(--stroke-hair) solid var(--rule)}
-.card-b{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;margin-top:10px}
-.card-b .muted{font:500 11px/16px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.flip.shaky{color:var(--alert-text);border-color:var(--alert)}
-
-/* ---------- badges and level (the sheet) ---------- */
-.lv{display:flex;gap:var(--space-4);align-items:center;padding:var(--space-3) var(--space-4);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
-.lv-n{padding-right:var(--space-4);border-right:var(--stroke-hair) solid var(--rule);font:300 56px/.9 var(--font-display);letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--ink)}
-.lv-n small{display:block;margin-bottom:var(--space-1);font:500 11px/16px var(--font-mono);font-stretch:100%;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.lv-x{flex:1;display:grid;gap:6px;font-size:14.5px}
-.lv-x b{font:600 24px/1 var(--font-display);letter-spacing:-.025em}
-.ach{list-style:none;padding:0;margin:var(--space-4) 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0}
-.ach li{display:flex;gap:10px;align-items:flex-start;margin:0 calc(var(--stroke-hair) * -1) calc(var(--stroke-hair) * -1) 0;padding:10px var(--space-3);font-size:14px;
-  color:var(--ink-2);background:var(--paper-raised);border:var(--stroke-hair) solid var(--rule)}
-.ach li.on{color:var(--ink)}
-.ach-i{flex:none;display:grid;place-items:center;min-width:44px;height:28px;padding:0 6px;font:600 12px/1 var(--font-mono);letter-spacing:.04em;color:var(--ink-3);border:var(--stroke-hair) solid var(--ink-3)}
-.ach li.on .ach-i{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
-.ach-x{display:grid;gap:2px}
-.ach-x b{font:600 15px/1.25 var(--font-sans)}
-.ach-x .muted{font:400 12px/16px var(--font-mono);color:var(--ink-3)}
-
 /* ================= motion =================
-   Response (80-480 ms, eased): answers, badges, the banner. Off with data-dm-motion="off" or reduced motion. */
-:root:not([data-dm-motion="off"]) .fx-banner.show{animation:fx-wipe-down var(--dm-arrive) var(--dm-ease) both}
-:root:not([data-dm-motion="off"]) .fx-banner.show .b-t{animation:x-type 520ms var(--dm-ease) both;animation-delay:200ms}
-:root:not([data-dm-motion="off"]) .fx-banner.show .b-s{animation:x-type 820ms var(--dm-ease) both;animation-delay:480ms}
-:root:not([data-dm-motion="off"]) .fx-veil.show{animation:fx-veil-in 320ms linear both}
-:root:not([data-dm-motion="off"]) .fx-toast.show{animation:fx-wipe-right 280ms var(--dm-ease) both}
-:root:not([data-dm-motion="off"]) .fx-badge{animation:fx-drop var(--dm-arrive) var(--dm-ease) both}
-:root:not([data-dm-motion="off"]) .fx-badge .bd-i{animation:x-flicker-in 360ms linear both;animation-delay:240ms}
-:root:not([data-dm-motion="off"]) .fx-badge.out{animation:fx-lift 240ms var(--dm-ease) both}
+   Response (Datum's ease, 120-900 ms): answers, the verdict, badges, the banner, the reward. Off with
+   data-dm-motion="off" or reduced motion. The arrival of each screen is Datum's own (.dm-arrive in bundle.css). */
+@property --qz-v{syntax:"<number>";inherits:false;initial-value:0}   /* the level gauge's value, registered so it can fill from where the run started */
+:root:not([data-dm-motion="off"]) .fx-banner.show{animation:fx-rise var(--dm-arrive) var(--dm-ease-enter) both}
+:root:not([data-dm-motion="off"]) .fx-banner.show .b-d{animation:dm-draw 720ms var(--dm-ease-enter) 120ms both}
+:root:not([data-dm-motion="off"]) .fx-banner.show :is(.b-t,.b-s){animation:dm-settle var(--dm-arrive) var(--dm-ease-enter) both}
+:root:not([data-dm-motion="off"]) .fx-banner.show .b-t{animation-delay:260ms}
+:root:not([data-dm-motion="off"]) .fx-banner.show .b-s{animation-delay:380ms}
+:root:not([data-dm-motion="off"]) .fx-veil.show{animation:fx-fade 320ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .fx-toast.show{animation:fx-up 280ms var(--dm-ease-enter) both}
+:root:not([data-dm-motion="off"]) .fx-badge{animation:fx-drop var(--dm-arrive) var(--dm-ease-enter) both}
+:root:not([data-dm-motion="off"]) .fx-badge .bd-i{animation:fx-light 520ms var(--dm-ease) 200ms both}
+:root:not([data-dm-motion="off"]) .fx-badge.out{animation:fx-lift 260ms var(--dm-ease) both}
 :root[data-dm-motion="off"] .fx-badge.out{visibility:hidden}
-:root:not([data-dm-motion="off"]) dialog.fx-glow{animation:fx-edge 1200ms steps(1) both}
-:root:not([data-dm-motion="off"]) .qz-bar>div{transition:width 260ms var(--dm-ease)}
-:root:not([data-dm-motion="off"]) #quiz .qz-side{animation:fx-wipe-down var(--dm-arrive) var(--dm-ease) both}
-:root:not([data-dm-motion="off"]) .qz-verdict.fresh.ok::before{animation:fx-cap-in 300ms var(--dm-ease) both}
-:root:not([data-dm-motion="off"]) .qz-verdict.fresh.bad{animation:x-jitter 280ms var(--dm-ease) 1}
-:root:not([data-dm-motion="off"]) .qz-fb.fresh>li.right{animation:x-lit 520ms var(--dm-ease) both}
-:root:not([data-dm-motion="off"]) .qz-fb.fresh>li.wrong{animation:x-jitter 280ms var(--dm-ease) 1}
-:root:not([data-dm-motion="off"]) .dr-opts button.qz-o.right{animation:x-lit 520ms var(--dm-ease) both}
-:root:not([data-dm-motion="off"]) .dr-opts button.qz-o.wrong{animation:x-jitter 280ms var(--dm-ease) 1}
-:root:not([data-dm-motion="off"]) .xp-up{animation:x-flicker-in 360ms linear both;animation-delay:100ms}
-:root:not([data-dm-motion="off"]) .qz-meta .bump{animation:fx-bump 320ms steps(1) both}
-:root:not([data-dm-motion="off"]) .qz-meta .bad.bump{animation-name:fx-bump-bad}
-:root:not([data-dm-motion="off"]) .qz-map>button.just{animation:fx-sq 360ms linear both}
-:root:not([data-dm-motion="off"]) :is(.qz-cb.up,.qz-cb.boom,.qz-cb.broke,.qz-cb.miss) .cb-m i{animation:fx-fill 320ms var(--dm-ease) both}
-:root:not([data-dm-motion="off"]) .qz-cb.up .cb-n b{animation:x-flicker-in 240ms linear both}
-:root:not([data-dm-motion="off"]) .qz-cb.boom{animation:fx-cb-boom 480ms steps(1) both}
-:root:not([data-dm-motion="off"]) :is(.qz-cb.broke,.qz-cb.miss){animation:x-jitter 280ms var(--dm-ease) 1}
-:root:not([data-dm-motion="off"]) .stars span{animation:x-flicker-in 420ms linear both}
-:root:not([data-dm-motion="off"]) .qz-gif img{animation:x-flicker-in 420ms linear both}
-:root:not([data-dm-motion="off"]) :is(.qz-rw,.lv-x) .xpbar>span{animation:fx-fill 900ms var(--dm-ease) both;animation-delay:300ms}
-/* Signal (loops, only on what is live): the banner's cursor, the hot meter's heat cells. Also off with the effects switch. */
-:root:not([data-dm-motion="off"]):not([data-dm-motion="calm"]):not(.fx-off) .fx-banner.show .b-s::after{animation:x-blink 1s steps(1) infinite}
-:root:not([data-dm-motion="off"]):not([data-dm-motion="calm"]):not(.fx-off) :is(.qz-cb.h3,.qz-cb.h4) .cb-f i{animation:x-pulse var(--dm-beat) steps(1) infinite}
-:root:not([data-dm-motion="off"]):not([data-dm-motion="calm"]):not(.fx-off) :is(.qz-cb.h3,.qz-cb.h4) .cb-f i:nth-child(2n){animation-delay:600ms}
-@keyframes fx-wipe-down{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(-16px)}}
-@keyframes fx-wipe-right{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0)}}
-@keyframes fx-veil-in{from{opacity:0}}
-@keyframes fx-drop{from{clip-path:inset(0 0 100% 0);transform:translateY(-24px)}to{clip-path:inset(0);transform:none}}
-@keyframes fx-lift{from{clip-path:inset(0)}to{clip-path:inset(0 0 100% 0);transform:translateY(-12px)}}
-@keyframes fx-edge{0%{outline-offset:2px}25%{outline-offset:6px}45%{outline-color:transparent}65%{outline-color:var(--fx-glow,var(--signal-edge));outline-offset:10px}85%,100%{outline-color:transparent}}
-@keyframes fx-cap-in{from{clip-path:inset(100% 0 0 0)}to{clip-path:inset(0)}}
-@keyframes fx-bump{0%,99%{background:var(--signal);color:var(--on-signal)}}
-@keyframes fx-bump-bad{0%,99%{background:var(--alert);color:var(--on-alert)}}
-@keyframes fx-sq{0%,24%{outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:2px}25%,49%{outline-color:transparent}50%,74%{outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:2px}75%,100%{outline-color:transparent}}
+:root:not([data-dm-motion="off"]) dialog.fx-glow{animation:fx-edge 1200ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-verdict.fresh{animation:dm-settle 420ms var(--dm-ease-enter) both}
+:root:not([data-dm-motion="off"]) .qz-verdict.fresh.bad{animation:fx-shake 320ms var(--dm-ease) 1}
+:root:not([data-dm-motion="off"]) .qz-fb.fresh>li.right .dm-choice{animation:fx-lit 620ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-fb.fresh>li.wrong .dm-choice{animation:fx-shake 320ms var(--dm-ease) 1}
+:root:not([data-dm-motion="off"]) .qz-fb.fresh>li .qz-why{animation:dm-settle 420ms var(--dm-ease-enter) both}
+:root:not([data-dm-motion="off"]) .qz-fb.fresh>li:nth-child(2) .qz-why{animation-delay:50ms}
+:root:not([data-dm-motion="off"]) .qz-fb.fresh>li:nth-child(3) .qz-why{animation-delay:100ms}
+:root:not([data-dm-motion="off"]) .qz-fb.fresh>li:nth-child(n+4) .qz-why{animation-delay:150ms}
+:root:not([data-dm-motion="off"]) .dr-opts .dm-choice.right{animation:fx-lit 620ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .dr-opts .dm-choice.wrong{animation:fx-shake 320ms var(--dm-ease) 1}
+:root:not([data-dm-motion="off"]) .xp-up{animation:fx-light 520ms var(--dm-ease) 120ms both}
+:root:not([data-dm-motion="off"]) .qz-map>button.just{animation:fx-cell 620ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) :is(.qz-cb.up,.qz-cb.boom,.qz-cb.broke,.qz-cb.miss) .cb-m i{animation:fx-fill 420ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-cb.up .cb-n b{animation:fx-light 320ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-cb.boom{animation:fx-boom 620ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) :is(.qz-cb.broke,.qz-cb.miss){animation:fx-shake 320ms var(--dm-ease) 1}
+:root:not([data-dm-motion="off"]) .stars span.on{animation:fx-star 520ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-gif img{animation:dm-show 620ms var(--dm-ease) both}
+:root:not([data-dm-motion="off"]) .qz-xp .dm-bar__fill{animation:fx-xp 1100ms var(--dm-ease-enter) 400ms both}
+/* Loops, only on what is live: the hot meter's heat lamps. Also off with the effects switch and calm. */
+:root:not([data-dm-motion="off"]):not([data-dm-motion="calm"]):not(.fx-off) .qz-cb.h4 .cb-f i{animation:dm-pulse 2.4s ease-in-out infinite}
+:root:not([data-dm-motion="off"]):not([data-dm-motion="calm"]):not(.fx-off) .qz-cb.h4 .cb-f i:nth-child(2n){animation-delay:1.2s}
+@keyframes fx-rise{from{opacity:0;transform:translate(-50%,calc(-50% + 16px))}}
+@keyframes fx-fade{from{opacity:0}}
+@keyframes fx-up{from{opacity:0;transform:translate(-50%,12px)}}
+@keyframes fx-drop{from{opacity:0;transform:translateY(-20px)}}
+@keyframes fx-lift{to{opacity:0;transform:translateY(-12px)}}
+@keyframes fx-light{0%{opacity:0}40%{opacity:1}60%{opacity:.45}100%{opacity:1}}
+@keyframes fx-edge{0%{outline-offset:2px}30%{outline-offset:8px}45%{outline-color:transparent}60%{outline-color:var(--fx-glow,var(--signal));outline-offset:4px}100%{outline-color:transparent;outline-offset:12px}}
+@keyframes fx-lit{0%{box-shadow:inset 0 0 0 0 var(--ink)}30%{box-shadow:inset 0 0 0 4px var(--ink)}100%{box-shadow:inset 0 0 0 0 var(--ink)}}
+@keyframes fx-shake{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@keyframes fx-cell{0%{transform:scale(1.6)}100%{transform:none}}
 @keyframes fx-fill{from{width:var(--from,0%)}}
-@keyframes fx-cb-boom{0%,49%{background:var(--signal);color:var(--on-signal);border-color:var(--signal-edge);outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:2px}50%,100%{outline-color:transparent}}
-@keyframes fx-dot-pop{0%,32%{background:var(--signal);outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:3px}33%,65%{outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:5px}66%,100%{outline-color:transparent}}
-@keyframes x-type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
-@keyframes x-wipe{from{background-size:0 100%}}
-@keyframes x-lit{from{outline:var(--stroke-bold) solid var(--signal-edge);outline-offset:0}to{outline:var(--stroke-bold) solid transparent;outline-offset:6px}}
-@keyframes x-jitter{0%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}100%{transform:none}}
-@keyframes x-flicker-in{0%{opacity:0}35%{opacity:1}55%{opacity:.4}100%{opacity:1}}
-@keyframes x-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
-@keyframes fx-dot-wave{0%,49%{background:var(--signal);border-color:var(--signal-edge)}}
+@keyframes fx-boom{0%,30%{background:var(--ink);color:var(--on-ink)}100%{}}
+@keyframes fx-star{from{opacity:0;transform:scale(.4)}}
+@keyframes fx-xp{from{--qz-v:var(--from,0)}}
+@keyframes fx-dot-pop{0%{transform:scale(1.8);background:var(--signal)}100%{transform:none}}
+@keyframes fx-dot-wave{0%,40%{background:var(--signal)}}
 @media (prefers-reduced-motion:reduce){
-  :is(.fx-banner,.fx-banner *,.fx-veil,.fx-toast,.fx-badge,.fx-badge *,dialog.fx-glow,.qz-bar>div,#quiz .qz-side,.qz-verdict,.qz-fb>li,.dr-opts .qz-o,.xp-up,.qz-meta .bump,
-    .qz-map>button,.qz-cb,.qz-cb *,.stars span,.qz-gif img,.xpbar>span),
-  :is(.qz-verdict,.fx-banner .b-s)::before,.fx-banner .b-s::after,:is(.dot,.fl-g .dot)::before{animation:none!important;transition:none!important}
+  :is(.fx-banner,.fx-banner *,.fx-veil,.fx-toast,.fx-badge,.fx-badge *,dialog.fx-glow,.qz-verdict,.qz-fb .dm-choice,.qz-fb .qz-why,.dr-opts .dm-choice,.xp-up,
+    .qz-map>button,.qz-cb,.qz-cb *,.stars span,.qz-gif img,.qz-xp .dm-bar__fill),:is(.dot,.fl-g .dot)::before{animation:none!important;transition:none!important}
   .fx-badge.out{visibility:hidden}
 }
 
-/* ================= small screens and touch ================= */
+/* ================= narrow screens and touch ================= */
+@media (max-width:860px){
+  .qz-aside{padding-top:var(--space-8)}
+  .qz-app{--gap:0px}
+}
 @media (max-width:640px){
-  .fx-banner{padding:var(--space-3) var(--space-6) var(--space-3) var(--space-3)}
-  .fx-banner.k-day,.fx-banner.k-week,.fx-banner.k-all{padding:var(--space-4) var(--space-8) var(--space-4) var(--space-4);--bi-h:52px}
-  .fx-banner.k-all{--bi-h:64px}
+  #quiz{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0}
+  .qz-h{min-height:52px;padding:var(--space-2) 56px var(--space-2) var(--space-4)}
+  .qz-h h2{font-size:16px}
+  .qz-h .qz-x{top:6px;right:var(--space-2)}
+  .qz-body{padding:var(--space-4) var(--space-4) var(--space-12)}
+  .qz-plate .dm-plate__no{font-size:44px}
+  .qz-plate .dm-barcode{display:none}
+  .qz-q.dm-title,.qz-q.dm-title.is-long{margin:var(--space-6) 0 var(--space-4);font-size:22px;line-height:29px;letter-spacing:-.015em}
+  .qz-vd.dm-title{font-size:32px;line-height:36px}
+  .qz-why{padding:0 var(--space-1) var(--space-2)}
+  #qz-body .dm-choice__state{flex:1 0 100%;padding-bottom:var(--space-1)}   /* the state word on its own line under the answer */
+  .qz-a{gap:var(--space-2)}
+  .qz-a .qz-go{flex:1 1 100%;margin-left:0;order:-1}
+  .qz-a .dm-btn--line{flex:1 1 0}
+  .qz-score .dm-stat__num{font-size:88px}
+  .qz-score .dm-stat__unit{font-size:32px}
+  .qz-missed details>:not(summary){margin-left:0}
+  .mk-opts>li.mk-row{grid-template-columns:minmax(0,1fr) var(--control-s)}
+  .mk-row .mk-x{width:var(--control-s)}
+  .qz-cb .cb-m{width:56px}
+  .fx-banner{padding:var(--space-3) var(--space-6) var(--space-4) var(--space-4)}
+  .fx-banner .b-d{margin:0 calc(var(--space-6) * -1) var(--space-3) calc(var(--space-4) * -1)}
+  .fx-banner:is(.k-day,.k-week,.k-all){padding:var(--space-4) var(--space-8) var(--space-6) var(--space-4);--bi-h:48px}
+  .fx-banner:is(.k-day,.k-week,.k-all) .b-d{margin:0 calc(var(--space-8) * -1) var(--space-3) calc(var(--space-4) * -1)}
   .fx-toast{bottom:86px;width:calc(100vw - 32px)}
-  .fx-toast .t-b{white-space:normal}   /* a phone: the whole line, on two if need be */
+  .fx-toast .t-b{white-space:normal}
   .fx-badges{top:40px;gap:5px}
   dialog .fx-badges{top:8px}
-  .fx-badge{min-width:0}
-  .bd-i{min-width:44px;font-size:12px}
-  .bd-t{font-size:19px}
-  .bd-s{font-size:11px}
-  .qz-h{padding:var(--space-3) 46px var(--space-2) var(--space-4)}
-  .qz-h h2{font-size:22px}
-  .qz-body{padding:var(--space-4) var(--space-4) var(--space-6)}
-  .qz-q{font-size:16px}
-  .qz-res.has-gif{grid-template-columns:minmax(0,1fr)}
-  .qz-res.dm-frame{--tab:120px;--foot:200px;padding-left:var(--space-4);padding-right:var(--space-4)}
-  .qz-res .dm-frame__foot svg{display:none}
-  .qz-gif img{height:150px}
-  .qz-vd{font-size:36px}
-  .lv-n{font-size:44px}
-  .mk-a button{flex:1 1 40%}
+  .fx-badge{min-width:0;padding-right:var(--space-6)}
+  .bd-i{min-width:52px;font-size:20px}
+  .bd-t{font-size:17px}
+  .bd-s{font-size:12px}
+  .lv{grid-template-columns:minmax(0,1fr)}
+  .lv-n .dm-stat__num{font-size:88px}
 }
 @media (pointer:coarse){
   .qz-note input{font-size:16px}   /* iOS zooms into a field under 16px when it gets the focus, and stays zoomed */
-  .qz-map{gap:3px}
-  .qz-map>button[data-go]{width:28px;height:28px}
+  .qz-map.dm-train{gap:6px}
+  .qz-map.dm-train>button[data-go]{width:28px;height:28px}
 }
