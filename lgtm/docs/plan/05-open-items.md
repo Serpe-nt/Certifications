@@ -1,6 +1,6 @@
 # Open items
 
-What is known to be unfinished, unverified or broken. Owned by the planner; a line leaves this file when a pull request closes it. Rewritten on 2026-11-14, before wave 8; brought up to date that day after wave 8 and again after wave 9, and on 2026-11-15 during wave 10 and at its end.
+What is known to be unfinished, unverified or broken. Owned by the planner; a line leaves this file when a pull request closes it. Rewritten on 2026-11-14, before wave 8; brought up to date that day after wave 8 and again after wave 9, and on 2026-11-15 during wave 10 and at its end. Last update on 2026-11-16, after wave 11 and the final sweep: the course is complete, and what is listed here is what is left.
 
 ## Lesson actions not yet walked on the lab
 
@@ -13,6 +13,8 @@ Modules m13, m14 and m15 (wave 9, pull requests 93, 94 and 95) were run on the l
 Module m16 (wave 10, pull request 104) was run on the lab by its worker from the built pages, in a practice namespace that is gone again. One part is `lab-unverified`: step 6 describes lokitool from Loki's documentation and does not run it, because lokitool has no image and the worker's session refused a second download of the binary. The step's practice loads the rules into Mimir only.
 
 Module m17 (wave 10, pull request 107) was run on the lab by its worker from the built pages. Every value change and every drill was done once with the owner's go-ahead and taken back; no row of its log is unverified. Step 13 describes the slow shop that drill 3 left behind as it is today; card L11 makes those sentences true again after its fix.
+
+Module m18 (wave 11, pull request 115): the game-day script of step 1 was taken from the built page and run for three rounds on the lab, one of them into its 15-minute guard on purpose; each fault was named before it was revealed. The planner's QA then found two ways the script could leave a fault on (a guard that died on a network error, and a start that removed the guard after a write that had happened). Both are corrected and tested offline against a fake flag API. The corrected script has not run on the lab: the worker's session refused a fourth round, because the owner's go-ahead there covered three. That row is `lab-unverified`. One short round with the final script closes it, and needs the owner's word in that worker's session.
 
 Left alone on purpose: `make reset` (m01 step 20, described from the owner's own run), pushing a delta metric into Mimir (m08), and changing a lab release to settle the inferences of m06, which stay marked `inference` in its log.
 
@@ -63,6 +65,18 @@ Read on 2026-11-15 at 20:09 UTC, and the shop again at 23:22 UTC after card L11.
 - The old growing trace of payment, `1b9843164d5423b88ba041cee6303b88`, leaves Tempo at about 20:15 UTC on 2026-11-17. Nobody opens it by its ID before that.
 - The fault flags cannot be read from the ConfigMap `shop/shop-flags`, which only holds the defaults. The flag screen's API shows the real state.
 
+## The final sweep
+
+Done by the planner on the night of 2026-11-15 to 16, on `main` with every card of the course merged but m18's last corrections, and repeated for m18 with its pull request (`cards/w11-qa-sweep.md`).
+
+- **`main` builds and tests.** 135 unit tests pass; `check:content` reports 19 modules, 253 steps and 880 questions with 0 errors; `check:pages` finds 906 blocks on the built pages, none different from its source; `check:links` found 713 URLs and none broken before m18 (with m18 a few grafana.com pages answered 429, rate limiting). The 39 browser tests ran in CI, which passed on `main`; the planner's checkout has no browser for them.
+- **Every module's pages exist**: start page, every step, the page at the end, and the quiz page for m01 to m17.
+- **One Practice step per module, run from the built page against the lab, read-only**: m00 step 6, m04 step 6, m06 step 10, m10 step 11, m11 step 5, m12 step 8, m13 step 2, m16 step 2, m17 step 10 in full, and one block each of m01 step 17 and m09 step 3. Every output agreed with its step except three sentences, corrected in pull request 115: m00 step 6 said both kubectl versions start with v1.35 (the owner's WSL has a client of v1.37.2, and kubectl warns about the difference), and m13 step 2 and m17 step 10 each gave a counter's value that begins again at zero when its pod restarts.
+- **Not covered by that walk**, because their practice is in Grafana's screens, on the PC, with a fault flag or in a practice namespace: m02, m03, m05, m07, m08, m14 and m15, and the rest of m01 and m09. Their workers ran those steps on the lab when the modules were written, and the logs say so; the sweep did not run them again.
+- **Numbers that later cards changed**: no lesson states the shop's old version or a memory limit that card L11 changed, and the one Calico version in a lesson is the lab's.
+- **The mock exams**: each was started and submitted once on the built site. Both draw 60 questions by the domain weights (OTCA 11, 28, 15 and 6; PCA 11, 12, 17, 9 and 11), run a 90-minute clock, and show a result per domain with every question explained.
+- **The lab**, read on 2026-11-16 at 00:18 UTC: five nodes Ready, every pod running, every fault flag off (the rule of `productCatalogFailure` included), no `learn-` namespace, no rule group in a ruler, no alert besides Watchdog, product-catalog's p95 at 8.6 ms and checkout's at 15.6 ms, memory at 55 to 62% on the workers and 70% on the control-plane node, the fullest volume at 34%.
+
 ## Decisions not taken yet
 
 - Native histograms: the lab's Prometheus scrapes classic histograms only; one setting turns native ones on (`prometheus.prometheusSpec.scrapeNativeHistograms`). Module m04 step 8 is a concept step until then.
@@ -72,6 +86,9 @@ Read on 2026-11-15 at 20:09 UTC, and the shop again at 23:22 UTC after card L11.
 - Git Sync inside the lab. Grafana 13.3 has Git Sync on, but refuses a Git server inside the cluster: a token over `http://` and a host that resolves to a private address are both refused (HTTP 422). Module m16 step 3 has the learner read that refusal and explains the GitHub path. If the owner wants the lab to show a working sync from its own Git server, Grafana's values need `[provisioning] allowed_git_urls` with the Git host and `allow_insecure = true`, or a Git server on HTTPS. Found by card C15.
 - Whether the practice dashboards in Grafana's Recently deleted should be purged, or may stay the 12 months.
 - lokitool in m16 step 6 is described and not run. A later card could build a small image for it, or the owner could run it once and report.
+- One round of m18's game day with the corrected script (see the top of this file). The owner says go in the session of card C17, the round takes a few minutes, and the log row turns from `lab-unverified` to `run on the lab`.
+- The approval cards of the browser pane: the planner could not add the allow rule to the owner's permission settings. One command for the owner to run is in the planner's session of 2026-11-15; it allows the browser tools on every site the app has already approved, not on the lab's Grafana alone.
+- The owner's own copy of the study site follows `main` when they run `docker compose up -d --build` in `lgtm/learn` of their main checkout, which the planner keeps pulled. The planner never restarts it.
 - The display font of the site states "All rights reserved" in its file and the repository is public; the owner decided to use it.
 
 ## How the work is run
