@@ -1,7 +1,7 @@
 // Runs on every page: starts the sync, applies the motion setting, fills in lab links, wires copy buttons.
 import { fetchBank } from './bank.ts';
 import { wireDialogs } from './dialogs.ts';
-import { wireDecode, wirePings, wireReticle } from './fx-ui.ts';
+import { wireDecode, wirePings } from './fx-ui.ts';
 import { getStore, type SyncStatus } from './store.ts';
 import type { State } from './state.ts';
 
@@ -44,6 +44,28 @@ function wireCopyButtons(): void {
   });
 }
 
+const FOCUS_NEXT = '.qz-card, .qz-results, .qz-intro, .pr-bay, [role="tab"][aria-selected="true"], h1, h2';
+
+function wireFocusKeep(): void {
+  document.addEventListener('click', (e) => {
+    const t = (e.target as Element | null)?.closest<HTMLElement>('button, a');
+    if (!t || t.closest('.toasts')) return;
+    const host = t.closest('dialog') ?? document.querySelector('main') ?? document.body;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (t.isConnected && t.checkVisibility()) return;
+        const a = document.activeElement;
+        if (a && a !== document.body && a.tagName !== 'DIALOG') return;
+        if (host instanceof HTMLDialogElement && !host.open) return;
+        const to = [...host.querySelectorAll<HTMLElement>(FOCUS_NEXT)].find((el) => el.checkVisibility());
+        if (!to) return;
+        if (!to.matches('a, button, [tabindex]')) to.tabIndex = -1;
+        to.focus({ preventScroll: true });
+      }),
+    );
+  });
+}
+
 export function boot(): void {
   const store = getStore();
   const statusEl = document.getElementById('sync-status');
@@ -56,8 +78,8 @@ export function boot(): void {
   render(store.get());
   setInterval(() => statusEl && (statusEl.textContent = STATUS_TEXT[store.status]), 2000);
   wireCopyButtons();
+  wireFocusKeep();
   wireDialogs();
-  wireReticle();
   wirePings();
   wireDecode();
   // The course outline lets a celebration see that a module or the course was finished.

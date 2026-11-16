@@ -68,13 +68,6 @@
     outline-offset: 2px;
     box-shadow: 0 0 0 5px var(--lg-bezel);
   }
-  /* Cut-corner controls would clip their own focus ring; the corner opens while one is focused. */
-  .btn:focus-visible,
-  .navbtn:focus-visible,
-  .tab:focus-visible,
-  .crumb a:focus-visible {
-    clip-path: none;
-  }
   a {
     color: var(--lg-ink);
     text-decoration-thickness: 1px;
@@ -181,6 +174,10 @@
   }
   .box > :last-child {
     margin-bottom: 0;
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--lg-bad);
+    box-shadow: inset 4px 0 0 var(--lg-bad);
   }
   .field {
     display: block;
@@ -432,9 +429,13 @@
     clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
     transition: background-color var(--lg-dur-fast) var(--lg-ease-out), color var(--lg-dur-fast) var(--lg-ease-out);
   }
+  .navbtn:hover,
+  .navbtn:focus-visible,
+  .navbtn[aria-current="true"] {
+    color: var(--lg-signal) !important;
+  }
   .navbtn:hover {
     background: var(--lg-ink);
-    color: var(--lg-signal) !important;
   }
   /* The dialog itself is the one thing that scrolls while it is open. Its top edge stays at a fixed
      height, so it does not jump when its content grows (questions loading, an answer explained). */
@@ -467,6 +468,9 @@
     margin-bottom: var(--lg-space-6);
     padding-bottom: var(--lg-space-4);
     border-bottom: 1px solid var(--lg-rule);
+  }
+  .closebtn:focus-visible {
+    outline-offset: -3px;
   }
   .closebtn {
     display: inline-grid;

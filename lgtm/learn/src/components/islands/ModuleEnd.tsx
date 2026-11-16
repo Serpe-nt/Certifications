@@ -49,7 +49,7 @@ export default function ModuleEnd({ module, homeHref, next, icon, nextIcon }: Pr
           </p>
           {open && (
             <p className="me-text">
-              Still open: <a href={open.href}>{open.title}</a>
+              Pick up at: <a href={open.href}>{open.title}</a>
             </p>
           )}
           {complete && (

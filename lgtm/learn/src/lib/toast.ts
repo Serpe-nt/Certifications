@@ -20,6 +20,8 @@ export interface ToastOptions {
   celebration?: string;
   /** A large figure beside the title, such as a level number. */
   figure?: string;
+  /** Notifications of the same group replace each other (Settings uses one group). */
+  group?: string;
 }
 
 const KICKER: Record<ToastKind, string> = {
@@ -99,12 +101,14 @@ export function toast(o: ToastOptions): HTMLElement {
   const ms = o.ms ?? (kind === 'error' ? 7000 : kind === 'ok' || kind === 'info' ? 3800 : 6000);
   const box = stack();
   for (const old of box.querySelectorAll<HTMLElement>('.toast:not([data-leaving])')) {
-    if (old.dataset.toast === kind && old.querySelector('.toast-title')?.textContent === o.title) old.remove();
+    const same = old.dataset.toast === kind && old.querySelector('.toast-title')?.textContent === o.title;
+    if (same || (o.group && old.dataset.group === o.group)) old.remove();
   }
 
   const el = document.createElement('div');
   el.className = `toast toast-${kind}`;
   el.dataset.toast = kind;
+  if (o.group) el.dataset.group = o.group;
   el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
   el.style.setProperty('--toast-ms', `${ms}ms`);
 

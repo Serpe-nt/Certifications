@@ -65,6 +65,11 @@
   margin: 0 0 1.375rem;
   max-width: 70ch;
 }
+.prose code,
+.labcheck-prompt code,
+.term dd code {
+  overflow-wrap: anywhere;
+}
 .prose code {
   font-size: 0.86em;
   background: var(--lg-screen-2);
@@ -311,13 +316,17 @@
   color: var(--lg-ink);
 }
 .part-done {
-  padding: 18px 24px;
+  padding: 18px 56px 18px 24px;
   background: var(--lg-ink);
 }
 .part-done p {
   color: var(--lg-ink-on-dark);
 }
 .part-done .part-label {
+  color: var(--lg-signal);
+}
+.part-done code {
+  background: var(--lg-bezel-2);
   color: var(--lg-signal);
 }
 
@@ -430,6 +439,7 @@
 }
 .stage-title {
   display: block;
+  overflow-wrap: anywhere;
   margin: 6px 0 4px;
   font-family: var(--lg-font-display);
   font-size: var(--lg-text-lead);
@@ -483,6 +493,7 @@
 }
 .col-title {
   display: block;
+  overflow-wrap: anywhere;
   margin-bottom: 8px;
   font-family: var(--lg-font-display);
   font-size: var(--lg-text-lead);
@@ -615,9 +626,14 @@
   margin: 0 0 12px;
   color: var(--lg-ink-3);
 }
+/* The contents list stays in view; the boxes under it scroll up behind its paper backing. */
 .toc {
   position: sticky;
   top: 20px;
+  z-index: 1;
+  padding: 12px 14px 6px;
+  background: var(--lg-paper);
+  border: 1px solid var(--lg-rule);
 }
 .toc ol {
   list-style: none;
@@ -945,6 +961,9 @@
   border: 2px solid var(--lg-rule);
   margin-bottom: 8px;
   font-size: var(--lg-text-ui);
+  cursor: pointer;
+}
+.labcheck-option input {
   cursor: pointer;
 }
 .labcheck-option:has(input:checked) {
@@ -2462,16 +2481,81 @@
 .stepend-q > .part {
   margin: 0;
 }
+/* The step's bar: Back, Mark complete (or Go to practice) and Next stay pinned to the bottom of the
+   window on every step, as in saa-plan (owner, 2026-11-16: "must be stuck to the bottom of the
+   screen always, pinned"). A paper strip with an ink rule and a yellow edge on top, its buttons kept
+   to the page's width; the page leaves room for it, and notifications sit above it. */
 .stepend .stepnav {
-  margin-top: var(--lg-space-8);
-  padding-top: var(--lg-space-4);
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 10px max(var(--lg-space-4), calc((100% - 74.5rem) / 2));
   border-top: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  box-shadow: 0 -5px 0 var(--lg-signal);
 }
 .stepend .stepnav-hint {
   justify-self: center;
-  padding: 4px 12px;
-  background: var(--lg-paper);
+  margin-top: -4px;
+  font-size: var(--lg-text-label);
   color: var(--lg-ink-2);
+}
+body:has(.stepend .stepnav) {
+  padding-bottom: 96px;
+}
+html:has(.stepend .stepnav) {
+  scroll-padding-bottom: 112px;
+}
+html:has(.stepend .stepnav[data-blocked]) {
+  scroll-padding-bottom: 140px;
+}
+body:has(.stepend .stepnav[data-blocked]) {
+  padding-bottom: 124px;
+}
+body:has(.stepend .stepnav) .toasts {
+  bottom: 96px;
+}
+body:has(.stepend .stepnav[data-blocked]) .toasts {
+  bottom: 124px;
+}
+/* On a phone the bar keeps one row: Back, the middle button, Next. */
+@media (max-width: 560px) {
+  .stepend .stepnav {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 8px var(--lg-space-3);
+  }
+  .stepend .stepnav-mid {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .stepend .stepnav .btn {
+    padding-inline: 12px;
+  }
+  .stepend .stepnav-mid .btn {
+    width: 100%;
+    padding-inline: 8px;
+  }
+  .stepend .stepnav-hint {
+    grid-column: 1 / -1;
+    text-align: center;
+    line-height: 1.35;
+  }
+  body:has(.stepend .stepnav) {
+    padding-bottom: 80px;
+  }
+  body:has(.stepend .stepnav[data-blocked]) {
+    padding-bottom: 116px;
+  }
+  body:has(.stepend .stepnav) .toasts {
+    bottom: 80px;
+  }
+  body:has(.stepend .stepnav[data-blocked]) .toasts {
+    bottom: 116px;
+  }
 }
 .stepend .btn:not(.btn-primary) {
   background: var(--lg-paper);

@@ -14,12 +14,13 @@ export default function Settings() {
   const ids = { domain: useId(), seed: useId(), file: useId() };
   const [domain, setDomain] = useState(state.settings.labDomain);
   const [seed, setSeed] = useState(state.settings.labSeed);
+  const [seedBad, setSeedBad] = useState(false);
   const [message, setMessageText] = useState('');
   // Each message shows as a notification at the right-hand side (owner, 2026-11-11: the line at the
   // bottom was "almost not noticeable"); the line itself stays, hidden, for the browser tests.
   const setMessage = (text: string, kind: 'ok' | 'error' = 'ok') => {
     setMessageText(text);
-    toast({ kind, title: text });
+    toast({ kind, title: text, group: 'settings' });
   };
 
   // Follow changes that arrive from another tab or device.
@@ -46,6 +47,7 @@ export default function Settings() {
   const saveSeed = () => {
     const v = seed.trim().toLowerCase();
     if (v && !/^[0-9a-f]{16}$/.test(v)) {
+      setSeedBad(true);
       setMessage('The lab seed is 16 characters, 0 to 9 and a to f. The lab prints it at the end of its install.', 'error');
       return;
     }
@@ -106,7 +108,7 @@ export default function Settings() {
         </label>
         <p className="mt-0 text-sm text-ink-3">16 characters, printed at the end of the lab install. Token checks need it.</p>
         <div className="flex gap-2">
-          <input id={ids.seed} disabled={!ready} className="field font-mono" value={seed} onChange={(e) => setSeed(e.target.value)} autoComplete="off" spellCheck={false} maxLength={64} />
+          <input id={ids.seed} disabled={!ready} className="field font-mono" value={seed} aria-invalid={seedBad || undefined} onChange={(e) => (setSeed(e.target.value), setSeedBad(false))} autoComplete="off" spellCheck={false} maxLength={64} />
           <button type="button" className="btn" onClick={saveSeed} disabled={!ready} data-save-seed>
             Save
           </button>
