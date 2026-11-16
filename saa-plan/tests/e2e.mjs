@@ -113,7 +113,10 @@ try {
   assert.ok(await page.locator("#home").isVisible() && await page.locator("#flow").isHidden(), "the overview is the first screen");
   assert.equal(await page.locator("#map .dt").count(), P.days.length, "one tile per day");
   assert.equal(await page.locator("#stats .st").count(), 6);
-  assert.match(await page.textContent("#stats .st-lv"), /Level\s*1/, "a level cell, starting at level 1");
+  assert.match(await page.textContent("#stats .st-lv"), /Level\s*01/, "a level cell, starting at level 1");
+  assert.equal(await page.locator("#home .dm-strip + .ov-sheet > .dm-mosaic").count(), 3, "a strip, then the mosaic sheet: the overview, the days, where things happen");
+  assert.ok(await page.locator("#rl-nav [data-home-link][aria-current]").count(), "the nav block marks the overview");
+  assert.ok(await page.locator("#map .dt.is-now .dm-field-signal").count() <= 1, "today's tile is the one signal field");
   assert.match(await page.textContent("#next"), /Start Day 1/);
   await page.screenshot({ path: path.join(SHOTS, "01-overview.png"), fullPage: false });
 
@@ -145,7 +148,8 @@ try {
   const q1 = D1.quiz ? 1 : 0;
   assert.equal((await page.textContent("#fl-count")).trim(), `Step 1 of ${n1 + q1}`);
   assert.equal(await page.locator("#fl-strip .dot").count(), n1 + q1, "a dot per step, plus one for the quiz on a quiz day");
-  assert.ok(await page.locator(".tb").isHidden(), "the big title block steps aside");
+  assert.equal((await page.textContent('#rl-nav [aria-current="page"]')).trim(), "Day 01", "the nav block marks the day as the view on screen");
+  assert.ok(await page.locator("#timer .dm-nav").isVisible(), "the nav block stays on top of the day");
 
   log("Mark complete moves on, Next skips, Back and the arrow keys return, Undo reopens");
   await complete(page);
@@ -1431,7 +1435,7 @@ try {
   assert.ok(st.xpDay[tday].hit && st.chal[`${wk}:steps`] === tday && st.settings.goal === 100, "the goal and the challenge are recorded once");
   await goHome(page);
   assert.ok(await page.locator("#today .td-goal.hit").count(), "the ring shows the goal reached");
-  assert.match(await page.textContent("#today .td-ch li.done"), /Complete 40 steps\s*✓ Done/);
+  assert.match(await page.textContent("#today .td-ch li.done"), /Complete 40 steps\s*Done/);
   await page.locator("#today").screenshot({ path: path.join(SHOTS, "30-today.png") });
   const nBadges = await page.evaluate(() => document.querySelectorAll(".fx-badges .fx-bd, .fx-badges > *").length);
   await page.reload();

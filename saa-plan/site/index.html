@@ -17,25 +17,37 @@
 </head>
 <body>
 
-<!-- The rail: the code block, where you are, the sync notice and the focus timer. Its hairline fills as a block runs. -->
-<div id="timer" class="timer">
-  <div class="tm-bar" aria-hidden="true"><span class="tm-fill"></span></div>
-  <div class="tm-row">
-    <a class="rl-code" href="#" data-home-link aria-label="SAA-C03 plan, overview"><svg class="rl-mark" viewBox="0 0 12 34" aria-hidden="true"><path d="M1 1H11V11H1ZM1 1L11 11M11 1L1 11M1 13L11 21V13L1 21ZM1 23L11 33M11 23L1 33"/></svg>SAA-C03</a>
-    <span class="rl-nav" id="rl-nav"></span>
-    <!-- shown only when changes can't reach the server: offline, signed out, or no answer -->
-    <span class="sync-w" role="status"><button type="button" class="sync-st" id="sync-st" hidden><span class="ss-i" aria-hidden="true">[ ! ]</span><span class="ss-s"></span><span class="ss-l"></span></button></span>
-    <span class="rl-pos" id="rl-pos"></span>
-    <div class="tm-chip">
-      <button type="button" class="tm-go" data-tm="toggle"></button>
-      <button type="button" class="tm-face" data-tm="menu" aria-expanded="false" aria-controls="tm-pop"><span class="tm-mode"></span><span class="tm-time"></span><span class="tm-caret" aria-hidden="true">+</span></button>
-    </div>
-    <div class="tm-pop" id="tm-pop" hidden>
-      <div class="tm-btns"><button type="button" data-tm="reset">Reset</button><button type="button" data-tm="switch"></button></div>
-      <p class="tm-info"></p>
-      <button type="button" class="tm-perm" data-tm="perm" hidden>Turn on notifications and away detection</button>
+<!-- The page: Datum's lit ground. Every view sits on it as sheets; the header is the nav block on a sheet of its own. -->
+<div class="dm-page dm-grain pg">
+
+<!-- The header: Datum's nav block (the mark and the code, the views as tabs; at its end the sync notice, the focus timer,
+     Search and Settings). It stays at the top while the page scrolls; its thin bar fills as a focus block runs. -->
+<header id="timer" class="timer hd dm-sheet">
+  <div class="dm-nav hd-nav">
+    <a class="dm-nav__brand hd-brand" href="#" data-home-link aria-label="SAA-C03 plan, overview"><span class="dm-mark"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 3l6 6-6 6-6-6zM9 0v5M9 13v5M0 9h5M13 9h5"/></svg></span><span class="hd-code" aria-hidden="true">SAA-C03</span></a>
+    <nav class="dm-nav__tabs hd-tabs" id="rl-nav" aria-label="Views"></nav>
+    <div class="dm-nav__end hd-end">
+      <!-- shown only when changes can't reach the server: offline, signed out, or no answer -->
+      <span class="sync-w" role="status"><button type="button" class="sync-st" id="sync-st" hidden><span class="ss-i dm-lamp dm-lamp--s" aria-hidden="true"></span><span class="ss-s"></span><span class="ss-l"></span></button></span>
+      <div class="tm-chip">
+        <button type="button" class="tm-go dm-btn dm-btn--s dm-btn--icon" data-tm="toggle"></button>
+        <button type="button" class="tm-face" data-tm="menu" aria-expanded="false" aria-controls="tm-pop"><span class="dm-lamp dm-lamp--s tm-lamp" aria-hidden="true"></span><span class="tm-mode"></span><span class="tm-time"></span></button>
+      </div>
+      <button type="button" id="b-search" class="dm-btn dm-btn--s dm-btn--line hd-b" title="Search (Ctrl+K)"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2h7l2.5 2.5v7H2zM11.5 11.5l3 3"/></svg><span class="hd-bl">Search</span></button>
+      <button type="button" id="b-set" class="dm-btn dm-btn--s dm-btn--line hd-b"><svg class="dm-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4h13M1.5 8h13M1.5 12h13M5 2v4M11 6v4M7 10v4"/></svg><span class="hd-bl">Settings</span></button>
     </div>
   </div>
+  <div class="tm-bar dm-bar dm-bar--thin" aria-hidden="true"><div class="dm-bar__fill tm-fill"></div></div>
+  <div class="tm-pop" id="tm-pop" hidden>
+    <div class="tm-btns"><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-tm="reset">Reset</button><button type="button" class="dm-btn dm-btn--s dm-btn--line" data-tm="switch"></button></div>
+    <p class="tm-info"></p>
+    <button type="button" class="tm-perm dm-btn dm-btn--s dm-btn--line" data-tm="perm" hidden>Turn on notifications and away detection</button>
+  </div>
+</header>
+<!-- The strip under the header: where you are on the plan; the Effects and Sound switches -->
+<div class="dm-strip hd-strip">
+  <span id="rl-pos"></span>
+  <span class="hd-tg"><button type="button" id="b-fx" class="hd-t" title="Visual effects"></button><button type="button" id="b-snd" class="hd-t" title="Sounds"></button></span>
 </div>
 
 <!-- The backdrop: Datum's figure behind everything, seeded with the view (app.js bdDraw); holds no information -->
@@ -43,121 +55,118 @@
 
 <div class="wrap">
 
-<!-- The title bar: what this is, the one display title, where the plan stands, the header buttons -->
-<header class="tb" data-dm-clear>
-  <div class="tb-title">
-    <h1 class="tb-h">Solutions Architect Associate</h1>
-    <span class="tb-k">SAA-C03 / Study plan</span>
-  </div>
-  <dl class="tb-cells">
-    <div class="tb-cell"><dt class="tb-k">Calendar</dt><dd id="tb-sheet"></dd></div>
-    <div class="tb-cell"><dt class="tb-k" id="tb-exam-k">Exam</dt><dd id="tb-exam"></dd></div>
-    <div class="tb-cell"><dt class="tb-k">Done</dt><dd id="tb-pct"></dd></div>
-  </dl>
-  <div class="tb-tools">
-    <button id="b-fx" class="ghost" title="Visual effects"></button>
-    <button id="b-snd" class="ghost" title="Sounds"></button>
-    <button id="b-search" class="ghost" title="Search (Ctrl+K)">Search</button>
-    <button id="b-set" class="ghost">Settings</button>
-  </div>
-</header>
-
-<!-- Overview, today first: the day to work on with its next step and one big button, then what needs you today
-     (still running, today's goal), practice, where you stand (numbers, readiness, trends, scores), the days as tiles -->
-<div id="home" class="dm-arrive">
+<!-- Overview, today first. The hero sheet: the day to work on with its next step and one signal button. A strip, then the
+     mosaic sheet: what is still running, where you stand, the numbers, today's goal, practice, readiness, day by day,
+     scores; the days as tiles (today's tile the one signal field); where things happen and the links. -->
+<div id="home" class="ov dm-arrive">
+<main class="dm-sheet dm-sheet--marks ov-hero">
 <div id="slip" class="slip" role="status" hidden></div>
-
 <section id="next" class="next" aria-live="polite"></section>
+</main>
 
-<section id="running" class="running" aria-live="polite" hidden></section>
-<section id="today" class="today" aria-label="Today's goal and this week's challenges" hidden></section>
+<div class="dm-strip ov-strip" id="ov-strip"></div>
 
-<details class="panel" id="practice" open>
-  <summary><span class="sm-t">Practice</span> <span id="pr-sum" class="muted"></span></summary>
-  <p class="p-intro">A day of new material ends with a 30-question quiz you pass at 80%. Around it: reviews of what you missed, a quick service drill, your wrong-answer notebook, a weak-spot map, and a full mock exam once the lectures and labs are done.</p>
-  <div class="grid" id="pr-grid"></div>
-</details>
+<section class="dm-sheet dm-sheet--flush ov-sheet" aria-label="Where the plan stands">
+<div class="dm-mosaic ov-mosaic">
+  <section id="running" class="dm-cell oc-run running" aria-live="polite" hidden></section>
 
-<h2 class="ov-h" id="stand-h">Where you stand</h2>
-<section class="stats" aria-labelledby="stand-h">
-  <div class="st-grid" id="stats"></div>
-  <div class="bar"><div id="bar"></div></div>
+  <section class="dm-cell oc-stand" aria-labelledby="stand-h" data-i style="--i:1">
+    <h2 class="dm-label dm-label--br dm-quiet cl-k" id="stand-h">Where you stand</h2>
+    <div id="stand" class="stand"></div>
+  </section>
+
+  <section class="dm-cell oc-stats" aria-labelledby="stats-h" data-i style="--i:2">
+    <h2 class="dm-label dm-label--br dm-quiet cl-k" id="stats-h">The numbers</h2>
+    <div class="st-grid" id="stats"></div>
+  </section>
+
+  <section id="today" class="dm-cell oc-today today" aria-label="Today's goal and this week's challenges" data-i style="--i:3" hidden></section>
+
+  <section id="practice" class="dm-cell oc-prac" aria-labelledby="pr-h" data-i style="--i:4">
+    <div class="cl-h"><h2 class="dm-label dm-label--br dm-quiet" id="pr-h">Practice</h2><span id="pr-sum" class="dm-data"></span></div>
+    <p class="cl-p">A day of new material ends with a 30-question quiz you pass at 80%. Around it: reviews of what you missed, a quick service drill, your wrong-answer notebook, a weak-spot map, and a full mock exam once the lectures and labs are done.</p>
+    <ul class="dm-list pr-list" id="pr-grid"></ul>
+  </section>
+
+  <section id="progress" class="dm-cell oc-ready" aria-labelledby="ready-h" data-i style="--i:5">
+    <h2 class="dm-label dm-label--br dm-quiet cl-k" id="ready-h">Exam readiness by domain</h2>
+    <div id="ready" class="ready"></div>
+  </section>
+
+  <section class="dm-cell oc-trends" aria-labelledby="trends-h" data-i style="--i:6">
+    <h2 class="dm-label dm-label--br dm-quiet cl-k" id="trends-h">Day by day</h2>
+    <div id="trends" class="trends"></div>
+  </section>
+
+  <section id="scores" class="dm-cell oc-scores" aria-labelledby="sc-h" data-i style="--i:7">
+    <div class="cl-h"><h2 class="dm-label dm-label--br dm-quiet" id="sc-h">Scores</h2><span id="score-sum" class="dm-data"></span></div>
+    <div class="scores-grid">
+      <label><span>Official Practice Question Set, first try</span><span class="in"><input type="number" min="0" max="20" inputmode="numeric" data-score="qs7"> / 20</span></label>
+      <label><span>Domain 1 Practice questions — Secure</span><span class="in"><input type="number" min="0" max="100" inputmode="numeric" data-score="b1"> %</span></label>
+      <label><span>Domain 2 Practice questions — Resilient</span><span class="in"><input type="number" min="0" max="100" inputmode="numeric" data-score="b2"> %</span></label>
+      <label><span>Domain 3 Practice questions — High-performing</span><span class="in"><input type="number" min="0" max="100" inputmode="numeric" data-score="b3"> %</span></label>
+      <label><span>Domain 4 Practice questions — Cost</span><span class="in"><input type="number" min="0" max="100" inputmode="numeric" data-score="b4"> %</span></label>
+      <label><span>Official Practice Exam</span><span class="in"><input type="number" min="100" max="1000" inputmode="numeric" data-score="pe"> / 1000</span></label>
+      <label><span>Official Practice Question Set, retake</span><span class="in"><input type="number" min="0" max="20" inputmode="numeric" data-score="qs13"> / 20</span></label>
+    </div>
+    <div id="dom-bars" class="dom-bars"></div>
+    <div class="verdict" data-verdict></div>
+    <div id="time-log" class="time-log"></div>
+  </section>
+</div>
+
+<!-- The days: a row per week, one tile per day -->
+<div class="dm-mosaic ov-days" id="map"></div>
+
+<div class="dm-mosaic ov-ref" id="places">
+  <div class="dm-cell oc-ref-h">
+    <div class="cl-h"><h2 class="dm-label dm-label--br dm-quiet">Where things happen</h2><span class="dm-data">4 separate places</span></div>
+    <p class="cl-p">AWS splits learning, the actual cloud, and exam booking into different sites with different logins. Every step says which one it uses.</p>
+  </div>
+  <div class="dm-cell place">
+    <span class="pl-k">①</span><h3 class="pl-h">Skill Builder</h3><span class="pl-u">skillbuilder.aws</span>
+    <ul>
+      <li>The learning site you already use (login: AWS Builder ID).</li>
+      <li>Lecture courses, labs and the Exam Prep Plan.</li>
+      <li>Some of it is free. One month of subscription from Day 1 opens the rest; it is billed to ③ your AWS account.</li>
+      <li>It is <b>not</b> an AWS account — you can't build anything here.</li>
+    </ul>
+  </div>
+  <div class="dm-cell place">
+    <span class="pl-k">②</span><h3 class="pl-h">Lab sandbox</h3><span class="pl-u">opened from inside a lab on Skill Builder</span>
+    <ul>
+      <li>Each AWS SimuLearn or AWS Builder Lab opens a <b>temporary AWS account</b> that AWS gives you.</li>
+      <li>Real AWS console, wiped after the lab.</li>
+      <li>No card, no setup, nothing to clean up.</li>
+    </ul>
+  </div>
+  <div class="dm-cell place">
+    <span class="pl-k">③</span><h3 class="pl-h">Your own AWS account</h3><span class="pl-u">console.aws.amazon.com</span>
+    <ul>
+      <li>A real, permanent cloud account you create on Day 1.</li>
+      <li>Needs a card and the Paid plan, because the subscription is billed here. Sign-up credits are used first; anything beyond them is charged.</li>
+      <li>Used for every <span class="tag t-build">Build</span> step.</li>
+    </ul>
+  </div>
+  <div class="dm-cell place">
+    <span class="pl-k">④</span><h3 class="pl-h">Certification account</h3><span class="pl-u">aws.training → Certification</span>
+    <ul>
+      <li>Only for booking and managing the exam.</li>
+      <li>Booking hands you over to Pearson VUE (the exam provider).</li>
+      <li>Online from home or at a test centre.</li>
+    </ul>
+  </div>
+  <div class="dm-cell oc-rules">
+    <h2 class="dm-label dm-label--br dm-quiet cl-k">Rules</h2>
+    <p class="rules">Lectures first, then their labs, in the order of the plan. Watch lectures at 1.25–1.5×. Labs beat videos — if short on time, cut video, never labs. In ③ your own account, delete what you built every day. For every wrong practice answer, write why each wrong option is wrong. Dotted-underlined terms on a step show a definition on hover or tap.</p>
+    <p class="foot">Course, module, lesson and lab names follow the outlines of the AWS Solutions Architect Learning Plan (Includes Labs) and the Exam Prep Plan (SAA-C03) as Skill Builder listed them on 12 October 2026. If a name is worded differently in your view, go by the order: lectures first, then their labs. Quiz and mock questions are original practice questions written in the exam's style, not official AWS questions. Progress is saved on the server when it runs from Docker, and in this browser either way; export a backup in Settings now and then.</p>
+  </div>
+  <div class="dm-cell oc-links">
+    <h2 class="dm-label dm-label--br dm-quiet cl-k">Links</h2>
+    <nav id="links" class="links" aria-label="Quick links"></nav>
+  </div>
+</div>
 </section>
-
-<details class="panel" id="progress" open>
-  <summary><span class="sm-t">Readiness and trends</span></summary>
-  <div class="pg-grid">
-    <section aria-labelledby="ready-h"><h3 class="sub-h" id="ready-h">Exam readiness by domain</h3><div id="ready" class="ready"></div></section>
-    <section aria-labelledby="trends-h"><h3 class="sub-h" id="trends-h">Day by day</h3><div id="trends" class="trends"></div></section>
-  </div>
-</details>
-
-<details class="panel" id="scores" open>
-  <summary><span class="sm-t">Scores</span> <span id="score-sum" class="muted"></span></summary>
-  <div class="scores-grid">
-    <label><span>Official Practice Question Set, first try</span><span class="in"><input type="number" min="0" max="20" inputmode="numeric" data-score="qs7"> / 20</span></label>
-    <label><span>Domain 1 Practice questions — Secure</span><span class="in"><input type="number" min="0" max="100" inputmode="numeric" data-score="b1"> %</span></label>
-    <label><span>Domain 2 Practice questions — Resilient</span><span class="in"><input type="number" min="0" max="100" inputmode="numeric" data-score="b2"> %</span></label>
-    <label><span>Domain 3 Practice questions — High-performing</span><span class="in"><input type="number" min="0" max="100" inputmode="numeric" data-score="b3"> %</span></label>
-    <label><span>Domain 4 Practice questions — Cost</span><span class="in"><input type="number" min="0" max="100" inputmode="numeric" data-score="b4"> %</span></label>
-    <label><span>Official Practice Exam</span><span class="in"><input type="number" min="100" max="1000" inputmode="numeric" data-score="pe"> / 1000</span></label>
-    <label><span>Official Practice Question Set, retake</span><span class="in"><input type="number" min="0" max="20" inputmode="numeric" data-score="qs13"> / 20</span></label>
-  </div>
-  <div id="dom-bars" class="dom-bars"></div>
-  <div class="verdict" data-verdict></div>
-  <div id="time-log" class="time-log"></div>
-</details>
-
-<div id="map" class="map"></div>
-
-<nav id="links" class="links" aria-label="Quick links"></nav>
-
-<details class="panel" id="places" open>
-  <summary><span class="sm-t">Where things happen</span> <span class="muted">4 separate places</span></summary>
-  <p class="p-intro">AWS splits learning, the actual cloud, and exam booking into different sites with different logins. Every step says which one it uses.</p>
-  <div class="grid">
-    <div class="place">
-      <h3><span class="dm-idx">①</span> Skill Builder</h3>
-      <span class="url">skillbuilder.aws</span>
-      <ul>
-        <li>The learning site you already use (login: AWS Builder ID).</li>
-        <li>Lecture courses, labs and the Exam Prep Plan.</li>
-        <li>Some of it is free. One month of subscription from Day 1 opens the rest; it is billed to ③ your AWS account.</li>
-        <li>It is <b>not</b> an AWS account — you can't build anything here.</li>
-      </ul>
-    </div>
-    <div class="place">
-      <h3><span class="dm-idx">②</span> Lab sandbox</h3>
-      <span class="url">opened from inside a lab on Skill Builder</span>
-      <ul>
-        <li>Each AWS SimuLearn or AWS Builder Lab opens a <b>temporary AWS account</b> that AWS gives you.</li>
-        <li>Real AWS console, wiped after the lab.</li>
-        <li>No card, no setup, nothing to clean up.</li>
-      </ul>
-    </div>
-    <div class="place">
-      <h3><span class="dm-idx">③</span> Your own AWS account</h3>
-      <span class="url">console.aws.amazon.com</span>
-      <ul>
-        <li>A real, permanent cloud account you create on Day 1.</li>
-        <li>Needs a card and the Paid plan, because the subscription is billed here. Sign-up credits are used first; anything beyond them is charged.</li>
-        <li>Used for every <span class="tag t-build">Build</span> step.</li>
-      </ul>
-    </div>
-    <div class="place">
-      <h3><span class="dm-idx">④</span> Certification account</h3>
-      <span class="url">aws.training → Certification</span>
-      <ul>
-        <li>Only for booking and managing the exam.</li>
-        <li>Booking hands you over to Pearson VUE (the exam provider).</li>
-        <li>Online from home or at a test centre.</li>
-      </ul>
-    </div>
-  </div>
-  <p class="rules"><b>Rules:</b> lectures first, then their labs, in the order of the plan. Watch lectures at 1.25–1.5×. Labs beat videos — if short on time, cut video, never labs. In ③ your own account, delete what you built every day. For every wrong practice answer, write why each wrong option is wrong. Dotted-underlined terms on a step show a definition on hover or tap.</p>
-</details>
-
-<p class="foot">Course, module, lesson and lab names follow the outlines of the AWS Solutions Architect Learning Plan (Includes Labs) and the Exam Prep Plan (SAA-C03) as Skill Builder listed them on 12 October 2026. If a name is worded differently in your view, go by the order: lectures first, then their labs. Quiz and mock questions are original practice questions written in the exam's style, not official AWS questions. Progress is saved on the server when it runs from Docker, and in this browser either way; export a backup in Settings now and then.</p>
 </div>
 
 <!-- One day, one step at a time: Datum's App view. A sheet with the day's plate header and the datum line under it,
@@ -187,6 +196,7 @@
   <div class="fl-nav" id="fl-nav"></div>
 </div>
 </div>
+</div><!-- /dm-page -->
 
 <!-- Cleanup check -->
 <dialog id="cleanup">
