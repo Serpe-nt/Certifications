@@ -561,7 +561,7 @@ function renderStats(dn, total) {
   const L = levelOf(xpTotal());
   setHTML(document.getElementById("stats"), cells.map(([k, v, c]) => `<div class="st"><span class="st-k">${k}</span><b class="st-n">${v}</b><span class="st-c">${c}</span></div>`).join("") +
     `<button type="button" class="st st-lv" data-sheet="badges" title="${L.x} XP, ${L.to - L.x} to level ${L.n + 1}. Open badges and level."><span class="st-k">Level</span>` +
-    `<b class="st-n">${pad2(L.n)}<small>${rankOf(L.n)}</small></b><span class="dm-bar dm-bar--thin" aria-hidden="true"><span class="dm-bar__fill" style="--value:${L.pct}"></span></span><span class="st-c">${L.to - L.x} XP to level ${L.n + 1}</span></button>`);
+    `<b class="st-n">${pad2(L.n)}<small class="st-rank">${rankOf(L.n)}</small></b><span class="dm-bar dm-bar--thin" aria-hidden="true"><span class="dm-bar__fill" style="--value:${L.pct}"></span></span><span class="st-c">${L.to - L.x} XP to level ${L.n + 1}</span></button>`);
 }
 // Where you stand: the share of the plan done as the cell's one big figure, the calendar and the exam beside it, the
 // plan as a gauge of slanted cells, and the days as a train. Also the strips: under the header (where you are) and

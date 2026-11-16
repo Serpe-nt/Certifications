@@ -862,7 +862,7 @@ body.focus-view #card{zoom:1.06}
   .hero-t{font-size:24px}
   .next .dm-hero .dm-bay{min-height:420px}
   .nx-day .dm-bay{--dm-light-r:150px}
-  .st-n small{display:block;margin:var(--space-1) 0 0;white-space:normal}
+  .st-n .st-rank{display:block;margin:var(--space-1) 0 0;white-space:normal}   /* only the level's name wraps; a figure keeps its denominator */
   .nx-step{font-size:17px}
   .nx-where{display:none}   /* the card says where; here the button comes first */
   .nx-st{margin-left:0;flex-basis:100%}
