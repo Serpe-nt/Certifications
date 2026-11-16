@@ -46,23 +46,23 @@ A game day puts a fault into the system on purpose, and you find it as if it wer
 
 ## How a round runs
 
-You play three rounds. In each, `gameday.py start` reads the flag screen's API and refuses to start while any flag is on, or while the shop is still in its quiet time after the last round. Then it picks one fault from its list, switches it on, writes the choice and the time into `~/gameday.json`, and prints only the time. From there you work as on call: find the symptom, narrow it with a metric, open one trace, read its logs, and test your guess. When one piece of evidence explains the symptom, write your line. Then `gameday.py reveal` puts the flag back to the value it saved, reads the API again to prove that every flag is off, and prints what it was and how long it ran.
+You play three rounds. In each, `gameday.py start` reads the flag screen's API and refuses to start while any flag is on, or while the shop is still in its quiet time after the last round. Then it picks one fault from its list, writes the choice and the time into `~/gameday.json`, switches the fault on, and prints only the time. From there you work as on call: find the symptom, narrow it with a metric, open one trace, read its logs, and test your guess. When one piece of evidence explains the symptom, write your line. Then `gameday.py reveal` puts the flag back to the value it saved, reads the API again to prove that every flag is off, and prints what it was and how long it ran.
 
-Every change goes the same way, because a write to the API replaces the whole flag document: read it, change one flag, check that nobody changed the document in the meantime, write, and read again to prove that exactly that flag changed. If someone else switched a flag in between, the script stops and writes nothing.
+Every change goes the same way, because a write to the API replaces the whole flag document: read it, change one flag, read it again to check that nobody changed it in the meantime, write, and read once more to prove that exactly that flag changed. The API cannot refuse a write that comes too late, so the check narrows the gap before the write and catches most clashes; it cannot rule one out. If the last read shows anything else than what was written, the script stops and says so. The script reads a flag with a rule, such as `productCatalogFailure`, as on when either branch of the rule is on; like the flag screen, it switches only the first branch.
 
 Do not open `~/gameday.json` or the flag screen during a round; both tell you the answer. The flag screen also has a Scheduler tab that switches random flags on and off by itself; it shows which ones it picked, so it is no use for a game day. The SRE book says the same about real incidents: start from what users see, and test each guess against the system rather than against what you expect.
 
 ## The faults in the draw
 
-The script draws from six faults. Each is one that an earlier module switched on in this lab and watched heal after it was switched off: payment refusing a share of charges, checkout unable to reach payment, product-catalog failing for one product, a lock in product-catalog's database, extra copies of every order in Kafka, and cart failing its readiness probe. They show in different places: some as errors, some only as latency, one as lag on a queue, one in the cluster's own state. So do not look only for errors.
+The script draws from six faults. Each is one that an earlier module switched on in this lab and watched heal after it was switched off: payment refusing a share of charges, checkout unable to reach payment, product-catalog failing for one product, a lock in product-catalog's database, extra copies of every order in Kafka, and cart failing its readiness probe. They show in different places: some as errors, one first as latency, one as lag on a queue, one in the cluster's own state. So do not look only for errors.
 
 Ten other flags are left out. `recommendationCacheFailure` makes recommendation run out of memory and restart again and again, and the restart count stays behind. `imageSlowLoad` shows only in a browser that loads product images. `cartFailure` fails a call whose error checkout ignores, so nothing a user sees changes. `emitRawPii` changes what spans carry, not how the shop behaves. `cartMetricCardinalityOverflow` leaves thousands of series behind in Mimir. `loadGeneratorFloodHomepage` adds load to the whole lab, which other users of the lab would feel. `adFailure`, `adHighCpu`, `adManualGc` and `kafkaConsumerDead` were never switched on in this course, so you would not know what normal and broken look like for them.
 
 ## The guard, and the rules of the shared lab
 
-A flag is never on for longer than 15 minutes. Before `start` switches the fault on, it starts a pod named `gameday-guard` in the namespace `learn-m18`. The pod waits 15 minutes from its own start and then switches every flag of the draw off, so the fault, switched on a few seconds later, never runs the full 15 minutes. It runs in the cluster, so it works even if you close the terminal, WSL stops or you walk away; `reveal` deletes it. If the guard was first, `reveal` says so: the round ran out of time. The pod's definition holds the script and nothing about which fault is on.
+A flag is never on for longer than 15 minutes. Before `start` switches the fault on, it starts a pod named `gameday-guard` in the namespace `learn-m18`. The pod waits 15 minutes from its own start and then switches every flag of the draw off, so the fault, switched on a few seconds later, never runs the full 15 minutes. It only ever switches flags off, and when the API does not answer, for example while the shop's proxy restarts, it keeps trying for 20 minutes. It runs in the cluster, so it works even if you close the terminal, WSL stops or you walk away; `reveal` deletes it. If the guard was first, `reveal` says so: the round ran out of time. If a flag is still on after `reveal`, it says so and ends with an error. The pod's definition holds the script and nothing about which fault is on.
 
-The lab is shared, so the usual rules hold: one flag at a time in the whole lab, and ten quiet minutes between rounds so that the next round starts from a quiet shop. The script enforces both. A quiet shop still shows error spans, on purpose: every 10 minutes the flag streams of ad, fraud-detection and recommendation end with DEADLINE_EXCEEDED. Leave them out of every search for errors with `&& name != "flagd.evaluation.v2.Service/EventStream"`.
+The lab is shared, so the usual rules hold: one flag at a time in the whole lab, and ten quiet minutes between rounds so that the next round starts from a quiet shop. The script refuses to start while any flag is on, and it keeps ten quiet minutes after its own last round, which it knows from `~/gameday.json`. It cannot know when someone else last switched a flag: look at the dashboards before you start. A quiet shop still shows error spans, on purpose: every 10 minutes the flag streams of ad, fraud-detection and recommendation end with DEADLINE_EXCEEDED. Leave them out of every search for errors with `&& name != "flagd.evaluation.v2.Service/EventStream"`.
 
 ## Score yourself
 
@@ -113,9 +113,11 @@ Do not stop at the first service that shows errors. A fault in one service often
            return json.load(r)
 
    def variant(flag):
-       # A flag with a targeting rule (productCatalogFailure) is on through the rule's first branch.
+       # A flag with a rule "if CONDITION then A else B" (productCatalogFailure) is on when A or B is.
        rule = flag.get("targeting", {}).get("if")
-       return rule[1] if isinstance(rule, list) and len(rule) == 3 else flag["defaultVariant"]
+       if isinstance(rule, list) and len(rule) == 3:
+           return rule[1] if rule[1] != "off" else rule[2]
+       return flag["defaultVariant"]
 
    def switch(doc, name, value):
        flag = doc["flags"][name]
@@ -132,16 +134,20 @@ Do not stop at the first service that shows errors. A fault in one service often
        names = set(a["flags"]) | set(b["flags"])
        return {n for n in names if a["flags"].get(n) != b["flags"].get(n)}
 
+   class NotWritten(SystemExit):
+       pass
+
    def change(wanted):
        # wanted: {flag: variant}. Read, change only these flags, write, read again and prove it.
-       # A write replaces the whole document, so stop if anyone changed it since our read.
+       # A write replaces the whole document, so stop if anyone changed it since our read. The API has
+       # no compare-and-set: this narrows the gap before the write, it cannot close it.
        before = call("/read")
        after = copy.deepcopy(before)
        for name, value in wanted.items():
            switch(after, name, value)
        expected = changed(before, after)
        if call("/read") != before:
-           raise SystemExit("Stopped: the flags changed while this script was working. Nothing written.")
+           raise NotWritten("Stopped: the flags changed while this script was working. Nothing written.")
        call("/write", after)
        now = call("/read")
        if changed(before, now) != expected or any(variant(now["flags"][n]) != v for n, v in wanted.items()):
@@ -163,20 +169,20 @@ Do not stop at the first service that shows errors. A fault in one service often
            json.dump(state, f)
 
    def guard():
-       # Runs in the pod: wait, then switch every game-day flag that is on back to off.
+       # Runs in the pod: wait, then switch every game-day flag that is on back to off. It only ever
+       # switches flags off, and keeps trying for 20 minutes through any error (a restarting proxy).
        time.sleep(LIMIT)
-       for attempt in range(5):
-           on = [n for n in flags_on(call("/read")) if n in FAULTS]
-           if not on:
-               print(utc(time.time()), "guard: no game-day flag was on", flush=True)
-               return
+       for attempt in range(120):
            try:
-               _, now = change({n: "off" for n in on})
-               print(utc(time.time()), "guard: switched off; flags on now:", ", ".join(flags_on(now)) or "none", flush=True)
-               return
-           except SystemExit as e:
-               print(utc(time.time()), "guard:", e, "Trying again.", flush=True)
-               time.sleep(3)
+               on = [n for n in flags_on(call("/read")) if n in FAULTS]
+               if not on:
+                   print(utc(time.time()), "guard: no game-day flag is on", flush=True)
+                   return
+               change({n: "off" for n in on})
+               print(utc(time.time()), "guard: switched off:", ", ".join(on), flush=True)
+           except BaseException as e:
+               print(utc(time.time()), "guard:", repr(e), "trying again in 10 s", flush=True)
+               time.sleep(10)
        raise SystemExit("guard: could not switch the flags off")
 
    def kubectl(*args, stdin=None):
@@ -209,7 +215,10 @@ Do not stop at the first service that shows errors. A fault in one service often
        if r.returncode != 0:
            return r.stderr.strip()
        r = kubectl("-n", "learn-m18", "wait", "pod/gameday-guard", "--for=condition=Ready", "--timeout=120s")
-       return None if r.returncode == 0 else r.stderr.strip()
+       if r.returncode == 0:
+           return None
+       kubectl("-n", "learn-m18", "delete", "pod", "gameday-guard", "--ignore-not-found", "--wait=false")
+       return r.stderr.strip() or "the guard pod was not ready after 120 s"
 
    def start():
        state = load()
@@ -226,13 +235,19 @@ Do not stop at the first service that shows errors. A fault in one service often
        if problem:
            sys.exit("The guard did not start, so no fault was switched on: " + problem)
        name = random.choice(sorted(FAULTS))
-       try:
-           before, _ = change({name: FAULTS[name]})
-       except SystemExit:
-           kubectl("-n", "learn-m18", "delete", "pod", "gameday-guard", "--ignore-not-found", "--wait=false")
-           raise
        now = time.time()
-       save({"flag": name, "variant": FAULTS[name], "was": variant(before["flags"][name]), "started": now})
+       # Saved before the write, so that reveal can always put the flag back.
+       save({"flag": name, "variant": FAULTS[name], "was": "off", "started": now})
+       try:
+           change({name: FAULTS[name]})
+       except NotWritten:
+           kubectl("-n", "learn-m18", "delete", "pod", "gameday-guard", "--ignore-not-found", "--wait=false")
+           save({"ended": now})
+           raise
+       except BaseException:
+           # The write may have happened: keep the guard and the state, and let reveal clean up.
+           print("Something went wrong after the write. Run reveal; the guard stays until then.")
+           raise
        print("Round started at %s. A fault is on." % utc(now))
        print("The guard switches it off at %s at the latest. Reveal when you have your line." % utc(now + LIMIT))
 
@@ -243,7 +258,11 @@ Do not stop at the first service that shows errors. A fault in one service often
        name = state["flag"]
        if variant(call("/read")["flags"][name]) == state["was"]:
            now = call("/read")
-           note = "The guard had already switched it off, within 15 minutes of the start. The round ran out of time."
+           phase = kubectl("-n", "learn-m18", "get", "pod", "gameday-guard", "-o", "jsonpath={.status.phase}").stdout
+           if phase == "Succeeded":
+               note = "The guard had already switched it off, within 15 minutes of the start. The round ran out of time."
+           else:
+               note = "It was already off, and the guard has not run: someone else switched it, or the start's write did not land."
        else:
            _, now = change({name: state["was"]})
            note = "Switched off at %s, after %.1f minutes." % (utc(time.time()), (time.time() - state["started"]) / 60)
@@ -251,7 +270,10 @@ Do not stop at the first service that shows errors. A fault in one service often
        save({"ended": time.time()})
        print("The fault was %s = %s, on from %s." % (name, state["variant"], utc(state["started"])))
        print(note)
-       print("Flags on now:", ", ".join(flags_on(now)) or "none")
+       on = flags_on(now)
+       print("Flags on now:", ", ".join(on) or "none")
+       if on:
+           sys.exit("Not done: a flag is still on. Switch it off on the flag screen.")
 
    if __name__ == "__main__":
        command = {"start": start, "reveal": reveal, "guard": guard}.get(sys.argv[1] if sys.argv[1:] else "")
@@ -284,7 +306,7 @@ During a round, checkout's dashboard shows failed orders. In an order's trace th
 
 - checkout: orders fail, because PlaceOrder has a bug
 
-  checkout's span is only the caller here. Its status says the call never reached a server.
+  Nothing in the trace shows a bug in PlaceOrder. It shows only that checkout's call to payment never arrived.
 
 - payment: orders fail, because payment refuses the charges
 

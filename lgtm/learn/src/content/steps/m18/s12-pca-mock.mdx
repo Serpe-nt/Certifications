@@ -45,7 +45,7 @@ Seventeen of the 60 questions are PromQL. Read each query from the inside out. F
 
 ## Read the result, then act
 
-The result page is the same as for OTCA: the score with Passed or Not passed against 45 of 60, the minutes you took, a bar and "right of asked" per domain from P1 to P5, and every question with its explanations. Start with the weakest domain, weighted by its share, and go back to its modules, which step 11 lists. Then let the review queue bring back the questions you missed, use weak-spot practice for the tags you miss most, and sit the mock again in a few days. For PromQL, run the queries from the explanations on your lab's Prometheus: a result you have seen is easier to recognise.
+The result page is the same as for OTCA: the score with Passed or Not passed against 45 of 60, the minutes you took, a bar and "right of asked" per domain from P1 to P5, and every question with its explanations. Start with the weakest domain, weighted by its share, and go back to its modules, which step 11 lists. Then let the review queue bring back the questions you answered wrongly (blank ones do not enter it), use weak-spot practice for the tags you miss most, and sit the mock again in a few days. For PromQL, run the queries from the explanations on your lab's Prometheus: a result you have seen is easier to recognise.
 
 <InLab>
 Your lab's Prometheus has the metrics most PromQL questions use, such as `up`, counters whose names end in `_total`, and histogram buckets ending in `_bucket`. Rebuilding a question's query against them is the fastest way to fix a misunderstanding.
