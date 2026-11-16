@@ -723,7 +723,7 @@ function renderNext(ti, st) {
     `<div class="dm-bay" style="--dm-kx:53%;--dm-ky:12%"><div class="dm-marks dm-plus" aria-hidden="true">` +
     `<i class="dm-arc dm-arc--dash" style="--r:120px"></i><i class="dm-arc" style="--r:300px"></i><i class="dm-arc dm-arc--ticks" style="--r:300px"></i>` +
     `<span class="dm-micro" style="--x:40px;--y:104px">Day ${pad2(d.day)} of ${LAST}<br>Step ${pad2(cards.indexOf(at) + 1)} of ${pad2(cards.length)}</span></div>` +
-    `<div class="dm-slot" style="--dm-slot-pos:53% 0"><img src="img/cloud.webp" width="2000" height="918" alt="A towering cumulus cloud lit by the low sun" decoding="async"><div class="dm-slot__light"></div></div>` +
+    `<div class="dm-slot" style="--dm-slot-pos:53% 0"><img src="img/cloud.webp" width="2000" height="918" alt="A towering cloud lit by the low sun against a dark sky" decoding="async"><div class="dm-slot__light"></div></div>` +
     `<div class="dm-glass dm-pin nx-steps" style="--r:24px;--b:24px"><div class="dm-stat__head"><span>Steps today</span><span>${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? " + quiz" : ""}</span></div>` +
     `<div class="segs" aria-hidden="true">${segs}</div></div></div>` +
     `<div class="dm-datum nx-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></section>`);
