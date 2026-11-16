@@ -340,7 +340,7 @@ const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")
 const today = () => iso(new Date());
 const examDate = () => S.settings.exam ? parseDate(S.settings.exam) : dayDate(LAST);
 const fmtD = d => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-const fmtH = m => m < 1 ? "0 min" : m < 60 ? `${Math.round(m / 5) * 5 || 5} min` : `${Math.round(m / 30) / 2} h`;
+const fmtH = m => m < 1 ? "0 min" : m < 60 ? `${Math.round(m / 5) * 5 || 5} min` : `${Math.round(m / 30) / 2} h`;   // no-break space: "3.5 h" never splits
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -713,10 +713,9 @@ function renderNext(ti, st) {
   const code = d.id.toUpperCase(), bc = window.Datum ? Datum.barcode(code, { height: 20 }) : "";
   const facts = [["Steps", `${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? ", then the quiz" : ""}`], ["Time", `~${fmtH(dayLeft(d))} left`],
     ["Planned", fmtD(dayDate(d.day))], ["Exam", fmtD(dayDate(LAST))]];
-  // before Day 1 the head already says when the plan starts
-  setHTML(el, pre + head(d.day === ti ? "Today" : "Next up", d.day === ti ? fmtD(dayDate(d.day)) : ti < 1 ? "" : `planned for ${fmtD(dayDate(d.day))}`) + cal +
+  setHTML(el, pre + cal +
     `<section class="dm-hero nx-day" aria-label="Day ${d.day}"><div class="dm-hero__copy">` +
-    `<div class="dm-plate"><span class="dm-plate__no">PL.${pad2(d.day)}</span><span class="dm-plate__id">${bc}<span>SAA-C03 / Day ${d.day} of ${LAST}<br>${esc(code)}</span></span></div>` +
+    `<div class="dm-plate"><span class="dm-plate__no">PL.${pad2(d.day)}</span><span class="dm-plate__id">${bc}<span>${esc(code)} / SAA-C03<br>Day ${d.day} of ${LAST}</span></span></div>` +
     `<p class="dm-hero__lead">${d.goal}</p>` +
     `<div class="nx-go"><span class="dm-label dm-label--br">${kick}</span>${body}<div class="dm-hero__acts nx-a">${act}</div></div>` +
     `<dl class="dm-spec">${facts.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join("")}</dl>` +
@@ -727,7 +726,7 @@ function renderNext(ti, st) {
     `<div class="dm-slot" style="--dm-slot-pos:53% 0"><img src="img/cloud.webp" width="2000" height="918" alt="A towering cumulus cloud lit by the low sun" decoding="async"><div class="dm-slot__light"></div></div>` +
     `<div class="dm-glass dm-pin nx-steps" style="--r:24px;--b:24px"><div class="dm-stat__head"><span>Steps today</span><span>${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? " + quiz" : ""}</span></div>` +
     `<div class="segs" aria-hidden="true">${segs}</div></div></div>` +
-    `<div class="dm-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></section>`);
+    `<div class="dm-datum nx-datum" aria-hidden="true"><span class="dm-datum__key">A</span></div></section>`);
 }
 
 // ---------- day flow: one card at a time ----------
@@ -752,7 +751,7 @@ function renderFlow(moved) {
     `<span class="fl-dd">${fmtD(dayDate(d.day))}</span>${isToday ? `<span class="dm-tag fl-today"><span class="dm-lamp dm-lamp--s"></span>Today</span>` : ""}`;
   const tool = (attrs, label) => `<button type="button" class="dm-btn dm-btn--s dm-btn--line" ${attrs}>${label}</button>`;
   const tools = [tool(`data-focus-view aria-pressed="${!!ui.focusView}" title="Hide the aside beside the step (F)"`, ui.focusView ? "Show panels" : "Focus view"),
-    tool(`data-search title="Search (Ctrl+K)"`, "Search"), tool(`data-sheet="daynotes"`, "Day notes")];
+    tool(`data-sheet="daynotes"`, "Day notes")];
   if (d.groups.some(g => g.t === "build")) tools.push(tool(`data-cleanup="${d.id}"`, "Cleanup check"));
   for (const t of d.tools || []) tools.push(t === "notebook" ? tool(`data-sheet="notebook"`, "Notebook") : tool(`data-sheet="weak"`, "Weak spots"));
   document.getElementById("fl-tools").innerHTML = tools.join("");
@@ -1401,7 +1400,8 @@ function whyPatternHTML() {
 function renderReady() {
   const rd = readiness(), el = document.getElementById("ready");
   const total = rd.reduce((a, d) => a + d.met, 0);
-  if (total < 10) { el.innerHTML = `<p class="cl-p">Fills in as you answer quiz questions: how many of each exam domain's questions you would get right now.</p>`; return; }
+  if (total < 10) { el.innerHTML = `<p class="cl-p">Fills in as you answer quiz questions: how many of each exam domain's questions you would get right now.</p>` +
+    `<ul class="rd-list">${DOMAINS.map((n, i) => `<li class="few"><div class="dm-gauge"><div class="dm-gauge__head"><span class="rd-n">D${i + 1} ${n}</span><span class="rd-s">Waiting</span></div><div class="dm-bar dm-hatch rd-wait" aria-hidden="true"></div></div></li>`).join("")}</ul>`; return; }
   const full = rd.every(d => d.met >= MIN_MET), all = full ? Math.round(rd.reduce((a, d, i) => a + d.acc * DOM_W[i], 0) / 100) : 0;
   // the weighted figure leads; each domain is a gauge of slanted cells with its value and band; the pass line is in words
   let h = `<div class="rd-head">${full ? `<div class="rd-all dm-stat__row"><span class="dm-stat__num">${all}</span><span class="dm-stat__unit">%</span><span class="dm-stat__side">Weighted<br>like the exam<br>30 / 26 / 24 / 20</span></div>` : `<p class="cl-p">An overall figure needs ${MIN_MET} answers in each domain.</p>`}` +
@@ -1499,7 +1499,7 @@ function renderTrends() {
   const empty = !data.some(d => d.a || d.f || d.x);
   const ctl = `<div class="tr-ctl"><div class="dm-seg" role="group" aria-label="Range">${[14, 30].map(k => `<button type="button" data-trend="${k}" aria-pressed="${n === k}">Last ${k} days</button>`).join("")}</div>` +
     `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-trend-table aria-pressed="${!!ui.trendTable}">${ui.trendTable ? "Show charts" : "Show as table"}</button></div>`;
-  if (empty) { el.innerHTML = ctl + `<p class="cl-p">Nothing in these days yet. Answers, focus time and XP show here per day.</p>`; return; }
+  if (empty) { el.innerHTML = ctl + `<div class="tr-wait dm-hatch"><p class="cl-p">Nothing in these days yet. Answers, focus time and XP show here per day.</p></div>`; return; }
   if (ui.trendTable) {
     el.innerHTML = ctl + `<div class="tr-tw"><table class="tr-tab"><thead><tr><th scope="col">Day</th><th scope="col">Answers</th><th scope="col">Right</th><th scope="col">Focus</th><th scope="col">XP</th></tr></thead><tbody>` +
       data.slice().reverse().map(d => `<tr><th scope="row">${esc(fmtD(parseDate(d.k)))}</th><td>${d.a || "–"}</td><td>${d.a ? `${Math.round(d.r / d.a * 100)}%` : "–"}</td><td>${d.f ? fmtH(d.f) : "–"}</td><td>${d.x == null ? "–" : d.x}</td></tr>`).join("") + `</tbody></table></div>`;
@@ -2349,6 +2349,8 @@ function drillPick(k) {
   if (sc) sc.textContent = `Score ${drill.score}`;
   const num = document.getElementById("dr-num");
   if (num) num.textContent = pad2(drill.score);
+  const dn = document.getElementById("dr-n");
+  if (dn) dn.textContent = plural(drill.n, "answer");
   const lv = document.getElementById("dr-lives");
   if (lv) lv.innerHTML = livesHTML();
   FX.sound(ok ? "pop" : "miss");
@@ -2385,7 +2387,7 @@ function renderDrill() {
     const meta = drill.end ? [`<span id="dr-time">${Math.ceil((drill.end - Date.now()) / 1000)} s</span>`] : drill.mode === "lives" ? [`<span id="dr-lives" class="dr-lives">${livesHTML()}</span>`] : [`${drill.n + 1} of ${drill.items.length}`];
     head(title, [...meta, `<span id="dr-score">Score ${drill.score}</span>`], drill.end ? 100 - (drill.end - Date.now()) / 600 : drill.mode === "day" ? drill.n / drill.items.length * 100 : 0);
     const aside = `<div class="dm-stat dm-stat--m qz-stat" data-i style="--i:2"><div class="dm-stat__head"><span class="dm-label--br">Score</span><span>${m.b}</span></div>` +
-      `<div class="dm-stat__row"><span class="dm-stat__num" id="dr-num">${pad2(drill.score)}</span><span class="dm-stat__side">${plural(drill.n, "answer")}</span></div></div>` +
+      `<div class="dm-stat__row"><span class="dm-stat__num" id="dr-num">${pad2(drill.score)}</span><span class="dm-stat__side" id="dr-n">${plural(drill.n, "answer")}</span></div></div>` +
       (drill.mode === "day" ? `<div class="dm-train" role="img" aria-label="Question ${drill.n + 1} of ${drill.items.length}" data-i style="--i:3">${drill.items.map((x, i) => `<i class="${i < drill.n ? "is-done" : i === drill.n ? "is-now" : ""}"></i>`).join("")}</div>` : "") +
       `<p class="qz-hint">${m.d}</p>`;
     qzBody.innerHTML = appHTML(`dr:${drill.date}:${drill.mode}:${round}`, plateHTML(no, code, `SAA-C03 / ${title}`, drill.mode === "day" ? `Question ${pad2(drill.n + 1)} of ${pad2(drill.items.length)}` : `Round ${round}`),
