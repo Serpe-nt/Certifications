@@ -3589,6 +3589,30 @@ addEventListener("storage", e => {
   applyState();
 });
 
+// ---------- the four places as Datum tags ----------
+// The plan's data marks where a step happens with ① to ④, each followed by the place's name ("① Skill Builder → …",
+// "③ your AWS account"). On screen the mark and the name it heads become one Datum tag, so the data stays as written.
+// Text only: attributes (tooltips) keep the digit; form fields and scripts are left alone.
+const PLACE_RX = /①\s*(?:Skill Builder\b)?|②\s*(?:[Ll]ab sandbox\b)?|③\s*(?:[Yy]our (?:own )?(?:AWS )?account\b)?|④\s*(?:Certification account\b)?/g;
+const PLACE_NAME = { "①": "Skill Builder", "②": "Lab sandbox", "③": "Your AWS account", "④": "Certification account" };
+function placeTags(root) {
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => /[①-④]/.test(n.data) && !n.parentElement.closest("script,style,textarea,input,title,option,.pl-tag") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT });
+  const hits = []; while (w.nextNode()) hits.push(w.currentNode);
+  for (const n of hits) {
+    const f = document.createDocumentFragment(); let at = 0;
+    n.data.replace(PLACE_RX, (m, i) => {
+      if (i > at) f.append(n.data.slice(at, i));
+      const t = document.createElement("span"); t.className = "dm-tag pl-tag"; t.textContent = PLACE_NAME[m[0]];
+      f.append(t, /\s$/.test(m) && !/^\s/.test(n.data.slice(i + m.length)) ? " " : ""); at = i + m.length; return m;
+    });
+    if (at < n.data.length) f.append(n.data.slice(at));
+    n.replaceWith(f);
+  }
+}
+placeTags(document.body);
+new MutationObserver(ms => { for (const m of ms) for (const a of m.addedNodes) if (a.nodeType === 1) placeTags(a); else if (a.nodeType === 3 && a.parentElement) placeTags(a.parentElement); })
+  .observe(document.body, { childList: true, subtree: true });
+
 // ---------- boot ----------
 function rebuild() { syncLevel(); renderLinks(); syncToggles(); refresh(); }
 // stay correct past midnight without reloading
