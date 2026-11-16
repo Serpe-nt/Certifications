@@ -133,7 +133,7 @@ try {
   assert.equal(await page.locator("#next .segs i").count(), D1.ids.length + (D1.quiz ? 1 : 0), "one segment per card of the day");
   await page.setViewportSize({ width: 1920, height: 1080 });
   tb = await topBox();
-  assert.ok(tb.next.w > 1100 && tb.go.l >= tb.day.r && tb.big.b <= tb.h, `a full-screen window: the overview takes more of it, still side by side: ${JSON.stringify(tb.next)}`);
+  assert.ok(tb.next.w > 1100 && tb.go.r <= tb.day.r && tb.big.b <= tb.h, `a full-screen window: the hero takes more of it, the next step still in its copy column: ${JSON.stringify(tb.next)}`);
   await page.screenshot({ path: path.join(SHOTS, "01b-overview-wide.png") });
   await page.setViewportSize({ width: 1200, height: 900 });
 
@@ -401,6 +401,8 @@ try {
     if (i === 0) {
       assert.ok(await page.locator("#qz-body .qz-study .qz-refs li").count() >= 1, "feedback shows where to study");
       // every option is explained, and the explanation sits visibly inside its option
+      // Datum's settle animation slides each explanation in; measure where it comes to rest
+      await page.$$eval("#qz-body .qz-fb .qz-why", ws => Promise.all(ws.flatMap(w => w.getAnimations().map(x => x.finished))));
       const inside = await page.$$eval("#qz-body .qz-fb li", lis => lis.map(li => {
         const w = li.querySelector(".qz-why"); if (!w) return false;
         const a = li.getBoundingClientRect(), b = w.getBoundingClientRect();
@@ -722,7 +724,10 @@ try {
   await page.click('#qz-body [data-qz="check"]');
   await page.screenshot({ path: path.join(SHOTS, "18-mobile-feedback.png"), fullPage: false });
   const qOverflow = await page.evaluate(() => { const d = document.getElementById("quiz"); return d.scrollWidth - d.clientWidth; });
-  assert.ok(qOverflow <= 1, "quiz dialog fits the phone width");
+  // name what sticks out, so a failure says where to look
+  const qWide = qOverflow <= 1 ? [] : await page.evaluate(() => { const d = document.getElementById("quiz"), r = d.getBoundingClientRect().left + d.clientWidth;
+    return [...d.querySelectorAll("*")].filter(e => e.getBoundingClientRect().right > r + 1).slice(0, 8).map(e => `${e.tagName.toLowerCase()}.${[...e.classList].join(".")} ${Math.round(e.getBoundingClientRect().right - r)}px`); });
+  assert.ok(qOverflow <= 1, `quiz dialog fits the phone width (${qOverflow}px over: ${qWide.join(", ")})`);
   await ctx.close();
 
   log("a touch screen: no key hints, fields that don't make iOS zoom, no notification button, a tap shows a term");
@@ -1029,8 +1034,8 @@ try {
   await page.click('#settings button[value="save"]');
   await page.waitForFunction(() => !document.getElementById("settings").open && document.documentElement.dataset.size, null, { timeout: 3000 }).catch(() => {});   // the dialog's close event comes a moment after the click
   assert.equal(await page.evaluate(() => document.documentElement.dataset.size), "l", "text size applies");
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue("--paper").trim()), "#111111", "dark colours (Datum, Excimer paper) although the system is light");
-  assert.ok(await page.evaluate(() => document.querySelector("#bd svg.dm-bd[data-figure='orbit']")), "the backdrop is drawn: Datum's orbit on the overview");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue("--ground").trim()), "#050D10", "dark colours (Datum 6 Night, the carbon ground) although the system is light");
+  assert.ok(await page.evaluate(() => document.querySelector(".dm-page")), "the page stands on Datum 6's lit ground (dm-page); Datum 6 has no backdrop figure");
   await page.reload();
   assert.equal(await page.evaluate(() => document.documentElement.dataset.size), "l", "and stays after a reload");
   await openCard(page, HELPDAY, HELP);
@@ -1205,7 +1210,7 @@ try {
   await setState(page, s => { s.settings = { start: new Date().toISOString().slice(0, 10), fx: false, sound: false }; delete s.timer; });
   await page.reload();
   const tmBox = await page.locator("#timer").boundingBox();
-  assert.ok(tmBox.y <= 1 && tmBox.width >= 1100, "the strip runs along the top of the page");
+  assert.ok(tmBox.y <= 48 && tmBox.width >= 1100, `the header with the timer runs across the top of the page, inside Datum's ground margin: ${JSON.stringify(tmBox)}`);
   assert.equal(await page.textContent("#timer .tm-time"), "50:00");
   await page.click("[data-start-day]");
   await page.waitForFunction(() => !document.getElementById("flow").hidden);

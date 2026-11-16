@@ -874,7 +874,7 @@ body.focus-view #card{zoom:1.06}
 @media (hover:none) and (pointer:coarse){.kbd{display:none}.touch{display:inline}}
 @media (pointer:coarse){
   /* iOS zooms into a field under 16px when it gets the focus, and stays zoomed */
-  :is(.scores-grid,.field,.notes-l,.b-notes,.qz-note,.cost-add,.s-disp) :is(input,select,textarea){font-size:16px}
+  :is(.scores-grid,.field,.notes-l,.b-notes,.qz-note,.cost-add,.s-disp) :is(input,select,textarea),.b-notes textarea.dm-input{font-size:16px}   /* the second selector outranks the notes field's own 15px */
   /* targets a fingertip can hit */
   .dot{width:30px;height:30px}
   button,.btn{min-height:44px}
