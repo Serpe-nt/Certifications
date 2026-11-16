@@ -2462,16 +2462,70 @@
 .stepend-q > .part {
   margin: 0;
 }
+/* The step's bar: Back, Mark complete (or Go to practice) and Next stay pinned to the bottom of the
+   window on every step, as in saa-plan (owner, 2026-11-16: "must be stuck to the bottom of the
+   screen always, pinned"). A paper strip with an ink rule and a yellow edge on top, its buttons kept
+   to the page's width; the page leaves room for it, and notifications sit above it. */
 .stepend .stepnav {
-  margin-top: var(--lg-space-8);
-  padding-top: var(--lg-space-4);
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 10px max(var(--lg-space-4), calc((100% - 64rem) / 2));
   border-top: 2px solid var(--lg-ink);
+  background: var(--lg-paper);
+  box-shadow: 0 -5px 0 var(--lg-signal);
 }
 .stepend .stepnav-hint {
   justify-self: center;
-  padding: 4px 12px;
-  background: var(--lg-paper);
+  margin-top: -4px;
+  font-size: var(--lg-text-label);
   color: var(--lg-ink-2);
+}
+body:has(.stepend .stepnav) {
+  padding-bottom: 96px;
+}
+body:has(.stepend .stepnav[data-blocked]) {
+  padding-bottom: 124px;
+}
+body:has(.stepend .stepnav) .toasts {
+  bottom: 96px;
+}
+body:has(.stepend .stepnav[data-blocked]) .toasts {
+  bottom: 124px;
+}
+/* On a phone the bar keeps one row: Back, the middle button, Next. */
+@media (max-width: 560px) {
+  .stepend .stepnav {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 8px var(--lg-space-3);
+  }
+  .stepend .stepnav-mid {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .stepend .stepnav .btn {
+    padding-inline: 12px;
+  }
+  .stepend .stepnav-mid .btn {
+    width: 100%;
+    padding-inline: 8px;
+  }
+  body:has(.stepend .stepnav) {
+    padding-bottom: 80px;
+  }
+  body:has(.stepend .stepnav[data-blocked]) {
+    padding-bottom: 116px;
+  }
+  body:has(.stepend .stepnav) .toasts {
+    bottom: 80px;
+  }
+  body:has(.stepend .stepnav[data-blocked]) .toasts {
+    bottom: 116px;
+  }
 }
 .stepend .btn:not(.btn-primary) {
   background: var(--lg-paper);
