@@ -53,14 +53,27 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .nx-h{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
 .nx-h>*{background:var(--sheet);box-shadow:0 0 0 var(--space-1) var(--sheet)}
 .nx-cal{margin:0 0 var(--space-4);font-size:14px;line-height:20px;color:var(--ink-2)}
-/* the hero is Datum's (dm-hero, dm-bay, dm-slot): only what the app adds to it is here */
-.next .dm-hero .dm-bay{min-height:600px}
+/* the hero is Datum's (dm-hero, dm-bay, dm-slot): only what the app adds to it is here. It is a working screen's
+   header, not a poster: the owner must read the day, its topic, the next step and Start in one look on a 1000px-tall
+   monitor and a tablet. So the copy column is wider (the text wraps less), the day's title sits under its plate
+   number, the facts are two columns, the step's long Skill Builder path stays on the card, and the bay is as tall as
+   the copy, no taller. */
+.next .dm-hero .dm-bay{min-height:360px}
+.nx-day .hero-t{margin:var(--space-2) 0 0;font:600 clamp(26px,2.1vw,34px)/1.12 var(--font-sans);letter-spacing:-.02em;text-wrap:balance}
+.nx-day .dm-hero__lead{margin:0}
+.nx-day .nx-where{display:none}
+.nx-day .dm-spec{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--space-6)}
 @media (min-width:861px){
+  .next .dm-hero{grid-template-columns:420px minmax(0,1fr)}
   .nx-day .dm-bay{--dm-ky:76px}
   .nx-day .dm-slot img{inset:auto 0 0 0;height:calc((100% - 76px) / .872)}
-  .nx-datum{--dm-key:calc(368px + (100% - 368px) * .53)}
+  .nx-datum{--dm-key:calc(444px + (100% - 444px) * .53)}
 }
 .rd-wait{height:12px}
+/* Datum's lit ground, fixed behind every view (index.html .pg-ground): the key light high on the right, its arcs and
+   bearing ring, the plus grid. The sheets cover the middle; it lives in the margins and gaps, as in Datum's views. */
+.pg{isolation:isolate}   /* the ground's z-index -1 stays inside the page: above its background, under everything else */
+.pg-ground{position:fixed;inset:0;z-index:-1;pointer-events:none;--dm-kx:86%;--dm-ky:22%}
 .pl-tag{vertical-align:1px;margin:0 .1em;white-space:nowrap}   /* a place inside running text (app.js placeTags) */
 .tr-wait{display:grid;place-items:center;min-height:200px;padding:var(--space-6);border:var(--stroke-hair) solid var(--line)}
 .tr-wait .cl-p{padding:var(--space-2) var(--space-3);background:var(--sheet)}
@@ -335,8 +348,13 @@ button.st-lv:focus-visible{outline:var(--stroke-datum) solid var(--signal);outli
 #scores .scores-grid input{width:76px;height:var(--control-s);padding:0 var(--space-3);text-align:right;font:400 14px var(--font-mono);color:var(--ink);background:var(--ground);border:var(--stroke-line) solid var(--off);border-radius:0}
 #scores .scores-grid input:is(:hover,:focus){border-color:var(--ink)}
 #scores .scores-grid input:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:0}
-#scores :is(.dom-bars,.time-log){display:grid;gap:var(--space-3);margin:0}
-#scores :is(.dom-bars,.time-log):empty{display:none}
+#scores .dom-bars{display:grid;gap:var(--space-3);margin:0}
+#scores .dom-bars:empty{display:none}
+/* study time per day sits with the day-by-day charts, in columns: as one list beside the scores it grew 22 rows tall
+   and left the cell next to it empty */
+.time-log{display:grid;gap:var(--space-3);margin-top:var(--space-6)}
+.time-log:empty{display:none}
+.tl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:var(--space-3) var(--space-6)}
 .sc-h{margin:var(--space-2) 0 0}
 .sc-g{display:grid;gap:var(--space-2)}
 .sc-gh{display:flex;justify-content:space-between;gap:var(--space-3);font-size:14px;line-height:20px;color:var(--ink)}

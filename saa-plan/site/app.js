@@ -698,15 +698,14 @@ function renderNext(ti, st) {
   // button, the facts, the title in a bite) beside a bay holding the cloud photo in Datum's slot (Datum grades it and
   // relights its summit, the key point, which sits on the datum line). A glass panel in the bay carries today's steps.
   const code = d.id.toUpperCase(), bc = window.Datum ? Datum.barcode(code, { height: 20 }) : "";
-  const facts = [["Steps", `${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? ", then the quiz" : ""}`], ["Time", `~${fmtH(dayLeft(d))} left`],
+  const facts = [["Steps", `${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? " + quiz" : ""}`], ["Time", `~${fmtH(dayLeft(d))} left`],
     ["Planned", fmtD(dayDate(d.day))], ["Exam", fmtD(dayDate(LAST))]];
   setHTML(el, pre + cal +
     `<section class="dm-hero nx-day" aria-label="Day ${d.day}"><div class="dm-hero__copy">` +
     `<div class="dm-plate"><span class="dm-plate__no">PL.${pad2(d.day)}</span><span class="dm-plate__id">${bc}<span>${esc(code)} / SAA-C03<br>Day ${d.day} of ${LAST}</span></span></div>` +
-    `<p class="dm-hero__lead">${d.goal}</p>` +
+    `<h2 class="dm-title hero-t">${d.title}</h2><p class="dm-hero__lead">${d.goal}</p>` +
     `<div class="nx-go"><span class="dm-label dm-label--br">${kick}</span>${body}<div class="dm-hero__acts nx-a">${act}</div></div>` +
-    `<dl class="dm-spec">${facts.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join("")}</dl>` +
-    `<div class="dm-bite"><h2 class="dm-display--light hero-t">${d.title}</h2></div></div>` +
+    `<dl class="dm-spec">${facts.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join("")}</dl></div>` +
     `<div class="dm-bay" style="--dm-kx:53%;--dm-ky:12%"><div class="dm-marks dm-plus" aria-hidden="true">` +
     `<i class="dm-arc dm-arc--dash" style="--r:120px"></i><i class="dm-arc" style="--r:300px"></i><i class="dm-arc dm-arc--ticks" style="--r:300px"></i>` +
     `<span class="dm-micro" style="--x:40px;--y:104px">Day ${pad2(d.day)} of ${LAST}<br>Step ${pad2(cards.indexOf(at) + 1)} of ${pad2(cards.length)}</span></div>` +
@@ -1558,7 +1557,7 @@ function renderScores() {
   const logged = DAYS.filter(d => (S.log[d.id] || 0) >= 1);
   document.getElementById("time-log").innerHTML = logged.length
     ? `<h3 class="dm-label dm-quiet sc-h">Study time</h3><p class="cl-p">Logged by the focus timer against the day you were working on.</p>` +
-      logged.map(d => gauge(`Day ${d.day}`, pct(S.log[d.id], dayPlanned(d)), `${fmtH(S.log[d.id])} of ~${fmtH(dayPlanned(d))}`, "tl")).join("")
+      `<div class="tl-grid">${logged.map(d => gauge(`Day ${d.day}`, pct(S.log[d.id], dayPlanned(d)), `${fmtH(S.log[d.id])} of ~${fmtH(dayPlanned(d))}`, "tl")).join("")}</div>`
     : "";
   const sum = [];
   const q7 = num("qs7"), q13 = num("qs13"), pe = num("pe");
