@@ -1450,7 +1450,7 @@ function trendData(n) {
 const niceMax = v => { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)), m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; };
 // One chart as SVG: kind "line" (percent, gaps where a day has no answers) or "col"; ref = a labelled reference line.
 function chartSVG(data, val, { kind, max, ref, refLabel, unit, per = 1 }) {
-  const W = 320, H = 150, L = 34, R = 10, T = 12, B = 22, pw = W - L - R, ph = H - T - B, n = data.length, bw = pw / n;
+  const W = innerWidth >= 1500 ? 520 : innerWidth >= 1180 ? 420 : 320, H = 150, L = 34, R = 10, T = 12, B = 22, pw = W - L - R, ph = H - T - B, n = data.length, bw = pw / n;
   // per: the axis steps in whole units of this size (60: hours for minutes)
   const vs = data.map(val), top = max || niceMax(Math.max(ref || 0, ...vs.filter(v => v != null)) / per) * per;
   const y = v => T + ph - (v / top) * ph, x = i => L + bw * i + bw / 2;
@@ -1562,7 +1562,7 @@ function renderScores() {
   document.getElementById("dom-bars").innerHTML = bars.join("");
   const logged = DAYS.filter(d => (S.log[d.id] || 0) >= 1);
   document.getElementById("time-log").innerHTML = logged.length
-    ? `<h3 class="dm-label dm-quiet sc-h">Study time</h3><p class="cl-p">Logged by the focus timer against the day you were working on.</p>` +
+    ? `<h2 class="dm-label dm-label--br dm-quiet cl-k">Study time</h2><p class="cl-p">Logged by the focus timer against the day you were working on.</p>` +
       `<div class="tl-grid">${logged.map(d => gauge(`Day ${d.day}`, pct(S.log[d.id], dayPlanned(d)), `${fmtH(S.log[d.id])} of ~${fmtH(dayPlanned(d))}`, "tl")).join("")}</div>`
     : "";
   const sum = [];
