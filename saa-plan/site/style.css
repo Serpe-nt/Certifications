@@ -22,7 +22,7 @@ b,strong{font-weight:600}   /* the colour of its container: a state fill keeps i
 :where(.muted,.goal,.p-intro,.rules,.c-n,.c-les,.qz-msg,.place,.la-why,.dg-why,.why-tip,.fl-dd,.nx-h,.nx-cal,.in-note,.c-terms dd,.rw-x,.foot) :is(b,strong){color:var(--ink)}
 .muted{color:var(--ink-2);font-weight:400}
 code,kbd{font:400 .86em var(--font-mono);background:var(--mist);border:var(--stroke-hair) solid var(--line);padding:0 4px}
-:is(.qz-fb>li.right,.dr-opts .qz-o.right,.sr-it.on,.mk-q .w.hl,.dt.is-done,.dt.is-now) code{background:transparent;border-color:currentColor;color:inherit}
+:is(.qz-fb>li.right,.dr-opts .qz-o.right,.sr-it.on,.mk-q .w.hl,.dt.is-done,.dt.is-now,.dm-choice.is-selected) code{background:transparent;border-color:currentColor;color:inherit}
 mark{background:none;color:inherit;font-weight:600;text-decoration:underline var(--signal) 2px;text-underline-offset:3px}   /* a found word: underlined in signal, the light; never a fill */
 input,select,textarea{accent-color:var(--ink);caret-color:var(--ink)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

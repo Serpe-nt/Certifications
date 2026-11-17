@@ -1870,24 +1870,24 @@ function mapHTML(r) {
     return `<button type="button" tabindex="-1" data-go="${i}" class="${st}${i === r.i ? " cur" : ""}${i === r.i && fresh && st ? " just" : ""}" aria-label="${label}" title="${label}">${i + 1}</button>`;
   }).join("")}</div>`;
 }
-// The aside of a quiz question: the score so far as a stat, the train of questions under it.
+// Under a quiz question: the numbered squares of the run (the score so far is in the header, scoreHTML).
 function qAsideHTML(r, right, answered) {
   const n = r.ids.length;
-  return `<div class="dm-stat dm-stat--m qz-stat" data-i style="--i:2"><div class="dm-stat__head"><span class="dm-label--br">Score</span><span>${right} of ${answered}</span></div>` +
-    `<div class="dm-stat__row"><span class="dm-stat__num">${answered ? pct(right, answered) : 0}</span><span class="dm-stat__unit">%</span></div></div>` +
-    (n > 1 ? `<div class="qz-trainb" data-i style="--i:3">${mapHTML(r)}<div class="dm-stat__head"><span>Question ${pad2(r.i + 1)} of ${pad2(n)}</span><span>${pad2(answered)} answered</span></div></div>` : "");
+  return (n > 1 ? `<div class="qz-trainb" data-i style="--i:3">${mapHTML(r)}<div class="dm-stat__head"><span>Question ${pad2(r.i + 1)} of ${pad2(n)}</span><span>${pad2(answered)} answered</span></div></div>` : "");
 }
 // The next question not answered yet after the one on screen, wrapping round; -1 when every one is answered.
 function nextOpen(r) {
   for (let k = 1; k <= r.ids.length; k++) { const j = (r.i + k) % r.ids.length; if (!r.ans[r.ids[j]]) return j; }
   return -1;
 }
+// The score so far, in the quiz header beside the streak: a figure, then how many of how many.
+const scoreHTML = (right, answered) => `<span class="qz-score"><b>${answered ? pct(right, answered) : 0}%</b>${right} of ${answered}</span>`;
 function renderQ() {
   const r = S.run, id = r.ids[r.i], q = QBY[id], ord = r.ord[id] || QZ.order(q), ans = r.ans[id], n = r.ids.length, sel = picks[id] || [];
   r.ord[id] = ord;
   const answered = Object.keys(r.ans).filter(k => QBY[k]);
   const right = answered.filter(k => QZ.isRight(QBY[k], r.ans[k])).length;
-  head(runTitle(r), [comboHTML(r)], answered.length / n * 100);
+  head(runTitle(r), [comboHTML(r), scoreHTML(right, answered.length)], answered.length / n * 100);
   const plate = plateHTML(runNo(r), runCode(r), `SAA-C03 / ${runTitle(r)}`, `Question ${pad2(r.i + 1)} of ${pad2(n)}`);
   const title = `<div class="dm-title qz-q qz-text${qLong(q)}" role="heading" aria-level="3" data-i style="--i:1">${q.q}</div>`;
   // Previous and Next move one question either way and never answer; the main button checks, then goes on to the next open question.
