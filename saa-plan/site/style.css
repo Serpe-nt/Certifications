@@ -22,7 +22,7 @@ b,strong{font-weight:600}   /* the colour of its container: a state fill keeps i
 :where(.muted,.goal,.p-intro,.rules,.c-n,.c-les,.qz-msg,.place,.la-why,.dg-why,.why-tip,.fl-dd,.nx-h,.nx-cal,.in-note,.c-terms dd,.rw-x,.foot) :is(b,strong){color:var(--ink)}
 .muted{color:var(--ink-2);font-weight:400}
 code,kbd{font:400 .86em var(--font-mono);background:var(--mist);border:var(--stroke-hair) solid var(--line);padding:0 4px}
-:is(.qz-fb>li.right,.dr-opts .qz-o.right,.sr-it.on,.mk-q .w.hl,.dt.is-done,.dt.is-now) code{background:transparent;border-color:currentColor;color:inherit}
+:is(.qz-fb>li.right,.dr-opts .qz-o.right,.sr-it.on,.mk-q .w.hl,.dt.is-done,.dt.is-now,.dm-choice.is-selected,button.qz-o.on) code{background:transparent;border-color:currentColor;color:inherit}
 mark{background:none;color:inherit;font-weight:600;text-decoration:underline var(--signal) 2px;text-underline-offset:3px}   /* a found word: underlined in signal, the light; never a fill */
 input,select,textarea{accent-color:var(--ink);caret-color:var(--ink)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -51,23 +51,36 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 /* ---------- today first: the hero frame (the day as a dot-matrix readout) beside the next step ---------- */
 .next{margin:0 0 var(--space-8)}
 .nx-h{display:flex;gap:var(--space-2) var(--space-4);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4);font:400 13px/20px var(--font-mono);color:var(--ink-2)}
-.nx-h>*{background:var(--sheet);box-shadow:0 0 0 var(--space-1) var(--sheet)}
+.nx-h>:not(.dm-tag){background:var(--sheet);box-shadow:0 0 0 var(--space-1) var(--sheet)}
 .nx-cal{margin:0 0 var(--space-4);font-size:14px;line-height:20px;color:var(--ink-2)}
-/* the hero is Datum's (dm-hero, dm-bay, dm-slot): only what the app adds to it is here */
-.next .dm-hero .dm-bay{min-height:600px}
+/* the hero is Datum's (dm-hero, dm-bay, dm-slot): only what the app adds to it is here. It is a working screen's
+   header, not a poster: the owner must read the day, its topic, the next step and Start in one look on a 1000px-tall
+   monitor and a tablet. So the copy column is wider (the text wraps less), the day's title sits under its plate
+   number, the facts are two columns, the step's long Skill Builder path stays on the card, and the bay is as tall as
+   the copy, no taller. */
+.next .dm-hero .dm-bay{min-height:360px}
+.nx-day .hero-t{margin:var(--space-2) 0 0;font:600 clamp(26px,2.1vw,34px)/1.12 var(--font-sans);letter-spacing:-.02em;text-wrap:balance}
+.nx-day .dm-hero__lead{margin:0}
+.nx-day .nx-where{display:none}
+.nx-day .dm-spec{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--space-6)}
 @media (min-width:861px){
+  .next .dm-hero{grid-template-columns:420px minmax(0,1fr)}
   .nx-day .dm-bay{--dm-ky:76px}
   .nx-day .dm-slot img{inset:auto 0 0 0;height:calc((100% - 76px) / .872)}
-  .nx-datum{--dm-key:calc(368px + (100% - 368px) * .53)}
+  .nx-datum{--dm-key:calc(444px + (100% - 444px) * .53)}
 }
 .rd-wait{height:12px}
+/* Datum's lit ground, fixed behind every view (index.html .pg-ground): the key light high on the right, its arcs and
+   bearing ring, the plus grid. The sheets cover the middle; it lives in the margins and gaps, as in Datum's views. */
+.pg{isolation:isolate}   /* the ground's z-index -1 stays inside the page: above its background, under everything else */
+.pg-ground{position:fixed;inset:0;z-index:-1;pointer-events:none;--dm-kx:86%;--dm-ky:22%}
 .pl-tag{vertical-align:1px;margin:0 .1em;white-space:nowrap}   /* a place inside running text (app.js placeTags) */
 .tr-wait{display:grid;place-items:center;min-height:200px;padding:var(--space-6);border:var(--stroke-hair) solid var(--line)}
 .tr-wait .cl-p{padding:var(--space-2) var(--space-3);background:var(--sheet)}
 .nx-go{display:grid;justify-items:start;gap:var(--space-2);padding-top:var(--space-4);border-top:var(--stroke-hair) solid var(--line)}
 .nx-go .nx-step{margin:0;font-size:17px;line-height:1.45}
 .nx-go .nx-where{margin:0;color:var(--ink-2);font-size:14px;line-height:20px}
-.nx-go .nx-a{margin-top:var(--space-2)}
+.nx-go .nx-a{margin-top:var(--space-2);justify-self:stretch}
 .nx-steps{width:248px;display:grid;gap:var(--space-3);box-sizing:border-box}
 .nx-steps .dm-stat__head{color:var(--ink)}
 .nx-steps .segs{margin:0}
@@ -103,6 +116,21 @@ button.link{display:inline;min-height:0;border:0;background:none;padding:0;font:
 .slip .dm-notice__body p{margin:0;font-size:15px;line-height:22px;color:var(--ink)}
 .slip .dm-notice__body p+p{margin-top:var(--space-1);font-size:14px;color:var(--ink-2)}
 .slip-a{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-3)}
+@media (min-width:861px){
+  .slip{padding-block:var(--space-3)}
+  .slip .dm-notice__body{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) var(--space-4)}
+  .slip .dm-notice__body p+p{margin:0}
+  .slip-a{margin:0 0 0 auto}
+}
+.ov-hero:has(#slip:not([hidden])) .nx-cal{display:none}
+@media (max-width:640px){
+  .ov-hero{display:flex;flex-direction:column}
+  #slip{order:2;margin:var(--space-4) 0 0}
+  #next{display:flex;flex-direction:column}
+  #next .nx-warm{order:2;margin:var(--space-4) 0 0}
+}
+.nx-day .dm-spec dd{flex-wrap:wrap;row-gap:var(--space-1);padding-block:var(--space-1)}
+.nx-late{height:20px;color:var(--signal-text);border-color:var(--signal)}
 
 
 
@@ -195,6 +223,7 @@ body:not(.in-flow) .pg>.wrap{max-width:none;padding:0}
 .sync-st .ss-s{display:none;white-space:nowrap}
 /* the strip: where you are; Effects and Sound, each with a lamp that is lit while it is on */
 .hd-strip{flex-wrap:wrap}
+:is(.hd-strip,.ov-strip)>span,:is(.hd-strip,.ov-strip) .hd-tg>*{background:var(--ground);box-shadow:0 0 0 var(--space-1) var(--ground)}
 .hd-tg{display:flex;gap:var(--space-6)}
 .hd-t{display:inline-flex;align-items:center;gap:var(--space-2);height:32px;padding:0;border:0;border-radius:0;background:none;color:var(--ink-2);font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
 .hd-t::before{content:"";width:7px;height:7px;background:var(--off)}
@@ -213,10 +242,11 @@ body:not(.in-flow) .pg>.wrap{max-width:none;padding:0}
 .oc-run{--span:12}
 .oc-stand,.oc-stats,.oc-today{--span:4}
 .ov-mosaic:has(>#today[hidden]) :is(.oc-stand,.oc-stats){--span:6}
-.oc-prac{--span:7}
-.oc-ready{--span:5}
-.oc-trends{--span:8}
+.oc-prac{--span:12}
+.oc-ready{--span:8}
+.oc-trends{--span:12;order:1}
 .oc-scores{--span:4}
+@media (min-width:1181px){.pr-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--space-8)}}
 .ov :is(.cl-k,.cl-h h2,.cl-h h3){margin:0}
 .cl-h{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-2) var(--space-4);flex-wrap:wrap}
 .cl-h .dm-data{color:var(--ink-2)}
@@ -230,13 +260,15 @@ body:not(.in-flow) .pg>.wrap{max-width:none;padding:0}
 .run-h .dm-notice__icon{border:0;background:var(--signal);color:var(--on-signal);box-shadow:var(--dm-lamp-glow)}
 .run-h .dm-notice__title{display:block;margin:0;font:700 25px/1 var(--font-plate);font-stretch:75%;letter-spacing:-.02em;text-transform:uppercase}
 .run-h p{margin:var(--space-2) 0 0;max-width:68ch;font-size:15px;color:var(--ink-2)}
-.oc-run .cost-l{max-width:960px}
+.oc-run .cost-l{max-width:none;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));column-gap:var(--space-8)}
 .oc-run .row{margin:0;align-items:flex-start}
 
 /* where you stand: the share of the plan done, the calendar and the exam, the plan's gauge, the days as a train */
 .stand{display:grid;gap:var(--space-6)}
 .stand .dm-stat__side{text-transform:none;letter-spacing:.04em}
 .st-days{display:grid;gap:var(--space-2)}
+.st-days .dm-train{display:grid;grid-template-columns:repeat(22,minmax(0,1fr));gap:3px}
+.st-days .dm-train i{width:auto;height:auto;aspect-ratio:1}
 /* the numbers: six figures in the plate face on hairlines, two by three */
 .st-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:var(--stroke-hair) solid var(--line)}
 .st{display:grid;align-content:start;gap:var(--space-1);min-width:0;padding:var(--space-3) var(--space-4) var(--space-4) 0;border-bottom:var(--stroke-hair) solid var(--line)}
@@ -297,6 +329,9 @@ button.st-lv:focus-visible{outline:var(--stroke-datum) solid var(--signal);outli
 .rd-next p{margin:0;font-size:15px}
 .rd-next .row{margin:var(--space-1) 0 0}
 .rd-wh{margin:0}
+.ready{grid-template-columns:minmax(0,1fr)}
+.rd-next .dm-notice__body{min-width:0}
+.rd-next .dm-btn{height:auto;min-height:var(--control-s);padding-block:var(--space-2);white-space:normal;text-align:left}
 
 /* day by day: the range as Datum's segmented control, three charts side by side on hairlines */
 .trends{display:grid;gap:var(--space-4)}
@@ -304,6 +339,7 @@ button.st-lv:focus-visible{outline:var(--stroke-datum) solid var(--signal);outli
 .tr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:var(--stroke-hair) solid var(--line)}
 .tr-fig{position:relative;margin:0;padding:var(--space-3) var(--space-3) var(--space-2);background:var(--sheet)}
 .tr-fig:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:-2px}
+@media (max-width:860px){.tr-fig .ch{max-width:440px}}
 .tr-fig figcaption{margin:0 0 var(--space-2);font:700 11px/14px var(--font-sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 .ch{display:block;width:100%;height:auto;overflow:visible}
 .ch .gl{stroke:var(--line);stroke-width:1}
@@ -335,8 +371,13 @@ button.st-lv:focus-visible{outline:var(--stroke-datum) solid var(--signal);outli
 #scores .scores-grid input{width:76px;height:var(--control-s);padding:0 var(--space-3);text-align:right;font:400 14px var(--font-mono);color:var(--ink);background:var(--ground);border:var(--stroke-line) solid var(--off);border-radius:0}
 #scores .scores-grid input:is(:hover,:focus){border-color:var(--ink)}
 #scores .scores-grid input:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:0}
-#scores :is(.dom-bars,.time-log){display:grid;gap:var(--space-3);margin:0}
-#scores :is(.dom-bars,.time-log):empty{display:none}
+#scores .dom-bars{display:grid;gap:var(--space-3);margin:0}
+#scores .dom-bars:empty{display:none}
+/* study time per day sits with the day-by-day charts, in columns: as one list beside the scores it grew 22 rows tall
+   and left the cell next to it empty */
+.time-log{display:grid;gap:var(--space-3);margin-top:var(--space-6)}
+.time-log:empty{display:none}
+.tl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:var(--space-3) var(--space-6)}
 .sc-h{margin:var(--space-2) 0 0}
 .sc-g{display:grid;gap:var(--space-2)}
 .sc-gh{display:flex;justify-content:space-between;gap:var(--space-3);font-size:14px;line-height:20px;color:var(--ink)}
@@ -443,7 +484,7 @@ body.in-flow .wrap{padding-bottom:calc(var(--control) + var(--space-24))}   /* t
 @media (min-width:861px){.fl{--fl-pad:var(--space-12);padding-top:var(--space-8);padding-bottom:var(--space-16)}}
 
 /* the day head: back to the overview, the day's title and date, the day's tools */
-.fl-top{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-6);margin-bottom:var(--space-8);padding-bottom:var(--space-6);border-bottom:var(--stroke-hair) solid var(--line)}
+.fl-top{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-6);margin-bottom:var(--space-4);padding-bottom:var(--space-3);border-bottom:var(--stroke-hair) solid var(--line)}
 .fl-day{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-1) var(--space-4);flex:1 1 320px;min-width:0}
 .fl-tt{font:600 17px/24px var(--font-sans);color:var(--ink);text-wrap:balance}
 .fl-dd{font:400 12px/18px var(--font-mono);letter-spacing:.04em;color:var(--ink-2)}
@@ -463,6 +504,42 @@ body.in-flow .wrap{padding-bottom:calc(var(--control) + var(--space-24))}   /* t
 .fl-aside{min-width:0;display:grid;gap:var(--space-8);align-content:start;padding-top:calc(76px + var(--space-6))}
 @media (max-width:1023px){.fl-aside{padding-top:var(--space-12);margin-top:var(--space-4);border-top:var(--stroke-hair) solid var(--line)}}
 .fl-body>.dm-datum .dm-datum__key{left:100%;margin-left:-20px}
+.fl-body{--dm-datum:0px}   /* the plate is in the header: the datum line opens the split, over the article and the aside */
+.fl-main,.fl-aside{padding-top:var(--space-6)}
+/* the day's plate and steps in the sticky header (index.html .hd-day), only while a day is open */
+.hd-day{display:none;align-items:center;gap:var(--space-6);min-width:0;margin:0 auto}
+body.in-flow .hd-day{display:flex}
+body.in-flow .hd-tabs{margin-right:0}
+.hd .fl-plate{height:auto;padding:0;gap:var(--space-3);align-items:center}
+.hd .fl-plate .dm-plate__no{font-size:30px}
+.hd .fl-plate .dm-barcode,.hd .fl-pre{display:none}
+.hd .fl-plate .dm-plate__id{white-space:nowrap}
+.hd-day{flex:1 1 auto}
+.hd .fl-prog{flex-wrap:nowrap;min-width:0;margin:0;gap:var(--space-4)}
+.hd .fl-strip.dm-train{flex:0 1 auto;min-width:0;overflow:hidden;gap:var(--space-2) var(--space-3)}
+.hd .fl-strip.tight .fl-g:not(.cur){display:none}   /* fitStrip (app.js): a long day on a narrow header */
+.hd .fl-strip.tighter .fl-g .dot,.hd .fl-strip.tighter .fl-g .dot::before{width:12px;height:12px}
+.hd .fl-g:not(.cur){gap:3px;align-self:flex-end}   /* the other blocks: small ticks, so a long day fits the header */
+.hd .fl-g:not(.cur) .dot,.hd .fl-g:not(.cur) .dot::before{width:8px;height:8px}
+body.in-flow .hd-strip{display:none}   /* the plate says the day; the strip would say today's */
+.hd .fl-strip,.hd .fl-g,.hd-tabs a{flex-wrap:nowrap;white-space:nowrap}
+/* a day open on a screen up to 1800px: the header holds the plate and the squares on one line, so its buttons go to
+   icons and the words the plate already says go */
+@media (max-width:1800px){
+  body.in-flow .hd-b{width:var(--control-s);padding:0}
+  body.in-flow .hd-bl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  body.in-flow :is(.hd-code,.tm-mode,.hd .fl-left,.hd .fl-dof){display:none}
+}
+@media (max-width:1500px){body.in-flow .hd-tabs a[aria-current]{display:none}}   /* the plate is the day */
+body.in-flow .hd-end{flex:none}
+@media (max-width:860px){
+  body.in-flow .hd-day{order:5;flex-basis:100%;justify-content:space-between;margin:var(--space-1) 0 0}
+  .hd .fl-plate .dm-plate__no{font-size:24px}
+}
+@media (max-width:640px){   /* a phone: the plate, "Step N of M" and the current block's squares */
+  .hd .fl-g:not(.cur),.hd :is(.fl-kind,.fl-time,.fl-sep){display:none}
+  .hd .fl-plate .dm-plate__id{white-space:normal;min-width:0}
+}
 
 /* the plate header: PL.NN, the barcode of the day's id, the day of the plan and the step */
 .fl-plate .dm-plate__no{color:var(--ink)}
@@ -470,14 +547,28 @@ body.in-flow .wrap{padding-bottom:calc(var(--control) + var(--space-24))}   /* t
 /* the train: one square cell per card, grouped like the day's blocks; done filled, the one on screen lit by a lamp,
    the quiz a square stood on its corner. Cells are buttons (a tap goes to that card); the square is ::before so the
    step and block effects (fx.css) can flash it. */
-.fl-prog{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3) var(--space-6);margin:var(--space-6) 0 var(--space-8)}
+.fl-prog{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3) var(--space-6)}
 .fl-strip.dm-train{gap:var(--space-2) var(--space-4);align-items:center;min-width:0}
 .fl-g{display:flex;gap:5px;padding-bottom:6px;border-bottom:var(--stroke-datum) solid transparent}
 .fl-g.cur{border-bottom-color:var(--off)}   /* the block you are in */
 .fl-left{font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 .dot{display:inline-grid;place-items:center;width:18px;height:18px;min-height:0;padding:0;border:0;background:none;cursor:pointer}
 .dot::before{content:"";grid-area:1/1;box-sizing:border-box;width:18px;height:18px;border:var(--stroke-line) solid var(--off);transition:border-color var(--dm-fast)}
-.dot.on::before{background:var(--ink);border-color:var(--ink)}
+.dot.on::before{background:var(--k,var(--ink));border-color:var(--k,var(--ink))}
+/* each kind of step its own shape and tone (owner, 2026-11-17); filled in its tone when done; the lamp marks the one
+   on screen. The tones are mixed from Datum's own tokens. */
+.dot.k-watch,.dot.k-read{--k:var(--ink)}
+.dot.k-play{--k:color-mix(in oklab,var(--ground-lit) 45%,var(--ink))}
+.dot.k-build{--k:color-mix(in oklab,var(--signal) 40%,var(--ink))}
+.dot.k-check{--k:var(--steel)}
+.dot.k-setup{--k:var(--ink-2)}
+.dot.k-prep{--k:color-mix(in oklab,var(--ground-lit) 45%,var(--ink))}
+.dot[class*="k-"]:not(.qd)::before{border-color:color-mix(in srgb,var(--k) 70%,transparent)}
+.dot.k-play:not(.on)::before{background:linear-gradient(135deg,transparent 58%,var(--k) 58%)}   /* lab: a filled corner, Datum's 45-degree cut */
+.dot.k-build::before{border-style:double;border-width:4px}
+.dot.k-check:not(.on)::before{background:linear-gradient(45deg,transparent calc(50% - .75px),var(--k) calc(50% - .75px) calc(50% + .75px),transparent calc(50% + .75px))}
+.dot.k-setup::before{border-style:dashed}
+.dot.k-prep:not(.on)::before{box-shadow:inset 0 0 0 4px var(--sheet),inset 0 0 0 9px var(--k)}
 .dot.qd::before{transform:rotate(45deg) scale(.74)}
 .dot[aria-current]::before{border-color:var(--ink)}
 .dot[aria-current]::after{content:"";grid-area:1/1;width:7px;height:7px;background:var(--signal);box-shadow:var(--dm-lamp-glow)}
@@ -492,15 +583,12 @@ body.in-flow .wrap{padding-bottom:calc(var(--control) + var(--space-24))}   /* t
 .c-t.c-hl{font-size:40px;line-height:44px;max-width:22ch}
 .c-t.dm-heading{max-width:44ch}
 .c-t.dm-heading b{font-weight:600}
-.c-spec{max-width:760px}
-.c-spec dd{flex:1 1 auto;flex-wrap:wrap;min-width:0;padding:var(--space-2) 0;font-weight:400;font-size:14px;line-height:20px;color:var(--ink)}
-.c-spec dd b{font-weight:600}
-.c-tag{font-weight:600}
-.c-spec .c-meta{font:400 12px/18px var(--font-mono);letter-spacing:.04em;text-transform:none;color:var(--ink-2)}
+.c-kick{margin:var(--space-3) 0 0;max-width:68ch;font-size:15px;line-height:22px;color:var(--ink-2)}
+.c-where{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-4);max-width:760px;margin-top:var(--space-4);padding:var(--space-3) 0;border-top:var(--stroke-hair) solid var(--line);border-bottom:var(--stroke-hair) solid var(--line)}
+.hd .fl-kind{font-weight:600;color:var(--ink)}
 .c-where .where{flex:1 1 200px;min-width:0;font:400 14px/20px var(--font-sans);letter-spacing:0;text-transform:none;color:var(--ink)}
 .c-open-l{margin-left:auto}
-.c-state{height:24px;padding:0 10px 0 8px}
-.c-state .dm-icon,.fl-ok .dm-icon{width:12px;height:12px}
+.fl-ok .dm-icon{width:12px;height:12px}
 .c-les{margin:var(--space-6) 0 0;max-width:68ch;font-size:16px;line-height:1.6;color:var(--ink-2)}
 .c-les .dm-label{margin-right:var(--space-2);color:var(--ink)}
 .c-n{margin:var(--space-3) 0 0;max-width:68ch;font-size:15px;line-height:1.6;color:var(--ink-2)}
@@ -542,6 +630,7 @@ body.in-flow .wrap{padding-bottom:calc(var(--control) + var(--space-24))}   /* t
 .b-check>p{margin:0 0 var(--space-4);font-size:15px}
 .c-score{margin-top:var(--space-4)}
 .box>.c-score{margin-top:0}
+.b-score .scores-grid{max-width:520px}
 .b-score .scores-grid label{padding:0;border-bottom:0}
 /* my notes: Datum's field */
 .b-notes{position:relative}
@@ -572,7 +661,7 @@ body.in-flow .wrap{padding-bottom:calc(var(--control) + var(--space-24))}   /* t
 .c-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:var(--space-8) 0 0;border-top:var(--stroke-hair) solid var(--line)}
 .c-facts div{padding:var(--space-3) var(--space-4) var(--space-4) 0;border-bottom:var(--stroke-hair) solid var(--line)}
 .c-facts dt{font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
-.c-facts dd{margin:var(--space-2) 0 0;font:800 42px/.84 var(--font-plate);font-stretch:75%}
+.c-facts dd{margin:var(--space-2) 0 0;font:800 clamp(26px,2.6vw,42px)/.84 var(--font-plate);text-wrap:balance;font-stretch:75%}
 
 /* the aside's steps and headings: Datum steps and a subheading */
 .fl-blocks .dm-step__title{font:400 15px/18px var(--font-sans);letter-spacing:0;text-transform:none}
@@ -631,16 +720,15 @@ body.focus-view .fl-body{grid-template-columns:minmax(0,1fr)}
   .fl{--fl-pad:var(--space-4);padding-top:var(--space-4)}
   .fl-top{gap:var(--space-3);margin-bottom:var(--space-6)}
   .fl-tools .dm-btn--s{padding:0 var(--space-3)}
-  .fl-plate .dm-plate__no{font-size:56px}
   .fl-pre{display:none}
-  .c-t.c-hl{font-size:30px;line-height:34px}
+  .c-t.c-hl{font-size:22px;line-height:28px}
+  .fl-tools [data-focus-view]{display:none}
   .c-t.dm-heading{font-size:20px;line-height:26px}
   .card>.c-t:not(.dm-title):not(.dm-heading){font-size:30px;line-height:34px}
   .b-why{padding:var(--space-4) var(--space-4) var(--space-6)}
   .b-why p{font-size:17px}
   .k-list li{grid-template-columns:1fr}
   .c-do li{padding-left:36px}
-  .c-spec dt{width:64px}
   .fl-nav{gap:var(--space-2);padding:var(--space-2)}
   .fl-b,.fl-n{padding:0 4.5px;gap:0}
   .fl-bl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -672,6 +760,7 @@ dialog.costnag{width:min(780px,calc(100vw - 2 * var(--plate-margin)))}
 .dlg-note,.dlg-txt .dlg-note{margin:var(--space-3) 0 0;max-width:62ch;font-size:14px;line-height:22px;color:var(--ink-2)}
 /* the foot: the line buttons, then the one signal button with its end cell */
 .dlg-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--space-3);margin-top:var(--space-8);padding-top:var(--space-6);border-top:var(--stroke-hair) solid var(--line)}
+dialog.dlg .dlg-acts{position:sticky;bottom:calc(-1 * var(--space-8));z-index:2;padding-bottom:var(--space-4);background:var(--sheet)}
 .dlg-acts .dm-btn--signal{min-width:200px;justify-content:space-between}
 .costnag .dlg-acts .dm-btn--signal{min-width:0}   /* four answers on one line */
 .dlg-b .dm-btn{text-decoration:none}
@@ -711,7 +800,7 @@ dialog.costnag{width:min(780px,calc(100vw - 2 * var(--plate-margin)))}
 /* search: Datum's field, then the results as rows (the kind in a key cell), the picked one filled ink */
 #search{width:min(880px,calc(100vw - 2 * var(--plate-margin)))}
 .sr-f{margin:var(--space-8) 0 var(--space-4)}
-.sr-list{list-style:none;margin:0;padding:0;display:grid;max-height:56vh;max-height:56dvh;overflow:auto;border-top:var(--stroke-hair) solid var(--line)}
+.sr-list{list-style:none;margin:0;padding:0;display:grid;max-height:calc(100dvh - 2 * var(--plate-margin) - 340px);overflow:auto;border-top:var(--stroke-hair) solid var(--line)}
 .sr-it{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:var(--space-1) var(--space-4);align-items:start;padding:var(--space-3) var(--space-2);border-bottom:var(--stroke-hair) solid var(--line);cursor:pointer}
 @media (hover:hover){.sr-it:not(.on):hover{background:var(--mist)}}
 .sr-k{justify-self:start;padding:4px 9px 4px 7px;background:var(--mist);clip-path:polygon(0 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%);font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
@@ -773,7 +862,7 @@ dialog.costnag{width:min(780px,calc(100vw - 2 * var(--plate-margin)))}
 
 /* ---------- course diagrams (site/diagram.js): ink lines on the sunk well, cut-corner nodes, mono labels ---------- */
 .dg{display:block;width:100%;height:auto;font-family:var(--font-mono)}
-.dg text{fill:var(--ink);font-size:11.5px;letter-spacing:.02em}
+.dg text{fill:var(--ink);font-size:10.5px;letter-spacing:0}
 .dg-area rect{fill:none;stroke:var(--steel);stroke-width:1}
 .dg-area.dash rect{stroke-dasharray:4 4}
 .dg-area text{visibility:hidden}   /* drawn again above the arrows: .dg-al */
@@ -792,8 +881,8 @@ dialog.costnag{width:min(780px,calc(100vw - 2 * var(--plate-margin)))}
 .dg .hot.hot:focus-visible rect{stroke:var(--ink);stroke-width:3;stroke-dasharray:none}
 .dg .hot.rel rect{stroke:var(--ink);stroke-width:2;stroke-dasharray:none}
 .dg .hot.on rect{stroke:var(--signal);stroke-width:2.5}
-.dg .dg-node.hot.on rect{fill:var(--signal)}
-.dg .dg-node.hot.on text{fill:var(--on-signal)}
+.dg .dg-node.hot.on rect{fill:var(--ink)}
+.dg .dg-node.hot.on text{fill:var(--on-ink)}
 .b-map>.dg-t{margin:var(--space-1) 0;font-size:15.5px}
 .b-map>.dg-why{margin:0 0 var(--space-3);font-size:14.5px;color:var(--ink-2)}
 .dg-rel{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin:0 0 var(--space-3);font-size:14px}
@@ -807,7 +896,8 @@ dialog.costnag{width:min(780px,calc(100vw - 2 * var(--plate-margin)))}
 @media (min-width:1000px){
   #sheet[data-kind="dg"] .dg-box{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:var(--space-4);align-items:start}
   #sheet[data-kind="dg"] .dg-rel{grid-column:1/-1}
-  #sheet[data-kind="dg"] .dg-part{margin-top:0;position:sticky;top:0;max-height:calc(92vh - 90px);overflow:auto}
+  #sheet[data-kind="dg"] .dg-part{margin-top:0;position:sticky;top:0}
+  #sheet[data-kind="dg"] .dg-wrap .dg{max-height:calc(92dvh - 260px)}
   #sheet[data-kind="dg"] .dg-part .k-list li{grid-template-columns:1fr}
 }
 .dg-part{margin-top:var(--space-3);padding:var(--space-3) var(--space-4);background:var(--sheet);border:var(--stroke-hair) solid var(--line)}
@@ -889,14 +979,14 @@ body.focus-view #card{zoom:1.06}
   .cues :is(th,td){display:block;width:auto;border:0;padding:2px 0}
   /* dialogs: nearly the whole screen, one column, the signal button first and full width */
   dialog:is(.dlg,.brk,.costnag){width:calc(100vw - 2 * var(--space-3));max-height:calc(100dvh - 2 * var(--space-3))}
-  #sheet,#search{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0}
+  #sheet,#sheet[data-kind],#search{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0}
   .dlg-b{padding:var(--space-4)}
   .dlg-t{margin-top:var(--space-6)}
   .dlg-g2{grid-template-columns:minmax(0,1fr)}
   .dlg-acts{flex-direction:column-reverse;align-items:stretch}
   .dlg-acts .dm-btn--signal{min-width:0}
   .sr-it{grid-template-columns:minmax(0,1fr) auto}
-  .dlg-alert .dm-notice__body{flex-basis:100%}
+  .dlg-alert .dm-notice__icon{display:none}
   .cost-l li{grid-template-columns:minmax(0,1fr)}
   .cost-l li>button{grid-row:auto;grid-column:1;justify-self:start;margin-top:var(--space-2)}
   .sr-b{grid-column:1/-1;grid-row:2}
@@ -911,6 +1001,14 @@ body.focus-view #card{zoom:1.06}
   :is(.scores-grid,.qz-note) input,:is(.notes-l,.b-notes,.cost-add) :is(input,select,textarea).dm-input{font-size:16px}   /* the second selector outranks those fields' own 14 and 15px */
   /* targets a fingertip can hit */
   .dot{width:30px;height:30px}
+  .hd .fl-g.cur .dot{width:26px;height:26px}
+  .hd .fl-g:not(.cur) .dot{width:8px;height:8px}
+  .fl .dm-btn,:is(#quiz,#sheet) :is(button,a).dm-btn,.hd .dm-btn{min-height:44px}
+  .c-docs a,.la-docs a{display:inline-block;padding-block:11px}
+  .hd-b,.tm-go{width:44px;min-width:44px}
+  .tm-face{height:44px}
+  .hd-brand,.hd-tabs a,a.dm-btn--s,summary.dm-btn--s{min-height:44px}
+  #scores .scores-grid input,.cost-add :is(input,select){height:44px}
   button{min-height:44px}
   button.link{min-height:0;padding:var(--space-2) 0}
   .c-fold summary{min-height:44px}

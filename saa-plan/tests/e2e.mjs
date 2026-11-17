@@ -231,8 +231,11 @@ try {
     const [pl, pc, pr, ps, pa, pp, pd, pb] = await box3();
     assert.ok(Math.abs(pa.r - pa.l - 320) < 2 && pc.r <= pa.l && pb.b <= pr.t && pr.b <= pl.t && Math.abs(pl.l - pr.l) < 2,
       `a 320px aside right of the article: where you are, On the exam, then Look it up: ${JSON.stringify([pc, pa, pb, pr, pl])}`);
-    assert.ok(Math.abs(pd.t - pp.b) < 3 && pd.r >= pa.r - 1 && pd.l <= pp.l + 1 && pa.t < pd.t && ps.t > pd.b && ps.r <= pc.r && pc.t > ps.b,
-      `the datum line under the plate across the split, the steps under it over the article: ${JSON.stringify([pp, pd, ps, pc])}`);
+    // the owner's rule (2026-11-17): the plate and the day's steps sit in the sticky header; the datum line opens the
+    // split, across the article and the aside
+    assert.ok(pp.b <= pd.t && ps.b <= pd.t && pd.r >= pa.r - 1 && pd.l <= pc.l + 1 && pc.t > pd.b && pa.t >= pd.t,
+      `the plate and the steps in the header, the datum line across the split over the article: ${JSON.stringify([pp, ps, pd, pc, pa])}`);
+    assert.ok(await page.$eval("#fl-plate", el => !!el.closest("#timer")) && await page.$eval("#fl-strip", el => !!el.closest("#timer")), "the plate and the steps are in the sticky header");
     return pc;
   };
   const pc16 = await sideBySide();
