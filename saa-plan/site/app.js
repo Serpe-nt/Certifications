@@ -745,7 +745,7 @@ function renderFlow(moved) {
   // the plate: the day is the plate number, the barcode encodes the day's id, the id says which step this is
   const code = d.id.toUpperCase(), bc = window.Datum ? Datum.barcode(code, { height: 20 }) : "";
   document.getElementById("fl-plate").innerHTML = `<span class="dm-plate__no">PL.${pad2(d.day)}</span><span class="dm-plate__id">${bc}` +
-    `<span><span class="fl-pre">SAA-C03 / </span>Day ${d.day} of ${LAST}<br><span id="fl-count">${at === "done" ? "Day complete" : `Step ${i + 1} of ${ids.length}`}</span></span></span>`;
+    `<span><span class="fl-pre">SAA-C03 / </span><span class="fl-dof">Day ${d.day} of ${LAST} / </span><span id="fl-count">${at === "done" ? "Day complete" : `Step ${i + 1} of ${ids.length}`}</span></span></span>`;
 
   // the train: one square cell per card, grouped like the day's blocks; done cells filled, the one on screen lit
   const cell = id => {

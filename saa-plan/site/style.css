@@ -481,6 +481,30 @@ body.in-flow .wrap{padding-bottom:calc(var(--control) + var(--space-24))}   /* t
 .fl-aside{min-width:0;display:grid;gap:var(--space-8);align-content:start;padding-top:calc(76px + var(--space-6))}
 @media (max-width:1023px){.fl-aside{padding-top:var(--space-12);margin-top:var(--space-4);border-top:var(--stroke-hair) solid var(--line)}}
 .fl-body>.dm-datum .dm-datum__key{left:100%;margin-left:-20px}
+.fl-body{--dm-datum:0px}   /* the plate is in the header: the datum line opens the split, over the article and the aside */
+.fl-main,.fl-aside{padding-top:var(--space-6)}
+/* the day's plate and steps in the sticky header (index.html .hd-day), only while a day is open */
+.hd-day{display:none;align-items:center;gap:var(--space-6);min-width:0;margin:0 auto}
+body.in-flow .hd-day{display:flex}
+body.in-flow .hd-tabs{margin-right:0}
+.hd .fl-plate{height:auto;padding:0;gap:var(--space-3);align-items:center}
+.hd .fl-plate .dm-plate__no{font-size:30px}
+.hd .fl-plate .dm-barcode,.hd .fl-pre{display:none}
+.hd .fl-plate .dm-plate__id{white-space:nowrap}
+.hd .fl-prog{flex-wrap:nowrap;margin:0;gap:var(--space-4)}
+.hd .fl-strip,.hd .fl-g,.hd-tabs a{flex-wrap:nowrap;white-space:nowrap}
+/* a day open on a screen up to 1500px: the header holds the plate and the squares on one line, so its buttons go to
+   icons and the words the plate already says go */
+@media (max-width:1500px){
+  body.in-flow .hd-b{width:var(--control-s);padding:0}
+  body.in-flow .hd-bl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  body.in-flow :is(.hd-code,.tm-mode,.hd .fl-left,.hd .fl-dof){display:none}
+}
+@media (max-width:860px){
+  body.in-flow .hd-day{order:5;flex-basis:100%;justify-content:space-between;margin:var(--space-1) 0 0}
+  .hd .fl-plate .dm-plate__no{font-size:24px}
+}
+@media (max-width:640px){.hd .fl-prog{display:none}}   /* a phone: the plate and "Step N of M" stay; the squares don't fit */
 
 /* the plate header: PL.NN, the barcode of the day's id, the day of the plan and the step */
 .fl-plate .dm-plate__no{color:var(--ink)}
@@ -488,7 +512,7 @@ body.in-flow .wrap{padding-bottom:calc(var(--control) + var(--space-24))}   /* t
 /* the train: one square cell per card, grouped like the day's blocks; done filled, the one on screen lit by a lamp,
    the quiz a square stood on its corner. Cells are buttons (a tap goes to that card); the square is ::before so the
    step and block effects (fx.css) can flash it. */
-.fl-prog{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3) var(--space-6);margin:var(--space-6) 0 var(--space-8)}
+.fl-prog{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3) var(--space-6)}
 .fl-strip.dm-train{gap:var(--space-2) var(--space-4);align-items:center;min-width:0}
 .fl-g{display:flex;gap:5px;padding-bottom:6px;border-bottom:var(--stroke-datum) solid transparent}
 .fl-g.cur{border-bottom-color:var(--off)}   /* the block you are in */
@@ -649,7 +673,6 @@ body.focus-view .fl-body{grid-template-columns:minmax(0,1fr)}
   .fl{--fl-pad:var(--space-4);padding-top:var(--space-4)}
   .fl-top{gap:var(--space-3);margin-bottom:var(--space-6)}
   .fl-tools .dm-btn--s{padding:0 var(--space-3)}
-  .fl-plate .dm-plate__no{font-size:56px}
   .fl-pre{display:none}
   .c-t.c-hl{font-size:30px;line-height:34px}
   .c-t.dm-heading{font-size:20px;line-height:26px}

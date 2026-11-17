@@ -29,6 +29,14 @@
   <div class="dm-nav hd-nav">
     <a class="dm-nav__brand hd-brand" href="#" data-home-link aria-label="SAA-C03 plan, overview"><span class="dm-mark"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 3l6 6-6 6-6-6zM9 0v5M9 13v5M0 9h5M13 9h5"/></svg></span><span class="hd-code" aria-hidden="true">SAA-C03</span></a>
     <nav class="dm-nav__tabs hd-tabs" id="rl-nav" aria-label="Views"></nav>
+    <!-- the day view's plate and its steps, held in the sticky header while you read a step (renderFlow fills them) -->
+    <div class="hd-day" id="hd-day">
+      <div class="dm-plate fl-plate" id="fl-plate"></div>
+      <div class="fl-prog">
+        <div class="fl-strip dm-train" id="fl-strip" role="group" aria-label="Steps of the day"></div>
+        <span class="fl-left" id="fl-left"></span>
+      </div>
+    </div>
     <div class="dm-nav__end hd-end">
       <!-- shown only when changes can't reach the server: offline, signed out, or no answer -->
       <span class="sync-w" role="status"><button type="button" class="sync-st" id="sync-st" hidden><span class="ss-i dm-lamp dm-lamp--s" aria-hidden="true"></span><span class="ss-s"></span><span class="ss-l"></span></button></span>
@@ -179,11 +187,6 @@
   </div>
   <div class="dm-split fl-body" id="fl-body">
     <section class="fl-main">
-      <div class="dm-plate fl-plate" id="fl-plate" data-i="0"></div>
-      <div class="fl-prog" data-i="1">
-        <div class="fl-strip dm-train" id="fl-strip" role="group" aria-label="Steps of the day"></div>
-        <span class="fl-left" id="fl-left"></span>
-      </div>
       <article id="card" class="card" aria-live="polite" data-i="2"></article>
     </section>
     <aside class="fl-aside" id="fl-aside" data-i="3">
