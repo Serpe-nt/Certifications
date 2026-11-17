@@ -554,15 +554,15 @@ function renderStand(p, ti) {
   const examD = examDate(), dd = DAYS.filter(dayDone).length;
   const cal = ti < 1 ? "Before Day 1" : ti > LAST ? `Past Day ${LAST}` : `Day ${ti} of ${LAST}`;
   setHTML(document.getElementById("stand"), `<div class="dm-stat"><div class="dm-stat__row"><span class="dm-stat__num">${p}</span><span class="dm-stat__unit">%</span>` +
-    `<span class="dm-stat__side">Done<br>${esc(cal)}<br>${S.settings.exam ? "Exam booked" : "Exam"} ${esc(shortDate(examD))}</span></div></div>` +
-    `<div class="dm-gauge"><div class="dm-gauge__head"><span class="dm-label">The plan</span><span class="dm-gauge__val">${p}<small>%</small></span></div>` +
+    `<span class="dm-stat__side">of the plan done<br>Calendar: ${esc(cal)}<br>${S.settings.exam ? "Exam" : "Plan ends"} ${esc(shortDate(examD))}</span></div></div>` +
+    `<div class="dm-gauge"><div class="dm-gauge__head"><span class="dm-label">The plan</span></div>` +
     `<div class="dm-bar" role="progressbar" aria-label="The plan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><div class="dm-bar__fill" style="--value:${p}"></div></div>` +
     `<div class="dm-bar__scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div>` +
     `<div class="st-days"><span class="dm-label dm-quiet">Days</span><span class="dm-train" role="img" aria-label="${dd} of ${DAYS.length} days done${ti >= 1 && ti <= LAST ? `, today is Day ${ti}` : ""}">` +
     DAYS.map(d => `<i class="${dayDone(d) ? "is-done" : d.day === ti ? "is-now" : ""}"></i>`).join("") + `</span></div>`);
-  const pos = ti < 1 ? `Starts ${shortDate(dayDate(1))}` : ti > LAST ? "Plan period ended" : `Day ${pad2(ti)} of ${LAST}`;
+  const pos = ti < 1 ? `Starts ${shortDate(dayDate(1))}` : ti > LAST ? "Plan period ended" : `Calendar day ${ti} of ${LAST}`;
   setHTML(document.getElementById("rl-pos"), `<span>SAA-C03 / ${esc(pos)} / ${p}% done</span>`);
-  setHTML(document.getElementById("ov-strip"), `<span>SAA-C03 / Overview / Sheet 2 of 2</span><span>${dd} of ${DAYS.length} days done / Exam ${esc(shortDate(examD))}</span>`);
+  setHTML(document.getElementById("ov-strip"), `<span>SAA-C03 / Where you stand</span><span>${dd} of ${DAYS.length} days done / ${S.settings.exam ? "Exam" : "Plan ends"} ${esc(shortDate(examD))}</span>`);
 }
 function refresh() {
   const ti = todayIdx();
@@ -685,7 +685,7 @@ function renderNext(ti, st) {
   if (n.quiz) {
     const r = S.quiz[d.id], tries = r ? r.tries.length : 0, live = liveQuiz(d);
     kick = "Up next";
-    body = `<span class="dm-tag nx-tag">Quiz</span><p class="nx-step">${live ? `You are on question ${S.run.i + 1} of ${S.run.ids.length}.` : tries ? `Best so far ${r.best} of ${QZ.DAILY}. A retake draws different questions.` : `Every step is done. ${QZ.DAILY} questions, pass at ${QZ.needed(QZ.DAILY)}.`}</p>`;
+    body = `<span class="dm-tag nx-tag">Quiz</span><p class="nx-step">${live ? `You are on question ${S.run.i + 1} of ${S.run.ids.length}.` : tries ? `Best so far ${r.best} of ${QZ.DAILY}; you pass at ${QZ.needed(QZ.DAILY)}. A retake draws different questions.` : `Every step is done. ${QZ.DAILY} questions, pass at ${QZ.needed(QZ.DAILY)}.`}</p>`;
     act = `<button type="button" class="dm-btn dm-btn--signal big" data-quiz-start="${d.id}">${live ? "Resume quiz" : tries ? `Retake the Day ${d.day} quiz` : `Take the Day ${d.day} quiz`} <span class="dm-end">${ICON_NEXT}</span></button>` +
       `<a class="dm-btn dm-btn--line" href="#${d.id}/quiz">Open Day ${d.day}</a>`;
   } else {
@@ -699,7 +699,8 @@ function renderNext(ti, st) {
   // relights its summit, the key point, which sits on the datum line). A glass panel in the bay carries today's steps.
   const code = d.id.toUpperCase(), bc = window.Datum ? Datum.barcode(code, { height: 20 }) : "";
   const facts = [["Steps", `${pad2(k)} / ${pad2(ids.length)}${hasQuiz(d) ? " + quiz" : ""}`], ["Time", `~${fmtH(dayLeft(d))} left`],
-    ["Planned", fmtD(dayDate(d.day))], ["Exam", fmtD(dayDate(LAST))]];
+    ["Planned", fmtD(dayDate(d.day)) + (ti > d.day ? ` <span class="dm-tag nx-late">${plural(ti - d.day, "day")} late</span>` : "")],
+    S.settings.exam ? ["Exam", fmtD(examDate())] : ["Plan ends", fmtD(dayDate(LAST))]];
   setHTML(el, pre + cal +
     `<section class="dm-hero nx-day" aria-label="Day ${d.day}"><div class="dm-hero__copy">` +
     `<div class="dm-plate"><span class="dm-plate__no">PL.${pad2(d.day)}</span><span class="dm-plate__id">${bc}<span>${esc(code)} / SAA-C03<br>Day ${d.day} of ${LAST}</span></span></div>` +
@@ -762,12 +763,13 @@ function renderFlow(moved) {
   const gi = d.groups.findIndex(g => g.items.some(it => it[0] === at)), cur = gi >= 0 && d.groups[gi];
   document.getElementById("fl-strip").innerHTML = d.groups.map((g, k) => `<span class="fl-g${g.key === fxMark.wave ? " wave" : ""}${k === gi ? " cur" : ""}">${g.items.map(it => cell(it[0], g)).join("")}</span>`).join("") +
     (hasQuiz(d) ? `<span class="fl-g${at === "quiz" ? " cur" : ""}">${cell("quiz")}</span>` : "");
+  fitStrip();
   const left = dayLeft(d);
   document.getElementById("fl-left").textContent = dayDone(d) ? "Day done" : left > 0 ? `~${fmtH(left)} left today` : "";
 
   // the aside opens with where you are in the day: the block on screen and the one after it (never the day's list)
   const bName = g => strip(g.label || TAGS[g.t]);
-  const bNote = (g, k) => { const n = g.items.filter(it => done(it[0])).length; return groupDone(g) ? "Done" : `${n} of ${g.items.length} steps done${g.min ? `, ~${fmtH(g.min)}` : ""}`; };
+  const bNote = (g, k) => { const n = g.items.filter(it => done(it[0])).length; return groupDone(g) ? "Done" : `${n} of ${plural(g.items.length, "step")} done`; };
   let blocks = "";
   if (at === "quiz") blocks = `<li class="dm-step is-now" aria-current="step"><span class="dm-step__title" id="fl-blk">End-of-day quiz</span><span class="dm-step__note">${QZ.DAILY} questions, pass at ${QZ.needed(QZ.DAILY)}</span></li>`;
   else if (at === "done") blocks = `<li class="dm-step is-done"><span class="dm-step__title" id="fl-blk">Day ${d.day} complete</span><span class="dm-step__note">${plural(dIds(d).length, "step")} done</span></li>`;
@@ -1403,7 +1405,7 @@ function renderReady() {
     `<p class="cl-p rd-how">Of the questions you have met in a domain, the share you got right at your last answer. Ready from ${READY}%.</p></div><ul class="rd-list">`;
   rd.forEach((d, i) => {
     const few = d.met < MIN_MET, [cls, , lb] = band(d.acc);
-    h += `<li class="${few ? "few" : cls}"><div class="dm-gauge"><div class="dm-gauge__head"><span class="rd-n">D${i + 1} ${DOMAINS[i]}</span><span class="rd-s">${few ? `${d.met} of ${MIN_MET} answers` : lb}</span><span class="dm-gauge__val rd-v">${d.met ? `${d.acc}%` : "–"}</span></div>` +
+    h += `<li class="${few ? "few" : cls}"><div class="dm-gauge"><div class="dm-gauge__head"><span class="rd-n">D${i + 1} ${DOMAINS[i]}</span><span class="rd-s">${few ? `${d.met} of ${MIN_MET} answers` : lb}</span><span class="dm-gauge__val rd-v">${d.met ? `${d.acc}<small>%</small>` : "–"}</span></div>` +
       `<div class="dm-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${d.acc}" aria-label="Domain ${i + 1} ${DOMAINS[i]}"><div class="dm-bar__fill" style="--value:${d.acc}"></div></div>` +
       `<span class="rd-c">${d.met} of ${d.all} questions met</span></div></li>`;
   });
@@ -1884,7 +1886,7 @@ function nextOpen(r) {
   return -1;
 }
 // The score so far, in the quiz header beside the streak: a figure, then how many of how many.
-const scoreHTML = (right, answered) => `<span class="qz-score"><b>${answered ? pct(right, answered) : 0}%</b>${right} of ${answered}</span>`;
+const scoreHTML = (right, answered) => answered && `<span class="qz-score"><b>${pct(right, answered)}%</b>${right} of ${answered}</span>`;
 function renderQ() {
   const r = S.run, id = r.ids[r.i], q = QBY[id], ord = r.ord[id] || QZ.order(q), ans = r.ans[id], n = r.ids.length, sel = picks[id] || [];
   r.ord[id] = ord;
@@ -1908,7 +1910,7 @@ function renderQ() {
     const xp = fresh === "xp" ? `<span class="dm-tag dm-tag--solid xp-up">+${XP.right} XP</span>` : "";
     const verdict = ok ? noticeHTML("done", I_CHECK, "Correct", "", xp, `qz-verdict ok${fresh ? " fresh" : ""}`)
       : noticeHTML("", I_CROSS, "Not this one", `The answer is ${keyL}.`, "", `qz-verdict bad${fresh ? " fresh" : ""}`);
-    qzBody.innerHTML = appHTML(`q:${r.t0}:${r.i}`, plate, title + `<div role="status">${verdict}</div>` + fbHTML(q, ord, ans, fresh) + (ok ? "" : whyHTML(q) + noteHTML(q)) +
+    qzBody.innerHTML = appHTML(`q:${r.t0}:${r.i}`, plate, title + fbHTML(q, ord, ans, fresh) + `<div role="status">${verdict}</div>` + (ok ? "" : whyHTML(q) + noteHTML(q)) +
       `<div class="qz-a qz-nav">${prev}${to === r.i + 1 ? "" : skip}${sigBtn('data-qz="next"', main)}</div>`,
       qAsideHTML(r, right, answered.length) + studyHTML(q, true, !ok, ans));
   }
@@ -2100,7 +2102,7 @@ function resHTML(r, cls, side, msg, main, acts, back = "") {
   const word = r.kind === "day" ? (QZ.passed(sc, n) ? "Passed" : "Not passed yet") : r.kind === "mock" ? (cls === "ok" ? "Ready" : cls === "mid" ? "Close to the line" : "Not there yet") : outcome(r) === "fail" ? "Worth another go" : "Done";
   const stat = `<div class="dm-stat qz-score" data-i style="--i:2"><div class="dm-stat__head"><span class="dm-label--br">Score</span><span>${barK} ${bar}%</span></div>` +
     `<div class="dm-stat__row"><span class="dm-stat__num">${p}</span><span class="dm-stat__unit">%</span><span class="dm-stat__side">${side}<br>${esc(code)}</span></div></div>`;
-  const gauge = `<div class="qz-gauge${p < bar ? " is-below" : ""}" data-i style="--i:3"><div class="dm-bar" role="meter" aria-label="Score ${p}%, ${barK.toLowerCase()} ${bar}%" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><div class="dm-bar__fill" style="--value:${Math.max(p, 1)}"></div></div>` +
+  const gauge = `<div class="qz-gauge${p < bar ? " is-below" : ""}" data-i style="--i:3"><div class="dm-bar" role="meter" aria-label="Score ${p}%, ${barK.toLowerCase()} ${bar}%" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><div class="dm-bar__fill" style="--value:${p}"></div></div>` +
     `<div class="dm-bar__scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div><span class="qz-target" style="--at:${bar}">${barK} ${bar}</span></div>`;
   return appHTML(`res:${r.t0}`, plateHTML(runNo(r), code, `SAA-C03 / ${runTitle(r)}`, "Results"),
     `<div class="dm-title qz-q qz-vd" role="heading" aria-level="3" data-i style="--i:1">${runTitle(r)}<br><em>${word}</em></div>${stat}${gauge}<p class="qz-msg" data-i style="--i:4">${msg}</p>` +
@@ -2276,7 +2278,7 @@ function renderMockResult() {
   const list = r.ids.map((id, i) => ({ q: QBY[id], i, ok: QZ.isRight(QBY[id], r.ans[id]) })).filter(x => !r.only || !x.ok);
   // the four domains as Datum gauges: name, the share right in the plate face, the cells
   const domHTML = `<div class="qz-doms">${res.dom.map(([a, n], i) => { const p = pct(a, n); return `<div class="dm-gauge"><div class="dm-gauge__head"><span class="dm-label dm-label--br">D${i + 1} ${doms[i]}</span><span class="dm-gauge__val">${p}<small>% / ${a} of ${n}</small></span></div>` +
-    `<div class="dm-bar" role="progressbar" aria-label="Domain ${i + 1}, ${doms[i]}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><div class="dm-bar__fill" style="--value:${Math.max(p, 1)}"></div></div></div>`; }).join("")}</div>`;
+    `<div class="dm-bar" role="progressbar" aria-label="Domain ${i + 1}, ${doms[i]}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><div class="dm-bar__fill" style="--value:${p}"></div></div></div>`; }).join("")}</div>`;
   qzBody.innerHTML = resHTML(r, cls, `${res.score} of ${res.n} right<br>${r.mins} min`, msg,
     `<p class="qz-hint">The real exam reports a scaled score from 100 to 1000 (720 to pass), and AWS doesn't publish how right answers map to it, so treat this percentage as a rough guide. Aim for 80% or more here.${prev.length ? ` Earlier mocks: ${prev.join(", ")}.` : ""}</p>` +
     `<h3 class="sub-h qz-sub"><span class="dm-label dm-label--br">By domain</span></h3>${domHTML}` +
@@ -2849,7 +2851,14 @@ const costAddHTML = dayId => `<div class="cost-add"><select class="dm-input" dat
 // One row per billable thing: its name and since when, what it bills for, and Deleted (Undo once it is)
 const costItemHTML = (x, undo) => `<li class="ci${x.gone ? " gone" : ""}"><span class="ci-n"><b>${esc(costName(x))}</b>${x.gone ? ` <span class="dm-tag dm-tag--quiet ci-tag">Deleted</span>` : ` <span class="ci-s">${sinceText(x.at)}</span>`}</span>` +
   (BILL.kinds[x.k][1] ? `<span class="ci-d">${esc(BILL.kinds[x.k][1])}</span>` : "") +
-  (x.gone ? (undo ? `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-cost-back="${esc(x.id)}">Undo</button>` : "") : `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-cost-gone="${esc(x.id)}">${IC.check}Deleted</button>`) + `</li>`;
+  (x.gone ? (undo ? `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-cost-back="${esc(x.id)}">Undo</button>` : "") : `<button type="button" class="dm-btn dm-btn--s dm-btn--line" data-cost-gone="${esc(x.id)}">${IC.check}Mark deleted</button>`) + `</li>`;
+// The header holds the day's squares on one line: when they don't fit, the other blocks go, then the squares shrink
+function fitStrip() {
+  const s = document.getElementById("fl-strip"), over = () => s.scrollWidth > s.clientWidth + 1;
+  s.classList.remove("tight", "tighter");
+  if (s.clientWidth && over()) { s.classList.add("tight"); if (over()) s.classList.add("tighter"); }
+}
+addEventListener("resize", () => { if (document.body.classList.contains("in-flow")) fitStrip(); });
 function renderRunning() {
   const el = document.getElementById("running"), run = costRunning();
   el.hidden = !run.length;
