@@ -519,7 +519,21 @@ body.in-flow .hd-tabs{margin-right:0}
 .fl-left{font:400 11px/14px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 .dot{display:inline-grid;place-items:center;width:18px;height:18px;min-height:0;padding:0;border:0;background:none;cursor:pointer}
 .dot::before{content:"";grid-area:1/1;box-sizing:border-box;width:18px;height:18px;border:var(--stroke-line) solid var(--off);transition:border-color var(--dm-fast)}
-.dot.on::before{background:var(--ink);border-color:var(--ink)}
+.dot.on::before{background:var(--k,var(--ink));border-color:var(--k,var(--ink))}
+/* each kind of step its own shape and tone (owner, 2026-11-17); filled in its tone when done; the lamp marks the one
+   on screen. The tones are mixed from Datum's own tokens. */
+.dot.k-watch,.dot.k-read{--k:var(--ink)}
+.dot.k-play{--k:color-mix(in oklab,var(--ground-lit) 45%,var(--ink))}
+.dot.k-build{--k:color-mix(in oklab,var(--signal) 40%,var(--ink))}
+.dot.k-check{--k:var(--steel)}
+.dot.k-setup{--k:var(--ink-2)}
+.dot.k-prep{--k:color-mix(in oklab,var(--ground-lit) 45%,var(--ink))}
+.dot[class*="k-"]:not(.qd)::before{border-color:color-mix(in srgb,var(--k) 70%,transparent)}
+.dot.k-play:not(.on)::before{background:linear-gradient(135deg,transparent 58%,var(--k) 58%)}   /* lab: a filled corner, Datum's 45-degree cut */
+.dot.k-build::before{border-style:double;border-width:4px}
+.dot.k-check:not(.on)::before{background:linear-gradient(45deg,transparent calc(50% - .75px),var(--k) calc(50% - .75px) calc(50% + .75px),transparent calc(50% + .75px))}
+.dot.k-setup::before{border-style:dashed}
+.dot.k-prep:not(.on)::before{box-shadow:inset 0 0 0 4px var(--sheet),inset 0 0 0 9px var(--k)}
 .dot.qd::before{transform:rotate(45deg) scale(.74)}
 .dot[aria-current]::before{border-color:var(--ink)}
 .dot[aria-current]::after{content:"";grid-area:1/1;width:7px;height:7px;background:var(--signal);box-shadow:var(--dm-lamp-glow)}
@@ -534,15 +548,12 @@ body.in-flow .hd-tabs{margin-right:0}
 .c-t.c-hl{font-size:40px;line-height:44px;max-width:22ch}
 .c-t.dm-heading{max-width:44ch}
 .c-t.dm-heading b{font-weight:600}
-.c-spec{max-width:760px}
-.c-spec dd{flex:1 1 auto;flex-wrap:wrap;min-width:0;padding:var(--space-2) 0;font-weight:400;font-size:14px;line-height:20px;color:var(--ink)}
-.c-spec dd b{font-weight:600}
-.c-tag{font-weight:600}
-.c-spec .c-meta{font:400 12px/18px var(--font-mono);letter-spacing:.04em;text-transform:none;color:var(--ink-2)}
+.c-kick{margin:var(--space-3) 0 0;max-width:68ch;font-size:15px;line-height:22px;color:var(--ink-2)}
+.c-where{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-4);max-width:760px;margin-top:var(--space-4);padding:var(--space-3) 0;border-top:var(--stroke-hair) solid var(--line);border-bottom:var(--stroke-hair) solid var(--line)}
+.hd .fl-kind{font-weight:600;color:var(--ink)}
 .c-where .where{flex:1 1 200px;min-width:0;font:400 14px/20px var(--font-sans);letter-spacing:0;text-transform:none;color:var(--ink)}
 .c-open-l{margin-left:auto}
-.c-state{height:24px;padding:0 10px 0 8px}
-.c-state .dm-icon,.fl-ok .dm-icon{width:12px;height:12px}
+.fl-ok .dm-icon{width:12px;height:12px}
 .c-les{margin:var(--space-6) 0 0;max-width:68ch;font-size:16px;line-height:1.6;color:var(--ink-2)}
 .c-les .dm-label{margin-right:var(--space-2);color:var(--ink)}
 .c-n{margin:var(--space-3) 0 0;max-width:68ch;font-size:15px;line-height:1.6;color:var(--ink-2)}
@@ -681,7 +692,6 @@ body.focus-view .fl-body{grid-template-columns:minmax(0,1fr)}
   .b-why p{font-size:17px}
   .k-list li{grid-template-columns:1fr}
   .c-do li{padding-left:36px}
-  .c-spec dt{width:64px}
   .fl-nav{gap:var(--space-2);padding:var(--space-2)}
   .fl-b,.fl-n{padding:0 4.5px;gap:0}
   .fl-bl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

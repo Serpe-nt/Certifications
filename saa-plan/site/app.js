@@ -742,18 +742,25 @@ function renderFlow(moved) {
   for (const t of d.tools || []) tools.push(t === "notebook" ? tool(`data-sheet="notebook"`, "Notebook") : tool(`data-sheet="weak"`, "Weak spots"));
   document.getElementById("fl-tools").innerHTML = tools.join("");
 
-  // the plate: the day is the plate number, the barcode encodes the day's id, the id says which step this is
+  // the plate: the day is the plate number, the barcode encodes the day's id, the id says what this step is (its kind:
+  // Lecture, Lab, Quiz…), which step it is, and the block's time
+  const atG = at === "quiz" ? null : itemIndex[at] && itemIndex[at].g;
+  const kindName = at === "quiz" ? "Quiz" : atG ? (atG.label || TAGS[atG.t]).split(":")[0] : "";
+  const kindHTML = kindName ? `<b class="fl-kind">${esc(kindName)}</b><span class="fl-sep"> / </span>` : "";
+  const timeHTML = atG && atG.min ? `<span class="fl-sep"> / </span><span class="fl-time">~${fmtH(atG.min)}</span>` : "";
   const code = d.id.toUpperCase(), bc = window.Datum ? Datum.barcode(code, { height: 20 }) : "";
   document.getElementById("fl-plate").innerHTML = `<span class="dm-plate__no">PL.${pad2(d.day)}</span><span class="dm-plate__id">${bc}` +
-    `<span><span class="fl-pre">SAA-C03 / </span><span class="fl-dof">Day ${d.day} of ${LAST} / </span><span id="fl-count">${at === "done" ? "Day complete" : `Step ${i + 1} of ${ids.length}`}</span></span></span>`;
+    `<span><span class="fl-pre">SAA-C03 / </span><span class="fl-dof">Day ${d.day} of ${LAST} / </span>${kindHTML}<span id="fl-count">${at === "done" ? "Day complete" : `Step ${i + 1} of ${ids.length}`}</span>${timeHTML}</span></span>`;
 
   // the train: one square cell per card, grouped like the day's blocks; done cells filled, the one on screen lit
-  const cell = id => {
+  // each kind of step its own shape and tone (style.css .dot.k-*): lecture, lab, build, self-check, setup, prep, reading
+  const kindOf = g => g ? (/^Read/.test(g.label || "") ? "read" : g.t) : "quiz";
+  const cell = (id, g) => {
     const on = id === "quiz" ? quizOk(d) : done(id), t = stepTitle(id);
-    return `<button type="button" class="dot${on ? " on" : ""}${id === "quiz" ? " qd" : ""}${id === fxMark.pop ? " pop" : ""}" data-at="${id}"${id === at ? ' aria-current="step"' : ""} title="${esc(t)}" aria-label="${esc(`Step ${ids.indexOf(id) + 1}: ${t}${on ? " (done)" : ""}`)}"></button>`;
+    return `<button type="button" class="dot k-${kindOf(g)}${on ? " on" : ""}${id === "quiz" ? " qd" : ""}${id === fxMark.pop ? " pop" : ""}" data-at="${id}"${id === at ? ' aria-current="step"' : ""} title="${esc(t)}" aria-label="${esc(`Step ${ids.indexOf(id) + 1}: ${t}${on ? " (done)" : ""}`)}"></button>`;
   };
   const gi = d.groups.findIndex(g => g.items.some(it => it[0] === at)), cur = gi >= 0 && d.groups[gi];
-  document.getElementById("fl-strip").innerHTML = d.groups.map((g, k) => `<span class="fl-g${g.key === fxMark.wave ? " wave" : ""}${k === gi ? " cur" : ""}">${g.items.map(it => cell(it[0])).join("")}</span>`).join("") +
+  document.getElementById("fl-strip").innerHTML = d.groups.map((g, k) => `<span class="fl-g${g.key === fxMark.wave ? " wave" : ""}${k === gi ? " cur" : ""}">${g.items.map(it => cell(it[0], g)).join("")}</span>`).join("") +
     (hasQuiz(d) ? `<span class="fl-g${at === "quiz" ? " cur" : ""}">${cell("quiz")}</span>` : "");
   const left = dayLeft(d);
   document.getElementById("fl-left").textContent = dayDone(d) ? "Day done" : left > 0 ? `~${fmtH(left)} left today` : "";
@@ -980,12 +987,9 @@ function stepCardHTML(id) {
   // The task's title (Datum's title at 40px; a step without its own headline keeps its plan text, a size down), then
   // its facts as a spec table: the block, the course, where to do it, the time. Where comes before anything you read.
   let h = `<header class="c-head">` + (head ? `<h2 class="dm-title c-t c-hl" tabindex="-1">${esc(head)}</h2>` : `<h2 class="dm-heading c-t txt" tabindex="-1">${txt}</h2>`);
-  const spec = [[`Block`, `<span class="c-tag">${g.label || TAGS[g.t]}</span>${n > 1 ? `<span class="c-meta">Step ${g.items.indexOf(it) + 1} of ${n}</span>` : ""}`, "c-h"]];
-  if (head && parts && !steps) spec.push(["Course", parts[1], "c-kick"]);
-  if (g.where || url) spec.push(["Where", `<span class="where">${g.where || ""}</span>${url ? `<a class="dm-btn dm-btn--s dm-btn--line c-open-l" href="${esc(url)}" target="_blank" rel="noopener">Open<span class="dm-end">${IC.out}</span></a>` : ""}`, "c-where"]);
-  if (g.min) spec.push(["Time", `~${fmtH(g.min)}${n > 1 ? " for this block" : ""}`, ""]);
-  spec.push(["State", done(id) ? `<span class="dm-tag dm-tag--solid c-state">${IC.check}Completed</span>` : `<span class="c-meta">Open</span>`, ""]);
-  h += `<dl class="dm-spec c-spec">${spec.map(([k, v, c]) => `<div${c ? ` class="${c}"` : ""}><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>`;
+  // the kind, the step and the time are in the header's plate; the state is the bar's button and the squares
+  if (head && parts && !steps) h += `<p class="c-kick">${parts[1]}</p>`;
+  if (g.where || url) h += `<div class="c-where"><span class="where">${g.where || ""}</span>${url ? `<a class="dm-btn dm-btn--s dm-btn--line c-open-l" href="${esc(url)}" target="_blank" rel="noopener">Open<span class="dm-end">${IC.out}</span></a>` : ""}</div>`;
   // a reading block ("Read: …") is a Watch group too, but you read it
   const lessons = /^Read\b/.test(g.label || "") ? "To read" : LESSONS[g.t];
   if (head && !steps) h += `<p class="c-les txt">${lessons ? `<span class="dm-label">${lessons}</span> ` : ""}${parts ? parts[2] : txt}</p>`;
