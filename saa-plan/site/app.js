@@ -1867,7 +1867,7 @@ function mapHTML(r) {
   return `<div class="qz-map dm-train" role="group" aria-label="Questions">${r.ids.map((k, i) => {
     const a = r.ans[k], st = !a ? "" : QZ.isRight(QBY[k], a) ? "ok" : "bad";
     const label = `Question ${i + 1}${st === "ok" ? ", right" : st ? ", wrong" : ""}`;
-    return `<button type="button" tabindex="-1" data-go="${i}" class="${st}${i === r.i ? " cur" : ""}${i === r.i && fresh && st ? " just" : ""}" aria-label="${label}" title="${label}"></button>`;
+    return `<button type="button" tabindex="-1" data-go="${i}" class="${st}${i === r.i ? " cur" : ""}${i === r.i && fresh && st ? " just" : ""}" aria-label="${label}" title="${label}">${i + 1}</button>`;
   }).join("")}</div>`;
 }
 // The aside of a quiz question: the score so far as a stat, the train of questions under it.
@@ -1889,7 +1889,7 @@ function renderQ() {
   const right = answered.filter(k => QZ.isRight(QBY[k], r.ans[k])).length;
   head(runTitle(r), [comboHTML(r)], answered.length / n * 100);
   const plate = plateHTML(runNo(r), runCode(r), `SAA-C03 / ${runTitle(r)}`, `Question ${pad2(r.i + 1)} of ${pad2(n)}`);
-  const title = `<div class="dm-title qz-q${qLong(q)}" role="heading" aria-level="3" data-i style="--i:1">${q.q}</div>`;
+  const title = `<div class="dm-title qz-q qz-text${qLong(q)}" role="heading" aria-level="3" data-i style="--i:1">${q.q}</div>`;
   // Previous and Next move one question either way and never answer; the main button checks, then goes on to the next open question.
   const prev = n > 1 ? lineBtn('data-qz="prev"', "Previous", !r.i, I_PREV) : "";
   const skip = r.i + 1 < n ? lineBtn('data-qz="skip"', "Next") : "";
@@ -2162,7 +2162,7 @@ function renderMockQ() {
     `<div class="dm-stat__row"><span class="dm-stat__num">${pad2(answered)}</span><span class="dm-stat__side">${fl ? `${fl} flagged` : "None flagged"}</span></div></div>` +
     `<div class="mk-tools" data-i style="--i:3">${flag}<p class="mk-hint"><span class="kbd">Click or drag over words to highlight them. Shift + 1–${ord.length} or the / button strikes an option out.</span><span class="touch">Tap a word to highlight it. The / button strikes an option out.</span></p></div>`;
   qzBody.innerHTML = appHTML(`mk:${r.t0}:${r.i}`, plateHTML(runNo(r), runCode(r), "SAA-C03 / Mock exam", `Question ${pad2(r.i + 1)} of ${r.ids.length}`),
-    `<div class="dm-title qz-q mk-q${qLong(q)}" role="heading" aria-level="3" data-i style="--i:1">${q.q}</div>` +
+    `<div class="dm-title qz-q qz-text mk-q${qLong(q)}" role="heading" aria-level="3" data-i style="--i:1">${q.q}</div>` +
     `<ul class="qz-opts dm-choices mk-opts${multi ? " multi" : ""}">${ord.map((oi, k) => `<li class="mk-row${xs.includes(oi) ? " x" : ""}">` +
       `<button type="button" class="dm-choice qz-o${mine.includes(oi) ? " is-selected on" : ""}" data-o="${oi}" aria-pressed="${mine.includes(oi)}"><span class="dm-choice__key">${LETTERS[k]}</span><span class="qz-t">${q.o[oi]}</span></button>` +
       `<button type="button" class="dm-btn dm-btn--icon dm-btn--line mk-x" data-qz="strike" data-x="${oi}" aria-pressed="${xs.includes(oi)}" title="${xs.includes(oi) ? "Bring this option back" : "Strike this option out"}" aria-label="${xs.includes(oi) ? "Bring back" : "Strike out"} option ${LETTERS[k]}">${I_STRIKE}</button></li>`).join("")}</ul>` +

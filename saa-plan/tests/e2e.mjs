@@ -412,11 +412,12 @@ try {
       }));
       assert.ok(inside.length >= 4 && inside.every(Boolean), "every option shows its explanation inside the option");
       await page.screenshot({ path: path.join(SHOTS, "04-feedback-right.png") });
-      // the App view: on a wide screen, where to study sits in the aside, right of the question and under the plate's datum line
+      // the owner's rule (2026-11-17): the question takes the whole width; where to study, the score and the squares sit
+      // under the answers even on a wide screen, never beside them
       await page.setViewportSize({ width: 1600, height: 1000 });
       await page.waitForTimeout(350);
-      const [side, main, line] = await Promise.all(["#qz-body .qz-study", "#qz-body .qz-main", "#qz-body .qz-app > .dm-datum"].map(s => page.$eval(s, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top }; })));
-      assert.ok(side.l >= main.r + 8 && side.t > line.t, "on a wide screen, where to study sits in the aside right of the question, under the datum line");
+      const [side, main] = await Promise.all(["#qz-body .qz-study", "#qz-body .qz-main"].map(s => page.$eval(s, el => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; })));
+      assert.ok(side.t >= main.b - 1 && side.l < main.r, `on a wide screen, where to study sits under the question and its answers: ${JSON.stringify([main, side])}`);
       assert.ok(await page.locator("#qz-body .qz-fb .dm-choice.is-correct").count() >= 1 && await page.locator("#qz-body .qz-plate .dm-plate__no").count() === 1, "Datum choices and the plate header");
       await page.screenshot({ path: path.join(SHOTS, "04b-feedback-wide.png") });
       await page.setViewportSize({ width: 1200, height: 900 });
