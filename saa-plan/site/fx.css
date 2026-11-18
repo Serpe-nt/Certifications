@@ -444,6 +444,12 @@ dialog .fx-badges{top:12px}
 .qz-app:has(.qz-text) .qz-aside>.qz-study{flex:1 1 100%}
 .qz-app:has(.qz-text) .qz-aside{justify-content:center}   /* the question squares centred under the answers (owner, 2026-11-17) */
 .qz-app:has(.qz-text) .qz-map.dm-train{justify-content:center}
+/* all the squares on one row, or, when they don't fit, two even rows (15 and 15 of 30), never 23 and 7 */
+.qz-trainb,.qz-map.dm-train{--sq:28px;--g:5px;--c:calc(var(--sq) + var(--g))}
+.qz-map.dm-train{gap:var(--g)}
+.qz-app:has(.qz-text) .qz-aside{container-type:inline-size}
+.qz-app:has(.qz-text) .qz-aside>.qz-trainb{flex:1 1 100%;justify-content:center;
+  grid-template-columns:min(100%,clamp(calc(var(--h) * var(--c) - var(--g)),(100cqw - var(--n) * var(--c) + var(--g)) * 99999,calc(var(--n) * var(--c) - var(--g))))}
 #qz-meta .qz-score{display:inline-flex;align-items:baseline;gap:var(--space-2);color:var(--ink-2)}
 #qz-meta .qz-score b{font:800 20px/1 var(--font-plate);font-stretch:75%;letter-spacing:0;color:var(--ink)}
 @media (min-width:641px) and (max-height:959px){
@@ -506,7 +512,7 @@ dialog .fx-badges{top:12px}
 }
 @media (pointer:coarse){
   .qz-note input{font-size:16px}   /* iOS zooms into a field under 16px when it gets the focus, and stays zoomed */
-  .qz-map.dm-train{gap:6px}
+  .qz-trainb,.qz-map.dm-train{--sq:44px;--g:6px}
   .qz-map.dm-train>button[data-go],.qz-h .qz-x{width:44px;height:44px}
   .qz-note input{height:44px}
   #quiz .dm-seg button{min-height:44px}

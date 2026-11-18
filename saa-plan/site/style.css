@@ -220,7 +220,8 @@ body:not(.in-flow) .pg>.wrap{max-width:none;padding:0}
 .tm-face:focus-visible,.hd-t:focus-visible,.sync-st:focus-visible{outline:var(--stroke-datum) solid var(--signal);outline-offset:-2px}
 .tm-lamp{visibility:hidden}
 .timer.running .tm-lamp{visibility:visible}
-.tm-mode{color:var(--ink-2)}
+.tm-mode{position:relative;color:var(--ink-2)}
+.timer.paused .tm-mode::after{content:"Paused";position:absolute;left:0;top:calc(100% + 2px);font:400 9px/1 var(--font-mono);letter-spacing:.08em;color:var(--ink-2)}   /* under the label: the timer keeps its width */
 .timer.running .tm-mode{color:var(--ink)}
 .tm-time{min-width:5ch;font:500 15px/1 var(--font-mono);letter-spacing:.02em;font-variant-numeric:tabular-nums;text-transform:none}
 .timer.over :is(.tm-mode,.tm-time),.timer.away .tm-mode{color:var(--signal-text)}

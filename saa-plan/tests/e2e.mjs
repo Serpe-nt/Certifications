@@ -1139,7 +1139,7 @@ try {
   await page.waitForSelector("#brk[open]");
   assert.equal(await nags(), 3, "dismissed: the next minute brings the pop-up back");
   await brk("pause");
-  assert.match(await page.textContent("#timer .tm-mode"), /Break, paused/);
+  assert.ok(await page.textContent("#timer .tm-mode") === "Break" && await page.locator("#timer.paused").count() === 1, "a paused break says so under its label");
   await page.clock.fastForward(3 * 60000);
   assert.equal(await nags(), 3, "a paused break doesn't remind");
   await page.click('#timer [data-tm="toggle"]');                         // resume the overdue break: it reminds at once
@@ -1232,7 +1232,7 @@ try {
   await complete(page);
   assert.equal((await state(page)).timer.endAt, end0, "a block that runs already goes on as it was");
   await page.click('#timer [data-tm="toggle"]');                          // pause; completing a step resumes it
-  assert.match(await page.textContent("#timer .tm-mode"), /Focus, paused/);
+  assert.ok(await page.textContent("#timer .tm-mode") === "Focus" && await page.locator("#timer.paused").count() === 1, "a paused block says so under its label");
   await complete(page);
   tmS = (await state(page)).timer;
   assert.ok(tmS.running && tmS.mode === "focus" && tmS.from < 41 * 60 && tmS.from > 39 * 60, "a paused block picks up where it was");
