@@ -1869,7 +1869,7 @@ function comboHTML(r) {
 // outlined with a lamp, not answered empty. Click one to go there. The one just answered pops.
 function mapHTML(r) {
   if (r.ids.length < 2) return "";
-  return `<div class="qz-map dm-train" role="group" aria-label="Questions">${r.ids.map((k, i) => {
+  return `<div class="qz-map dm-train" role="group" aria-label="Questions" style="--n:${r.ids.length};--h:${Math.ceil(r.ids.length / 2)}">${r.ids.map((k, i) => {
     const a = r.ans[k], st = !a ? "" : QZ.isRight(QBY[k], a) ? "ok" : "bad";
     const label = `Question ${i + 1}${st === "ok" ? ", right" : st ? ", wrong" : ""}`;
     return `<button type="button" tabindex="-1" data-go="${i}" class="${st}${i === r.i ? " cur" : ""}${i === r.i && fresh && st ? " just" : ""}" aria-label="${label}" title="${label}">${i + 1}</button>`;
@@ -1878,7 +1878,7 @@ function mapHTML(r) {
 // Under a quiz question: the numbered squares of the run (the score so far is in the header, scoreHTML).
 function qAsideHTML(r, right, answered) {
   const n = r.ids.length;
-  return (n > 1 ? `<div class="qz-trainb" data-i style="--i:3">${mapHTML(r)}<div class="dm-stat__head"><span>Question ${pad2(r.i + 1)} of ${pad2(n)}</span><span>${pad2(answered)} answered</span></div></div>` : "");
+  return (n > 1 ? `<div class="qz-trainb" data-i style="--i:3;--n:${n};--h:${Math.ceil(n / 2)}">${mapHTML(r)}<div class="dm-stat__head"><span>Question ${pad2(r.i + 1)} of ${pad2(n)}</span><span>${pad2(answered)} answered</span></div></div>` : "");
 }
 // The next question not answered yet after the one on screen, wrapping round; -1 when every one is answered.
 function nextOpen(r) {
@@ -3246,8 +3246,10 @@ function tmRender() {
   tm.classList.toggle("away", away);
   // the strip fills as the block runs; a break fills towards its 10 minutes, then turns red
   tm.querySelector(".tm-fill").style.width = `${Math.round((t.ask ? 1 : rest ? Math.min(1, s / REST_NAG) : 1 - s / FOCUS) * 1000) / 10}%`;
-  tm.querySelector(".tm-mode").textContent = away ? "Away" : !rest ? (t.running || s === FOCUS ? "Focus" : "Focus, paused")
-    : over ? "Break is over" : !t.running && s ? "Break, paused" : t.ask ? "Focus block done" : "Break";
+  // paused: the label keeps its word and "Paused" shows under it (style.css), so the timer never changes width
+  tm.classList.toggle("paused", !away && !t.running && (rest ? !!s : s !== FOCUS));
+  tm.querySelector(".tm-mode").textContent = away ? "Away" : !rest ? "Focus"
+    : over ? "Break is over" : !t.running && s ? "Break" : t.ask ? "Focus block done" : "Break";
   tm.querySelector(".tm-time").textContent = mmss(s);
   const go = tm.querySelector('[data-tm="toggle"]'), what = t.running ? "Pause" : rest ? (s ? "Resume the break" : "Start the break") : s === FOCUS ? "Start a 50-minute focus block" : "Resume focus";
   go.innerHTML = t.running ? ICON_PAUSE : ICON_PLAY;
